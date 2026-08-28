@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.python-version
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ML artifacts
+checkpoints/
+runs/
+wandb/
+*.pt
+*.ckpt
+*.npz
+
+# Data / solves (large; regenerable)
+data/
+solves/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
