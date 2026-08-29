@@ -1,0 +1,46 @@
+\documentclass[10pt]{article}
+\usepackage{lecture-report}
+\usepackage{listings}
+\usepackage{amsmath}
+
+% Pseudocode boxes in the house accent-bar style
+\lstdefinestyle{house}{
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\bfseries,
+  commentstyle=\color{slate}\itshape,
+  backgroundcolor=\color{graypale},
+  frame=l, framerule=2.2pt, rulecolor=\color{tealdark},
+  xleftmargin=3.2mm, framexleftmargin=2.6mm,
+  aboveskip=7pt, belowskip=7pt,
+  columns=fullflexible, keepspaces=true,
+  language=Python, showstringspaces=false,
+  literate={–}{--}1,
+}
+\lstset{style=house}
+
+\reporthead{DRAWMAHA SOLVER PROJECT}{How poker solvers are trained}
+
+\begin{document}
+\reporttitle{How Poker Solvers Are Trained}%
+{A field guide to the ML behind equilibrium poker --- written to start the first Drawmaha solver}%
+{research synthesis of 70 sources \,\textperiodcentered\, August 28, 2026}
+
+\input{sections/s00-abstract}
+\input{sections/s01-solving}
+\input{sections/s02-drawmaha}
+\input{sections/s03-regret-matching}
+\input{sections/s04-cfr}
+\input{sections/s05-speedups}
+\input{sections/s06-mccfr}
+\input{sections/s07-abstraction}
+\input{sections/s08-deep-cfr}
+\input{sections/s09-search}
+\input{sections/s10-rl}
+\input{sections/s11-evaluation}
+\input{sections/s12-precedents}
+\input{sections/s13-engineering}
+\input{sections/s14-checklist}
+\input{sections/s15-takeaways}
+\input{sections/s16-references}
+
+\end{document}

@@ -1,0 +1,14 @@
+\section{Key takeaways}\label{sec:takeaways}
+
+\begin{enumerate}
+\item \textbf{The target is a number.} Solving means driving \emph{exploitability} --- what a perfect adversary wins against you --- toward zero. It is computable exactly on small games, lower-boundable on big ones, and it, not any loss curve, is the project's progress bar.
+\item \textbf{One rule, one theorem.} Regret matching (play proportional to positive regret) plus the folk theorem (vanishing average regret $\Rightarrow$ the \emph{average} strategy pair approaches Nash) generate the entire CFR family. The average-vs-current distinction is the field's most common bug and the reason an average-policy network is the deliverable.
+\item \textbf{The project's spine is standard and single-GPU-sized.} External-sampling MCCFR with linear weighting, scaled to Deep CFR with the published hyperparameters as anchors, SD-CFR checkpointing during training, one distilled net for serving. Every landmark that needed more compute (Cepheus, ReBeL) is the argument for this choice, not against it.
+\item \textbf{Search is the upgrade, not the start.} The DeepStack/ReBeL/GTO-Wizard lineage buys accuracy and custom-spot flexibility at seconds per query --- and its range-vector inputs hit a 2.6M-dimension wall in Drawmaha. Depth-limited resolving at the draw boundary is the one cheap borrowing.
+\item \textbf{Plain self-play RL is a trap here, and provably so.} The dynamics orbit; nothing converges; head-to-head wins cannot certify equilibrium quality. Actor--critic earns its place in three supporting roles: the exploiter, the variance baselines, and the comparison chapter.
+\item \textbf{Drawmaha's novelties are locatable.} Split pot: terminal payoffs only --- cheap. Hand space: canonicalize (134{,}459 classes) and let networks generalize. Draw round: keep discard identity in the infoset, feed the public counts to the net, and expect the encoding decisions ($\circ$ items, Section~\ref{sec:checklist}) to be the project's first genuinely novel results.
+\item \textbf{Validate like the field does.} One new layer per rung, a known answer at every rung, regression constants from Kuhn/Leduc/OpenSpiel, and a pre-registered evaluation protocol --- the practices that separate ``I trained a bot'' from ``I can bound how far it is from equilibrium.''
+\end{enumerate}
+
+\vspace{0.4em}
+\textbf{Provenance.} Synthesized August 28, 2026 from an eight-lane automated literature sweep (Semantic Scholar, arXiv, and the open web; $\sim$70 sources verified by fetch) plus a completeness audit; lane digests with per-paper notes live in the project repository under \texttt{research/}. Claims the sweep could not verify in-session are flagged in those digests; the cited originals remain ground truth. The Kuhn, RPS, and dynamics figures were computed live by code in \texttt{paper/make\_figures.py}, validated against Kuhn's closed-form game value.

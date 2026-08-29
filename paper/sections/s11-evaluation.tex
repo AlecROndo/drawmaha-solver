@@ -1,0 +1,35 @@
+\section{Evaluation: the only honest progress meters}\label{sec:evaluation}
+
+\mkey{loss curves lie}One sentence organizes this whole section: \hlight{a solver's training loss tells you nothing --- self-play generates no ground-truth labels, so the only principled question is ``how much would a perfect adversary win against my strategy?'', asked with different instruments at different scales.} Deep CFR's advantage losses are \emph{expected} to drift (Section~\ref{sec:deepcfr}); OpenSpiel's own Deep CFR has open bug reports caught only by exploitability curves. Every stage of the project needs its instrument chosen in advance.
+
+\textbf{Units first.} The field reports exploitability and win rates in \keyterm{mbb/hand}\mdef{mbb/hand}{milli-big-blinds per hand; 1000 mbb = 1 big blind. bb/100 = mbb/hand ÷ 10} --- and its calibration anchors are worth knowing \emph{with} their caveat: in hold'em, folding every hand loses 750\,mbb/hand, professionals treat $\sim$50 as a big edge, and Cepheus's $<$1 defines ``essentially solved.'' Those numbers are hold'em-and-blind-structure specific; \mnote{Drawmaha's unit, defined once and used everywhere: total chips won across BOTH halves of the pot, per hand, in big blinds. Split-pot diagnostics ride along: per-half EV and scoop rate.}Drawmaha needs its own always-fold anchor computed, not borrowed.
+
+\subsection*{The instrument ladder}
+
+\begin{center}
+\footnotesize
+\begin{tabular}{@{}llll@{}}
+\toprule
+Instrument & What it certifies & Cost & Scale limit \\
+\midrule
+Exact best response & exploitability, exactly & one tree walk & Kuhn $\to$ mini-drawmaha \\
+Local best response (LBR) & a \emph{lower bound} & hands vs.\ the bot & full game \\
+Learned exploiter (RL-BR) & a tighter lower bound & one RL training run & full game \\
+Head-to-head + variance reduction & \emph{relative} strength only & simulated matches & any \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Exact best response} is a single expectimax walk: the responder maximizes at its nodes, follows your known strategy at yours, expects over chance --- and the crucial constraint is that it maximizes per \emph{infoset}, never per deal (an adversary who sees your cards is a different, vacuous number; this paper's own Figure~\ref{fig:kuhn} pipeline contained exactly that bug for an hour). Vectorizing over all private hands along the public tree (Section~\ref{sec:speedups}) pushed exactness to full limit hold'em --- 76 CPU-days --- and produced the field's formative shock~\cite{johanson2011}: bots near-optimal \emph{within their abstractions} were exploitable for hundreds of mbb/hand in the real game. \pitfall{Abstract-game exploitability is not real-game exploitability} --- and the abstraction pathology (Section~\ref{sec:abstraction}) makes the gap non-monotonic on top. Project translation: size mini-drawmaha so this exact walk stays affordable --- \emph{shrink the deck, not just the stacks}, because the private-hand vector (2.6M vs.\ 1{,}326) is what makes the walk expensive.
+
+\textbf{Local best response} (Lis\'y \& Bowling 2017~\cite{lbr}) is the full-scale probe: play hands against the frozen strategy while tracking the opponent's exact range by Bayes' rule (possible because the strategy is queryable for every hand), and at each decision greedily pick the action maximizing EV under a crude ``everyone checks/calls to showdown'' rollout. Because LBR is itself a legal strategy, its winnings \emph{certify a lower bound} on exploitability. Its shock result: top HUNL bots within 24\,mbb/hand of each other head-to-head were all $>$3{,}180\,mbb/hand exploitable --- worse than always-folding. Two honesty rules attach: \pitfall{a lower bound can be vacuous --- LBR has famously LOST to bots that were provably exploitable, so ``LBR found nothing'' never means ``unexploitable''}; and for Drawmaha its machinery needs real adaptation (range updates through the draw, a stand-pat analogue of the call-down heuristic) --- which is why the modern alternative matters: \textbf{train the exploiter} (ISMCTS-BR~\cite{timbers2022}, or a plain DQN/PPO agent) against the frozen net. The opponent holds still, so this is a single-agent RL problem --- far easier than solving the game --- and it is the planned worst-case probe.
+
+\textbf{Head-to-head} is unavoidable at full scale (checkpoint vs.\ checkpoint, final bot vs.\ scaled-up mini-game recipe vs.\ rule-based baselines) and drowns in variance without help. Two standard tools: \keyterm{duplicate dealing}\mdef{duplicate dealing}{play each pre-dealt deck twice with seats swapped; luck cancels by symmetry} --- $\sim$30 lines of code, assumption-free, build it into the match runner on day one --- and \textbf{AIVAT}~\cite{aivat}, the stronger correction:
+
+\begin{intuition}{AIVAT: subtract the luck, keep the skill}
+Every chance event (a lucky river) and every known-strategy random action injects variance a value function can anticipate. AIVAT adds, at each such event, a correction term: (expected value just before it) minus (value just after), computed from any heuristic value function. Each term is zero on average --- so the estimate stays \emph{unbiased no matter how bad the value function is} --- but it cancels the luck the event injected; quality only determines how much variance disappears. It is the control-variate/baseline trick a third time (after VR-MCCFR and GAE), and it bought DeepStack's human study a $\sim$10$\times$ sample-size saving. A Monte Carlo pot-equity rollout suffices as the value function.
+\end{intuition}
+
+\subsection*{The pattern to copy, and the project's plan}
+
+Deep CFR's own evaluation~\cite{brown2019deep} is the template the field accepts: \textbf{tier 1}, a mid-size game where exact exploitability is computable (Flop Hold'em), carrying the scientific weight --- convergence curves against baselines; \textbf{tier 2}, the full game, where only head-to-head is possible. DeepStack's study adds the structure for claims about strength: variance-reduced match results \emph{plus} an adversarial probe, because a big head-to-head win is provably compatible with huge exploitability. Mapped onto the validation ladder (Figure~\ref{fig:ladder}, Section~\ref{sec:engineering}): Kuhn/Leduc --- exact exploitability, checked against OpenSpiel's reference; mini-drawmaha --- exact exploitability as the arena where MCCFR vs.\ Deep CFR vs.\ ablations get compared, \emph{plus} running the full Deep CFR pipeline there to measure how far the nets land from the tabular truth; full game --- duplicate-dealt checkpoint ladder with AIVAT, plus the learned exploiter as the worst-case meter, reported as a lower bound with the vacuousness caveat stated.

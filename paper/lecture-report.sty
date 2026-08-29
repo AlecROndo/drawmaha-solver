@@ -1,0 +1,137 @@
+% lecture-report.sty — house style for /lecture-report PDFs.
+% Copy this file NEXT TO the report .tex and load with \usepackage{lecture-report}.
+% Layout: asymmetric Tufte-style page — a ~68-char main column plus a right
+% margin rail for keyword anchors, micro-definitions, and exam flags.
+\ProvidesPackage{lecture-report}
+
+% ---- page geometry: main column + margin rail --------------------------------
+\RequirePackage[letterpaper,
+  left=0.75in, top=0.85in, bottom=0.95in,
+  textwidth=4.85in,
+  marginparsep=0.22in, marginparwidth=1.55in,
+  footskip=0.4in, heightrounded]{geometry}
+
+% ---- type --------------------------------------------------------------------
+\RequirePackage{newpxtext,newpxmath}   % Palatino-flavored text + matching math
+\RequirePackage{microtype}
+\linespread{1.07}
+\setlength{\parskip}{0.32em}
+\setlength{\parindent}{0pt}
+
+% ---- palette (the house colors; do not restyle per report) -------------------
+\RequirePackage[table]{xcolor}
+\definecolor{ink}{HTML}{1A202C}       % body headings
+\definecolor{slate}{HTML}{52616F}     % margin rail, captions, headers
+\definecolor{inkblue}{HTML}{2B6CB0}   % TL;DR
+\definecolor{paleblue}{HTML}{EEF2F7}
+\definecolor{tealdark}{HTML}{0F7B6C}  % intuition + key terms + section numbers
+\definecolor{tealpale}{HTML}{EDF7F3}
+\definecolor{flagred}{HTML}{C53030}   % exam flags
+\definecolor{hairline}{HTML}{C9CFD6}
+\color{ink}
+
+% ---- margin rail commands ----------------------------------------------------
+% Built on \marginpar + marginfix so stacked notes auto-shift instead of
+% overlapping. Consequence: rail commands work in BODY TEXT ONLY — never
+% inside a tcolorbox, a float, or a caption.
+\RequirePackage{marginfix}
+\setlength{\marginparpush}{5pt}
+\newcommand{\railfmt}[1]{\footnotesize\color{slate}\raggedright #1}
+% \mkey{topic}          — small-caps keyword anchor: "where am I?" while skimming
+\newcommand{\mkey}[1]{\marginpar{\railfmt{\textsc{#1}}}}
+% \mdef{term}{gloss}    — micro-definition riding beside its first use
+\newcommand{\mdef}[2]{\marginpar{\railfmt{\textbf{\color{tealdark}#1}\ --- #2}}}
+% \mnote{text}          — any short aside/why-it-matters line
+\newcommand{\mnote}[1]{\marginpar{\railfmt{#1}}}
+% \mflag{text}          — exam-relevance flag in the rail (short form)
+\RequirePackage{tikz}
+\newcommand{\examflagmark}{\tikz[baseline=-0.5ex]{\draw[line width=0.9pt,slate] (0,-0.09)--(0,0.26);
+  \fill[flagred] (0,0.26)--(0.20,0.19)--(0,0.12)--cycle;}}
+\newcommand{\mflag}[1]{\marginpar{\railfmt{\examflagmark\ {\color{flagred}\textbf{exam}} --- #1}}}
+% inline key term: bold teal, pairs with an \mdef in the rail
+\newcommand{\keyterm}[1]{\textbf{\color{tealdark}#1}}
+
+% ---- emphasis layer (use sparingly — a page should have at most a couple) ----
+\RequirePackage{soul}
+\definecolor{highlgt}{HTML}{FFF1A8}
+\sethlcolor{highlgt}
+\setulcolor{flagred}
+% \hlight{...}  — literal yellow highlighter: the sentence to remember if you
+%                 remember only one. Plain text and simple inline math only —
+%                 soul chokes on complex arguments.
+\newcommand{\hlight}[1]{\hl{#1}}
+% \pitfall{...} — red underline: a point people usually get wrong / a common
+%                 misconception. Text stays ink; the red line is the warning.
+\newcommand{\pitfall}[1]{\ul{#1}}
+% strong claims that don't rise to either: plain \textbf.
+
+% ---- full-bleed: let big figures/tables span column + rail -------------------
+\RequirePackage{changepage}
+\newenvironment{fullbleed}
+  {\begin{adjustwidth}{0pt}{-1.77in}}
+  {\end{adjustwidth}}
+
+% ---- headings: hanging teal number, concise bold sentence --------------------
+\RequirePackage{titlesec}
+\titleformat{\section}
+  {\large\bfseries\color{ink}}
+  {\llap{{\color{tealdark}\thesection}\hspace{0.55em}}}{0pt}{}
+\titlespacing*{\section}{0pt}{1.15em}{0.35em}
+
+% ---- boxes (identical across every report) -----------------------------------
+% Flat accent-bar style: sharp corners, no frame, no dark title header — a
+% thin colored bar on the left, a pale wash behind, and a small-caps label
+% inline in the accent color. One accent family (teal) for content boxes;
+% gray for logistics (admin, visually quiet); red reserved for exam flags.
+\RequirePackage[skins,breakable]{tcolorbox}
+\definecolor{graypale}{HTML}{F4F5F3}
+\tcbset{lrbox/.style={enhanced jigsaw,breakable,frame hidden,arc=0mm,boxrule=0pt,
+  left=2.6mm,right=2.6mm,top=1.8mm,bottom=1.8mm}}
+\newtcolorbox{tldr}{lrbox,colback=tealpale,
+  borderline west={2.2pt}{0pt}{tealdark},
+  before upper={{\color{tealdark}\textsc{tl;dr}\ \textbf{--- the ideas of the lecture}}\par\vspace{2.5pt}}}
+\newtcolorbox{intuition}[1]{lrbox,colback=tealpale,
+  borderline west={2.2pt}{0pt}{tealdark},
+  before upper={{\color{tealdark}\textsc{intuition}\ \textbf{--- #1}}\par\vspace{2.5pt}}}
+\newtcolorbox{examflag}{lrbox,colback=flagred!5,
+  borderline west={2.2pt}{0pt}{flagred!80},top=1.2mm,bottom=1.2mm}
+\newtcolorbox{logistics}{lrbox,colback=graypale,
+  borderline west={2.2pt}{0pt}{slate},
+  before upper={{\color{slate}\textsc{logistics}}\par\vspace{2.5pt}}}
+
+% ---- tables + captions -------------------------------------------------------
+\RequirePackage{booktabs,array}
+\RequirePackage{graphicx}
+\RequirePackage{caption}
+\captionsetup{font={footnotesize,color=slate},labelfont=bf,skip=4pt}
+\RequirePackage{enumitem}
+\setlist{nosep,leftmargin=1.3em}
+\setlength{\textfloatsep}{9pt plus 2pt minus 3pt}
+\setlength{\intextsep}{9pt plus 2pt minus 3pt}
+\setlength{\abovedisplayskip}{5pt plus 1pt minus 2pt}
+\setlength{\belowdisplayskip}{5pt plus 1pt minus 2pt}
+
+% ---- running headers / footers -----------------------------------------------
+\RequirePackage{fancyhdr,lastpage}
+\newcommand{\courseheadtext}{}
+\newcommand{\lectureheadtext}{}
+% \reporthead{COURSE}{Lecture short title} — call once in the preamble
+\newcommand{\reporthead}[2]{\renewcommand{\courseheadtext}{#1}\renewcommand{\lectureheadtext}{#2}}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\color{slate}\textsc{\courseheadtext}}
+\fancyhead[R]{\footnotesize\color{slate}\lectureheadtext}
+\fancyfoot[R]{\footnotesize\color{slate}\thepage\ of \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\headrule}{\color{hairline}\hrule width\headwidth height\headrulewidth}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[R]{\footnotesize\color{slate}\thepage\ of \pageref{LastPage}}\renewcommand{\headrulewidth}{0pt}}
+
+% ---- title block: flush-left with a hairline ---------------------------------
+% \reporttitle{Course long name}{Lecture title}{prof · date line (may be empty)}
+\newcommand{\reporttitle}[3]{%
+  \thispagestyle{plain}%
+  {\raggedright
+   {\LARGE\bfseries\color{ink}#1\par}\vspace{0.15em}
+   {\large\color{ink}#2\par}%
+   \ifx\relax#3\relax\else{\vspace{0.2em}\normalsize\color{slate}#3\par}\fi
+   \vspace{0.45em}{\color{hairline}\hrule height 0.6pt}\vspace{0.9em}}}

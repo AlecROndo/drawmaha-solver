@@ -1,0 +1,13 @@
+% ---------------------------------------------------------------- abstract
+\textbf{Abstract.} This survey explains how machine-learning poker solvers are actually built and trained: what ``solving'' a poker game means, why the standard applied-RL toolkit (reward functions, actor--critic, self-play) fails at it, and what the poker-AI community built instead --- the counterfactual-regret family, its neural descendants, the search-plus-value-network lineage, and the modern RL methods that fix self-play's cycling. Every method is presented intuition-first, with its tradeoffs and its meaning for one concrete project: building the first solver for heads-up pot-limit Drawmaha, a split-pot draw/Omaha hybrid with 2{,}598{,}960 possible starting hands and no prior solver, bot, or academic mention as of August 2026. It closes with the full checklist of design decisions the project will face. Synthesized from an eight-lane literature sweep (about 70 verified sources); the cited originals remain ground truth.
+
+\begin{tldr}
+\begin{itemize}
+\item ``Solving'' means computing a \textbf{Nash equilibrium} --- a strategy so balanced that even an opponent who knows it exactly cannot beat it. Its distance-from-perfect is a measurable number, \textbf{exploitability}.
+\item The entire field rests on one ten-line rule, \textbf{regret matching}, and one theorem: the \emph{average} of self-play strategies converges to equilibrium while the current strategy cycles forever. Deploy the average, never the last iterate.
+\item \textbf{CFR} runs that rule at every decision point of the game tree; \textbf{MCCFR} samples the tree instead of walking it; \textbf{Deep CFR} replaces the regret tables with networks when the game no longer fits in memory. This is the project's spine.
+\item Naive PPO-style self-play has \emph{no} equilibrium guarantee in poker --- the dynamics provably orbit instead of converging. Every working RL fix restores convergence by averaging, populations, or regularization.
+\item Training loss means nothing here; the only honest progress meters are exploitability on small games and best-response probes plus variance-reduced head-to-head at full scale.
+\item Drawmaha adds three specific complications --- a 2.6M-hand space, a draw round with a public draw count, and a split pot --- and the literature has a precedent for each; the split pot is the cheapest of the three.
+\end{itemize}
+\end{tldr}

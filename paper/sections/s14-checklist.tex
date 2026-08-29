@@ -1,0 +1,51 @@
+\section{The decision checklist: every fork this project will actually face}\label{sec:checklist}
+
+\mkey{the checklist}This section is the survey folded into a working document: every design decision the project will meet, bucketed, each with the literature's default and the section that justifies it. Items marked $\circ$ have \emph{no} published answer --- they are the genuinely novel work.
+
+\textbf{A. Game specification (settle before writing the engine)}
+\begin{itemize}
+\item Rules pinned as in Section~\ref{sec:drawmaha}: HU, pot-limit, \{fold, check/call, pot\} v1 menu as config, 100bb default, one draw post-flop, face-up draw-1 rule, cards-speak split with both-halves tie table written out (including odd-chip handling). Target rake-free play (rake shifts the equilibrium; state the choice).
+\item Infoset key contents: own 5 cards (canonicalized) + board + full betting history + \textbf{both players' draw-count histories} + own discard identities + the face-up draw-1 card when present (Sections~\ref{sec:drawmaha},~\ref{sec:precedents}).
+\item Scope statements, written once in the README: all guarantees are heads-up (3+ players voids interchangeability and safety, Section~\ref{sec:solving}; the practical stance elsewhere --- Pluribus --- is train HU, accept heuristic multiway play); equilibrium only, no opponent modeling/exploitation (a different literature: restricted Nash response, safe exploitation).
+\end{itemize}
+
+\textbf{B. Representation and encoding}
+\begin{itemize}
+\item Suit-isomorphic canonicalization (134{,}459 classes) keys everything; Waugh-style perfect indexing; expect weaker symmetry postflop (Section~\ref{sec:abstraction}).
+\item Card inputs: Deep CFR's summed rank/suit/card embeddings, permutation-invariant over hole cards (Section~\ref{sec:deepcfr}). Betting history: per-slot occurred-flag + pot-fraction features to start.
+\item[$\circ$] Discard action head: flat 32-way softmax vs.\ per-card factorized logits --- unexplored; start flat (regret matching over 32 actions is standard), benchmark factorized later.
+\item[$\circ$] Draw-signal features: both draw counts, the face-up card, and kept-card identities --- feature design with no citation; validate on mini-drawmaha ablations.
+\item Dual evaluator: 5-card perfect hash for the inner hand + Omaha-mode evaluation for the outer; bit-packed ranks; all split logic in terminal payoffs only (Sections~\ref{sec:precedents},~\ref{sec:engineering}).
+\end{itemize}
+
+\textbf{C. Training pipeline}
+\begin{itemize}
+\item The ladder (Fig.~\ref{fig:ladder}): vanilla CFR $\to$ CFR+/DCFR$(1.5,0,2)$ on toys; external-sampling MCCFR with linear weighting on mini-drawmaha; Deep CFR at full scale with the published hyperparameters as anchors (Section~\ref{sec:deepcfr}).
+\item SD-CFR-style checkpointing during training, one distilled average-policy net at the end for serving.
+\item Escalation valves, in order: VR-MCCFR baselines if sampling noise binds; robust sampling ($k<$ all) if the 32-subset draw node makes traversals slow; ESCHER-style value function if advantage-target variance won't settle; depth-limited resolve at the draw boundary as the accuracy upgrade (Section~\ref{sec:search}).
+\item[$\circ$] Mini-drawmaha's exact design (deck size, hand size, streets) --- sized so the exact best-response walk is affordable: shrink the \emph{deck}, not just stacks.
+\end{itemize}
+
+\textbf{D. Evaluation protocol (pre-registered, Section~\ref{sec:evaluation})}
+\begin{itemize}
+\item Units: total-chips-both-halves per hand in bb; compute Drawmaha's own always-fold anchor; per-half EV and scoop-rate diagnostics.
+\item Instruments per rung: OpenSpiel-verified exact exploitability (toys); exact walk + Deep-CFR-vs-tabular gap (mini); duplicate-dealt AIVAT head-to-head ladder + trained exploiter, reported as a lower bound (full).
+\item Match runner ships with duplicate dealing from day one; every claimed difference carries a bootstrap CI.
+\end{itemize}
+
+\textbf{E. Deployment and dashboard}
+\begin{itemize}
+\item Serving: one forward pass per query on the distilled net; per-node range views computed by batch-evaluating all (canonical) hands with reach probabilities from policy products along the line; memoize visited nodes.
+\item Post-processing before display/play: \keyterm{purification}\mdef{purification}{round near-zero action probabilities away before serving; cuts approximation-noise exploitability} and thresholding (Ganzfried \& Sandholm 2012) --- the standard step between ``trained net'' and ``served strategy.''
+\item User-typed bet sizes: pseudo-harmonic action translation now; nested re-solving later (Section~\ref{sec:abstraction}).
+\item Display bucketing: equity-histogram $k$-means into 8--20 named buckets over canonical classes, filterable by inner/outer hand (the project's chosen UI model).
+\end{itemize}
+
+\textbf{F. Open problems worth a writeup of their own}
+\begin{itemize}
+\item[$\circ$] Belief updates through a hidden discard (marginalizing over which cards were kept given only the count) --- required by any future search layer, written down nowhere.
+\item[$\circ$] A 2.6M-hand range representation for value nets (bucketed or factorized) --- the wall between this project and the DeepStack/ReBeL lineage.
+\item[$\circ$] LBR adapted to draw games (range tracking through draws, stand-pat heuristics) --- the trained exploiter sidesteps it, but the adaptation would be a contribution.
+\end{itemize}
+
+\mnote{Reading order for the build, matched to rungs: Neller \& Lanctot's tutorial (rung 0--1) $\to$ Lanctot 2009 (rung 3's MCCFR) $\to$ Brown 2019 Deep CFR + Steinberger's SD-CFR/PokerRL code (rung 4) $\to$ Lis\'y \& Bowling + Burch AIVAT (evaluation) $\to$ the rest as needed.}Nothing in this list is speculative: every default traces to a cited result, and every $\circ$ is a place where this project, by existing, produces the first data point.

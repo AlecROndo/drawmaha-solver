@@ -1,0 +1,34 @@
+\section{The tabular speedups: CFR+, discounting, pruning, vectorization}\label{sec:speedups}
+
+\mkey{cfr+}Everything after 2007 is an efficiency layer on the same skeleton, and the layers compound. They matter to this project twice: the toy-game and mini-drawmaha phases will literally run them, and Deep CFR silently inherits their weighting ideas.
+
+\textbf{CFR+ (Tammelin 2014)}~\cite{tammelin2014,tammelin2015} is three small changes applied \emph{together}: (1) \emph{regret-matching+}: clip each ledger entry at zero after every iteration, so an action buried under old negative regret can come back the moment it turns good, instead of slowly paying down debt; (2) \emph{alternating updates}: update one player per traversal, so each responds to the other's freshest strategy; (3) \emph{linear averaging}: weight iteration $t$'s contribution to the average by $t$, washing out the garbage early iterations. The provable rate is unchanged ($O(1/\sqrt{T})$), but empirical convergence often looks like $1/T$ or better --- visible in Figure~\ref{fig:kuhn}, where CFR+'s \emph{current} strategy beats every average curve. CFR+ is what solved full heads-up limit hold'em: \textbf{Cepheus} (2015)~\cite{bowling2015} drove a $10^{14}$-infoset game below 1 milli-big-blind/hand of exploitability using 4{,}800 CPUs for 68 days --- both the triumph of the tabular approach and the clearest statement of its ceiling. \pitfall{Cherry-picking one of the three tweaks (say, clipping alone with uniform averaging) can converge slower than vanilla CFR --- they are specified as a package.}
+
+\textbf{Discounted CFR (Brown \& Sandholm 2019)}~\cite{brown2019dcfr} generalizes the idea: scale positive regrets by $t^\alpha/(t^\alpha{+}1)$, negative by $t^\beta/(t^\beta{+}1)$, average-strategy contributions by $(t/(t{+}1))^\gamma$. The recommended $(\alpha,\beta,\gamma)=(1.5,\,0,\,2)$ beat CFR+ in every game tested --- the first algorithm to do so. Its sibling \textbf{Linear CFR} (everything weighted by $t$) matters for a different reason: it is the member that stays sound under \emph{sampling}, and Deep CFR builds on exactly that weighting. The rule of thumb the literature converged on: \hlight{full traversals $\to$ DCFR$(1.5,0,2)$; anything sampled $\to$ linear weighting.}
+
+Three more tools complete the tabular kit:
+
+\begin{itemize}
+\item \textbf{Regret-based pruning} (Brown \& Sandholm)~\cite{brown2015pruning}: temporarily skip traversing subtrees hanging off actions with deeply negative regret --- they contribute nothing to the current strategy --- and revisit them occasionally in case they recover. Large constant-factor savings; used inside the Libratus/Pluribus blueprints.
+\item \textbf{Vector-form / public chance sampling} (Johanson et al.\ 2012)~\cite{johanson2012pcs}: traverse the \emph{public} tree once while carrying a vector of values for \emph{every} private hand simultaneously --- turning thousands of scalar traversals into one matrix-shaped pass. This is the trick behind PioSolver-class speed and behind fast exact best-response computation (Section~\ref{sec:evaluation}). For Drawmaha the private-hand vector is 134{,}459 entries (canonical classes) instead of hold'em's 1{,}326 --- painful but not absurd on a GPU.
+\item \textbf{Sequence-form LP} (Koller, Megiddo \& von Stengel 1994--96)~\cite{koller1996}: small games can skip iteration entirely --- an exact linear program solves them to machine precision (the pre-CFR state of the art, alive in the Gambit software). Its modern role is generating \emph{ground truth}: the Leduc value used as a regression constant in Section~\ref{sec:engineering} comes from exactly this.
+\end{itemize}
+
+\begin{center}
+\footnotesize
+\begin{tabular}{@{}lll@{}}
+\toprule
+Variant & The trick & Use it when \\
+\midrule
+Vanilla CFR & the 2007 skeleton & learning; debugging \\
+CFR+ & clip + alternate + linear avg & full traversals, toy games \\
+DCFR$(1.5,0,2)$ & tuned discounting & full traversals, best-in-class \\
+Linear CFR & weight everything by $t$ & anything sampled (incl.\ Deep CFR) \\
+Pruning & skip hopeless subtrees & big trees, blueprint solves \\
+Vector-form & all hands in one public pass & exact solves, best response \\
+Sequence-form LP & exact, no iteration & tiny games; ground truth \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\mnote{Project translation: Kuhn/Leduc run vanilla (to learn) then CFR+/DCFR (to go fast); mini-drawmaha runs sampled linear-weighted MCCFR; Deep CFR inherits the linear weights.}None of this changes the memory wall: every variant above still stores ledgers for every infoset. Two independent escapes exist --- sample the tree so cheap iterations replace exhaustive ones (next section), and shrink or generalize the infoset space itself (Sections~\ref{sec:abstraction}--\ref{sec:deepcfr}).
