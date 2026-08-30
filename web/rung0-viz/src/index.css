@@ -523,6 +523,9 @@ header.app-header .dek {
   color: var(--ink-2);
   font-family: var(--mono);
   font-size: 12.5px;
+  /* reserve two lines so wrap changes never shift the sections below */
+  min-height: calc(2 * 1.5em);
+  margin: 0;
 }
 
 /* ---------- charts ---------- */
@@ -616,6 +619,16 @@ header.app-header .dek {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: stretch;
+  /* one row is always reserved so the strip filling up never shifts layout */
+  min-height: 52px;
+}
+
+.strip-empty {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  align-self: center;
 }
 
 .outcome {
