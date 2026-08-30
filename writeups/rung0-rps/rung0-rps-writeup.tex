@@ -314,16 +314,16 @@ status and where it is handled.
 \centering\small
 \caption{Edge cases \& handling. Paths are under \texttt{src/drawmaha\_solver/rps/}.}
 \renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}p{7.2cm}p{2.6cm}p{3.6cm}@{}}
+\begin{tabular}{@{}p{6.9cm}p{2.5cm}p{3.7cm}@{}}
 \toprule
-Case & Status & Where handled \\
+Case & Handling & Where \\
 \midrule
-One-action ledger (degenerate game) & handled --- raises & \texttt{regret\_matching.py:31} \\
-All regrets negative (no positive signal) & handled --- uniform & \texttt{regret\_matching.py:40} \\
-Player given a non-distribution strategy & handled --- raises & \texttt{players.py:37} \\
-Garbage terminal input & handled --- reprompts & \texttt{players.py:79} \\
-Quit before playing any round & handled --- no summary & \texttt{play.py:38} \\
-Analysis run shorter than the 5{,}000-iteration plot window & handled --- clamps & \texttt{analysis.py:156} \\
+One-action ledger (degenerate game) & raises & \texttt{regret\_matching.py:31} \\
+All regrets negative (no positive signal) & uniform fallback & \texttt{regret\_matching.py:40} \\
+Player given a non-distribution strategy & raises & \texttt{players.py:37} \\
+Garbage terminal input & reprompts & \texttt{players.py:79} \\
+Quit before playing any round & no summary & \texttt{play.py:38} \\
+Analysis run shorter than the 5{,}000-iteration plot window & window clamps & \texttt{analysis.py:156} \\
 \chip{update()} given a wrong-length utilities vector & \emph{known gap} & see below \\
 \bottomrule
 \end{tabular}
@@ -377,7 +377,7 @@ before rung 1 lands.
 \toprule
 Gate & Status & Note \\
 \midrule
-Branch / commits & \texttt{alec/rung0-rps} & \texttt{983066b}, \texttt{623b96b} --- \href{https://github.com/AlecROndo/drawmaha-solver/pull/1}{PR \#1} \\
+Branch / commits & \texttt{alec/rung0-rps} & \texttt{983066b}, \texttt{623b96b}, \texttt{e2e9022} --- \href{https://github.com/AlecROndo/drawmaha-solver/pull/1}{PR \#1} \\
 Merge conflicts  & none & \texttt{mergeable: MERGEABLE}, state \texttt{CLEAN} \\
 CI / checks      & n/a & no CI configured on this repository (\S6) \\
 Tests (local)    & 38/38 pass & \texttt{uv run pytest}, verified on the PR tip \\

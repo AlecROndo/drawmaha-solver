@@ -79,14 +79,14 @@ Headline numbers from the committed 100k-iteration run: self-play average strate
 
 ## 5 Edge cases & handling
 
-| Case | Status | Where handled |
-|------|--------|---------------|
-| One-action ledger (degenerate game) | handled — raises | `src/drawmaha_solver/rps/regret_matching.py:31` |
-| All regrets negative (no positive signal) | handled — uniform fallback | `src/drawmaha_solver/rps/regret_matching.py:40` |
-| Player given a non-distribution strategy | handled — raises with the offending value | `src/drawmaha_solver/rps/players.py:37` |
-| Garbage terminal input | handled — reprompts | `src/drawmaha_solver/rps/players.py:79` |
-| Quit before playing any round | handled — no summary printed | `src/drawmaha_solver/rps/play.py:38` |
-| Analysis run shorter than the 5,000-iteration plot window | handled — window clamps | `src/drawmaha_solver/rps/analysis.py:156` |
+| Case | Handling | Where |
+|------|----------|-------|
+| One-action ledger (degenerate game) | raises | `src/drawmaha_solver/rps/regret_matching.py:31` |
+| All regrets negative (no positive signal) | uniform fallback | `src/drawmaha_solver/rps/regret_matching.py:40` |
+| Player given a non-distribution strategy | raises with the offending value | `src/drawmaha_solver/rps/players.py:37` |
+| Garbage terminal input | reprompts | `src/drawmaha_solver/rps/players.py:79` |
+| Quit before playing any round | no summary printed | `src/drawmaha_solver/rps/play.py:38` |
+| Analysis run shorter than the 5,000-iteration plot window | window clamps | `src/drawmaha_solver/rps/analysis.py:156` |
 | `update()` given a wrong-length utilities vector | **known gap** — numpy raises, but only *after* the strategy was banked, leaving the ledger half-updated | `src/drawmaha_solver/rps/regret_matching.py:51` |
 
 The known gap is accepted at rung 0 (the only callers are in-repo and tested); harden the `update` boundary when the API grows callers at rung 1.
@@ -104,7 +104,7 @@ The known gap is accepted at rung 0 (the only callers are in-repo and tested); h
 
 | Gate | Status | Note |
 |------|--------|------|
-| Branch / commits | `alec/rung0-rps` (983066b, 623b96b) | PR [#1](https://github.com/AlecROndo/drawmaha-solver/pull/1) |
+| Branch / commits | `alec/rung0-rps` (983066b, 623b96b, e2e9022) | PR [#1](https://github.com/AlecROndo/drawmaha-solver/pull/1) |
 | Merge conflicts | none | `mergeable: MERGEABLE`, state `CLEAN` |
 | CI / checks | n/a | no CI configured on this repository (§6 follow-up) |
 | Tests (local) | 38/38 pass | `uv run pytest`, verified on the PR tip |
