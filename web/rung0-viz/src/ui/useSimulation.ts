@@ -27,7 +27,10 @@ export function useSimulation(): Simulation {
   const [mode, setModeState] = useState<Mode>('self-play')
   const [seed, setSeedState] = useState(42)
   const [fixedDist, setFixedDistState] = useState<Vec3>(DEFAULT_DIST)
-  const [running, setRunning] = useState(false)
+  // The page opens alive: auto-run unless the user prefers reduced motion.
+  const [running, setRunning] = useState(
+    () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  )
   const [speed, setSpeed] = useState(1000)
   const [version, setVersion] = useState(0)
 

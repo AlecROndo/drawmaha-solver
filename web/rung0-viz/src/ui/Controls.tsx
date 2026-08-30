@@ -142,7 +142,10 @@ export function Controls({ sim }: { sim: Simulation }) {
         </div>
       )}
 
-      <span className="iter-readout">iteration {fmtIter(sim.engine.iteration)}</span>
+      <span className="iter-readout">
+        <span className="k">t = </span>
+        {fmtIter(sim.engine.iteration)}
+      </span>
     </div>
   )
 }

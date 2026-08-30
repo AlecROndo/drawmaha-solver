@@ -19,10 +19,11 @@ export default function App() {
   return (
     <>
       <header className="app-header">
+        <p className="eyebrow">drawmaha solver · rung 0 · regret matching</p>
         <h1>Regret matching learns rock-paper-scissors</h1>
-        <p>
-          The current strategy chases yesterday's regrets and cycles forever; its running average is
-          what converges to Nash. Watch both happen live.
+        <p className="dek">
+          A live experiment in one algorithm. The current strategy chases yesterday's regrets and
+          cycles forever; its running average is what converges to Nash — watch both happen below.
         </p>
       </header>
 
@@ -44,28 +45,28 @@ export default function App() {
 
       <div className="panels">
         <LedgerPanel engine={sim.engine} />
+        <SimplexPlot engine={sim.engine} version={sim.version} />
         <TracePanel engine={sim.engine} running={sim.running} />
         <ConvergenceChart engine={sim.engine} />
         <ExploitChart engine={sim.engine} />
-        <SimplexPlot engine={sim.engine} version={sim.version} />
         {scored ? (
           <Scoreboard engine={sim.engine} />
         ) : (
-          <section className="panel" aria-label="Reading guide">
+          <section className="panel wide aside" aria-label="Reading guide">
             <h2>What to look for</h2>
             <p className="sub">three behaviors, one algorithm</p>
-            <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--ink-2)' }}>
+            <ul className="guide-list">
               <li>
-                <strong style={{ color: 'var(--ink)' }}>The current strategy never settles.</strong>{' '}
-                Regret chases the last winner in a permanent orbit — the gray trail on the simplex.
+                <strong>The current strategy never settles.</strong> Regret chases the last winner
+                in a permanent orbit — the gray trail in Fig. 2.
               </li>
               <li>
-                <strong style={{ color: 'var(--ink)' }}>The average is the product.</strong> S/n
-                spirals into (⅓, ⅓, ⅓); its exploitability falls like 1/√T.
+                <strong>The average is the product.</strong> S/n spirals into (⅓, ⅓, ⅓); its
+                exploitability falls like 1/√T (Fig. 5).
               </li>
               <li>
-                <strong style={{ color: 'var(--ink)' }}>Step mode shows the arithmetic.</strong>{' '}
-                Press <kbd>→</kbd> and follow one round through the update trace.
+                <strong>Step mode shows the arithmetic.</strong> Pause, then press <kbd>→</kbd> and
+                follow one round through Fig. 3.
               </li>
             </ul>
           </section>

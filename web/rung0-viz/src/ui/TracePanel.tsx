@@ -14,7 +14,7 @@ export function TracePanel({ engine, running }: { engine: Engine; running: boole
   const selfLabel = mode === 'vs-you' ? 'bot sampled' : 'sampled'
 
   return (
-    <section className="panel wide" aria-label="Update trace">
+    <section className="panel span7" aria-label="Update trace">
       <h2>Update trace — the arithmetic of one round</h2>
       <p className="sub">
         R += u − ⟨σ, u⟩ against the revealed action; the baseline is the strategy's expected

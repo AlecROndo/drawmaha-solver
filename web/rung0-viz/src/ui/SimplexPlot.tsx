@@ -63,7 +63,7 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
     ctx.stroke()
 
     // vertex labels: action-colored dot, then the name in text ink
-    ctx.font = '11px system-ui, sans-serif'
+    ctx.font = '11px "IBM Plex Mono", monospace'
     const labels: [string, number, number, number][] = [
       [ACTIONS[0], rx - 4, ry + 16, 0],
       [ACTIONS[1], px - 34, py + 16, 1],
@@ -139,9 +139,9 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
   }, [engine, version])
 
   return (
-    <section className="panel" aria-label="Strategy simplex">
+    <section className="panel span5" aria-label="Strategy simplex">
       <h2>The simplex — current orbits, average converges</h2>
-      <p className="sub">every point is a mixed strategy; the center is Nash (⅓, ⅓, ⅓)</p>
+      <p className="sub">every point is a mixed strategy; the center is Nash</p>
       <div className="legend">
         <span className="item">
           <span className="swatch" style={{ background: 'var(--cur-obj)' }} />

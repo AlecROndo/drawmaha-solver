@@ -29,7 +29,13 @@ function Bars({ values, kind, thirdTick, digits = 3 }: BarsProps) {
             <div className="bar-track">
               <span
                 className="bar-value"
-                style={{ position: 'absolute', top: H * (1 - v) - 18, left: 0, right: 0, textAlign: 'center' }}
+                style={{
+                  position: 'absolute',
+                  top: Math.min(H * (1 - v), H - 6) - 18,
+                  left: 0,
+                  right: 0,
+                  textAlign: 'center',
+                }}
               >
                 {fmt(v, digits)}
               </span>

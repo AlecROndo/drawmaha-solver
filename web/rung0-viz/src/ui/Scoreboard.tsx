@@ -13,7 +13,7 @@ export function Scoreboard({ engine }: { engine: Engine }) {
   const n = engine.iteration
 
   return (
-    <section className="panel wide" aria-label="Scoreboard">
+    <section className="panel wide aside" aria-label="Scoreboard">
       <h2>Scoreboard — the {who}'s chips</h2>
       <p className="sub">
         {vsYou
