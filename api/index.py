@@ -19,10 +19,34 @@ PAGE = """\
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Drawmaha Solver — rung 0 complete: regret matching verified on RPS</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+  /* Self-hosted IBM Plex (same @fontsource files the /rung0 visualizer
+     bundles); copied to /fonts by the Vercel buildCommand. No third-party
+     font CDN. */
+  @font-face {
+    font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400;
+    font-display: swap; src: url(/fonts/ibm-plex-sans-latin-400-normal.woff2) format("woff2");
+  }
+  @font-face {
+    font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500;
+    font-display: swap; src: url(/fonts/ibm-plex-sans-latin-500-normal.woff2) format("woff2");
+  }
+  @font-face {
+    font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600;
+    font-display: swap; src: url(/fonts/ibm-plex-sans-latin-600-normal.woff2) format("woff2");
+  }
+  @font-face {
+    font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400;
+    font-display: swap; src: url(/fonts/ibm-plex-mono-latin-400-normal.woff2) format("woff2");
+  }
+  @font-face {
+    font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500;
+    font-display: swap; src: url(/fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2");
+  }
+  @font-face {
+    font-family: "IBM Plex Mono"; font-style: normal; font-weight: 600;
+    font-display: swap; src: url(/fonts/ibm-plex-mono-latin-600-normal.woff2) format("woff2");
+  }
   :root {
     color-scheme: light dark;
     --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
