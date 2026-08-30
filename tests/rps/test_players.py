@@ -22,7 +22,7 @@ def test_fixed_strategy_player_rejects_non_distributions(bad):
 
 def test_play_match_returns_one_payoff_per_round():
     rng = np.random.default_rng(0)
-    payoffs = play_match(RegretMatchingPlayer(), RegretMatchingPlayer(), 100, rng)
+    payoffs = play_match(RegretMatchingPlayer(), RegretMatchingPlayer(), n_rounds=100, rng=rng)
     assert payoffs.shape == (100,)
     assert set(np.unique(payoffs)) <= {-1.0, 0.0, 1.0}
 

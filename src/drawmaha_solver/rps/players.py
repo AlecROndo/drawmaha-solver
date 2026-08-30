@@ -9,6 +9,10 @@ import numpy as np
 from drawmaha_solver.rps.game import N_ACTIONS, PAYOFF, Action
 from drawmaha_solver.rps.regret_matching import RegretMatcher
 
+# ---------------------------------------------------------------------------
+# Player interface
+# ---------------------------------------------------------------------------
+
 class QuitGame(Exception):
     """Raised by a human player who wants to stop."""
 
@@ -19,6 +23,10 @@ class Player(ABC):
 
     def observe(self, own: Action, opp: Action) -> None:
         """See the finished round (default: ignore it)."""
+
+# ---------------------------------------------------------------------------
+# Concrete players
+# ---------------------------------------------------------------------------
 
 class FixedStrategyPlayer(Player):
     """Plays a fixed mixed strategy forever."""
@@ -44,8 +52,9 @@ class RegretMatchingPlayer(Player):
 
     def observe(self, own: Action, opp: Action) -> None:
         # PAYOFF[:, opp] = what each of my actions pays against the opponent's
-        # revealed action — computable because RPS reveals both moves.
-        self.learner.update(PAYOFF[:, opp], own)
+        # revealed action — computable because RPS reveals both moves. The
+        # ledger measures regret against its own strategy, so `own` is unused.
+        self.learner.update(PAYOFF[:, opp])
 
 class HumanPlayer(Player):
     """Reads r/p/s (or full words) from stdin; q raises QuitGame."""
@@ -69,7 +78,11 @@ class HumanPlayer(Player):
                 return self.PARSE[raw]
             print(f"  didn't understand {raw!r}")
 
-def play_match(p0: Player, p1: Player, n_rounds: int, rng: np.random.Generator) -> np.ndarray:
+# ---------------------------------------------------------------------------
+# Match runner
+# ---------------------------------------------------------------------------
+
+def play_match(p0: Player, p1: Player, *, n_rounds: int, rng: np.random.Generator) -> np.ndarray:
     """Run n_rounds; both players observe each round. Returns p0's payoffs."""
     payoffs = np.empty(n_rounds)
     for i in range(n_rounds):

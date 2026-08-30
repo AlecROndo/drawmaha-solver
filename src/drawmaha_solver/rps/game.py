@@ -3,7 +3,9 @@
 Rung 0 of the validation ladder. RPS is the smallest game with a
 mixed-strategy Nash equilibrium — uniform (1/3, 1/3, 1/3) — which gives the
 regret-matching ledger a known exact answer to converge to before any game
-tree exists.
+tree exists. "Exploitability" here is the one-shot best-response value: what
+a perfect adversary who knows the strategy (but plays the same simultaneous
+game) earns per round against it.
 """
 
 from __future__ import annotations
@@ -12,7 +14,13 @@ from enum import IntEnum
 
 import numpy as np
 
+# ---------------------------------------------------------------------------
+# Actions and payoffs
+# ---------------------------------------------------------------------------
+
 class Action(IntEnum):
+    # IntEnum (not StrEnum) so actions index payoff matrices and strategy
+    # vectors directly.
     ROCK = 0
     PAPER = 1
     SCISSORS = 2
@@ -41,6 +49,10 @@ def winner(a: Action, b: Action) -> int | None:
     if p < 0:
         return 1
     return None
+
+# ---------------------------------------------------------------------------
+# Strategy metrics
+# ---------------------------------------------------------------------------
 
 def action_values(strategy: np.ndarray) -> np.ndarray:
     """Expected payoff of each pure action against a mixed strategy."""

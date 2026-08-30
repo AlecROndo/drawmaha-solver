@@ -42,7 +42,7 @@ uv run rps-analysis  # regenerates figures/rung0/
 uv run rps-play      # play against the learner from the terminal
 ```
 
-Self-play average strategy reaches (0.333, 0.337, 0.330) after 100k iterations, exploitable for 0.004 chips/round; against a 50%-rock opponent the ledger converges to pure paper and earns +0.24/round (best response: +0.25).
+The ledger measures regret against its strategy's expected utility (u − ⟨σ, u⟩ — the same counterfactual form CFR uses at every infoset). Self-play average strategy reaches (0.334, 0.333, 0.333) after 100k iterations, exploitable for 0.0009 chips/round; against a 50%-rock opponent the ledger converges to pure paper and earns +0.24/round (best response: +0.25).
 
 ![Self-play average strategy converges to the uniform Nash](figures/rung0/self_play_average_strategy.png)
 
