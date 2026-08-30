@@ -1,0 +1,58 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            This repo is a heads-up pot-limit Drawmaha poker solver built as a
+            validation ladder (RPS regret matching -> Kuhn CFR -> Leduc ->
+            mini-drawmaha -> Deep CFR). It is also a learning vehicle for
+            CFR and PyTorch, so pedagogical accuracy matters: a docstring or
+            README claim that is subtly wrong about game theory or the math
+            is a real finding, not a nit.
+
+            Review this pull request with these priorities:
+
+            1. **Correctness** - re-derive any game-theory or numerical math
+               touched by the diff (payoff matrices, regret updates,
+               exploitability, convergence claims) rather than trusting
+               comments. Check edge cases and error handling.
+            2. **Tests** - the project uses strict TDD with uv + pytest
+               (`uv run pytest -q`). Flag changed behavior without a covering
+               test, tests that assert nothing, and seeded convergence
+               thresholds that were loosened without justification.
+            3. **Pedagogy** - docstrings and README text teach the concepts;
+               flag explanations that are overbroad, misleading, or wrong.
+            4. **Scope and simplicity** - flag overengineering, dead code,
+               and departures from the existing layering (game rules /
+               ledger / players / entry points).
+
+            Report every issue you find, including ones you are uncertain
+            about, with a confidence level and severity for each - do not
+            self-filter for importance. Use inline comments for specific
+            lines and one top-level comment for overall observations.
+
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
