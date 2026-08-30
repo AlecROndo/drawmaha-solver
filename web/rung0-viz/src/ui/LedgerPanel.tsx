@@ -31,10 +31,11 @@ function Bars({ values, kind, thirdTick, digits = 3 }: BarsProps) {
                 className="bar-value"
                 style={{
                   position: 'absolute',
-                  top: Math.min(H * (1 - v), H - 6) - 18,
+                  top: Math.max(Math.min(H * (1 - v), H - 6) - 18, 0),
                   left: 0,
                   right: 0,
                   textAlign: 'center',
+                  zIndex: 1,
                 }}
               >
                 {fmt(v, digits)}
@@ -65,10 +66,11 @@ function Bars({ values, kind, thirdTick, digits = 3 }: BarsProps) {
                 className="bar-value"
                 style={{
                   position: 'absolute',
-                  top: pos ? zeroY - h - 18 : zeroY + h + 3,
+                  top: Math.max(Math.min(pos ? zeroY - h - 18 : zeroY + h + 3, H - 16), 0),
                   left: 0,
                   right: 0,
                   textAlign: 'center',
+                  zIndex: 1,
                 }}
               >
                 {fmt(v, digits)}
@@ -111,7 +113,6 @@ export function LedgerPanel({ engine }: { engine: Engine }) {
   const selfPlay = engine.config.mode === 'self-play'
   const p = selfPlay ? player : 0
   const L = engine.ledgers[p]
-  const hasNegative = L.R.some((r) => r < 0)
 
   return (
     <section className="panel hero" aria-label="Regret-matching ledger">
@@ -155,12 +156,10 @@ export function LedgerPanel({ engine }: { engine: Engine }) {
           <BarNames />
         </div>
       </div>
-      {hasNegative && (
-        <p className="floor-note">
-          Grayed bars below zero are clipped by the floor: negative regret never drives play — σ is
-          built from R⁺ = max(R, 0) only.
-        </p>
-      )}
+      <p className="floor-note">
+        Negative regret is clipped by the floor and never drives play — σ is built from
+        R⁺ = max(R, 0) only; any bar pushed below zero renders grayed.
+      </p>
     </section>
   )
 }

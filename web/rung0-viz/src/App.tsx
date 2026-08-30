@@ -19,7 +19,9 @@ export default function App() {
   return (
     <>
       <header className="app-header">
-        <p className="eyebrow">drawmaha solver · rung 0 · regret matching</p>
+        <p className="eyebrow">
+          <a href="/">drawmaha solver</a> · rung 0 · regret matching
+        </p>
         <h1>Regret matching learns rock-paper-scissors</h1>
         <p className="dek">
           A live experiment in one algorithm. The current strategy chases yesterday's regrets and

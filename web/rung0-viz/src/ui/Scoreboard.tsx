@@ -40,9 +40,13 @@ export function Scoreboard({ engine }: { engine: Engine }) {
           </div>
         </div>
       </div>
-      {engine.recent.length > 0 && (
-        <div className="outcome-strip" aria-label="Recent rounds">
-          {engine.recent.map((r) => {
+      <div className="outcome-strip" aria-label="Recent rounds">
+        {engine.recent.length === 0 ? (
+          <span className="strip-empty">
+            {vsYou ? 'play a hand above to start the record' : 'step or run to start the record'}
+          </span>
+        ) : (
+          engine.recent.map((r) => {
             const p = PAYOFF[r.playerAction][r.oppAction]
             const res = p > 0 ? 'w' : p < 0 ? 'l' : 't'
             return (
@@ -53,9 +57,9 @@ export function Scoreboard({ engine }: { engine: Engine }) {
                 <div className={`res ${res}`}>{p > 0 ? 'W' : p < 0 ? 'L' : 'T'} {fmtSigned(p, 0)}</div>
               </div>
             )
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
     </section>
   )
 }
