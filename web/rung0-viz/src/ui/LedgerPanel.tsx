@@ -157,8 +157,8 @@ export function LedgerPanel({ engine }: { engine: Engine }) {
         </div>
       </div>
       <p className="floor-note">
-        Bars below zero render grayed: negative regret is clipped by the floor and never drives
-        play — σ is built from R⁺ = max(R, 0) only.
+        Negative regret is clipped by the floor and never drives play — σ is built from
+        R⁺ = max(R, 0) only; any bar pushed below zero renders grayed.
       </p>
     </section>
   )
