@@ -147,7 +147,9 @@ def fig_average_strategy(traj: SelfPlayTrajectories, out: Path) -> None:
     ax.set_xscale("log")
     ax.set_xlabel("iteration", color=MUTED, fontsize=9)
     ax.set_ylabel("average P(action)", color=MUTED, fontsize=9)
-    ax.set_ylim(0, 0.8)
+    # The early average can spike toward one action before settling; keep the
+    # axis just above the observed peak so no series ever clips.
+    ax.set_ylim(0, min(1.0, max(0.55, float(traj.average0.max()) + 0.06)))
     _legend(ax)
     _save(fig, out)
 
