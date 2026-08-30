@@ -18,6 +18,19 @@ def test_run_vs_fixed_learns_the_counter():
     assert traj.payoffs.shape == (5_000,)
     assert traj.average[-1, 1] > 0.8  # paper
 
+def test_main_handles_runs_shorter_than_the_reference_anchor(tmp_path, monkeypatch):
+    # regression: the exploitability figure anchored its c/sqrt(T) reference
+    # at iteration 100 unconditionally, crashing any run with --iters < 100
+    import sys
+
+    from drawmaha_solver.rps import analysis
+
+    monkeypatch.setattr(
+        sys, "argv", ["rps-analysis", "--iters", "50", "--out", str(tmp_path)]
+    )
+    analysis.main()
+    assert (tmp_path / "self_play_exploitability.png").exists()
+
 def test_main_writes_four_figures(tmp_path, monkeypatch):
     import sys
 
