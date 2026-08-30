@@ -1,12 +1,13 @@
-"""Vercel entrypoint: a minimal status page for the drawmaha-solver project.
+"""Vercel entrypoint: the cover page for the drawmaha-solver validation ladder.
 
-The repo is a solver library and CLI, not a web app (yet). Vercel's Python
-builder requires an entrypoint, so this handler gives deployments something
-honest to serve: what the project is and where the validation ladder stands.
-The GTOWizard-style dashboard planned for rung 4 replaces this page.
+The repo is a solver library and CLI; this page states where the ladder
+stands and links each completed rung's live artifact (rung 0: the
+regret-matching visualizer served statically at /rung0). The GTOWizard-style
+dashboard planned for rung 4 replaces this page.
 
 Stdlib only on purpose — the page must never depend on the solver's numeric
-stack, so a heavy dependency can't break the deploy.
+stack, so a heavy dependency can't break the deploy. Visual language matches
+web/rung0-viz: IBM Plex Sans/Mono, paper surface, hairline-ruled figures.
 """
 
 from http.server import BaseHTTPRequestHandler
@@ -18,53 +19,124 @@ PAGE = """\
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Drawmaha Solver — rung 0 complete: regret matching verified on RPS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --surface: #fcfcfb; --ink: #0b0b0b; --secondary: #52514e;
-    --muted: #898781; --grid: #e1e0d9; --blue: #2a78d6; --green: #1baf7a;
+    color-scheme: light dark;
+    --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --rule: #e1e0d9; --rule-strong: #c3c2b7;
+    --done: #006300; --next: #2a78d6;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
   }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7;
+      --rule: #2c2c2a; --rule-strong: #383835;
+      --done: #0ca30c; --next: #3987e5;
+    }
+  }
+  * { box-sizing: border-box; }
   body {
     background: var(--surface); color: var(--ink);
-    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    max-width: 44rem; margin: 3rem auto; padding: 0 1.25rem;
+    font: 15px/1.55 var(--sans);
+    max-width: 46rem; margin: 0 auto; padding: 34px 28px 64px;
   }
-  h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
-  .sub { color: var(--secondary); margin-top: 0; }
-  table { border-collapse: collapse; width: 100%; margin: 1.25rem 0; }
-  th, td { text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--grid); }
-  th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
-  .done { color: var(--green); font-weight: 600; }
-  .next { color: var(--blue); }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(26px, 4vw, 32px); font-weight: 600;
+    letter-spacing: -0.015em; line-height: 1.15; margin: 0 0 8px;
+  }
+  .dek { color: var(--ink-2); margin: 0 0 30px; max-width: 62ch; }
+  section { border-top: 1px solid var(--rule-strong); padding: 16px 0 26px; }
+  .fig {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+    margin: 0 0 6px;
+  }
+  h2 { font-size: 15px; font-weight: 600; margin: 0 0 14px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--rule); }
+  tr:last-child td { border-bottom: none; }
+  th {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+  }
+  td.n { font-family: var(--mono); color: var(--ink-2); width: 1%; padding-right: 22px; }
+  td.status { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+  .done { color: var(--done); font-weight: 600; }
+  .next { color: var(--next); font-weight: 500; }
   .pending { color: var(--muted); }
-  .results { background: #fff; border: 1px solid var(--grid); border-radius: 8px; padding: 0.9rem 1.1rem; }
-  .results code { font-size: 0.92em; }
-  footer { color: var(--muted); font-size: 0.85rem; margin-top: 2rem; }
+  a.demo { color: var(--ink); text-decoration-color: var(--rule-strong); text-underline-offset: 3px; }
+  a.demo:hover { text-decoration-color: var(--ink); }
+  .results p { margin: 0; max-width: 68ch; color: var(--ink-2); }
+  .results code {
+    font-family: var(--mono); font-size: 0.92em; color: var(--ink);
+    background: none; padding: 0;
+  }
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 14px;
+    font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+  }
+  footer code { font-family: var(--mono); }
 </style>
 </head>
 <body>
-<h1>Drawmaha Solver</h1>
-<p class="sub">A Deep-CFR solver for heads-up pot-limit Drawmaha (split-pot
-draw/Omaha hybrid), built rung by rung on a validation ladder — each rung
+<p class="eyebrow">drawmaha solver &middot; validation ladder</p>
+<h1>Five games between here and a Drawmaha solver</h1>
+<p class="dek">A Deep-CFR solver for heads-up pot-limit Drawmaha (split-pot
+draw/Omaha hybrid), built rung by rung on a validation ladder &mdash; each rung
 checked against a known answer before climbing.</p>
 
-<table>
-  <tr><th>Rung</th><th>Game</th><th>What it proves</th><th>Status</th></tr>
-  <tr><td>0</td><td>Rock-paper-scissors</td><td>regret-matching ledger math</td><td class="done">complete</td></tr>
-  <tr><td>1</td><td>Kuhn poker</td><td>tabular CFR vs. the known exact equilibrium</td><td class="next">next</td></tr>
-  <tr><td>2</td><td>Leduc poker</td><td>CFR with a board, vs. published benchmarks</td><td class="pending">pending</td></tr>
-  <tr><td>3</td><td>Mini-drawmaha</td><td>split pots, draws, face-up draw-1 rule</td><td class="pending">pending</td></tr>
-  <tr><td>4</td><td>Full drawmaha</td><td>Deep CFR — nets replace the regret tables</td><td class="pending">pending</td></tr>
-</table>
+<section>
+  <p class="fig">Fig. 1</p>
+  <h2>The ladder &mdash; rung 0 complete, rung 1 next</h2>
+  <table>
+    <tr><th>Rung</th><th>Game</th><th>What it proves</th><th>Status</th></tr>
+    <tr>
+      <td class="n">0</td><td>Rock-paper-scissors</td>
+      <td>regret-matching ledger math</td>
+      <td class="status"><span class="done">complete</span> &middot; <a class="demo" href="/rung0">live demo &rarr;</a></td>
+    </tr>
+    <tr>
+      <td class="n">1</td><td>Kuhn poker</td>
+      <td>tabular CFR vs. the known exact equilibrium</td>
+      <td class="status"><span class="next">next</span></td>
+    </tr>
+    <tr>
+      <td class="n">2</td><td>Leduc poker</td>
+      <td>CFR with a board, vs. published benchmarks</td>
+      <td class="status"><span class="pending">pending</span></td>
+    </tr>
+    <tr>
+      <td class="n">3</td><td>Mini-drawmaha</td>
+      <td>split pots, draws, face-up draw-1 rule</td>
+      <td class="status"><span class="pending">pending</span></td>
+    </tr>
+    <tr>
+      <td class="n">4</td><td>Full drawmaha</td>
+      <td>Deep CFR &mdash; nets replace the regret tables</td>
+      <td class="status"><span class="pending">pending</span></td>
+    </tr>
+  </table>
+</section>
 
-<div class="results">
-  <strong>Rung 0 measured results</strong> (100k self-play iterations):
-  average strategy <code>(0.334, 0.333, 0.333)</code> vs. the uniform Nash
+<section class="results">
+  <p class="fig">Fig. 2</p>
+  <h2>Rung 0 measured results &mdash; 0.0009 chips/round from Nash at 100k iterations</h2>
+  <p>Average strategy <code>(0.334, 0.333, 0.333)</code> vs. the uniform Nash
   <code>(1/3, 1/3, 1/3)</code>, exploitable for <code>0.0009</code>
   chips/round; against a 50%-rock opponent the ledger converges to pure
   paper and earns <code>+0.24</code>/round (best response: <code>+0.25</code>).
-</div>
+  Watch the ledger run live in the <a class="demo" href="/rung0">rung-0 demo</a>.</p>
+</section>
 
-<footer>This placeholder is served until the rung-4 solver dashboard exists.
+<footer>This page is served until the rung-4 solver dashboard exists.
 Code, figures, and the full writeup live in the GitHub repo
 (<code>AlecROndo/drawmaha-solver</code>, private).</footer>
 </body>

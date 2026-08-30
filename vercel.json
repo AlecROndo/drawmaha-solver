@@ -1,3 +1,8 @@
 {
-  "rewrites": [{ "source": "/", "destination": "/api/index" }]
+  "buildCommand": "cd web/rung0-viz && npm ci && npm run build && rm -rf ../../public && mkdir -p ../../public && cp -r dist ../../public/rung0",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/", "destination": "/api/index" },
+    { "source": "/rung0", "destination": "/rung0/index.html" }
+  ]
 }

@@ -78,6 +78,17 @@ body {
   margin: 0 0 10px;
 }
 
+.eyebrow a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.eyebrow a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 header.app-header h1 {
   font-size: clamp(26px, 4vw, 34px);
   font-weight: 600;
