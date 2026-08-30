@@ -172,7 +172,7 @@ def fig_exploitability(traj: SelfPlayTrajectories, out: Path) -> None:
     idx = _log_indices(len(expl))
     idx = idx[idx >= 9]
     fig, ax = _new_axes("Exploitability of the average strategy falls like 1/sqrt(T)")
-    anchor = 100
+    anchor = min(100, len(expl))
     c = expl[anchor - 1] * np.sqrt(anchor)
     ax.plot(idx + 1, c / np.sqrt(idx + 1), color=MUTED, linewidth=1, linestyle="--", label="c/sqrt(T) reference")
     ax.plot(idx + 1, expl[idx], color=SERIES["rock"], linewidth=1.8, label="best-response value vs average strategy")
