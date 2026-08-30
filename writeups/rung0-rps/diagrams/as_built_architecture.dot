@@ -1,0 +1,38 @@
+digraph {
+
+  graph [rankdir=TB, bgcolor="transparent", fontname="Helvetica",
+         nodesep=0.5, ranksep=0.7, pad=0.35, splines=spline];
+  node  [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11,
+         fontcolor="#1F2A33", penwidth=1.1, margin="0.22,0.13"];
+  edge  [fontname="Helvetica", fontsize=9, color="#AEB9C7", fontcolor="#8A95A3",
+         arrowsize=0.7, arrowhead=vee, penwidth=1.1];
+
+  subgraph cluster_entry {
+    label=<<FONT POINT-SIZE="10" COLOR="#6B7078"><B>entry points — src/drawmaha_solver/rps/</B></FONT>>;
+    labeljust="l"; style="rounded,filled"; fillcolor="#FBFCFE";
+    color="#E3E9F0"; penwidth=1.0; margin=14;
+  analysis [label=<<B>analysis.py  (uv run rps-analysis)</B><BR/><FONT POINT-SIZE="9" COLOR="#6B7078">runs self-play + vs-biased-opponent experiments, draws 4 figures</FONT>>, fillcolor="#DEEAF4", color="#8FB2D4", fontcolor="#1F2A33", style="rounded,filled"];
+  play [label=<<B>play.py  (uv run rps-play)</B><BR/><FONT POINT-SIZE="9" COLOR="#6B7078">terminal loop: a human plays rounds against the learner</FONT>>, fillcolor="#DEEAF4", color="#8FB2D4", fontcolor="#1F2A33", style="rounded,filled"];
+  }
+  subgraph cluster_core {
+    label=<<FONT POINT-SIZE="10" COLOR="#6B7078"><B>core — src/drawmaha_solver/rps/</B></FONT>>;
+    labeljust="l"; style="rounded,filled"; fillcolor="#FBFCFE";
+    color="#E3E9F0"; penwidth=1.0; margin=14;
+  players [label=<<B>players.py</B><BR/><FONT POINT-SIZE="9" COLOR="#6B7078">Player interface: human input, fixed strategy, learner; match runner</FONT>>, fillcolor="#DCEDE6", color="#8DBFB2", fontcolor="#1F2A33", style="rounded,filled"];
+  ledger [label=<<B>regret_matching.py</B><BR/><FONT POINT-SIZE="9" COLOR="#6B7078">the ledger: play ∝ positive regret; the running average converges</FONT>>, fillcolor="#C7E2D8", color="#5FA08F", fontcolor="#1F2A33", style="rounded,filled"];
+  game [label=<<B>game.py</B><BR/><FONT POINT-SIZE="9" COLOR="#6B7078">RPS rules: payoff matrix, winner, exploitability metric</FONT>>, fillcolor="#DCEDE6", color="#8DBFB2", fontcolor="#1F2A33", style="rounded,filled"];
+  }
+  figs [label=<<B>figures/rung0/*.png</B><BR/><FONT POINT-SIZE="9" COLOR="#6B7078">4 committed convergence figures (embedded in the README)</FONT>>, fillcolor="#DEEAF4", color="#8FB2D4", fontcolor="#1F2A33", style="rounded,filled", shape=folder];
+  term [label=<<B>terminal session</B><BR/><FONT POINT-SIZE="9" COLOR="#6B7078">round-by-round score + what the bot learned about you</FONT>>, fillcolor="#DEEAF4", color="#8FB2D4", fontcolor="#1F2A33", style="rounded,filled"];
+
+  analysis -> ledger  [label="steps the ledger each round"];
+  analysis -> game    [label="payoffs + exploitability"];
+  analysis -> figs    [label="writes"];
+  play     -> players [label="human vs learner"];
+  players  -> ledger  [label="feeds each finished round"];
+  players  -> game    [label="payoffs"];
+  play     -> term    [label="prints"];
+  ledger -> figs [style=invis];
+  game   -> term [style=invis];
+
+}
