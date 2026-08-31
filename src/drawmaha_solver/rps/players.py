@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from drawmaha_solver.rps.game import N_ACTIONS, PAYOFF, Action
-from drawmaha_solver.rps.regret_matching import RegretMatcher
+from drawmaha_solver.regret_matching import RegretMatcher
 
 # ---------------------------------------------------------------------------
 # Player interface

@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from drawmaha_solver.rps.game import PAYOFF, Action, best_response_value
-from drawmaha_solver.rps.regret_matching import RegretMatcher
+from drawmaha_solver.regret_matching import RegretMatcher
 
 # ---------------------------------------------------------------------------
 # Palette
