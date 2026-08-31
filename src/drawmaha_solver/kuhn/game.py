@@ -157,10 +157,20 @@ class KuhnState:
     history: tuple[Action, ...] = ()
 
     def __post_init__(self) -> None:
+        # Enum members, not the ints behind them. `Card` and `Action` are
+        # IntEnums, so a raw (0, 1) hashes and compares equal to (JACK, QUEEN)
+        # and would slip past every check below — but `returns` and
+        # `action_label` ask `is Action.BET`, which a plain 1 fails, so a raw
+        # history scores the wrong winner in silence. A solver that indexes
+        # deals or actions by number converts here, at the boundary.
+        if len(self.cards) != 2 or not all(isinstance(c, Card) for c in self.cards):
+            raise ValueError(f"cards must be two Card members, got {self.cards}")
         # One card each from a three-card deck: a repeated card is not a deal
         # the game can produce.
-        if len(self.cards) != 2 or self.cards[0] == self.cards[1]:
+        if self.cards[0] == self.cards[1]:
             raise ValueError(f"cards must be two distinct cards, got {self.cards}")
+        if not all(isinstance(a, Action) for a in self.history):
+            raise ValueError(f"history must hold Action members, got {self.history}")
         # Betting stops the moment a hand is decided, so sequences like
         # (PASS, PASS, PASS) name no node in the tree.
         if self.history not in REACHABLE_HISTORIES:

@@ -109,6 +109,13 @@ def test_duplicate_cards_are_rejected():
     with pytest.raises(ValueError, match="distinct"):
         KuhnState(cards=(K, K))
 
+def test_raw_ints_are_not_accepted_as_cards():
+    # Card is an IntEnum, so (0, 1) compares and hashes equal to (J, Q) and
+    # would otherwise construct silently — then blow up in CARD_SYMBOL the
+    # moment the int is out of range. Reject it at the boundary instead.
+    with pytest.raises(ValueError, match="Card members"):
+        KuhnState(cards=(0, 1))
+
 # ---------------------------------------------------------------------------
 # State machine
 # ---------------------------------------------------------------------------
@@ -170,6 +177,14 @@ def test_unreachable_histories_are_rejected():
     # (PASS, PASS) already ends the hand, so a third action never happens.
     with pytest.raises(ValueError, match="not a reachable"):
         KuhnState(cards=(K, J), history=(P, P, P))
+
+def test_raw_ints_are_not_accepted_as_history_actions():
+    # The sharp edge of Action being an IntEnum: (1, 0) is equal to (B, P) for
+    # the reachability check but fails the `is Action.PASS` identity test in
+    # returns(), which would score the fold as a called showdown — P0 paid 2
+    # instead of winning 1. Reject the raw ints rather than answer wrongly.
+    with pytest.raises(ValueError, match="Action members"):
+        KuhnState(cards=(J, Q), history=(1, 0))
 
 # ---------------------------------------------------------------------------
 # Information sets
