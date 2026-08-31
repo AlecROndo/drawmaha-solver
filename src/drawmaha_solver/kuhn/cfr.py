@@ -23,10 +23,19 @@ rediscovered. The average strategy is banked at player i's OWN reach, because
 it has to reproduce what that player actually did. Swapping the two is the
 classic CFR bug: both versions run, and one converges to nonsense.
 
-Updates land in place as the recursion unwinds, which is what Neller &
-Lanctot's reference implementation does. The textbook alternative accumulates
-every increment under a frozen σᵗ and applies them at the end of the
-iteration; both converge, and the in-place form is the one the published
+The chance factor inside that regret weight is inert: regret matching reads
+only the RATIO of positive regrets, so scaling every increment by the same
+constant 1/6 leaves σ, the reach probabilities, and the average strategy
+bit-identical. It is carried because the counterfactual reach is defined to
+include chance, not because convergence needs it — which is why these ledgers
+hold numbers exactly 6x smaller than the reference trace below, whose
+pseudocode omits the factor and lets the loop over all six deals average
+chance out instead.
+
+Updates land in place as the recursion unwinds, which is the update ORDER
+Neller & Lanctot's reference implementation uses. The textbook alternative
+accumulates every increment under a frozen σᵗ and applies them at the end of
+the iteration; both converge, and the in-place form is the one the published
 traces are written against.
 """
 
