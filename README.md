@@ -62,11 +62,29 @@ Every decision node offers exactly two actions, PASS and BET, so regret vectors 
 
 The shared ledger grows one thing for rung 1: `update(utilities, *, regret_weight, strategy_weight)`. In RPS every round counted the same; in a tree a visit is only reached sometimes, and the two accumulators want different scales — regret weighted by the *counterfactual* reach π₋ᵢ (chance and the opponent, excluding your own choices, so a line you currently avoid keeps learning at full strength), the average weighted by your *own* reach πᵢ. Both default to 1, so every rung-0 caller is untouched. Passing them swapped is the classic CFR bug and both versions run silently, so the weights are keyword-only and a test pins that the two scales are distinguishable.
 
+### The walk
+
+`src/drawmaha_solver/kuhn/cfr.py`: tabular vanilla CFR. In RPS the environment handed the ledger a utility vector straight out of a payoff-matrix column; a tree deletes that luxury, so the utilities have to be *computed*. Two quantities travel through `walk` in opposite directions — reach probabilities down (`reach[p]` is player p's own action probabilities, nothing else), node values up (plain conditional expectations, unweighted). The weights apply once, at the moment a ledger is banked. `walk` returns the value to both seats rather than to the player to act, so nothing is ever negated on the way up.
+
 ```bash
-uv run pytest tests/kuhn  # 5x6 terminal payoff table, tree shape, infoset inventory,
-                          # and one traversal's banking against a hand-worked trace
+uv run pytest tests/kuhn   # payoff table, tree shape, infoset inventory, one
+                           # traversal against a hand-worked trace, convergence
 ```
+
+After 20,000 iterations the average strategy is the textbook answer sheet, printed by `format_strategy_grid` (each cell is P(BET), which means "call" on the two rows facing a bet):
+
+```
+             J       Q       K
+     -   0.221   0.000   0.661     open:  bluff the jack, value-bet the king
+     p   0.333   0.000   1.000
+     b   0.000   0.341   1.000     call:  never fold the king, fold the jack
+    pb   0.000   0.561   1.000
+```
+
+The solver finds α = 0.221 and K-open = 0.661 ≈ 3α: the jack bluffs exactly one third as often as the king value-bets, discovered from nothing. Game value to the first player is −0.05556 against Kuhn's closed-form −1/18. Because the equilibrium is a *family* over α ∈ [0, ⅓], the tests pin the nine determined infosets plus the two invariants (K-open = 3α, Qpb = α + ⅓) and never a hardcoded α̂; the game value is graded by an evaluator written independently of the solver, so the grader cannot share a bug with the graded.
+
+Swap the two reach weights and the same run still completes, still reports a converged-looking grid, and folds the king to a bet 18% of the time — game value −0.00001 instead of −1/18. That failure mode is why the weights are keyword-only.
 
 ## Status
 
-Rung 0 complete; the rung-1 game environment is in place. Next: tabular vanilla CFR over it, checked against Kuhn's closed-form equilibrium and its known game value of −1/18 to the first player.
+Rung 0 complete. Rung 1 solves Kuhn to its closed-form equilibrium and game value. Next: the exact best-response meter (each player's 2⁶ = 64 pure strategies) so convergence is reported as exploitability rather than game value, then the convergence figure and the rung-1 writeup.
