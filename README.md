@@ -85,6 +85,24 @@ The solver finds α = 0.221 and K-open = 0.661 ≈ 3α: the jack bluffs exactly 
 
 Swap the two reach weights and the same run still completes, still reports a converged-looking grid, and folds the king to a bet 18% of the time — game value −0.00001 instead of −1/18. That failure mode is why the weights are keyword-only.
 
+### The meter
+
+`src/drawmaha_solver/kuhn/exploitability.py`: what a perfect adversary wins against a strategy, as `(BR₀ + BR₁) / 2` — zero exactly at Nash, positive everywhere else. Each player owns 6 infosets with 2 actions, so all 2⁶ = 64 of their pure strategies are enumerated and the best taken. Nothing is sampled: mixed strategies are handled by weighting both branches at every node, hidden cards by enumerating all six deals at 1/6, so these are exact expectations rather than estimates.
+
+Written against `game.py` alone. It grades `cfr.py`, so it must not be able to share a bug with it — an error in the walk would otherwise appear in both and cancel, and the meter would certify the thing that broke it.
+
+Enumerating *pure strategies over infosets* is also what keeps the adversary honest: a pure strategy names one action per infoset, fixed before any card is dealt, so "maximize per deal" — an opponent who sees your cards — is not expressible. That bug is not hypothetical; a test pins that a peeking meter would score a genuine Nash equilibrium at 0.278 chips/hand and send you hunting a bug in a correct solver.
+
+| iterations | exploitability (average) | exploitability (current) | game value |
+|---:|---:|---:|---:|
+| 10 | 0.09114 | 0.24191 | −0.03597 |
+| 100 | 0.02330 | 0.25000 | −0.05472 |
+| 1,000 | 0.00650 | 0.27885 | −0.05518 |
+| 10,000 | 0.00149 | 0.20359 | −0.05553 |
+| 100,000 | 0.00063 | 0.24649 | −0.05555 |
+
+Two things that table settles. The **average** strategy's exploitability falls steadily while the **current** strategy's sits around 0.2 forever and is briefly *worse* at 1,000 iterations than at 10 — vanilla CFR's current iterate cycles and never converges, which is why the dashboard at rung 4 must query the average-policy network and never the final iterate. And exploitability is the stricter grader: at 100 iterations the game value is already within 0.0009 of −1/18 and looks solved, while the strategy is still 15× more exploitable than it will be at 10,000.
+
 ## Status
 
-Rung 0 complete. Rung 1 solves Kuhn to its closed-form equilibrium and game value. Next: the exact best-response meter (each player's 2⁶ = 64 pure strategies) so convergence is reported as exploitability rather than game value, then the convergence figure and the rung-1 writeup.
+Rung 0 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, and reports exploitability against an exact best response. Next: the convergence figure and the rung-1 writeup.
