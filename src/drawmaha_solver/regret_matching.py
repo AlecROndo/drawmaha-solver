@@ -44,6 +44,11 @@ class RegretMatcher:
     """
 
     def __init__(self, n_actions: int):
+        # Caught here rather than left to np.zeros, which rejects a float with
+        # "expected a sequence of integers" — a message that points at the
+        # array shape instead of at the action count the caller got wrong.
+        if not isinstance(n_actions, (int, np.integer)):
+            raise ValueError(f"n_actions must be an int, got {n_actions!r}")
         # A one-action "game" has no regret to ledger; letting it through
         # would silently make every strategy() call return [1.0] and hide a
         # caller bug.
@@ -103,8 +108,11 @@ class RegretMatcher:
         # later strategy() call silently returns NaN rather than failing.
         if not np.all(np.isfinite(utilities)):
             raise ValueError(f"utilities must all be finite, got {utilities}")
-        # Both weights are products of probabilities, so anything negative or
-        # non-finite means the caller computed a reach wrong.
+        # A negative or non-finite weight means the caller computed a reach
+        # wrong. Deliberately no upper bound: in vanilla CFR both weights are
+        # reach probabilities in [0, 1], but the later rungs legitimately go
+        # above 1 — linear CFR weights the strategy sum by the iteration
+        # index, and sampling variants divide by a sampling probability.
         for name, weight in (
             ("regret_weight", regret_weight),
             ("strategy_weight", strategy_weight),

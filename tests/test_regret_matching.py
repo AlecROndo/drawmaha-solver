@@ -17,6 +17,13 @@ def test_rejects_fewer_than_two_actions():
     with pytest.raises(ValueError):
         RegretMatcher(1)
 
+def test_rejects_a_non_integer_action_count():
+    # np.zeros would reject a float anyway, but as a TypeError reading
+    # "expected a sequence of integers" — which sends the reader looking at
+    # the array shape rather than at the action count.
+    with pytest.raises(ValueError, match="n_actions"):
+        RegretMatcher(3.0)
+
 def test_all_negative_regret_falls_back_to_uniform():
     m = RegretMatcher(3)
     m.cumulative_regret = np.array([-1.0, -2.0, -0.5])
@@ -93,13 +100,23 @@ def test_zero_reach_is_a_legal_no_op():
     assert np.allclose(m.strategy_sum, np.zeros(3))
 
 def test_negative_weights_are_rejected():
-    # Both weights are products of probabilities, so a negative one means the
-    # walk computed a reach wrong.
+    # Every weight the ladder produces is non-negative, so a negative one
+    # means the walk computed a reach wrong.
     m = RegretMatcher(3)
     with pytest.raises(ValueError, match="regret_weight"):
         m.update(np.array([1.0, 0.0, 0.0]), regret_weight=-0.5)
     with pytest.raises(ValueError, match="strategy_weight"):
         m.update(np.array([1.0, 0.0, 0.0]), strategy_weight=-0.5)
+
+def test_weights_above_one_are_allowed():
+    # No upper bound on purpose: vanilla CFR passes reaches in [0, 1], but
+    # linear CFR weights the strategy sum by the iteration index and sampling
+    # variants divide by a sampling probability. Capping at 1 here would have
+    # to be ripped back out at the next rung.
+    m = RegretMatcher(3)
+    m.update(np.array([-1.0, 0.0, 1.0]), regret_weight=7.0, strategy_weight=4.0)
+    assert np.allclose(m.cumulative_regret, [-7.0, 0.0, 7.0])
+    assert np.allclose(m.strategy_sum, UNIFORM * 4.0)
 
 # ---------------------------------------------------------------------------
 # Validate before mutating
