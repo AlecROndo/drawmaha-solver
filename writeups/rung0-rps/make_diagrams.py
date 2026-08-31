@@ -3,8 +3,6 @@ import os
 import shutil
 import subprocess
 
-os.makedirs("diagrams", exist_ok=True)
-
 INK    = "#1F2A33"
 MUTED  = "#6B7078"
 EDGE   = "#AEB9C7"
@@ -33,17 +31,16 @@ def _header(rankdir):
 def _esc(s):
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-def card(node_id, title, subtitle=None, kind=NEUTRAL, shape=None, dashed=False):
+def card(node_id, title, subtitle=None, *, kind=NEUTRAL, shape=None):
     fill, border = kind
     title_color = MUTED if kind is GRAY else INK
     label = f'<<B>{_esc(title)}</B>'
     if subtitle:
         label += f'<BR/><FONT POINT-SIZE="9" COLOR="{MUTED}">{_esc(subtitle)}</FONT>'
     label += ">"
-    style = "rounded,filled,dashed" if dashed else "rounded,filled"
     extra = f', shape={shape}' if shape else ""
     return (f'  {node_id} [label={label}, fillcolor="{fill}", color="{border}", '
-            f'fontcolor="{title_color}", style="{style}"{extra}];\n')
+            f'fontcolor="{title_color}", style="rounded,filled"{extra}];\n')
 
 def cluster(cid, label, body, fill="#FBFCFE", border="#E3E9F0"):
     return (f'''  subgraph cluster_{cid} {{
@@ -57,6 +54,7 @@ def render(name, body, rankdir="TB"):
     if shutil.which("dot") is None:
         raise SystemExit("graphviz `dot` not found on PATH — install graphviz.")
     dot = f"digraph {{\n{_header(rankdir)}\n{body}\n}}\n"
+    os.makedirs("diagrams", exist_ok=True)
     with open(f"diagrams/{name}.dot", "w") as f:
         f.write(dot)
     subprocess.run(["dot", "-Tpng", "-Gdpi=220", f"diagrams/{name}.dot",
@@ -70,22 +68,22 @@ def as_built_architecture():
     goes through the player layer; both converge on the ledger + rules."""
     entries = ""
     entries += card("analysis", "analysis.py  (uv run rps-analysis)",
-                    "runs self-play + vs-biased-opponent experiments, draws 4 figures", BLUE)
+                    "runs self-play + vs-biased-opponent experiments, draws 4 figures", kind=BLUE)
     entries += card("play", "play.py  (uv run rps-play)",
-                    "terminal loop: a human plays rounds against the learner", BLUE)
+                    "terminal loop: a human plays rounds against the learner", kind=BLUE)
     core = ""
     core += card("players", "players.py",
-                 "Player interface: human input, fixed strategy, learner; match runner", GREEN)
+                 "Player interface: human input, fixed strategy, learner; match runner", kind=GREEN)
     core += card("ledger", "regret_matching.py",
-                 "the ledger: play ∝ positive regret; the running average converges", GREEN_S)
+                 "the ledger: play ∝ positive regret; the running average converges", kind=GREEN_S)
     core += card("game", "game.py",
-                 "RPS rules: payoff matrix, winner, exploitability metric", GREEN)
+                 "RPS rules: payoff matrix, winner, exploitability metric", kind=GREEN)
     body = cluster("entry", "entry points — src/drawmaha_solver/rps/", entries)
     body += cluster("core", "core — src/drawmaha_solver/rps/", core)
     body += card("figs", "figures/rung0/*.png",
-                 "4 committed convergence figures (embedded in the README)", BLUE, shape="folder")
+                 "4 committed convergence figures (embedded in the README)", kind=BLUE, shape="folder")
     body += card("term", "terminal session",
-                 "round-by-round score + what the bot learned about you", BLUE)
+                 "round-by-round score + what the bot learned about you", kind=BLUE)
     body += '''
   analysis -> ledger  [label="steps the ledger each round"];
   analysis -> game    [label="payoffs + exploitability"];

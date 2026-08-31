@@ -5,8 +5,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 
-os.makedirs("figures", exist_ok=True)
-
 BLUE  = "#134A6B"
 INK   = "#1A1A1A"
 GRAY  = "#667079"
@@ -32,6 +30,7 @@ _STATUS = {
 }
 
 def save(fig, name):
+    os.makedirs("figures", exist_ok=True)
     fig.savefig(f"figures/{name}.png", bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print(f"wrote figures/{name}.png")

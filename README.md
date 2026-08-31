@@ -48,6 +48,18 @@ The ledger measures regret against its strategy's expected utility (u − ⟨σ,
 
 ![Exploitability of the average strategy falls like 1/sqrt(T)](figures/rung0/self_play_exploitability.png)
 
+## Rung 1 — Kuhn poker, the game
+
+`src/drawmaha_solver/kuhn/game.py`: the environment a solver iterates over, with no solver in it yet. Three-card deck (J < Q < K), both players ante 1, one card each, one round of betting with a single bet size of 1.
+
+Every decision node offers exactly two actions, PASS and BET, so regret vectors stay uniformly 2-wide; what they *mean* depends on context, and `action_label` renders the poker word (a PASS is a check with nothing to call and a fold facing a bet; a BET is a bet or a call). The tree is 4 decision nodes and 5 terminals, listed explicitly rather than derived. `KuhnState` is frozen, so `apply` returns a new node and a tree walker never has to undo a move; `returns()` pays in chips with the ante as the unit — the ante on a fold or a checked-down showdown, ante plus bet when a bet is called.
+
+`InfoSet` carries the acting player's own card and the public history, and deliberately *not* the opponent's card: two deals differing only in what the opponent holds must collapse to one equal, equally hashing key. The 12 infosets from `all_infosets()` are exactly the ledgers tabular CFR will allocate.
+
+```bash
+uv run pytest tests/kuhn  # 5x6 terminal payoff table, tree shape, infoset inventory
+```
+
 ## Status
 
-Rung 0 complete. Next: rung 1 — tabular vanilla CFR on Kuhn poker against the known exact equilibrium.
+Rung 0 complete; the rung-1 game environment is in place. Next: tabular vanilla CFR over it, checked against Kuhn's closed-form equilibrium and its known game value of −1/18 to the first player.

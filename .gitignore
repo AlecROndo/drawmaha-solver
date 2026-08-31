@@ -25,3 +25,7 @@ solves/
 .DS_Store
 .idea/
 .vscode/
+
+# Vercel static output (built from web/rung0-viz at deploy time)
+/public/
+.vercel/
