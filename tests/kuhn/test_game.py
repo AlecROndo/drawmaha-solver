@@ -230,6 +230,19 @@ def test_every_reachable_infoset_is_in_the_inventory():
     for deal in DEALS:
         walk(KuhnState(cards=deal))
 
+def test_an_infoset_built_from_raw_ints_is_rejected():
+    # No identity check reads an infoset, so a raw key would render and hash as
+    # if it were real — an invisible duplicate ledger entry rather than a crash.
+    with pytest.raises(ValueError, match="Card member"):
+        InfoSet(card=0, history=())
+    with pytest.raises(ValueError, match="Action members"):
+        InfoSet(card=K, history=(1,))
+
+def test_an_infoset_at_a_terminal_history_is_rejected():
+    # An infoset is what the player to act knows, and at (P, P) nobody acts.
+    with pytest.raises(ValueError, match="not a decision node"):
+        InfoSet(card=K, history=(P, P))
+
 def test_infoset_renders_in_the_literature_notation():
     assert str(InfoSet(card=K, history=())) == "K"
     assert str(InfoSet(card=J, history=(P, B))) == "Jpb"

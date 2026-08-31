@@ -117,6 +117,18 @@ class InfoSet:
     card: Card
     history: tuple[Action, ...]
 
+    def __post_init__(self) -> None:
+        # Same boundary as KuhnState: enum members, not the ints behind them.
+        # Nothing here reads an infoset by identity today, so a raw (0, (1, 0))
+        # would merely render and hash as if it were real — which is worse for
+        # a regret table, not better, because the bad key stays invisible.
+        if not isinstance(self.card, Card):
+            raise ValueError(f"card must be a Card member, got {self.card!r}")
+        if not all(isinstance(a, Action) for a in self.history):
+            raise ValueError(f"history must hold Action members, got {self.history}")
+        if self.history not in DECISION_HISTORIES:
+            raise ValueError(f"{self.history} is not a decision node; nobody is to act")
+
     @property
     def player(self) -> int:
         """Whose decision this is. P0 acts on even-length histories."""
