@@ -23,12 +23,16 @@ rediscovered. The average strategy is banked at player i's OWN reach, because
 it has to reproduce what that player actually did. Swapping the two is the
 classic CFR bug: both versions run, and one converges to nonsense.
 
-The chance factor inside that regret weight is inert: regret matching reads
-only the RATIO of positive regrets, so scaling every increment by the same
-constant 1/6 leaves σ, the reach probabilities, and the average strategy
-bit-identical. It is carried because the counterfactual reach is defined to
-include chance, not because convergence needs it — which is why these ledgers
-hold numbers exactly 6x smaller than the reference trace below, whose
+The chance factor inside that regret weight is convergence-inert HERE: regret
+matching reads only the RATIO of positive regrets, and Kuhn's six deals are
+equally likely, so scaling every increment by the same 1/6 leaves σ, the reach
+probabilities, and the average strategy unchanged — up to floating-point
+rounding, measured at 9e-15 after 5,000 iterations rather than exactly zero,
+since a/(a+b) and (a/6)/((a+b)/6) can differ in the last ulp. It is carried
+because the counterfactual reach is DEFINED to include chance, not because
+Kuhn's convergence needs it: the moment a game deals non-uniform chance the
+factor stops being a common scale and starts mattering. It is also why these
+ledgers hold numbers 6x smaller than the reference trace below, whose
 pseudocode omits the factor and lets the loop over all six deals average
 chance out instead.
 
