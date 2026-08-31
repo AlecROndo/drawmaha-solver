@@ -26,3 +26,6 @@ packages = ["src/drawmaha_solver"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Each rung gets its own tests/<rung>/test_game.py; without importlib mode
+# those identical basenames collide at collection time.
+addopts = "--import-mode=importlib"
