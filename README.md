@@ -33,7 +33,7 @@ Training loss is not a progress meter in self-play — the only honest question 
 
 ## Rung 0 — RPS regret matching
 
-`src/drawmaha_solver/rps/`: game rules and payoffs (`game.py`), the regret-matching ledger (`regret_matching.py`), players and the match runner (`players.py`), convergence analysis (`analysis.py`), and a human-vs-bot CLI (`play.py`).
+`src/drawmaha_solver/rps/`: game rules and payoffs (`game.py`), players and the match runner (`players.py`), convergence analysis (`analysis.py`), and a human-vs-bot CLI (`play.py`). The regret-matching ledger itself lives one level up in `src/drawmaha_solver/regret_matching.py` — every rung uses it, and the learning rule never changes as the games grow.
 
 ```bash
 uv sync
@@ -56,8 +56,15 @@ Every decision node offers exactly two actions, PASS and BET, so regret vectors 
 
 `InfoSet` carries the acting player's own card and the public history, and deliberately *not* the opponent's card: two deals differing only in what the opponent holds must collapse to one equal, equally hashing key. The 12 infosets from `all_infosets()` are exactly the ledgers tabular CFR will allocate.
 
+### The solver's memory
+
+`src/drawmaha_solver/kuhn/infoset_table.py`: a `dict[InfoSet, RegretMatcher]` with all twelve ledgers pre-allocated, plus `current_strategy` / `average_strategy` readouts and a `format_strategy_grid` that prints P(BET) as the 4×3 grid. That dict is the entire persistent state of a Kuhn solve — twelve boxes of four numbers, 48 floats.
+
+The shared ledger grows one thing for rung 1: `update(utilities, *, regret_weight, strategy_weight)`. In RPS every round counted the same; in a tree a visit is only reached sometimes, and the two accumulators want different scales — regret weighted by the *counterfactual* reach π₋ᵢ (chance and the opponent, excluding your own choices, so a line you currently avoid keeps learning at full strength), the average weighted by your *own* reach πᵢ. Both default to 1, so every rung-0 caller is untouched. Passing them swapped is the classic CFR bug and both versions run silently, so the weights are keyword-only and a test pins that the two scales are distinguishable.
+
 ```bash
-uv run pytest tests/kuhn  # 5x6 terminal payoff table, tree shape, infoset inventory
+uv run pytest tests/kuhn  # 5x6 terminal payoff table, tree shape, infoset inventory,
+                          # and one traversal's banking against a hand-worked trace
 ```
 
 ## Status
