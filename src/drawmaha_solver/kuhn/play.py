@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from drawmaha_solver.kuhn.cfr import train
-from drawmaha_solver.kuhn.exploitability import exploitability
+from drawmaha_solver.kuhn.exploitability import Profile, exploitability
 from drawmaha_solver.kuhn.game import (
     CARD_SYMBOL,
     DEALS,
@@ -39,6 +39,11 @@ from drawmaha_solver.kuhn.infoset_table import (
 SOLVE_ITERATIONS = 20_000
 
 CARD_NAME = {0: "jack", 1: "queen", 2: "king"}
+
+# Kuhn's game value to the first player. Two equilibrium players still split
+# unevenly per seat; only the alternation cancels it, which is what the
+# per-seat lines in `_report` are there to show.
+GAME_VALUE_P0 = -1 / 18
 
 class QuitGame(Exception):
     """Raised when the human asks to stop."""
@@ -69,7 +74,13 @@ def main() -> None:
 # One hand
 # ---------------------------------------------------------------------------
 
-def play_hand(strategies, rng, *, human_seat: int, board: Scoreboard) -> None:
+def play_hand(
+    strategies: Profile,
+    rng: np.random.Generator,
+    *,
+    human_seat: int,
+    board: Scoreboard,
+) -> None:
     """Deal, alternate actions until terminal, score, and narrate."""
     state = deal(rng)
     print(f"--- hand {board.hands + 1}   you are P{human_seat}, "
@@ -97,7 +108,7 @@ def deal(rng: np.random.Generator) -> KuhnState:
     """A fresh hand: one of the six orderings, uniformly."""
     return KuhnState(cards=DEALS[rng.integers(len(DEALS))])
 
-def bot_action(state: KuhnState, strategies, rng: np.random.Generator) -> Action:
+def bot_action(state: KuhnState, strategies: Profile, rng: np.random.Generator) -> Action:
     """Sample from the equilibrium strategy at the bot's own infoset.
 
     Reads `state.infoset()`, which is keyed on the acting player's card and
@@ -146,16 +157,24 @@ def parse_action(typed: str, history: tuple[Action, ...]) -> Action | None:
 
 @dataclass(slots=True)
 class Scoreboard:
-    """Chips and hands from the human's seat, across alternating seats."""
+    """Chips and hands from the human's seat, across alternating seats.
+
+    Kept per seat as well as in total, because the total is the only number
+    that is supposed to approach zero. Each seat separately approaches its own
+    game value, and seeing the two straddle ∓1/18 is what shows the
+    alternation is cancelling a seat edge rather than hiding one.
+    """
 
     chips: float = 0.0
     hands: int = 0
-    _by_seat: list[float] = field(default_factory=lambda: [0.0, 0.0])
+    seat_chips: list[float] = field(default_factory=lambda: [0.0, 0.0])
+    seat_hands: list[int] = field(default_factory=lambda: [0, 0])
 
     def record(self, *, human_seat: int, returns: tuple[float, float]) -> None:
         """Bank one finished hand, taking the human's side of the payoff."""
         self.chips += returns[human_seat]
-        self._by_seat[human_seat] += returns[human_seat]
+        self.seat_chips[human_seat] += returns[human_seat]
+        self.seat_hands[human_seat] += 1
         self.hands += 1
 
     @property
@@ -165,11 +184,28 @@ class Scoreboard:
             return None
         return self.chips / self.hands
 
-def _report(board: Scoreboard, strategies) -> None:
+    def per_hand_in_seat(self, seat: int) -> float | None:
+        """Chips per hand in `seat`, or None before that seat has played."""
+        if self.seat_hands[seat] == 0:
+            return None
+        return self.seat_chips[seat] / self.seat_hands[seat]
+
+def _report(board: Scoreboard, strategies: Profile) -> None:
     if board.per_hand is None:
         return
     print(f"\n{board.hands} hands. You net {board.chips:+.0f} chips "
           f"({board.per_hand:+.3f} per hand).")
+    for seat in (0, 1):
+        rate = board.per_hand_in_seat(seat)
+        if rate is None:
+            continue
+        # +GAME_VALUE_P0 in seat 0, -GAME_VALUE_P0 in seat 1: what an
+        # equilibrium player would earn there, so the two lines are read
+        # against different targets and only the total is read against zero.
+        target = GAME_VALUE_P0 if seat == 0 else -GAME_VALUE_P0
+        print(f"  as P{seat}: {board.seat_chips[seat]:+.0f} over "
+              f"{board.seat_hands[seat]} hands ({rate:+.3f} per hand, "
+              f"equilibrium {target:+.3f})")
     print("Against an equilibrium the long-run answer is 0.000 per hand from")
     print("alternating seats — anything below that is yours to explain.\n")
     print("What it was playing (P(bet), which reads as P(call) facing a bet):\n")

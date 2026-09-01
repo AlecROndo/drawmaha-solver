@@ -6,6 +6,7 @@ from drawmaha_solver.kuhn.infoset_table import new_infoset_table, average_strate
 from drawmaha_solver.kuhn.play import (
     QuitGame,
     Scoreboard,
+    _report,
     bot_action,
     deal,
     parse_action,
@@ -117,3 +118,31 @@ def test_an_empty_scoreboard_has_no_rate():
     # Dividing by zero hands would print 'nan chips/hand' as if it were a
     # measurement; there is simply nothing to report yet.
     assert Scoreboard().per_hand is None
+
+def test_the_scoreboard_splits_the_result_by_seat():
+    # The total is the only number that should approach zero; each seat
+    # separately approaches its own game value, so they are banked apart.
+    board = Scoreboard()
+    board.record(human_seat=0, returns=(-1.0, 1.0))
+    board.record(human_seat=1, returns=(-2.0, 2.0))
+    board.record(human_seat=0, returns=(1.0, -1.0))
+    assert board.seat_chips == [0.0, 2.0]
+    assert board.seat_hands == [2, 1]
+    assert board.chips == pytest.approx(2.0)
+
+def test_a_seat_that_has_not_played_has_no_rate():
+    board = Scoreboard()
+    board.record(human_seat=0, returns=(1.0, -1.0))
+    assert board.per_hand_in_seat(0) == pytest.approx(1.0)
+    assert board.per_hand_in_seat(1) is None
+
+def test_the_report_shows_both_seats_against_their_own_targets(capsys):
+    # Reading a P1 result against 0.000 would call an equilibrium player
+    # +1/18 ahead a winner, which is the confusion the split exists to stop.
+    board = Scoreboard()
+    board.record(human_seat=0, returns=(-1.0, 1.0))
+    board.record(human_seat=1, returns=(-1.0, 1.0))
+    _report(board, UNIFORM)
+    out = capsys.readouterr().out
+    assert "as P0: -1 over 1 hands (-1.000 per hand, equilibrium -0.056)" in out
+    assert "as P1: +1 over 1 hands (+1.000 per hand, equilibrium +0.056)" in out
