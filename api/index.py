@@ -2,8 +2,8 @@
 
 The repo is a solver library and CLI; this page states where the ladder
 stands and links each completed rung's live artifact (rung 0: the
-regret-matching visualizer served statically at /rung0). The GTOWizard-style
-dashboard planned for rung 4 replaces this page.
+regret-matching visualizer at /rung0; rung 1: the Kuhn CFR visualizer at
+/rung1). The GTOWizard-style dashboard planned for rung 4 replaces this page.
 
 Stdlib only on purpose — the page must never depend on the solver's numeric
 stack, so a heavy dependency can't break the deploy. Visual language matches
@@ -18,7 +18,7 @@ PAGE = """\
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Drawmaha Solver — rung 0 complete: regret matching verified on RPS</title>
+<title>Drawmaha Solver — rung 1 complete: CFR solves Kuhn poker exactly</title>
 <style>
   /* Self-hosted IBM Plex (same @fontsource files the /rung0 visualizer
      bundles); copied to /fonts by the Vercel buildCommand. No third-party
@@ -119,7 +119,7 @@ checked against a known answer before climbing.</p>
 
 <section>
   <p class="fig">Fig. 1</p>
-  <h2>The ladder &mdash; rung 0 complete, rung 1 next</h2>
+  <h2>The ladder &mdash; rungs 0 and 1 complete, Leduc next</h2>
   <table>
     <tr><th>Rung</th><th>Game</th><th>What it proves</th><th>Status</th></tr>
     <tr>
@@ -130,12 +130,12 @@ checked against a known answer before climbing.</p>
     <tr>
       <td class="n">1</td><td>Kuhn poker</td>
       <td>tabular CFR vs. the known exact equilibrium</td>
-      <td class="status"><span class="next">next</span></td>
+      <td class="status"><span class="done">complete</span> &middot; <a class="demo" href="/rung1">live demo &rarr;</a></td>
     </tr>
     <tr>
       <td class="n">2</td><td>Leduc poker</td>
       <td>CFR with a board, vs. published benchmarks</td>
-      <td class="status"><span class="pending">pending</span></td>
+      <td class="status"><span class="next">next</span></td>
     </tr>
     <tr>
       <td class="n">3</td><td>Mini-drawmaha</td>
@@ -158,6 +158,19 @@ checked against a known answer before climbing.</p>
   chips/round; against a 50%-rock opponent the ledger converges to pure
   paper and earns <code>+0.24</code>/round (best response: <code>+0.25</code>).
   Watch the ledger run live in the <a class="demo" href="/rung0">rung-0 demo</a>.</p>
+</section>
+
+<section class="results">
+  <p class="fig">Fig. 3</p>
+  <h2>Rung 1 measured results &mdash; 0.00063 chips/hand from Nash at 100k iterations</h2>
+  <p>Vanilla CFR reproduces Kuhn's closed form: the jack bluffs
+  <code>0.220</code> of the time and the king value-bets <code>0.663</code>
+  &mdash; the 1:3 ratio the equilibrium requires, found from nothing. Game
+  value to the first player is <code>&minus;0.05555</code> against the exact
+  <code>&minus;1/18</code>, and exploitability is measured by an exact
+  best response over all 2<sup>6</sup> pure strategies per seat. Scrub the
+  solve and play a hand against it in the
+  <a class="demo" href="/rung1">rung-1 demo</a>.</p>
 </section>
 
 <footer>This page is served until the rung-4 solver dashboard exists.

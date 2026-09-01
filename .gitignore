@@ -17,9 +17,12 @@ wandb/
 *.ckpt
 *.npz
 
-# Data / solves (large; regenerable)
-data/
-solves/
+# Data / solves (large; regenerable). Anchored to the repo root on purpose:
+# unanchored, `data/` also matched web/rung1-viz/src/data/solve.json, which is
+# committed source the visualizer imports — the deploy would have built green
+# and served a page with no solve in it.
+/data/
+/solves/
 
 # OS / editor
 .DS_Store

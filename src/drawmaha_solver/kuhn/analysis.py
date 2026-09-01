@@ -21,6 +21,7 @@ number shows up as a dirty working tree.
 from __future__ import annotations
 
 import argparse
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -37,6 +38,7 @@ from drawmaha_solver.kuhn.game import (
     Card,
     InfoSet,
     action_label,
+    all_infosets,
 )
 from drawmaha_solver.kuhn.infoset_table import (
     average_strategy,
@@ -70,9 +72,19 @@ class Trajectory:
     iterations: np.ndarray  # (k,): iteration count at each checkpoint
     exploitability_average: np.ndarray  # (k,): the answer's distance from Nash
     exploitability_current: np.ndarray  # (k,): the cycling iterate's, for contrast
-    opening: np.ndarray  # (k, 3): average P(BET) at the J/Q/K opening infosets
+    bet: np.ndarray  # (k, 12): average P(BET) everywhere, in all_infosets order
     final_average: dict[InfoSet, np.ndarray]  # all twelve, at the last checkpoint
     game_value: float  # to P0 under the final average; Kuhn's is -1/18
+
+    @property
+    def opening(self) -> np.ndarray:
+        """The (k, 3) slice for the J/Q/K opening infosets.
+
+        Selected by key rather than by assuming where `all_infosets` puts the
+        root row, so the column order cannot silently drift.
+        """
+        spots = all_infosets()
+        return self.bet[:, [spots.index(InfoSet(card, ())) for card in DECK]]
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -83,6 +95,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Rung-1 convergence analysis")
     parser.add_argument("--iters", type=int, default=100_000)
     parser.add_argument("--out", type=Path, default=Path("figures/rung1"))
+    parser.add_argument(
+        "--json",
+        type=Path,
+        default=None,
+        help="also write the trajectory here, for the rung-1 visualizer",
+    )
     args = parser.parse_args()
 
     trajectory = run(args.iters)
@@ -90,6 +108,8 @@ def main() -> None:
     fig_exploitability(trajectory, args.out / "exploitability.png")
     fig_strategy_convergence(trajectory, args.out / "strategy_convergence.png")
     fig_answer_sheet(trajectory, args.out / "answer_sheet.png")
+    if args.json is not None:
+        write_json(trajectory, args.json)
 
     alpha = trajectory.opening[-1, Card.JACK]
     print(f"\nvanilla CFR, {args.iters:,} iterations\n")
@@ -117,8 +137,9 @@ def run(iterations: int, *, checkpoints: int = 60) -> Trajectory:
         raise ValueError(f"iterations must be at least 1, got {iterations}")
 
     marks = _checkpoints(iterations, checkpoints)
+    spots = all_infosets()
     table = new_infoset_table()
-    expl_average, expl_current, opening = [], [], []
+    expl_average, expl_current, bet = [], [], []
 
     done = 0
     for mark in marks:
@@ -128,13 +149,13 @@ def run(iterations: int, *, checkpoints: int = 60) -> Trajectory:
         average = average_strategy(table)
         expl_average.append(exploitability(average))
         expl_current.append(exploitability(current_strategy(table)))
-        opening.append([average[InfoSet(card, ())][Action.BET] for card in DECK])
+        bet.append([average[spot][Action.BET] for spot in spots])
 
     return Trajectory(
         iterations=marks,
         exploitability_average=np.array(expl_average),
         exploitability_current=np.array(expl_current),
-        opening=np.array(opening),
+        bet=np.array(bet),
         final_average=average,
         game_value=expected_value(average)[0],
     )
@@ -143,6 +164,45 @@ def _checkpoints(iterations: int, count: int) -> np.ndarray:
     """Log-spaced iteration counts, always including 1 and `iterations`."""
     marks = np.geomspace(1, iterations, count).astype(int)
     return np.unique(np.append(marks, iterations))
+
+# ---------------------------------------------------------------------------
+# Export for the visualizer
+# ---------------------------------------------------------------------------
+
+def to_json(trajectory: Trajectory) -> dict:
+    """The trajectory as plain JSON, keyed by infoset label ("K", "Jpb", ...).
+
+    The rung-1 visualizer renders this rather than re-implementing CFR in
+    TypeScript. Rung 0 could safely port its 63-line ledger to the browser;
+    porting the reach-weighted tree walk would make a second copy of the one
+    routine where a swapped weight converges silently to the wrong answer. So
+    the page shows numbers this solver produced, under the same tests.
+
+    Labels are `str(InfoSet)` — the notation the literature uses.
+    """
+    spots = all_infosets()
+    alpha = float(trajectory.opening[-1, Card.JACK])
+    return {
+        "iterations": [int(t) for t in trajectory.iterations],
+        "exploitabilityAverage": [float(x) for x in trajectory.exploitability_average],
+        "exploitabilityCurrent": [float(x) for x in trajectory.exploitability_current],
+        "bet": {
+            str(spot): [float(row[i]) for row in trajectory.bet]
+            for i, spot in enumerate(spots)
+        },
+        # Instantiated at the alpha this run found, since the equilibrium is a
+        # family and comparing against any other member would read as an error.
+        "closedForm": {str(spot): _closed_form(spot, alpha) for spot in spots},
+        "alpha": alpha,
+        "gameValue": float(trajectory.game_value),
+        "gameValueExact": -1 / 18,
+    }
+
+def write_json(trajectory: Trajectory, path: Path) -> None:
+    """Write `to_json` to `path`, creating the directory if needed."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(to_json(trajectory), indent=1) + "\n")
+    print(f"wrote {path.resolve()}")
 
 # ---------------------------------------------------------------------------
 # Figures
