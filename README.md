@@ -103,6 +103,31 @@ Enumerating *pure strategies over infosets* is also what keeps the adversary hon
 
 Two things that table settles. The **average** strategy's exploitability falls steadily while the **current** strategy's sits around 0.2 forever and is briefly *worse* at 1,000 iterations than at 10 — vanilla CFR's current iterate cycles and never converges, which is why the dashboard at rung 4 must query the average-policy network and never the final iterate. And exploitability is the stricter grader: at 100 iterations the game value is already within 0.0009 of −1/18 and looks solved, while the strategy is still 15× more exploitable than it will be at 10,000.
 
+### Running it
+
+```bash
+uv run kuhn-analysis   # solve, regenerate figures/rung1/, print the answer sheet
+uv run kuhn-play       # play hands against the solved equilibrium
+```
+
+`analysis.py` runs one solve to 100k iterations, measuring both candidate answers at 60 log-spaced checkpoints. It has no seed: vanilla CFR enumerates the whole tree and never samples, so two runs agree bit for bit and `figures/rung1/` doubles as a regression fingerprint — any change that moves a number shows up as a dirty working tree.
+
+![Only the average strategy converges; the current one cycles forever](figures/rung1/exploitability.png)
+
+The average marches down the 1/√T guide to 0.00063 chips/hand. The current strategy sawtooths around 0.2 for the entire run and never improves — the same claim as the table above, now visible in one glance.
+
+![The jack's bluff locks to one third of the king's value bet](figures/rung1/strategy_convergence.png)
+
+α is free in [0, ⅓] and the solver lands wherever it lands (0.220 here), but the king's opening bet tracks the dashed 3α line regardless. The bluff-to-value-bet ratio is discovered, not supplied.
+
+![All twelve infosets match the closed form](figures/rung1/answer_sheet.png)
+
+### Playing it
+
+`kuhn-play` solves the game, then deals hands and plays the **average** strategy — a genuine Nash equilibrium, not a learner adapting to you. Seats alternate every hand, because Kuhn is asymmetric (the first player's game value is −1/18) and a fixed seat would confound your mistakes with the seat's built-in edge. The bot reads only its own infoset, so when it calls your bluff with a queen it is doing so at the equilibrium frequency rather than because it looked.
+
+Both cards are revealed at the end of every hand including folds: knowing whether you were bluffed is the entire lesson, and the hand is already over.
+
 ## Status
 
-Rung 0 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, and reports exploitability against an exact best response. Next: the convergence figure and the rung-1 writeup.
+Rung 0 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, reports exploitability against an exact best response, and ships the analysis pipeline, figures, and a play-against-it CLI. Next: the rung-1 writeup, then rung 2 — Leduc, where there is no closed form and OpenSpiel's sequence-form-LP value becomes the only ground truth.
