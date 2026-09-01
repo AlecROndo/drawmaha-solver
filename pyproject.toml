@@ -16,6 +16,8 @@ dev = [
 [project.scripts]
 rps-analysis = "drawmaha_solver.rps.analysis:main"
 rps-play = "drawmaha_solver.rps.play:main"
+kuhn-analysis = "drawmaha_solver.kuhn.analysis:main"
+kuhn-play = "drawmaha_solver.kuhn.play:main"
 
 [build-system]
 requires = ["hatchling"]

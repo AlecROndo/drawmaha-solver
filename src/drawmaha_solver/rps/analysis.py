@@ -18,28 +18,18 @@ import argparse
 from dataclasses import dataclass
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 
-from drawmaha_solver.rps.game import PAYOFF, Action, best_response_value
+from drawmaha_solver.plotting import CATEGORICAL, MUTED, legend, log_indices, new_axes, save
 from drawmaha_solver.regret_matching import RegretMatcher
+from drawmaha_solver.rps.game import PAYOFF, Action, best_response_value
 
 # ---------------------------------------------------------------------------
-# Palette
+# Series colours
 # ---------------------------------------------------------------------------
 
-# Reference dataviz palette, light mode (the first three categorical slots are
-# validated all-pairs for exactly three series — rock/paper/scissors).
-SERIES = {"rock": "#2a78d6", "paper": "#eb6834", "scissors": "#1baf7a"}
-INK = "#0b0b0b"
-SECONDARY = "#52514e"
-MUTED = "#898781"
-GRID = "#e1e0d9"
-BASELINE = "#c3c2b7"
-SURFACE = "#fcfcfb"
+# Exactly three series, so they take the three validated categorical slots.
+SERIES = dict(zip(("rock", "paper", "scissors"), CATEGORICAL))
 
 # ---------------------------------------------------------------------------
 # Public data containers
@@ -137,8 +127,8 @@ def run_vs_fixed(n_iters: int, *, opponent: np.ndarray, seed: int) -> VsFixedTra
 # ---------------------------------------------------------------------------
 
 def fig_average_strategy(traj: SelfPlayTrajectories, out: Path) -> None:
-    idx = _log_indices(len(traj.average0))
-    fig, ax = _new_axes("Self-play average strategy converges to the uniform Nash (1/3, 1/3, 1/3)")
+    idx = log_indices(len(traj.average0))
+    fig, ax = new_axes("Self-play average strategy converges to the uniform Nash (1/3, 1/3, 1/3)")
     ax.axhline(1 / 3, color=MUTED, linewidth=1, linestyle="--")
     ax.text(1.2, 1 / 3 + 0.012, "Nash 1/3", color=MUTED, fontsize=8.5)
     for action in Action:
@@ -150,11 +140,11 @@ def fig_average_strategy(traj: SelfPlayTrajectories, out: Path) -> None:
     # The early average can spike toward one action before settling; keep the
     # axis just above the observed peak so no series ever clips.
     ax.set_ylim(0, min(1.0, max(0.55, float(traj.average0.max()) + 0.06)))
-    _legend(ax)
-    _save(fig, out)
+    legend(ax)
+    save(fig, out)
 
 def fig_current_vs_average(traj: SelfPlayTrajectories, out: Path, window: int = 5000) -> None:
-    fig, ax = _new_axes("The current strategy cycles forever — only the running average converges")
+    fig, ax = new_axes("The current strategy cycles forever — only the running average converges")
     window = min(window, len(traj.current0))
     t = np.arange(1, window + 1)
     ax.plot(t, traj.current0[:window, Action.ROCK], color=SERIES["rock"], linewidth=0.7, alpha=0.7, label="current P(rock)")
@@ -162,16 +152,16 @@ def fig_current_vs_average(traj: SelfPlayTrajectories, out: Path, window: int = 
     ax.axhline(1 / 3, color=MUTED, linewidth=1, linestyle="--")
     ax.set_xlabel("iteration", color=MUTED, fontsize=9)
     ax.set_ylabel("P(rock)", color=MUTED, fontsize=9)
-    _legend(ax)
-    _save(fig, out)
+    legend(ax)
+    save(fig, out)
 
 def fig_exploitability(traj: SelfPlayTrajectories, out: Path) -> None:
     expl = traj.exploitability0
     # The first iterations' averages are exactly/near uniform, which reads as
     # ~0 exploitability and spikes off the bottom of a log axis — skip them.
-    idx = _log_indices(len(expl))
+    idx = log_indices(len(expl))
     idx = idx[idx >= 9]
-    fig, ax = _new_axes("Exploitability of the average strategy falls like 1/sqrt(T)")
+    fig, ax = new_axes("Exploitability of the average strategy falls like 1/sqrt(T)")
     anchor = min(100, len(expl))
     c = expl[anchor - 1] * np.sqrt(anchor)
     ax.plot(idx + 1, c / np.sqrt(idx + 1), color=MUTED, linewidth=1, linestyle="--", label="c/sqrt(T) reference")
@@ -180,13 +170,13 @@ def fig_exploitability(traj: SelfPlayTrajectories, out: Path) -> None:
     ax.set_yscale("log")
     ax.set_xlabel("iteration", color=MUTED, fontsize=9)
     ax.set_ylabel("exploitability (chips/round)", color=MUTED, fontsize=9)
-    _legend(ax)
-    _save(fig, out)
+    legend(ax)
+    save(fig, out)
 
 def fig_vs_biased(traj: VsFixedTrajectories, opponent: np.ndarray, out: Path) -> None:
-    idx = _log_indices(len(traj.average))
+    idx = log_indices(len(traj.average))
     opp_desc = ", ".join(f"{int(round(p * 100))}% {a.name.lower()}" for a, p in zip(Action, opponent))
-    fig, ax = _new_axes(f"Against a biased opponent ({opp_desc}), the average converges to the counter: paper")
+    fig, ax = new_axes(f"Against a biased opponent ({opp_desc}), the average converges to the counter: paper")
     for action in Action:
         name = action.name.lower()
         ax.plot(idx + 1, traj.average[idx, action], color=SERIES[name], linewidth=1.8, label=name)
@@ -194,42 +184,8 @@ def fig_vs_biased(traj: VsFixedTrajectories, opponent: np.ndarray, out: Path) ->
     ax.set_xlabel("iteration", color=MUTED, fontsize=9)
     ax.set_ylabel("average P(action)", color=MUTED, fontsize=9)
     ax.set_ylim(0, 1.05)
-    _legend(ax)
-    _save(fig, out)
-
-# ---------------------------------------------------------------------------
-# Figure scaffolding
-# ---------------------------------------------------------------------------
-
-def _log_indices(n: int, k: int = 500) -> np.ndarray:
-    return np.unique(np.geomspace(1, n, k).astype(int)) - 1
-
-def _new_axes(title: str) -> tuple[plt.Figure, plt.Axes]:
-    fig, ax = plt.subplots(figsize=(8, 4.5), dpi=150)
-    fig.set_facecolor(SURFACE)
-    ax.set_facecolor(SURFACE)
-    ax.set_title(title, color=INK, fontsize=11, loc="left", pad=12)
-    ax.grid(axis="y", color=GRID, linewidth=0.8)
-    ax.set_axisbelow(True)
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    for side in ("left", "bottom"):
-        ax.spines[side].set_color(BASELINE)
-    ax.tick_params(colors=MUTED, labelsize=8.5)
-    for lbl in ax.get_xticklabels() + ax.get_yticklabels():
-        lbl.set_color(MUTED)
-    return fig, ax
-
-def _legend(ax: plt.Axes) -> None:
-    leg = ax.legend(frameon=False, fontsize=9)
-    for text in leg.get_texts():
-        text.set_color(SECONDARY)
-
-def _save(fig: plt.Figure, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, bbox_inches="tight", facecolor=SURFACE)
-    plt.close(fig)
-    print(f"wrote {path.resolve()}")
+    legend(ax)
+    save(fig, out)
 
 if __name__ == "__main__":
     main()
