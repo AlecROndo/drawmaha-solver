@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from drawmaha_solver.kuhn.cfr import run_iteration, train, walk
+from drawmaha_solver.kuhn.exploitability import expected_value
 from drawmaha_solver.kuhn.game import (
-    DEAL_PROBABILITY,
     DEALS,
     Action,
     Card,
@@ -16,21 +16,13 @@ J, Q, K = Card.JACK, Card.QUEEN, Card.KING
 P, B = Action.PASS, Action.BET
 
 def independent_game_value(strategies: dict[InfoSet, np.ndarray]) -> float:
-    """P0's expected chips under `strategies`, by a walk that is NOT cfr.walk.
+    """P0's expected chips under `strategies`, computed without `cfr.walk`.
 
-    Deliberately a second implementation: it grades the solver, so it must not
-    be able to share a bug with it. Only `game.py` is trusted here.
+    `exploitability.expected_value` is written against `game.py` alone, so it
+    grades the solver without being able to share a bug with it — which is the
+    property this check depends on, not the fact of being a separate function.
     """
-    def value(state: KuhnState) -> float:
-        if state.is_terminal():
-            return state.returns()[0]
-        sigma = strategies[state.infoset()]
-        return sum(
-            sigma[action] * value(state.apply(action))
-            for action in state.legal_actions()
-        )
-
-    return sum(DEAL_PROBABILITY * value(KuhnState(cards=deal)) for deal in DEALS)
+    return expected_value(strategies)[0]
 
 # ---------------------------------------------------------------------------
 # One traversal, against the hand-worked trace
