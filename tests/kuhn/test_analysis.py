@@ -1,8 +1,10 @@
+import json
+
 import numpy as np
 import pytest
 
-from drawmaha_solver.kuhn.analysis import Trajectory, run
-from drawmaha_solver.kuhn.game import Action, Card, InfoSet
+from drawmaha_solver.kuhn.analysis import Trajectory, run, to_json, write_json
+from drawmaha_solver.kuhn.game import Action, Card, InfoSet, all_infosets
 
 J, Q, K = Card.JACK, Card.QUEEN, Card.KING
 
@@ -71,3 +73,44 @@ def test_the_final_average_covers_every_infoset(trajectory):
     assert len(trajectory.final_average) == 12
     for probabilities in trajectory.final_average.values():
         assert probabilities.sum() == pytest.approx(1.0)
+
+# ---------------------------------------------------------------------------
+# Export for the visualizer
+# ---------------------------------------------------------------------------
+
+def test_the_export_keys_every_infoset_by_its_literature_label(trajectory):
+    payload = to_json(trajectory)
+    assert set(payload["bet"]) == {str(spot) for spot in all_infosets()}
+    assert set(payload["closedForm"]) == set(payload["bet"])
+    assert "Kpb" in payload["bet"] and "K" in payload["bet"]
+
+def test_the_export_is_plain_json(trajectory, tmp_path):
+    # numpy scalars are neither int nor float to json.dumps, so the payload has
+    # to be cast at the boundary or it raises on the first one.
+    json.dumps(to_json(trajectory))
+    path = tmp_path / "nested" / "solve.json"
+    write_json(trajectory, path)
+    assert json.loads(path.read_text())["gameValue"] == pytest.approx(-1 / 18, abs=2e-3)
+
+def test_the_exported_series_all_run_the_length_of_the_run(trajectory):
+    payload = to_json(trajectory)
+    n = len(payload["iterations"])
+    assert len(payload["exploitabilityAverage"]) == n
+    assert len(payload["exploitabilityCurrent"]) == n
+    assert all(len(series) == n for series in payload["bet"].values())
+
+def test_the_exported_closed_form_uses_the_alpha_the_solver_found(trajectory):
+    # The page draws solved against exact side by side, so the exact side must
+    # be the family member this run landed on, not an arbitrary one.
+    payload = to_json(trajectory)
+    assert payload["closedForm"]["J"] == pytest.approx(payload["alpha"])
+    assert payload["closedForm"]["K"] == pytest.approx(3 * payload["alpha"])
+    assert payload["closedForm"]["Kpb"] == 1.0
+    assert payload["closedForm"]["Q"] == 0.0
+
+def test_the_exported_bet_series_agree_with_the_final_average(trajectory):
+    payload = to_json(trajectory)
+    for spot in all_infosets():
+        assert payload["bet"][str(spot)][-1] == pytest.approx(
+            trajectory.final_average[spot][Action.BET]
+        )

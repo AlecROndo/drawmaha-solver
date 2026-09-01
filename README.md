@@ -122,6 +122,16 @@ The average marches down the 1/√T guide to 0.00063 chips/hand. The current str
 
 ![All twelve infosets match the closed form](figures/rung1/answer_sheet.png)
 
+### Seeing it
+
+`web/rung1-viz`, served at `/rung1` — the solve as an interactive page. The whole tree fits on screen, so each of the twelve information sets is drawn where it actually sits: four decision nodes, three bars each, one per card the acting player might hold. Scrub the iteration slider and watch the bars walk onto their hairlines, which mark the closed-form answer at the α this run found.
+
+```bash
+cd web/rung1-viz && npm install && npm run dev
+```
+
+The page renders a solve exported from the Python solver (`kuhn-analysis --json`), not a TypeScript reimplementation of CFR. Rung 0's visualizer could safely port its 63-line ledger to the browser; porting the reach-weighted tree walk would create a second copy of the one routine where a swapped weight converges silently to the wrong answer. Only the payoff rules are transcribed, and `kuhn.test.ts` pins them against the same 5×6 table the Python suite uses.
+
 ### Playing it
 
 `kuhn-play` solves the game, then deals hands and plays the **average** strategy — a genuine Nash equilibrium, not a learner adapting to you. Seats alternate every hand, because Kuhn is asymmetric (the first player's game value is −1/18) and a fixed seat would confound your mistakes with the seat's built-in edge. The bot reads only its own infoset, so when it calls your bluff with a queen it is doing so at the equilibrium frequency rather than because it looked.
