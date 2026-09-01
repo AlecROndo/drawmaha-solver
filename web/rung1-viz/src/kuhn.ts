@@ -70,6 +70,50 @@ export function returns(history: string, cards: [Card, Card]): [number, number] 
 export const infosetKey = (card: Card, history: string): string =>
   CARD_SYMBOL[card] + history
 
+/** P(bet) at one infoset — the exported solve, read at whichever checkpoint. */
+export type BetProbability = (card: Card, history: string) => number
+
+/**
+ * How often `act` is taken at `history`, across every hand that gets there.
+ *
+ * Not the flat mean of the node's three infosets: reaching `p` means the opener
+ * checked, and they check a queen always but a king barely a third of the time,
+ * so the hands sitting at that node are not the deck. Each card is weighted by
+ * how often the acting player actually arrives holding it — at alpha ≈ 0.22 the
+ * player facing a check holds {J 0.32, Q 0.26, K 0.42}, not thirds.
+ *
+ * This is a forward pass over the exported strategy: it multiplies published
+ * probabilities along one line, and never touches regrets or counterfactual
+ * values. Reading the solve is not redoing it.
+ */
+export function actionFrequency(
+  history: Decision,
+  act: Act,
+  betProbability: BetProbability,
+): number {
+  const seat = actor(history)
+  let reach = 0
+  let bets = 0
+  for (const cards of DEALS) {
+    // Chance deals the six pairs uniformly, so the 1/6 cancels in the ratio.
+    let weight = 1
+    for (let i = 0; i < history.length; i++) {
+      const prefix = history.slice(0, i)
+      const p = betProbability(cards[actor(prefix)], prefix)
+      weight *= history[i] === 'b' ? p : 1 - p
+    }
+    reach += weight
+    bets += weight * betProbability(cards[seat], history)
+  }
+  // A node no hand reaches has no frequency to report; fall back to the flat
+  // mean so the edge still draws rather than vanishing on a divide by zero.
+  const p =
+    reach > 0
+      ? bets / reach
+      : CARDS.reduce<number>((sum, card) => sum + betProbability(card, history), 0) / CARDS.length
+  return act === 'b' ? p : 1 - p
+}
+
 // ---------------------------------------------------------------------------
 // Tree layout
 // ---------------------------------------------------------------------------

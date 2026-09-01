@@ -6,11 +6,10 @@ import {
   NODE_H,
   NODE_W,
   TERMINAL_NODES,
+  actionFrequency,
   actionLabel,
   infosetKey,
-  type Act,
   type Card,
-  type Decision,
 } from '../kuhn'
 import { SOLVE } from './useSolve'
 
@@ -35,15 +34,9 @@ const BAR_X = 40
 const BAR_W = 54
 const ROW_H = 14
 
-/** Mean over the three cards: how often this action is taken here overall. */
-function aggregate(history: Decision, act: Act, index: number): number {
-  const total = CARDS.reduce<number>(
-    (sum, card) => sum + SOLVE.bet[infosetKey(card, history)][index],
-    0,
-  )
-  const bets = total / CARDS.length
-  return act === 'b' ? bets : 1 - bets
-}
+/** P(bet) at one infoset, at the checkpoint being shown. */
+const betAt = (index: number) => (card: Card, history: string) =>
+  SOLVE.bet[infosetKey(card, history)][index]
 
 function NodeCard({ node, index }: { node: (typeof DECISION_NODES)[number]; index: number }) {
   const left = node.cx - NODE_W / 2
@@ -112,6 +105,7 @@ function NodeCard({ node, index }: { node: (typeof DECISION_NODES)[number]; inde
 }
 
 export function GameTree({ index }: { index: number }) {
+  const bet = betAt(index)
   const centre = (key: string) =>
     DECISION_NODES.find((n) => n.key === key) ?? TERMINAL_NODES.find((n) => n.key === key)!
   const isDecision = (key: string) => DECISION_NODES.some((n) => n.key === key)
@@ -134,7 +128,9 @@ export function GameTree({ index }: { index: number }) {
         <span className="chip">
           <span className="tick" /> closed form
         </span>
-        <span className="chip">edge width = how often that action is taken</span>
+        <span className="chip">
+          edge width = how often that action is taken, over the hands that reach it
+        </span>
       </p>
       <div className="tree-wrap">
         <div className="tree">
@@ -142,7 +138,7 @@ export function GameTree({ index }: { index: number }) {
             {EDGES.map((edge) => {
               const from = centre(edge.from)!
               const to = centre(edge.to)!
-              const p = aggregate(edge.from, edge.act, index)
+              const p = actionFrequency(edge.from, edge.act, bet)
               const y1 = from.cy + NODE_H / 2
               const y2 = isDecision(edge.to) ? to.cy - NODE_H / 2 : to.cy - 11
               return (

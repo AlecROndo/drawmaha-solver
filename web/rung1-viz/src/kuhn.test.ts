@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CARDS,
   DEALS,
   DECISION_NODES,
   EDGES,
   TERMINAL_NODES,
+  actionFrequency,
   actionLabel,
   actor,
   isTerminal,
   returns,
   infosetKey,
   type Act,
+  type BetProbability,
   type Card,
 } from './kuhn'
 
@@ -107,5 +110,64 @@ describe('the drawn tree', () => {
   it('draws all nine nodes of the game', () => {
     expect(DECISION_NODES).toHaveLength(4)
     expect(TERMINAL_NODES).toHaveLength(5)
+  })
+})
+
+describe('edge frequency', () => {
+  /** The equilibrium at alpha = 0.22, the value the committed solve landed on. */
+  const ALPHA = 0.22
+  const EQUILIBRIUM: Record<string, number> = {
+    J: ALPHA, Q: 0, K: 3 * ALPHA,
+    Jp: 1 / 3, Qp: 0, Kp: 1,
+    Jb: 0, Qb: 1 / 3, Kb: 1,
+    Jpb: 0, Qpb: ALPHA + 1 / 3, Kpb: 1,
+  }
+  const equilibrium: BetProbability = (card, history) => EQUILIBRIUM[infosetKey(card, history)]
+
+  const flatMean = (history: string, bet: BetProbability) =>
+    CARDS.reduce<number>((sum, card) => sum + bet(card, history), 0) / CARDS.length
+
+  it('sums to one across the two actions at every node', () => {
+    for (const node of DECISION_NODES) {
+      const p = actionFrequency(node.key, 'p', equilibrium)
+      const b = actionFrequency(node.key, 'b', equilibrium)
+      expect(p + b).toBeCloseTo(1, 12)
+    }
+  })
+
+  it('equals the flat mean at the root, where the deal is still uniform', () => {
+    expect(actionFrequency('', 'b', equilibrium)).toBeCloseTo(flatMean('', equilibrium), 12)
+  })
+
+  it('reach-weights downstream nodes away from the flat mean', () => {
+    // Reaching "p" means the opener checked: 0.78 of the time with a jack, all
+    // of it with a queen, 0.34 with a king. So the player facing that check
+    // holds J/Q/K in proportion (1 + .34) : (.78 + .34) : (.78 + 1) — nowhere
+    // near thirds — and each card's P(bet) is weighted accordingly.
+    const w = [1 + 0.34, 0.78 + 0.34, 0.78 + 1]
+    const total = w[0] + w[1] + w[2]
+    // The queen never bets after a check, so its weight drops out of the top.
+    const expected = (w[0] * (1 / 3) + w[2] * 1) / total
+    expect(actionFrequency('p', 'b', equilibrium)).toBeCloseTo(expected, 12)
+    // The correction is worth ~8pp here, so it is not a rounding detail.
+    expect(expected).toBeCloseTo(0.525, 3)
+    expect(flatMean('p', equilibrium)).toBeCloseTo(4 / 9, 12)
+  })
+
+  it('falls back to the flat mean at a node no hand reaches', () => {
+    // Nobody ever bets, so "b" and "pb" are unreachable and the ratio is 0/0.
+    const neverBets: BetProbability = (_card, history) => (history === '' ? 0 : 0.25)
+    expect(actionFrequency('b', 'b', neverBets)).toBeCloseTo(0.25, 12)
+    expect(actionFrequency('pb', 'p', neverBets)).toBeCloseTo(0.75, 12)
+  })
+
+  it('never leaves the unit interval', () => {
+    for (const node of DECISION_NODES) {
+      for (const act of ['p', 'b'] as Act[]) {
+        const f = actionFrequency(node.key, act, equilibrium)
+        expect(f).toBeGreaterThanOrEqual(0)
+        expect(f).toBeLessThanOrEqual(1)
+      }
+    }
   })
 })

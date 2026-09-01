@@ -1,9 +1,0 @@
-{
-  "buildCommand": "bash scripts/vercel_build.sh",
-  "outputDirectory": "public",
-  "rewrites": [
-    { "source": "/", "destination": "/api/index" },
-    { "source": "/rung0", "destination": "/rung0/index.html" },
-    { "source": "/rung1", "destination": "/rung1/index.html" }
-  ]
-}
