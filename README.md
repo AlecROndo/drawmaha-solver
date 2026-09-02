@@ -138,6 +138,31 @@ The page renders a solve exported from the Python solver (`kuhn-analysis --json`
 
 Both cards are revealed at the end of every hand including folds: knowing whether you were bluffed is the entire lesson, and the hand is already over.
 
+### Breaking it
+
+`src/drawmaha_solver/kuhn/exploiter.py`, and the **Exploit** tab at `/rung1#exploit`: lock a strategy of your own and watch CFR find the most that can be won against it.
+
+The solver is unchanged — `cfr.py` grew one parameter. Infosets named in `locked` play the probabilities you supply and never bank an update; everything else trains as usual. Their probabilities still advance the reach, so they still enter the learner's counterfactual weight π₋ᵢ, and that is the whole mechanism: the learner is never told the opponent is fixed, it is only weighted by how often that opponent brings it here. Minimizing regret against something that cannot move back is what makes CFR converge to a **best response** instead of to Nash. Freezing one side turns an equilibrium finder into an exploit finder, with no new algorithm.
+
+The answer is graded, not trusted. `exploitability.best_response` enumerates all 64 pure strategies over the 54-node tree and imports only `game.py`, so the ceiling CFR is measured against cannot share a bug with the walk that approached it. Against a P1 that calls too much and folds its king 40% of the time:
+
+| | chips/hand to P0 |
+|---|---:|
+| exact best response (the ceiling) | +0.18333 |
+| CFR's counter-strategy, 20k iterations | +0.18332 |
+| **equilibrium play against the same leak** | **−0.01151** |
+
+The counter-strategy CFR discovers is *value-bet the queen, never bluff the jack* — bluffing is worthless against a station, so the exploit is pure value. And the third row is the point: Nash is unbeatable but not punishing. It declines to make mistakes rather than collecting for yours, leaving 0.195 chips/hand that only a best response picks up.
+
+Locking a whole seat is the case with a ground truth. Lock a single node instead and the rest of that seat keeps learning — a constrained equilibrium, not a best response — so the page reports no ceiling and draws no hairlines rather than implying a proof it does not have.
+
+```bash
+uv run kuhn-exploit-server            # the page POSTs locked spots to this
+cd web/rung1-viz && npm run dev       # then http://localhost:5173/rung1/#exploit
+```
+
+Exploit runs are live rather than replayed: the input is a strategy you type, so no committed file could cover it. Nothing about CFR is re-implemented in TypeScript — the browser posts six numbers and draws the trace Python returns.
+
 ## Status
 
-Rung 0 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, reports exploitability against an exact best response, and ships the analysis pipeline, figures, and a play-against-it CLI. Next: the rung-1 writeup, then rung 2 — Leduc, where there is no closed form and OpenSpiel's sequence-form-LP value becomes the only ground truth.
+Rung 0 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, reports exploitability against an exact best response, and ships the analysis pipeline, figures, a play-against-it CLI, and an exploit mode that finds the best response to any strategy you lock. Next: the rung-1 writeup, then rung 2 — Leduc, where there is no closed form and OpenSpiel's sequence-form-LP value becomes the only ground truth.
