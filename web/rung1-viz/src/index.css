@@ -534,7 +534,11 @@ h1 {
   cursor: pointer;
 }
 
-.row-lockable:hover .node-letter {
+/* Keyboard focus gets the same emphasis the mouse gets, on top of the global
+   :focus-visible outline — the row is reachable by Tab, so it has to look
+   reached. */
+.row-lockable:hover .node-letter,
+.row-lockable:focus-visible .node-letter {
   font-weight: 600;
 }
 

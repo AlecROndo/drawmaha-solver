@@ -74,7 +74,24 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
             key={key}
             className={onToggleLock ? 'row-lockable' : undefined}
             onClick={onToggleLock ? () => onToggleLock(key) : undefined}
+            // A row that announces itself as a button has to behave like one:
+            // reachable by Tab, and fired by Enter or Space. Without this the
+            // lock gesture is mouse-only and the role is a promise the tree
+            // does not keep.
+            tabIndex={onToggleLock ? 0 : undefined}
+            onKeyDown={
+              onToggleLock
+                ? (event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return
+                    // Space would otherwise scroll the page out from under the
+                    // row that was just activated.
+                    event.preventDefault()
+                    onToggleLock(key)
+                  }
+                : undefined
+            }
             role={onToggleLock ? 'button' : undefined}
+            aria-pressed={onToggleLock ? pinned !== undefined : undefined}
             aria-label={onToggleLock ? `Lock ${key}` : undefined}
           >
             {/* Hit area: the bar alone is 6px tall, too small to click at. */}
