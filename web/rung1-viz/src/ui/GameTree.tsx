@@ -11,7 +11,6 @@ import {
   infosetKey,
   type Card,
 } from '../kuhn'
-import { SOLVE } from './useSolve'
 
 /**
  * The whole game and the whole strategy in one picture.
@@ -22,61 +21,70 @@ import { SOLVE } from './useSolve'
  * often they bet there. The twelve bars are the twelve information sets: this
  * is the strategy table, laid out as the tree it belongs to.
  *
- * The hairline on each bar is the closed-form answer at the alpha this run
- * found. Watching the fills walk onto their hairlines is the solve.
+ * The hairline on each bar is whatever answer the caller is grading against —
+ * the closed-form equilibrium on the solve tab, the exact best response on the
+ * exploit tab. Watching the fills walk onto their hairlines is the point of
+ * both, which is why this component takes its numbers as props instead of
+ * reaching for one particular solve.
  */
 
 const CARD_VAR = ['var(--jack)', 'var(--queen)', 'var(--king)']
 
 const BAR_X = 40
 // Leaves room for the value text: a bar at 1.00 must not run under it, or the
-// closed-form hairline lands on top of the digits.
+// hairline lands on top of the digits.
 const BAR_W = 54
 const ROW_H = 14
 
-/** P(bet) at one infoset, at the checkpoint being shown. */
-const betAt = (index: number) => (card: Card, history: string) =>
-  SOLVE.bet[infosetKey(card, history)][index]
+export interface GameTreeProps {
+  index: number
+  /** infoset label ("K", "Jpb", ...) to P(bet) at each checkpoint */
+  bet: Record<string, number[]>
+  /** where each bar belongs, or null when no ground truth applies */
+  hairline: Record<string, number> | null
+  heading: string
+  sub: string
+  /** infosets the visitor has pinned, label to P(bet) — exploit tab only */
+  locked?: Record<string, number>
+  /** provided only when rows are clickable; absence makes the tree read-only */
+  onToggleLock?: (key: string) => void
+}
 
-function NodeCard({ node, index }: { node: (typeof DECISION_NODES)[number]; index: number }) {
+interface NodeCardProps extends Omit<GameTreeProps, 'heading' | 'sub'> {
+  node: (typeof DECISION_NODES)[number]
+}
+
+function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCardProps) {
   const left = node.cx - NODE_W / 2
   const top = node.cy - NODE_H / 2
   return (
     <g>
-      <rect
-        className="node-card"
-        x={left}
-        y={top}
-        width={NODE_W}
-        height={NODE_H}
-        rx={3}
-      />
+      <rect className="node-card" x={left} y={top} width={NODE_W} height={NODE_H} rx={3} />
       <text className="node-caption" x={left + 10} y={top + 15}>
         {node.caption}
       </text>
       {CARDS.map((card, row) => {
         const key = infosetKey(card as Card, node.key)
-        const p = SOLVE.bet[key][index]
-        const exact = SOLVE.closedForm[key]
+        const p = bet[key][index]
+        const exact = hairline?.[key]
+        const pinned = locked?.[key]
         const y = top + 28 + row * ROW_H
         return (
-          <g key={key}>
-            <text
-              className="node-letter"
-              x={left + 10}
-              y={y + 5}
-              fill={CARD_VAR[card]}
-            >
+          <g
+            key={key}
+            className={onToggleLock ? 'row-lockable' : undefined}
+            onClick={onToggleLock ? () => onToggleLock(key) : undefined}
+            role={onToggleLock ? 'button' : undefined}
+            aria-label={onToggleLock ? `Lock ${key}` : undefined}
+          >
+            {/* Hit area: the bar alone is 6px tall, too small to click at. */}
+            {onToggleLock && (
+              <rect x={left + 4} y={y - 4} width={NODE_W - 8} height={ROW_H} fill="transparent" />
+            )}
+            <text className="node-letter" x={left + 10} y={y + 5} fill={CARD_VAR[card]}>
               {CARD_SYMBOL[card]}
             </text>
-            <rect
-              x={left + BAR_X}
-              y={y}
-              width={BAR_W}
-              height={6}
-              rx={1}
-              fill="var(--grid)"
-            />
+            <rect x={left + BAR_X} y={y} width={BAR_W} height={6} rx={1} fill="var(--grid)" />
             <rect
               x={left + BAR_X}
               y={y}
@@ -84,18 +92,34 @@ function NodeCard({ node, index }: { node: (typeof DECISION_NODES)[number]; inde
               height={6}
               rx={1}
               fill={CARD_VAR[card]}
+              // A locked bar is held, not learned. Hollowing it keeps the two
+              // populations legible at a glance: solid bars are what CFR
+              // decided, outlined bars are what you dictated.
+              fillOpacity={pinned === undefined ? 1 : 0.28}
+              stroke={pinned === undefined ? undefined : CARD_VAR[card]}
+              strokeWidth={pinned === undefined ? undefined : 1}
             />
-            {/* Where the closed form says this bar belongs. */}
-            <line
-              x1={left + BAR_X + exact * BAR_W}
-              x2={left + BAR_X + exact * BAR_W}
-              y1={y - 2}
-              y2={y + 8}
-              stroke="var(--ink-2)"
-              strokeWidth={1}
-            />
-            <text className="node-value" x={left + NODE_W - 9} y={y + 6} textAnchor="end">
-              {p.toFixed(2)}
+            {exact !== undefined && (
+              <line
+                x1={left + BAR_X + exact * BAR_W}
+                x2={left + BAR_X + exact * BAR_W}
+                y1={y - 2}
+                y2={y + 8}
+                stroke="var(--ink-2)"
+                strokeWidth={1}
+              />
+            )}
+            {/* Locked rows keep showing their number — it is the thing being
+                set — and say "locked" by going muted next to the hollow bar,
+                rather than by a glyph competing with the digits. */}
+            <text
+              className="node-value"
+              x={left + NODE_W - 9}
+              y={y + 6}
+              textAnchor="end"
+              fill={pinned === undefined ? undefined : 'var(--muted)'}
+            >
+              {(pinned ?? p).toFixed(2)}
             </text>
           </g>
         )
@@ -104,20 +128,17 @@ function NodeCard({ node, index }: { node: (typeof DECISION_NODES)[number]; inde
   )
 }
 
-export function GameTree({ index }: { index: number }) {
-  const bet = betAt(index)
+export function GameTree(props: GameTreeProps) {
+  const { index, bet, heading, sub, onToggleLock } = props
+  const betAt = (card: Card, history: string) => bet[infosetKey(card, history)][index]
   const centre = (key: string) =>
     DECISION_NODES.find((n) => n.key === key) ?? TERMINAL_NODES.find((n) => n.key === key)!
   const isDecision = (key: string) => DECISION_NODES.some((n) => n.key === key)
 
   return (
     <section className="panel wide" aria-label="Game tree and strategy">
-      <h2>Fig. 1 · The game, with the strategy drawn on it</h2>
-      <p className="sub">
-        four decision nodes × three possible cards = the twelve information sets · bar is
-        P(bet), which reads as P(call) at the two nodes facing a bet · hairline is the closed
-        form
-      </p>
+      <h2>{heading}</h2>
+      <p className="sub">{sub}</p>
       <p className="card-legend">
         {CARDS.map((card) => (
           <span className="chip" key={card}>
@@ -125,11 +146,15 @@ export function GameTree({ index }: { index: number }) {
             {CARD_SYMBOL[card]}
           </span>
         ))}
+        {props.hairline && (
+          <span className="chip">
+            <span className="tick" /> target
+          </span>
+        )}
         <span className="chip">
-          <span className="tick" /> closed form
-        </span>
-        <span className="chip">
-          edge width = how often that action is taken, over the hands that reach it
+          {onToggleLock
+            ? 'click any row to lock that spot'
+            : 'edge width = how often that action is taken, over the hands that reach it'}
         </span>
       </p>
       <div className="tree-wrap">
@@ -138,7 +163,7 @@ export function GameTree({ index }: { index: number }) {
             {EDGES.map((edge) => {
               const from = centre(edge.from)!
               const to = centre(edge.to)!
-              const p = actionFrequency(edge.from, edge.act, bet)
+              const p = actionFrequency(edge.from, edge.act, betAt)
               const y1 = from.cy + NODE_H / 2
               const y2 = isDecision(edge.to) ? to.cy - NODE_H / 2 : to.cy - 11
               return (
@@ -172,18 +197,13 @@ export function GameTree({ index }: { index: number }) {
                   height={22}
                   rx={11}
                 />
-                <text
-                  className="terminal-text"
-                  x={node.cx}
-                  y={node.cy + 4}
-                  textAnchor="middle"
-                >
+                <text className="terminal-text" x={node.cx} y={node.cy + 4} textAnchor="middle">
                   {node.text}
                 </text>
               </g>
             ))}
             {DECISION_NODES.map((node) => (
-              <NodeCard key={node.key || 'root'} node={node} index={index} />
+              <NodeCard key={node.key || 'root'} node={node} {...props} />
             ))}
           </svg>
         </div>

@@ -379,6 +379,188 @@ h1 {
   max-width: 88ch;
 }
 
+/* --- Tabs ------------------------------------------------------------- */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px 10px;
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--ink-2);
+}
+
+.tab.current {
+  color: var(--ink);
+  border-bottom-color: var(--avg-obj);
+}
+
+.tab-blurb {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* --- Locking a strategy ------------------------------------------------ */
+
+.lock-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 4px 0 12px;
+  font-family: var(--sans);
+  font-size: 13px;
+}
+
+.lock-controls .spacer {
+  flex: 1;
+}
+
+.lock-controls button,
+.lock-controls select {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--axis);
+  border-radius: 3px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.lock-controls button:hover:not(:disabled) {
+  border-color: var(--ink-2);
+}
+
+.lock-controls button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.lock-controls button.primary {
+  background: var(--avg-obj);
+  border-color: var(--avg-obj);
+  color: #fff;
+  font-weight: 500;
+}
+
+.lock-controls button.primary:disabled {
+  background: var(--axis);
+  border-color: var(--axis);
+  color: var(--surface);
+}
+
+.lock-list {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  display: grid;
+  gap: 6px;
+}
+
+.lock-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.lock-name {
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 34px;
+}
+
+.lock-where {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 190px;
+}
+
+.lock-list input[type='range'] {
+  flex: 1;
+  min-width: 120px;
+  accent-color: var(--avg-obj);
+}
+
+.lock-value {
+  font-size: 12px;
+  min-width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.lock-list button.link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.lock-list button.link:hover {
+  color: var(--ink);
+}
+
+/* A row the visitor can pin. Cursor is the whole affordance — adding a hover
+   fill would fight the bars, which are the thing being read. */
+.row-lockable {
+  cursor: pointer;
+}
+
+.row-lockable:hover .node-letter {
+  font-weight: 600;
+}
+
+.note {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 10px 0 0;
+  max-width: 92ch;
+}
+
+.note.ok {
+  color: var(--king);
+}
+
+.note.bad {
+  color: var(--queen);
+}
+
+.stat-row.column {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
 @media (max-width: 900px) {
   .panels {
     grid-template-columns: minmax(0, 1fr);
@@ -386,6 +568,10 @@ h1 {
 
   h1 {
     font-size: 25px;
+  }
+
+  .lock-where {
+    min-width: 0;
   }
 }
 
