@@ -1,9 +1,26 @@
+import { useState } from 'react'
 import { ExploitChart } from './ui/ExploitChart'
+import { ExploitTab } from './ui/ExploitTab'
 import { GameTree } from './ui/GameTree'
 import { PlayPanel } from './ui/PlayPanel'
 import { SOLVE, useSolve } from './ui/useSolve'
 
-export default function App() {
+const TABS = [
+  { id: 'solve', label: 'Solve', blurb: 'watch CFR find the equilibrium' },
+  { id: 'exploit', label: 'Exploit', blurb: 'lock a strategy, watch CFR beat it' },
+] as const
+
+type TabId = (typeof TABS)[number]['id']
+
+const isTabId = (value: string): value is TabId => TABS.some((t) => t.id === value)
+
+/** The tab named in the URL hash, so a view can be linked to and reloaded into. */
+const tabFromHash = (): TabId => {
+  const hash = typeof location === 'object' ? location.hash.replace('#', '') : ''
+  return isTabId(hash) ? hash : 'solve'
+}
+
+function SolveTab() {
   const { index, last, playing, toggle, scrub } = useSolve()
   const t = SOLVE.iterations[index]
   const alphaNow = SOLVE.bet['J'][index]
@@ -11,19 +28,6 @@ export default function App() {
 
   return (
     <>
-      <header className="app-header">
-        <p className="eyebrow">
-          <a href="/">drawmaha solver</a> · rung 1 · counterfactual regret minimization
-        </p>
-        <h1>CFR solves Kuhn poker, and discovers how often to bluff</h1>
-        <p className="dek">
-          Three cards, one bet, twelve information sets — the smallest poker with hidden
-          information, and one of the few with a known exact answer. Nobody tells the solver to
-          bluff. Press play and watch it work out that a jack should bluff exactly one third as
-          often as a king value-bets.
-        </p>
-      </header>
-
       <div className="transport" role="group" aria-label="Playback">
         <button onClick={toggle} aria-label={playing ? 'Pause' : 'Play'}>
           {playing ? 'Pause' : index >= last ? 'Replay' : 'Play'}
@@ -42,7 +46,13 @@ export default function App() {
       </div>
 
       <div className="panels">
-        <GameTree index={index} />
+        <GameTree
+          index={index}
+          bet={SOLVE.bet}
+          hairline={SOLVE.closedForm}
+          heading="Fig. 1 · The game, with the strategy drawn on it"
+          sub="four decision nodes × three possible cards = the twelve information sets · bar is P(bet), which reads as P(call) at the two nodes facing a bet · hairline is the closed form"
+        />
         <ExploitChart index={index} />
         <PlayPanel />
 
@@ -77,13 +87,62 @@ export default function App() {
           </ul>
         </section>
       </div>
+    </>
+  )
+}
+
+export default function App() {
+  const [tab, setTab] = useState<TabId>(tabFromHash)
+
+  const show = (id: TabId) => {
+    setTab(id)
+    // Replace rather than push: the tabs are two views of one page, and
+    // stacking them in history would make Back mean "previous tab" instead of
+    // "the page I came from".
+    history.replaceState(null, '', `#${id}`)
+  }
+
+  return (
+    <>
+      <header className="app-header">
+        <p className="eyebrow">
+          <a href="/">drawmaha solver</a> · rung 1 · counterfactual regret minimization
+        </p>
+        <h1>CFR solves Kuhn poker, and discovers how often to bluff</h1>
+        <p className="dek">
+          Three cards, one bet, twelve information sets — the smallest poker with hidden
+          information, and one of the few with a known exact answer. Nobody tells the solver to
+          bluff. Press play and watch it work out that a jack should bluff exactly one third as
+          often as a king value-bets — then lock a strategy of your own and watch the same
+          machinery take it apart.
+        </p>
+      </header>
+
+      <div className="tabs" role="tablist" aria-label="Views">
+        {TABS.map((entry) => (
+          <button
+            key={entry.id}
+            role="tab"
+            aria-selected={tab === entry.id}
+            className={tab === entry.id ? 'tab current' : 'tab'}
+            onClick={() => show(entry.id)}
+          >
+            {entry.label}
+            <span className="tab-blurb">{entry.blurb}</span>
+          </button>
+        ))}
+      </div>
+
+      {tab === 'solve' ? <SolveTab /> : <ExploitTab />}
 
       <p className="foot">
-        100,000 vanilla CFR iterations, solved by{' '}
-        <span className="mono">src/drawmaha_solver/kuhn/</span> and exported to JSON — this page
-        renders the solver's own numbers rather than re-implementing it. Vanilla CFR enumerates
-        the whole tree and never samples, so the run is deterministic: no seed, same figures
-        every time.
+        {tab === 'solve'
+          ? '100,000 vanilla CFR iterations, solved by '
+          : 'Exploit runs are live: the locked spots are POSTed to a local Python process running '}
+        <span className="mono">src/drawmaha_solver/kuhn/</span>
+        {tab === 'solve'
+          ? ' and exported to JSON — this page renders the solver’s own numbers rather than re-implementing it. Vanilla CFR enumerates the whole tree and never samples, so the run is deterministic: no seed, same figures every time.'
+          : ' — the same walk, with your spots held still. No CFR is re-implemented in TypeScript; the browser only draws numbers Python computed, and the ceiling it is graded against comes from a module that has never imported the solver.'}
       </p>
     </>
   )
