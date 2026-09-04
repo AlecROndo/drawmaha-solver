@@ -3,6 +3,12 @@
 # Vercel caps buildCommand at 256 characters.
 # Builds each rung's visualizer into public/<rung> and copies the IBM Plex
 # woff2 files the cover page (api/index.py) self-hosts at /fonts.
+#
+# None of that output is reachable unless vercel.json also pins
+# `"framework": null`. The repo root has a pyproject.toml, so Vercel otherwise
+# auto-detects the "python" preset, and a backend-framework project appends a
+# `/(.*) -> /python` catch-all that hands every path to api/index.py — the
+# visualizers and the fonts build fine and then never get served.
 set -euo pipefail
 
 rungs=(rung0 rung1)
