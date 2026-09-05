@@ -310,6 +310,27 @@ aside.rail .sketch {
   opacity: 0.85;
 }
 
+/* The secondary half of a button row — Step x1/x100/x10k beside Run, Reset,
+   the second of two play moves. It is the same button with the box turned
+   down to a hairline, never with the ink turned down: a .btn is a control and
+   its label has to stay at the full 7.66:1, which --mark-dim would not.
+   Hover restores the full border so the target is unambiguous. */
+.btn.ghost {
+  border-color: var(--hair-strong);
+}
+
+.btn.ghost:hover:not(:disabled) {
+  border-color: var(--mark);
+}
+
+.panel .btn.ghost {
+  border-color: var(--panel-hair);
+}
+
+.panel .btn.ghost:hover:not(:disabled) {
+  border-color: var(--panel-mark);
+}
+
 /* 10. links: mono, underlined, trailing arrow */
 .links {
   margin: 20px 0 0;
@@ -694,6 +715,15 @@ section:first-of-type {
   width: 34px;
   text-align: right;
   color: var(--mark);
+}
+
+/* The row's own caption, in the eyebrow voice the panels use for .k. Without
+   it the caption inherited .dist-sliders' font and read as a fourth action
+   label sitting beside rock/paper/scissors rather than as their heading. */
+.dist-sliders .label {
+  font: 500 11px/1 var(--mono);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
 }
 
 /* ---------- the ledger bars (rung 0's figure 1) -------------------------- */
