@@ -93,6 +93,14 @@ a {
   outline-offset: 3px;
 }
 
+/* Inside a paper panel the ring flips with everything else. --mark is bone and
+   so is the panel, so the field ring lands bone-on-bone — an invisible focus
+   indicator on the tree's lockable rows, the transport slider, the play
+   buttons and the cover's deal ticket, all of which live on paper. */
+.panel :focus-visible {
+  outline-color: var(--panel-mark);
+}
+
 /* ---------- 2. the ladder, drawn as the nav ------------------------------ */
 
 nav.line {

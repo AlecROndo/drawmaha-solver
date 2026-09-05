@@ -93,6 +93,10 @@ PAGE = """\
   }
   a { color: inherit; }
   :focus-visible { outline: 2px solid var(--mark); outline-offset: 3px; }
+  /* Inside a paper panel the ring flips with everything else: --mark is bone
+     and so is the panel, so the field ring would draw the deal ticket's focus
+     indicator bone-on-bone. */
+  .panel :focus-visible { outline-color: var(--panel-mark); }
 
   /* ---------- the ladder, drawn as the nav ---------- */
 
