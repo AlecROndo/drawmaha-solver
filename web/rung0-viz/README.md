@@ -17,9 +17,10 @@ the average converges to pure paper at ≈ +0.25/round).
 ```
 src/sim/   pure, framework-free simulation (seeded RNG, payoffs,
            regret ledger, engine with decimated history) + unit tests
-src/ui/    React panels: ledger, update trace, convergence chart,
+src/ui/    React figures: ledger, update trace, convergence chart,
            exploitability chart (log-log, 1/√T reference), simplex
-           canvas, scoreboard, controls
+           canvas, scoreboard, controls — plus site.tsx, the nav,
+           footer and figure head shared with the rest of the site
 ```
 
 ## Commands
@@ -27,9 +28,12 @@ src/ui/    React panels: ledger, update trace, convergence chart,
 ```
 npm install
 npm test        # vitest — includes the 100k-iteration acceptance runs
-npm run dev     # local dev server
+npm run dev     # this app alone, without the site's nav
 npm run build   # static bundle in dist/ — 100% client-side, no server code
 ```
+
+To see this page inside the site, next to the cover page and the rung-1
+visualizer, run `scripts/serve_site.py` from the repo root.
 
 ## Deploy
 

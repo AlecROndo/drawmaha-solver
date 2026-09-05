@@ -167,6 +167,17 @@ cd web/rung1-viz && npm run dev       # then http://localhost:5173/rung1/#exploi
 
 Exploit runs are live rather than replayed: the input is a strategy you type, so no committed file could cover it. Nothing about CFR is re-implemented in TypeScript — the browser posts six numbers and draws the trace Python returns.
 
+## The site
+
+Three surfaces, one design system: the cover page at `/` (`api/index.py`, stdlib only so the deploy can never break on a numeric dependency) and the two visualizers at `/rung0` and `/rung1`. They share a 1272px twelve-column grid, three type roles — IBM Plex Sans for headings and UI, Plex Serif for reading copy, Plex Mono for numbers and field labels — hairline rows in place of bordered cards, and exactly one full-bleed plate per page for the figure that page is about (the ledger at rung 0, the game tree at rung 1). Colour is two inks and a paper that invert for dark mode; chromatic colour appears only inside a figure, where it names an action or a card.
+
+`npm run dev` in a visualizer serves that app alone, without the nav or the cover page. To see all three wired the way Vercel wires them:
+
+```bash
+bash scripts/vercel_build.sh          # builds public/
+uv run python scripts/serve_site.py   # http://localhost:4321
+```
+
 ## Status
 
 Rung 0 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, reports exploitability against an exact best response, and ships the analysis pipeline, figures, a play-against-it CLI, and an exploit mode that finds the best response to any strategy you lock. Next: the rung-1 writeup, then rung 2 — Leduc, where there is no closed form and OpenSpiel's sequence-form-LP value becomes the only ground truth.
