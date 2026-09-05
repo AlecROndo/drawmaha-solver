@@ -74,6 +74,9 @@ PAGE = """\
     --serif: "IBM Plex Serif", Georgia, serif;
     --mono: "IBM Plex Mono", ui-monospace, monospace;
     --site-w: 1272px;
+    /* The gutter between the content column and the viewport edge — an outer
+       gutter, not padding inside the column, or the column would be inset
+       twice and end up narrower than it reads. */
     --margin: clamp(20px, 4vw, 84px);
   }
   @media (prefers-color-scheme: dark) {
@@ -111,7 +114,10 @@ PAGE = """\
 
   :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
-  .wrap { max-width: var(--site-w); margin: 0 auto; padding: 0 var(--margin); }
+  /* The margin is the gutter OUTSIDE the column, so the column is 1272px and
+     no wider. max-width plus padding on the same box insets it twice, which
+     left the cover reading narrower than the visualizers it links to. */
+  .wrap { width: min(100% - 2 * var(--margin), var(--site-w)); margin-inline: auto; }
 
   /* ---------- nav: no bottom border, one button, four text links ---------- */
 

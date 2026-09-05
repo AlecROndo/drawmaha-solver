@@ -45,7 +45,13 @@
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
 
   --site-w: 1272px;
+  /* The gutter between the content column and the viewport edge — an outer
+     gutter, not padding inside the column, or the column would be inset
+     twice and end up narrower than it reads. */
   --margin: clamp(20px, 4vw, 84px);
+  /* The plate's own padding, and therefore exactly how far it overhangs the
+     column. See .plate. */
+  --plate-pad: clamp(20px, 3vw, 44px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -104,10 +110,13 @@ a:hover {
 
 /* ---------- container: content stops at 1272px, margins stay bare ------- */
 
+/* The margin is the gutter OUTSIDE the column, so the column is 1272px wide
+   and no wider. Setting max-width and then padding on the same box insets it
+   twice: at 1440 that is a 1157px column starting 142px in, which reads as a
+   different page from anything that breaks out of it. */
 .wrap {
-  max-width: var(--site-w);
-  margin: 0 auto;
-  padding: 0 var(--margin);
+  width: min(100% - 2 * var(--margin), var(--site-w));
+  margin-inline: auto;
 }
 
 /* ---------- nav: no bottom border, one button, text links --------------- */
@@ -296,11 +305,19 @@ section.sect {
 
 /* ---------- the one full-bleed moment per page -------------------------- */
 
+/* The plate breaks the container by exactly its own padding, so the figure
+   inside it sits on the same column as every paragraph above and below — only
+   the tinted surface overhangs. Break it by more and the page has two
+   competing widths; break it by less and it stops reading as a break. */
 .plate {
   background: var(--surface-2);
   border-radius: 24px;
-  padding: 36px clamp(20px, 3vw, 44px) 40px;
-  margin: 0 clamp(12px, 2.6vw, 38px);
+  width: min(
+    100% - 2 * var(--margin) + 2 * var(--plate-pad),
+    var(--site-w) + 2 * var(--plate-pad)
+  );
+  margin-inline: auto;
+  padding: 36px var(--plate-pad) 40px;
 }
 
 .plate-head {
@@ -919,10 +936,10 @@ footer.band .about .tiny {
     grid-column: 1 / 13;
   }
 
+  /* The width rule already narrows the overhang with the gutter; only the
+     radius needs to come down with the page. */
   .plate {
-    margin: 0 var(--margin);
     border-radius: 16px;
-    padding: 28px 20px 32px;
   }
 
   .ledger-flow {
