@@ -514,11 +514,15 @@ section:first-of-type {
   border-radius: 2px;
 }
 
+/* Ink is inherited, never named: a chip appears both inside a paper panel (the
+   trace, the scoreboard, a chart legend) and on the field (the play-a-hand
+   buttons). Naming --panel-mark here painted the field chips oxblood on the
+   oxblood field — invisible until hovered. Inheriting picks up --panel-mark
+   from .panel and --mark from .btn, which is right in both places. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--panel-mark);
 }
 
 .dot {
@@ -938,13 +942,11 @@ section:first-of-type {
 .outcome .res.l { color: var(--loss); }
 .outcome .res.t { color: var(--panel-dim); }
 
-.play-buttons {
-  display: flex;
-  gap: 10px;
-  padding: 18px 0;
-  border-bottom: 1px solid var(--hair);
-  flex-wrap: wrap;
-}
+/* Rung 0's field-level .play-buttons row is deliberately absent here. Rung 1
+   puts its play buttons INSIDE fig. 3's paper panel, and the rung-0 rule's
+   `border-bottom: 1px solid var(--hair)` is a field hairline: on the bone
+   panel it vanishes in the dark scheme and draws a stray oxblood rule in the
+   light one. The rung-1 .play-buttons rule further down is the whole of it. */
 
 .kbd-hint {
   font: 400 12.5px/1.6 var(--mono);
@@ -1257,8 +1259,13 @@ kbd {
   max-width: 68ch;
 }
 
+/* A solver error, and it sits on the field rather than on a panel — so it gets
+   the field's full-strength ink beside the dim notes around it, not --loss.
+   --loss is chromatic and chromatic ink only ever lands on paper: #b3243c on
+   the oxblood field is 1.34:1, an error message nobody can read. */
 .note.bad {
-  color: var(--loss);
+  color: var(--mark);
+  font-weight: 500;
 }
 
 /* ---------- play against it ---------------------------------------------- */

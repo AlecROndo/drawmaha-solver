@@ -513,11 +513,15 @@ section:first-of-type {
   border-radius: 2px;
 }
 
+/* Ink is inherited, never named: a chip appears both inside a paper panel (the
+   trace, the scoreboard, a chart legend) and on the field (the play-a-hand
+   buttons). Naming --panel-mark here painted the field chips oxblood on the
+   oxblood field — invisible until hovered. Inheriting picks up --panel-mark
+   from .panel and --mark from .btn, which is right in both places. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--panel-mark);
 }
 
 .dot {

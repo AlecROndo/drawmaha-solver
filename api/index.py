@@ -231,9 +231,13 @@ PAGE = """\
     position: relative; border-top: 1.5px dashed var(--panel-mark);
     margin: 13px -18px 11px;
   }
+  /* The two notches are holes punched through the ticket's edge, so they take
+     the colour BEHIND the ticket — the panel it sits on, not the field. Naming
+     --field drew oxblood blobs straddling the ticket border in the dark scheme
+     and a wrong-shade circle in the light one. */
   .ticket .perf i {
     position: absolute; top: -8px; width: 15px; height: 15px; border-radius: 50%;
-    background: var(--field);
+    background: var(--panel);
   }
   .ticket .perf i.l { left: -8px; }
   .ticket .perf i.r { right: -8px; }
