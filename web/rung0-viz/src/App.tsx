@@ -95,7 +95,7 @@ export default function App() {
                 <span>
                   <b>Step mode shows the arithmetic.</b>{' '}
                   <span className="serif dim">
-                    Pause, then press → and follow one round through the ledger.
+                    Pause, then press → and follow a single update, line by line.
                   </span>
                 </span>
                 <span className="m">Fig. 4</span>
