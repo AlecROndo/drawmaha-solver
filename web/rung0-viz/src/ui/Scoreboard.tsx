@@ -2,10 +2,12 @@ import type { Engine } from '../sim/engine'
 import { PAYOFF } from '../sim/game'
 import { Chip } from './Chip'
 import { fmtIter, fmtSigned } from './format'
+import { Panel } from './site'
 
 /**
- * Scoreboard for the scored modes (vs-fixed, vs-you): cumulative chips,
- * EV/round, and the last ~10 rounds' outcomes.
+ * The scored modes (vs-fixed, vs-you) have a second question self-play does
+ * not: how much is the learner actually winning? Cumulative chips, EV per
+ * round, and the last ten rounds' outcomes.
  */
 export function Scoreboard({ engine }: { engine: Engine }) {
   const vsYou = engine.config.mode === 'vs-you'
@@ -13,37 +15,36 @@ export function Scoreboard({ engine }: { engine: Engine }) {
   const n = engine.iteration
 
   return (
-    <section className="panel wide aside" aria-label="Scoreboard">
-      <h2>Scoreboard — the {who}'s chips</h2>
-      <p className="sub">
-        {vsYou
-          ? 'the bot wins your chips by countering your habits'
-          : 'best response to 50% rock earns +0.25/round in theory'}
-      </p>
-      <div className="score-tiles">
-        <div className="tile">
-          <div className="k">rounds</div>
-          <div className="v" style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {fmtIter(n)}
-          </div>
+    <Panel
+      n="06"
+      wide
+      k="Fig. 6 · the scoreboard"
+      title={`The ${who}'s chips`}
+      say={
+        vsYou
+          ? 'The bot wins your chips by countering your habits: whatever you played too often becomes the action it regrets not beating.'
+          : 'A best response to 50% rock earns +0.25 a round in theory. The ledger has to find it from regret alone.'
+      }
+      label="Scoreboard"
+    >
+      <dl className="stat">
+        <div>
+          <dt>Rounds</dt>
+          <dd>{fmtIter(n)}</dd>
         </div>
-        <div className="tile">
-          <div className="k">cumulative chips</div>
-          <div className="v" style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {fmtSigned(engine.chips, 0)}
-          </div>
+        <div>
+          <dt>Cumulative chips</dt>
+          <dd>{fmtSigned(engine.chips, 0)}</dd>
         </div>
-        <div className="tile">
-          <div className="k">EV / round</div>
-          <div className="v" style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {n > 0 ? fmtSigned(engine.chips / n, 3) : '—'}
-          </div>
+        <div>
+          <dt>Per round</dt>
+          <dd>{n > 0 ? fmtSigned(engine.chips / n, 3) : '—'}</dd>
         </div>
-      </div>
+      </dl>
       <div className="outcome-strip" aria-label="Recent rounds">
         {engine.recent.length === 0 ? (
           <span className="strip-empty">
-            {vsYou ? 'play a hand above to start the record' : 'step or run to start the record'}
+            {vsYou ? 'Play a hand above to start the record.' : 'Step or run to start the record.'}
           </span>
         ) : (
           engine.recent.map((r) => {
@@ -54,12 +55,14 @@ export function Scoreboard({ engine }: { engine: Engine }) {
                 <div className="who">
                   <Chip a={r.playerAction} label="" /> vs <Chip a={r.oppAction} label="" />
                 </div>
-                <div className={`res ${res}`}>{p > 0 ? 'W' : p < 0 ? 'L' : 'T'} {fmtSigned(p, 0)}</div>
+                <div className={`res ${res}`}>
+                  {p > 0 ? 'W' : p < 0 ? 'L' : 'T'} {fmtSigned(p, 0)}
+                </div>
               </div>
             )
           })
         )}
       </div>
-    </section>
+    </Panel>
   )
 }

@@ -25,9 +25,14 @@ done
 
 # Both visualizers bundle the same @fontsource files, so either copy serves the
 # cover page; rung 0's is the one that has always been here.
+#
+# Three voices, three families, and the weights differ by role: the serif is
+# display only and ships at one weight, mono is the body text AND the UI so it
+# needs three, and the script is annotation only.
 fontsource=web/rung0-viz/node_modules/@fontsource
-for fam in sans mono; do
-  for weight in 400 500 600; do
-    cp "$fontsource/ibm-plex-$fam/files/ibm-plex-$fam-latin-$weight-normal.woff2" public/fonts/
-  done
-done
+copy_font() {
+  cp "$fontsource/$1/files/$1-latin-$2-normal.woff2" public/fonts/
+}
+copy_font instrument-serif 400
+for weight in 400 500 600; do copy_font ibm-plex-mono "$weight"; done
+copy_font kalam 400
