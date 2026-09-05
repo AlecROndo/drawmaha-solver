@@ -55,12 +55,12 @@ PAGE = """\
 
     --field: var(--oxblood);
     --mark: var(--bone);
-    --mark-dim: rgba(245, 240, 230, 0.62);
+    --mark-dim: rgba(245, 240, 230, 0.7);
     --hair: rgba(245, 240, 230, 0.28);
 
     --panel: var(--bone);
     --panel-mark: var(--oxblood);
-    --panel-dim: #b4536a;
+    --panel-dim: #b04d65;
     --panel-hair: rgba(142, 32, 56, 0.22);
     --panel-border: transparent;
 
@@ -78,10 +78,13 @@ PAGE = """\
          islands once the field is paper too. */
       --field: var(--bone);
       --mark: var(--oxblood);
-      --mark-dim: rgba(142, 32, 56, 0.62);
+      --mark-dim: rgba(142, 32, 56, 0.76);
       --hair: rgba(142, 32, 56, 0.22);
       --panel: #eae0cb;
       --panel-border: rgba(142, 32, 56, 0.26);
+      /* The panel deepens a step in this scheme, so the ink on it has to come
+         down with it or it loses the contrast it had on bone. */
+      --panel-dim: #a1465c;
     }
   }
 

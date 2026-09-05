@@ -29,13 +29,13 @@
   /* field = the page; mark = what sits on it; panel = the paper islands */
   --field: var(--oxblood);
   --mark: var(--bone);
-  --mark-dim: rgba(245, 240, 230, 0.62);
+  --mark-dim: rgba(245, 240, 230, 0.7);
   --hair: rgba(245, 240, 230, 0.28);
   --hair-strong: rgba(245, 240, 230, 0.55);
 
   --panel: var(--bone);
   --panel-mark: var(--oxblood);
-  --panel-dim: #b4536a;
+  --panel-dim: #b04d65;
   --panel-hair: rgba(142, 32, 56, 0.22);
   --panel-border: transparent;
 
@@ -45,7 +45,7 @@
   --paper: #1b8f66;
   --scissors: #c07a00;
   --avg-obj: #4a3aa7;
-  --cur-obj: #b08b93;
+  --cur-obj: #8f616b;
   --win: #0e7a34;
   --loss: #b3243c;
 
@@ -63,12 +63,17 @@
        they still read as islands once the field is paper too. */
     --field: var(--bone);
     --mark: var(--oxblood);
-    --mark-dim: rgba(142, 32, 56, 0.62);
+    --mark-dim: rgba(142, 32, 56, 0.76);
     --hair: rgba(142, 32, 56, 0.22);
     --hair-strong: rgba(142, 32, 56, 0.45);
 
     --panel: #eae0cb;
     --panel-border: rgba(142, 32, 56, 0.26);
+    /* The panel deepens a step in this scheme, so every ink that sits on it
+       has to come down with it or it loses the contrast it had on bone. */
+    --panel-dim: #a1465c;
+    --cur-obj: #825962;
+    --win: #0d7431;
   }
 }
 
