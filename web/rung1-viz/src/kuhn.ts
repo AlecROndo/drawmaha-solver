@@ -142,8 +142,14 @@ export interface Edge {
  * The tree runs left to right, one column per action taken, because that is
  * the order a hand happens in and it lays the whole game on one line inside
  * the page's full-bleed plate. Every coordinate below is a centre.
+ *
+ * The canvas is the drawn extent plus a 30px margin on all four sides. That
+ * margin is what `TREE_W` has to be measured against: an SVG clips to its own
+ * viewBox, and `.tree svg` is not `overflow: visible` (it cannot be — the wrap
+ * scrolls on x), so a node reaching past `TREE_W` loses its right edge rather
+ * than spilling. The rightmost terminals end at 928 + 176/2 = 1016.
  */
-export const TREE_W = 1010
+export const TREE_W = 1046
 export const TREE_H = 400
 
 export const NODE_W = 214
