@@ -1,4 +1,4 @@
-import { FigureHead } from './site'
+import { Panel } from './site'
 import type { ExploitRun } from './useExploit'
 
 /**
@@ -40,18 +40,21 @@ export function EvChart({ run, index }: { run: ExploitRun; index: number }) {
   )
 
   return (
-    <section className="wide7" aria-label="Counter-strategy EV over the run">
-      <FigureHead n="Fig. 2" title="The counter-strategy climbs to the exact ceiling">
-        Chips per hand to P{evSeat}, x log. The upper rule is the exact best response; the lower
-        one is what equilibrium play earns against the same locks.
-      </FigureHead>
+    <Panel
+      n="02"
+      wide
+      k="Fig. 2 · the ceiling"
+      title="The counter-strategy climbs to the exact ceiling"
+      say={`Chips per hand to P${evSeat}, x log. The upper rule is the exact best response; the lower one is what equilibrium play earns against the same locks.`}
+      label="Counter-strategy EV over the run"
+    >
       <div className="legend">
         <span className="item">
           <span className="swatch" style={{ background: 'var(--avg-obj)' }} />
           CFR's counter-strategy
         </span>
         <span className="item">
-          <span className="swatch" style={{ background: 'var(--ink-2)' }} />
+          <span className="swatch" style={{ background: 'var(--panel-dim)' }} />
           exact best response
         </span>
         <span className="item">
@@ -70,16 +73,16 @@ export function EvChart({ run, index }: { run: ExploitRun; index: number }) {
             fall outside the run entirely. */}
         {[hi + pad, (hi + lo) / 2, lo - pad].map((v) => (
           <g key={v}>
-            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--grid)" />
-            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--muted)">
+            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--panel-hair)" />
+            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
               {v.toFixed(3)}
             </text>
           </g>
         ))}
         {decades.map((d) => (
           <g key={d}>
-            <line x1={x(d)} x2={x(d)} y1={M.t} y2={H - M.b} stroke="var(--grid)" />
-            <text x={x(d)} y={H - 10} textAnchor="middle" fontSize="11" fill="var(--muted)">
+            <line x1={x(d)} x2={x(d)} y1={M.t} y2={H - M.b} stroke="var(--panel-hair)" />
+            <text x={x(d)} y={H - 10} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
               {d >= 1000 ? `${d / 1000}k` : d}
             </text>
           </g>
@@ -114,7 +117,7 @@ export function EvChart({ run, index }: { run: ExploitRun; index: number }) {
               x2={W - M.r}
               y1={y(ceiling)}
               y2={y(ceiling)}
-              stroke="var(--ink-2)"
+              stroke="var(--panel-dim)"
               strokeWidth={1.2}
             />
             <text
@@ -122,7 +125,7 @@ export function EvChart({ run, index }: { run: ExploitRun; index: number }) {
               y={y(ceiling) - 6}
               textAnchor="end"
               fontSize="11"
-              fill="var(--ink-2)"
+              fill="var(--panel-dim)"
             >
               exact best response {ceiling.toFixed(4)}
             </text>
@@ -135,7 +138,7 @@ export function EvChart({ run, index }: { run: ExploitRun; index: number }) {
           x2={x(iterations[index])}
           y1={M.t}
           y2={H - M.b}
-          stroke="var(--ink)"
+          stroke="var(--panel-mark)"
           strokeWidth={1}
         />
         <circle cx={x(iterations[index])} cy={y(ev[index])} r={3.5} fill="var(--avg-obj)" />
@@ -154,6 +157,6 @@ export function EvChart({ run, index }: { run: ExploitRun; index: number }) {
           <dd>{ceiling === null ? '—' : (ceiling - ev[index]).toFixed(5)}</dd>
         </div>
       </dl>
-    </section>
+    </Panel>
   )
 }

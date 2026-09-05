@@ -3,7 +3,7 @@ import type { Engine } from '../sim/engine'
 import { ACTIONS, exploitability } from '../sim/game'
 import { averageStrategy, strategy } from '../sim/ledger'
 import { ACTION_COLORS, fmt, fmtIter } from './format'
-import { FigureHead } from './site'
+import { Panel } from './site'
 
 interface BarsProps {
   values: readonly number[]
@@ -74,7 +74,7 @@ function Bars({ values, kind, thirdTick, digits = 3 }: BarsProps) {
                 style={{
                   top: pos ? zeroY - h : zeroY + 1,
                   height: Math.max(h, 1),
-                  background: pos ? ACTION_COLORS[i] : 'var(--muted)',
+                  background: pos ? ACTION_COLORS[i] : 'var(--panel-dim)',
                 }}
               />
             </div>
@@ -98,16 +98,10 @@ function BarNames() {
   )
 }
 
-function Stage({
-  label,
-  values,
-  kind,
-  thirdTick,
-  digits,
-}: BarsProps & { label: string }) {
+function Stage({ label, values, kind, thirdTick, digits }: BarsProps & { label: string }) {
   return (
     <div className="ledger-stage">
-      <span className="label">{label}</span>
+      <span className="k">{label}</span>
       <Bars values={values} kind={kind} thirdTick={thirdTick} digits={digits} />
       <BarNames />
     </div>
@@ -116,9 +110,8 @@ function Stage({
 
 /**
  * The full pipeline of one brain — cumulative regrets R → current strategy σ →
- * average strategy S/n — on the page's one full-bleed plate. It breaks the
- * container because it is the thing the page is about; everything else is
- * commentary on it.
+ * average strategy S/n. It takes the widest panel on the page because it is
+ * the thing the page is about; every other figure is commentary on it.
  */
 export function LedgerPanel({ engine }: { engine: Engine }) {
   const [player, setPlayer] = useState(0)
@@ -128,27 +121,28 @@ export function LedgerPanel({ engine }: { engine: Engine }) {
   const avg = averageStrategy(L)
 
   return (
-    <section className="plate" aria-label="Regret-matching ledger">
-      <div className="plate-head">
-        <FigureHead n="Fig. 1" title={`The ledger after round ${fmtIter(engine.iteration)}`}>
-          R accumulates what each action would have earned over what the strategy expected.
-          Positive regret becomes the next strategy; the average of every strategy played is the
-          product.
-        </FigureHead>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
-          {selfPlay && (
-            <div className="player-toggle" role="tablist" aria-label="Displayed player">
-              {[0, 1].map((i) => (
-                <button key={i} role="tab" aria-selected={player === i} onClick={() => setPlayer(i)}>
-                  player {i}
-                </button>
-              ))}
-            </div>
-          )}
-          <span className="iter-readout">
-            exploitability of the average <b>{fmt(exploitability(avg), 4)}</b>
-          </span>
-        </div>
+    <Panel
+      n="01"
+      wide
+      k="Fig. 1 · the ledger"
+      title={`The ledger after round ${fmtIter(engine.iteration)}`}
+      say="R accumulates what each action would have earned over what the strategy expected. Positive regret becomes the next strategy; the average of every strategy played is the product."
+      label="Regret-matching ledger"
+    >
+      <div className="ledger-head">
+        {selfPlay && (
+          <div className="mode-tabs" role="tablist" aria-label="Displayed player">
+            {[0, 1].map((i) => (
+              <button key={i} role="tab" aria-selected={player === i} onClick={() => setPlayer(i)}>
+                player {i}
+              </button>
+            ))}
+          </div>
+        )}
+        <span className="grow" />
+        <span className="readout">
+          exploitability of the average <b>{fmt(exploitability(avg), 4)}</b>
+        </span>
       </div>
 
       <div className="ledger-flow">
@@ -163,10 +157,10 @@ export function LedgerPanel({ engine }: { engine: Engine }) {
         <Stage label="Average S / n" values={avg} kind="share" thirdTick />
       </div>
 
-      <p className="floor-note">
+      <p className="say">
         Negative regret is clipped by the floor and never drives play — σ is built from
         R⁺ = max(R, 0) only, so any bar pushed below zero renders greyed.
       </p>
-    </section>
+    </Panel>
   )
 }

@@ -35,8 +35,8 @@ export function DecadeGridlines({ scale, box }: { scale: LogXScale; box: ChartBo
     <>
       {scale.decades.map((d) => (
         <g key={d}>
-          <line x1={scale.x(d)} x2={scale.x(d)} y1={box.t} y2={box.h - box.b} stroke="var(--grid)" />
-          <text x={scale.x(d)} y={box.h - 8} textAnchor="middle" fontSize="11" fill="var(--muted)">
+          <line x1={scale.x(d)} x2={scale.x(d)} y1={box.t} y2={box.h - box.b} stroke="var(--panel-hair)" />
+          <text x={scale.x(d)} y={box.h - 8} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
             {decadeLabel(d)}
           </text>
         </g>
@@ -72,8 +72,8 @@ export function YGridline({
 }) {
   return (
     <g>
-      <line x1={box.l} x2={box.w - box.r} y1={y} y2={y} stroke="var(--grid)" />
-      <text x={box.l - 8} y={y + 3.5} textAnchor="end" fontSize="11" fill="var(--muted)">
+      <line x1={box.l} x2={box.w - box.r} y1={y} y2={y} stroke="var(--panel-hair)" />
+      <text x={box.l - 8} y={y + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
         {label}
       </text>
     </g>
@@ -82,7 +82,7 @@ export function YGridline({
 
 /** Vertical hairline at the hovered x. */
 export function HoverCrosshair({ x, box }: { x: number; box: ChartBox }) {
-  return <line x1={x} x2={x} y1={box.t} y2={box.h - box.b} stroke="var(--axis)" />
+  return <line x1={x} x2={x} y1={box.t} y2={box.h - box.b} stroke="var(--panel-hair)" />
 }
 
 /** Direct label at the right edge: colored tick + text ink, instead of a legend lookup. */
@@ -100,7 +100,7 @@ export function EdgeLabel({
   return (
     <g>
       <rect x={box.w - box.r + 6} y={y - 1.5} width={10} height={3} rx={1.5} fill={color} />
-      <text x={box.w - box.r + 20} y={y + 3.5} fontSize="11" fill="var(--ink-2)">
+      <text x={box.w - box.r + 20} y={y + 3.5} fontSize="11" fill="var(--panel-dim)">
         {text}
       </text>
     </g>

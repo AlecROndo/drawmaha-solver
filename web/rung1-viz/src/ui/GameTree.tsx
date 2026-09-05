@@ -104,7 +104,7 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
             <text className="node-letter" x={left + 14} y={y + 6} fill={CARD_VAR[card]}>
               {CARD_SYMBOL[card]}
             </text>
-            <rect x={left + BAR_X} y={y} width={BAR_W} height={BAR_H} rx={1.5} fill="var(--grid)" />
+            <rect x={left + BAR_X} y={y} width={BAR_W} height={BAR_H} rx={1.5} fill="var(--panel-hair)" />
             <rect
               x={left + BAR_X}
               y={y}
@@ -125,7 +125,7 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
                 x2={left + BAR_X + exact * BAR_W}
                 y1={y - 3}
                 y2={y + BAR_H + 3}
-                stroke="var(--ink)"
+                stroke="var(--panel-mark)"
                 strokeWidth={1.5}
               />
             )}
@@ -136,7 +136,7 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
               className="node-value"
               x={left + BAR_X + BAR_W + 10}
               y={y + 6}
-              fill={pinned === undefined ? undefined : 'var(--muted)'}
+              fill={pinned === undefined ? undefined : 'var(--panel-dim)'}
             >
               {(pinned ?? p).toFixed(2)}
             </text>
@@ -171,7 +171,7 @@ export function GameTree(props: GameTreeProps) {
                 <path
                   d={`M ${x1} ${from.cy} C ${x1 + 40} ${from.cy}, ${x2 - 40} ${to.cy}, ${x2} ${to.cy}`}
                   fill="none"
-                  stroke="var(--axis)"
+                  stroke="var(--panel-hair)"
                   strokeWidth={1 + 4 * p}
                   strokeLinecap="round"
                 />

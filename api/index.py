@@ -6,10 +6,13 @@ regret-matching visualizer at /rung0; rung 1: the Kuhn CFR visualizer at
 /rung1). The GTOWizard-style dashboard planned for rung 4 replaces this page.
 
 Stdlib only on purpose — the page must never depend on the solver's numeric
-stack, so a heavy dependency can't break the deploy. Visual language matches
-both visualizers: a 1272px 12-column grid, IBM Plex Sans for headings and UI,
-Plex Serif for reading copy, Plex Mono for numbers and field labels, and
-hairline rows instead of cards.
+stack, so a heavy dependency can't break the deploy.
+
+Visual language is the site's duotone system, shared with both visualizers:
+one hue and one paper that swap for the light colour scheme, the validation
+ladder drawn as the nav, a persistent identity rail, three type voices
+(Instrument Serif display / IBM Plex Mono body / Kalam annotation), and
+monoline illustration at a single stroke weight.
 """
 
 from http.server import BaseHTTPRequestHandler
@@ -22,28 +25,11 @@ PAGE = """\
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Drawmaha Solver — rung 1 complete: CFR solves Kuhn poker exactly</title>
 <style>
-  /* Self-hosted IBM Plex (the same @fontsource files the visualizers
-     bundle); copied to /fonts by the Vercel buildCommand. No third-party
-     font CDN. */
+  /* Self-hosted @fontsource files, copied to /fonts by the Vercel
+     buildCommand. No third-party font CDN. */
   @font-face {
-    font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400;
-    font-display: swap; src: url(/fonts/ibm-plex-sans-latin-400-normal.woff2) format("woff2");
-  }
-  @font-face {
-    font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500;
-    font-display: swap; src: url(/fonts/ibm-plex-sans-latin-500-normal.woff2) format("woff2");
-  }
-  @font-face {
-    font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600;
-    font-display: swap; src: url(/fonts/ibm-plex-sans-latin-600-normal.woff2) format("woff2");
-  }
-  @font-face {
-    font-family: "IBM Plex Sans"; font-style: normal; font-weight: 700;
-    font-display: swap; src: url(/fonts/ibm-plex-sans-latin-700-normal.woff2) format("woff2");
-  }
-  @font-face {
-    font-family: "IBM Plex Serif"; font-style: normal; font-weight: 400;
-    font-display: swap; src: url(/fonts/ibm-plex-serif-latin-400-normal.woff2) format("woff2");
+    font-family: "Instrument Serif"; font-style: normal; font-weight: 400;
+    font-display: swap; src: url(/fonts/instrument-serif-latin-400-normal.woff2) format("woff2");
   }
   @font-face {
     font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400;
@@ -53,397 +39,529 @@ PAGE = """\
     font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500;
     font-display: swap; src: url(/fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2");
   }
+  @font-face {
+    font-family: "IBM Plex Mono"; font-style: normal; font-weight: 600;
+    font-display: swap; src: url(/fonts/ibm-plex-mono-latin-600-normal.woff2) format("woff2");
+  }
+  @font-face {
+    font-family: "Kalam"; font-style: normal; font-weight: 400;
+    font-display: swap; src: url(/fonts/kalam-latin-400-normal.woff2) format("woff2");
+  }
 
   :root {
-    color-scheme: light dark;
-    /* Two inks and a paper. Greys are the ink tinted toward the paper,
-       never a neutral #888. */
-    --paper: #f7f7f3;
-    --paper-2: #ecebe4;
-    --ink: #141412;
-    --ink-2: #52514e;
-    --ink-3: #8a8880;
-    --hair: rgba(20, 20, 18, 0.12);
-    --hair-2: rgba(20, 20, 18, 0.24);
-    /* The dark band at the foot of the page: the ink used as ground, with
-       the paper colour as its text. */
-    --band: #141412;
-    --band-ink: #f7f7f3;
-    --band-ink-2: rgba(247, 247, 243, 0.55);
-    --sans: "IBM Plex Sans", system-ui, sans-serif;
-    --serif: "IBM Plex Serif", Georgia, serif;
+    color-scheme: dark light;
+    --oxblood: #8e2038;
+    --bone: #f5f0e6;
+
+    --field: var(--oxblood);
+    --mark: var(--bone);
+    --mark-dim: rgba(245, 240, 230, 0.62);
+    --hair: rgba(245, 240, 230, 0.28);
+
+    --panel: var(--bone);
+    --panel-mark: var(--oxblood);
+    --panel-dim: #b4536a;
+    --panel-hair: rgba(142, 32, 56, 0.22);
+    --panel-border: transparent;
+
+    --serif: "Instrument Serif", Georgia, serif;
     --mono: "IBM Plex Mono", ui-monospace, monospace;
-    --site-w: 1272px;
-    /* The gutter between the content column and the viewport edge — an outer
-       gutter, not padding inside the column, or the column would be inset
-       twice and end up narrower than it reads. */
-    --margin: clamp(20px, 4vw, 84px);
+    --script: "Kalam", cursive;
+
+    --rail-w: 232px;
+    --gutter: clamp(20px, 3.4vw, 56px);
   }
-  @media (prefers-color-scheme: dark) {
+
+  @media (prefers-color-scheme: light) {
     :root {
-      /* The same relationship inverted: the ink becomes the ground and the
-         paper becomes the text, rather than black-on-white flipped to
-         white-on-black. */
-      --paper: #141412;
-      --paper-2: #1e1e1b;
-      --ink: #f2f1ea;
-      --ink-2: #a8a69c;
-      --ink-3: #78766e;
-      --hair: rgba(242, 241, 234, 0.14);
-      --hair-2: rgba(242, 241, 234, 0.26);
-      /* On a dark page the band cannot be darker still; it becomes the
-         flat second surface, marked off by a hairline instead. */
-      --band: #1e1e1b;
-      --band-ink: #f2f1ea;
-      --band-ink-2: rgba(242, 241, 234, 0.5);
+      /* Same two colours, swapped. Panels deepen a step so they still read as
+         islands once the field is paper too. */
+      --field: var(--bone);
+      --mark: var(--oxblood);
+      --mark-dim: rgba(142, 32, 56, 0.62);
+      --hair: rgba(142, 32, 56, 0.22);
+      --panel: #eae0cb;
+      --panel-border: rgba(142, 32, 56, 0.26);
     }
   }
 
   * { box-sizing: border-box; }
 
   body {
-    margin: 0;
-    background: var(--paper);
-    color: var(--ink);
-    font: 16px/1.5 var(--sans);
-    -webkit-font-smoothing: antialiased;
+    margin: 0; background: var(--field); color: var(--mark);
+    font: 400 14px/1.6 var(--mono); -webkit-font-smoothing: antialiased;
   }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--mark); outline-offset: 3px; }
 
-  a { color: var(--ink); }
-  a:hover { color: var(--ink-2); }
+  /* ---------- the ladder, drawn as the nav ---------- */
 
-  :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-
-  /* The margin is the gutter OUTSIDE the column, so the column is 1272px and
-     no wider. max-width plus padding on the same box insets it twice, which
-     left the cover reading narrower than the visualizers it links to. */
-  .wrap { width: min(100% - 2 * var(--margin), var(--site-w)); margin-inline: auto; }
-
-  /* ---------- nav: no bottom border, one button, four text links ---------- */
-
-  nav.top {
-    min-height: 64px; display: flex; align-items: center;
-    justify-content: space-between; gap: 24px; flex-wrap: wrap;
-    padding: 12px 0;
+  nav.line {
+    position: sticky; top: 0; z-index: 20; background: var(--field);
+    border-bottom: 1px solid var(--hair); padding: 22px 0 12px;
   }
-  .wordmark {
-    font: 700 16px/1 var(--sans); color: var(--ink); text-decoration: none;
+  nav.line .track { position: relative; height: 34px; margin: 0 var(--gutter); }
+  nav.line .bar {
+    position: absolute; left: 10%; right: 10%; top: 11px; height: 1px;
+    background: var(--hair);
   }
-  nav.top .links {
-    display: flex; align-items: center; gap: 32px; flex-wrap: wrap;
+  /* Stations sit at 10/30/50/70/90% — the centres of five equal columns — so
+     the climbed segment runs from the first station to the second. */
+  nav.line .bar.done {
+    left: 10%; right: 70%; top: 10.5px; height: 2px; background: var(--mark);
   }
-  nav.top ul {
-    display: flex; gap: 28px; list-style: none; margin: 0; padding: 0;
-    align-items: center;
-  }
-  nav.top ul a { font: 400 15px/1 var(--sans); text-decoration: none; }
-  nav.top ul a.here {
-    text-decoration: underline; text-underline-offset: 0.35em;
-    text-decoration-thickness: 1px;
-  }
-  .btn {
-    display: inline-flex; align-items: center; gap: 10px;
-    background: var(--ink); color: var(--paper); border-radius: 8px;
-    padding: 9px 16px; font: 500 14px/1.2 var(--sans);
-    text-decoration: none; white-space: nowrap;
-  }
-  .btn:hover { color: var(--paper); opacity: 0.86; }
-
-  /* ---------- the 12-column grid everything sits on ---------- */
-
-  .g12 {
-    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 32px;
-  }
-  .l4 { grid-column: 1 / 5; }
-  .r8 { grid-column: 5 / 13; }
-
-  /* ---------- hero: headline left, serif dek offset to column 9 ---------- */
-
-  header.hero {
-    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 32px; padding: 132px 0 88px; align-items: start;
-  }
-  header.hero h1 {
-    grid-column: 1 / 9; margin: 0;
-    font: 700 clamp(34px, 4.5vw, 64px)/1.05 var(--sans);
-    letter-spacing: 0; text-wrap: balance;
-  }
-  header.hero .dek {
-    grid-column: 9 / 13; margin: 8px 0 0;
-    font: 400 17px/1.55 var(--serif); color: var(--ink);
-  }
-  header.hero .dek a {
-    text-decoration: underline; text-underline-offset: 0.2em;
-  }
-
-  /* ---------- type roles ---------- */
-
-  .label {
-    font: 500 12px/1.4 var(--mono); text-transform: uppercase;
-    letter-spacing: 0.03em; color: var(--ink-3);
-  }
-  h2.sec { font: 600 24px/1.3 var(--sans); margin: 0; letter-spacing: 0; }
-  h3.rec { font: 600 17px/1.35 var(--sans); margin: 0; letter-spacing: 0; }
-  .serif { font: 400 16px/1.5 var(--serif); color: var(--ink); margin: 0; }
-  .serif.dim { color: var(--ink-2); }
-  .num {
-    font: 400 15px/1.4 var(--mono); font-variant-numeric: tabular-nums;
-  }
-
-  section.sect { padding: 96px 0 0; }
-
-  /* ---------- the ladder: hairline rows, not cards ---------- */
-
-  .sec-head {
-    display: flex; justify-content: space-between; align-items: baseline;
-    gap: 24px; margin-bottom: 24px; flex-wrap: wrap;
-  }
-  .ladder { border-bottom: 1px solid var(--hair); }
-  .ladder .row {
-    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 0 32px; align-items: baseline;
-    padding: 16px 0; border-top: 1px solid var(--hair);
-  }
-  .ladder .head { padding: 0 0 10px; border-top: 0; }
-  .ladder .c-rung { grid-column: 1 / 2; }
-  .ladder .c-game { grid-column: 2 / 5; font-weight: 600; }
-  .ladder .c-proves { grid-column: 5 / 10; }
-  .ladder .c-status {
-    grid-column: 10 / 13; text-align: right;
-    font-size: 15px; color: var(--ink-2);
-  }
-  .ladder .c-status a {
-    text-decoration: underline; text-underline-offset: 0.2em;
-  }
-
-  /* ---------- measured: two flat record cards ---------- */
-
-  .records {
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 24px;
-  }
-  .card {
-    background: var(--paper-2); border-radius: 16px;
-    padding: 28px 28px 24px;
-    display: flex; flex-direction: column; gap: 14px;
-  }
-  .card .serif { font-size: 15px; }
-  .fields { list-style: none; margin: 0; padding: 0; }
-  .fields li {
-    display: flex; justify-content: space-between; gap: 16px;
-    padding: 10px 0; border-top: 1px solid var(--hair);
-  }
-  .fields .v {
-    font: 400 15px/1.4 var(--mono); font-variant-numeric: tabular-nums;
-    text-align: right;
-  }
-  .card .cta { margin-top: 4px; }
-
-  /* ---------- writeups: rows again, different columns ---------- */
-
-  .rows { list-style: none; margin: 0; padding: 0; }
-  .rows li {
-    display: flex; justify-content: space-between; align-items: baseline;
-    gap: 24px; padding: 16px 0; border-bottom: 1px solid var(--hair);
-  }
-  .rows li:first-child { border-top: 1px solid var(--hair); }
-  .rows .t { font: 600 15px/1.4 var(--sans); }
-  .rows .m {
-    font: 400 15px/1.4 var(--sans); color: var(--ink-2); white-space: nowrap;
-  }
-
-  /* ---------- the band at the foot ---------- */
-
-  footer.band {
-    background: var(--band); color: var(--band-ink);
-    padding: 72px 0 48px; margin-top: 120px;
-  }
-  footer.band .wordmark, footer.band a { color: var(--band-ink); }
-  footer.band a { text-decoration: none; font: 400 13px/1.4 var(--sans); }
-  footer.band a:hover { text-decoration: underline; text-underline-offset: 0.2em; }
-  footer.band h3 {
-    font: 500 12px/1.4 var(--mono); text-transform: uppercase;
-    letter-spacing: 0.03em; color: var(--band-ink-2); margin: 0 0 14px;
-  }
-  footer.band ul {
+  nav.line ol {
+    position: relative; display: grid; grid-template-columns: repeat(5, 1fr);
     list-style: none; margin: 0; padding: 0;
-    display: flex; flex-direction: column; gap: 9px;
   }
-  footer.band li.pending {
-    font: 400 13px/1.4 var(--sans); color: var(--band-ink-2);
+  nav.line li { text-align: center; min-width: 0; }
+  nav.line .dot {
+    display: block; width: 13px; height: 13px; margin: 5px auto 0;
+    border-radius: 50%; border: 2px solid var(--mark); background: var(--field);
   }
-  footer.band .tiny {
-    font: 400 12px/1.5 var(--mono); color: var(--band-ink-2); margin: 56px 0 0;
+  nav.line li.done .dot { background: var(--mark); }
+  nav.line li.todo .dot { border-color: var(--mark-dim); }
+  nav.line a, nav.line span.stop-name {
+    display: block; margin-top: 10px; font: 500 11.5px/1 var(--mono);
+    letter-spacing: 0.06em; text-transform: uppercase; text-decoration: none;
   }
-  footer.band .about { grid-column: 1 / 5; }
-  footer.band .rungs { grid-column: 6 / 9; }
-  footer.band .about .tiny { margin-top: 20px; max-width: 34ch; }
+  nav.line li.todo span.stop-name { color: var(--mark-dim); }
+  nav.line a:hover { text-decoration: underline; text-underline-offset: 0.3em; }
+  nav.line .sub {
+    display: block; margin-top: 5px; font: 400 11px/1.3 var(--mono);
+    color: var(--mark-dim); text-transform: none; letter-spacing: 0;
+  }
 
-  @media (max-width: 900px) {
-    header.hero { padding: 56px 0 56px; }
-    header.hero h1, header.hero .dek { grid-column: 1 / 13; }
-    section.sect { padding-top: 64px; }
-    .g12 { gap: 24px; }
-    .l4, .r8 { grid-column: 1 / 13; }
-    .records { grid-template-columns: minmax(0, 1fr); }
-    .ladder .row { gap: 2px 0; }
-    .ladder .c-rung, .ladder .c-game, .ladder .c-proves, .ladder .c-status {
-      grid-column: 1 / 13; text-align: left;
+  /* ---------- the identity rail ---------- */
+
+  .shell { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+  aside.rail {
+    position: sticky; top: 92px; align-self: start; height: calc(100vh - 92px);
+    padding: 34px 26px 26px var(--gutter); border-right: 1px solid var(--hair);
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  aside.rail .mark { width: 46px; height: 46px; }
+  aside.rail h1 { font: 400 40px/0.98 var(--serif); letter-spacing: -0.01em; margin: 0; }
+  aside.rail .quote { font: 400 13px/1.55 var(--mono); color: var(--mark-dim); margin: 0; }
+  aside.rail dl { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+  aside.rail dt { font: 600 13px/1.3 var(--mono); }
+  aside.rail dd { margin: 2px 0 0; font: 400 12.5px/1.35 var(--mono); color: var(--mark-dim); }
+  aside.rail .spacer { flex: 1; min-height: 20px; }
+  aside.rail .sketch { width: 100%; height: auto; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    text-decoration: none; background: transparent; color: var(--mark);
+    border: 1px solid var(--mark); border-radius: 3px; padding: 10px 14px;
+    font: 500 11.5px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--mark); color: var(--field); }
+
+  /* ---------- type voices ---------- */
+
+  main { padding: 34px var(--gutter) 96px 40px; }
+  .stop {
+    font: 500 11.5px/1 var(--mono); letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--mark-dim); margin: 0;
+  }
+  h2.big {
+    font: 400 clamp(34px, 4.6vw, 58px)/1.03 var(--serif); letter-spacing: -0.015em;
+    margin: 14px 0 0; max-width: 18ch;
+  }
+  .squiggle { display: block; width: 232px; height: 9px; margin: 7px 0 0; }
+  .lede { font: 400 14.5px/1.75 var(--mono); max-width: 62ch; margin: 26px 0 0; }
+  .links { margin: 20px 0 0; display: flex; flex-direction: column; gap: 9px; }
+  .links a {
+    font: 400 13.5px/1.4 var(--mono); text-decoration: underline;
+    text-underline-offset: 0.32em; width: fit-content;
+  }
+  .links a:hover { color: var(--mark-dim); }
+  section { margin-top: 74px; }
+
+  /* ---------- paper panels ---------- */
+
+  .panels {
+    display: grid; grid-template-columns: 1.05fr 1fr; gap: 20px; margin-top: 26px;
+  }
+  .panel {
+    position: relative; background: var(--panel); color: var(--panel-mark);
+    border: 1px solid var(--panel-border); border-radius: 13px;
+    padding: 26px; min-width: 0; display: flex; flex-direction: column;
+  }
+  .panel .no {
+    position: absolute; top: 15px; right: 15px; width: 28px; height: 28px;
+    border-radius: 50%; border: 1.5px solid var(--panel-mark);
+    font: 500 12px/25px var(--mono); text-align: center;
+  }
+  .panel .k {
+    font: 400 9px/1 var(--mono); letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--panel-dim);
+  }
+  .panel h3 {
+    font: 400 26px/1.12 var(--serif); letter-spacing: -0.01em; margin: 9px 0 0;
+    max-width: 26ch;
+  }
+  .panel .say {
+    font: 400 12.5px/1.65 var(--mono); color: var(--panel-dim); margin: 10px 0 0;
+  }
+  .panel svg { display: block; width: 100%; height: auto; }
+  .fields { list-style: none; margin: 15px 0 0; padding: 0; }
+  .fields li {
+    display: flex; justify-content: space-between; gap: 14px; padding: 8px 0;
+    border-top: 1px solid var(--panel-hair);
+    font: 400 12px/1.35 var(--mono); font-variant-numeric: tabular-nums;
+  }
+  .fields li span:first-child { color: var(--panel-dim); }
+
+  /* ---------- the playful object: a hand you deal ---------- */
+
+  .deal { align-items: center; justify-content: center; flex: 1; }
+  .deal .cue {
+    font: 400 22px/1 var(--mono); letter-spacing: 0.22em; text-align: center;
+    margin: 10px 0 22px; user-select: none;
+  }
+  .ticket {
+    position: relative; width: 100%; max-width: 372px; cursor: pointer;
+    border: 1.5px solid var(--panel-mark); border-radius: 8px;
+    padding: 15px 18px 13px; background: var(--panel);
+  }
+  .ticket:active { transform: translateY(1px); }
+  .ticket .perf {
+    position: relative; border-top: 1.5px dashed var(--panel-mark);
+    margin: 13px -18px 11px;
+  }
+  .ticket .perf i {
+    position: absolute; top: -8px; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--field);
+  }
+  .ticket .perf i.l { left: -8px; }
+  .ticket .perf i.r { right: -8px; }
+  .ticket .row { display: flex; gap: 22px; }
+  .ticket .f { flex: 1; min-width: 0; }
+  .ticket .tk {
+    font: 400 8.5px/1 var(--mono); letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--panel-dim);
+  }
+  .ticket .v {
+    font: 600 15px/1.25 var(--mono); margin-top: 4px;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .ticket .v.big { font-size: 19px; letter-spacing: 0.02em; }
+  .ticket .hand { font-size: 20px; letter-spacing: 0.06em; }
+  .ticket .foot {
+    display: flex; justify-content: space-between; align-items: baseline; margin-top: 3px;
+  }
+  .ticket .note { font: 400 15px/1 var(--script); }
+  .ticket .serial {
+    font: 400 8.5px/1 var(--mono); color: var(--panel-dim); letter-spacing: 0.1em;
+  }
+
+  /* ---------- hairline rows ---------- */
+
+  .rows { width: 100%; border-collapse: collapse; margin: 22px 0 0; }
+  .rows td { padding: 15px 0; border-bottom: 1px solid var(--hair); vertical-align: baseline; }
+  .rows tr:first-child td { border-top: 1px solid var(--hair); }
+  .rows .g { font: 600 14.5px/1.35 var(--mono); width: 210px; }
+  .rows .n { width: 34px; font: 400 13px/1.3 var(--mono); color: var(--mark-dim); }
+  .rows .p {
+    font: 400 13.5px/1.5 var(--mono); color: var(--mark-dim); padding-left: 26px;
+  }
+  .rows .s {
+    text-align: right; font: 400 13px/1.3 var(--mono); white-space: nowrap; padding-left: 20px;
+  }
+  .rows .s a { text-decoration: underline; text-underline-offset: 0.3em; }
+  .rows tr.pending .g, .rows tr.pending .n { color: var(--mark-dim); }
+
+  /* ---------- records, and the one off-axis element ---------- */
+
+  .records { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 26px; }
+  .polaroid {
+    background: var(--panel); color: var(--panel-mark);
+    border: 1px solid var(--panel-border); border-radius: 3px;
+    padding: 11px 11px 0; transform: rotate(-2.2deg); align-self: start; margin: 30px 0 0;
+  }
+  .polaroid svg { display: block; width: 100%; height: auto; }
+  .polaroid figcaption {
+    font: 400 16px/1.5 var(--script); color: var(--panel-mark); text-align: center;
+    padding: 7px 4px 11px;
+  }
+
+  @media (max-width: 1080px) {
+    .shell { grid-template-columns: minmax(0, 1fr); }
+    aside.rail {
+      position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--hair);
     }
-    .ladder .head { display: none; }
-    footer.band { margin-top: 72px; }
-    footer.band .about, footer.band .rungs { grid-column: 1 / 13; }
-    footer.band .rungs { margin-top: 40px; }
+    aside.rail .spacer { display: none; }
+    main { padding: 30px var(--gutter) 70px; }
+    .panels, .records { grid-template-columns: minmax(0, 1fr); }
+    nav.line .sub { display: none; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-<nav class="top">
-  <a class="wordmark" href="/">drawmaha solver</a>
-  <div class="links">
-    <ul>
-      <li><a class="here" href="/">Ladder</a></li>
-      <li><a href="/rung0">Rung 0</a></li>
-      <li><a href="/rung1">Rung 1</a></li>
-    </ul>
-    <a class="btn" href="/rung1#play">Play against CFR <span aria-hidden="true">&rarr;</span></a>
+<nav class="line" aria-label="The validation ladder">
+  <div class="track">
+    <div class="bar"></div>
+    <div class="bar done"></div>
+    <ol>
+      <li class="done"><span class="dot"></span><a href="/rung0">Rung 0<span class="sub">rock-paper-scissors</span></a></li>
+      <li class="done"><span class="dot"></span><a href="/rung1">Rung 1<span class="sub">kuhn poker</span></a></li>
+      <li class="todo"><span class="dot"></span><span class="stop-name">Rung 2<span class="sub">leduc</span></span></li>
+      <li class="todo"><span class="dot"></span><span class="stop-name">Rung 3<span class="sub">mini-drawmaha</span></span></li>
+      <li class="todo"><span class="dot"></span><span class="stop-name">Rung 4<span class="sub">full drawmaha</span></span></li>
+    </ol>
   </div>
 </nav>
 
-<header class="hero">
-  <h1>Five games between here and a Drawmaha solver</h1>
-  <p class="dek">A Deep-CFR solver for heads-up pot-limit Drawmaha, a split-pot
-  draw/Omaha hybrid with no existing solver. It is built rung by rung on a
-  <a href="#ladder">validation ladder</a>: each rung checked against a known
-  answer before climbing.</p>
-</header>
+<div class="shell">
 
-<section id="ladder">
-  <div class="sec-head">
-    <h2 class="sec">The validation ladder</h2>
-    <span class="label">5 rungs &middot; 2 complete</span>
-  </div>
-  <div class="ladder">
-    <div class="row head">
-      <span class="label c-rung">Rung</span>
-      <span class="label c-game">Game</span>
-      <span class="label c-proves">What it proves</span>
-      <span class="label c-status">Status</span>
-    </div>
-    <div class="row">
-      <span class="num c-rung">0</span>
-      <span class="c-game">Rock-paper-scissors</span>
-      <span class="serif dim c-proves">regret-matching ledger math</span>
-      <span class="c-status">complete &middot; <a href="/rung0">Live demo &rarr;</a></span>
-    </div>
-    <div class="row">
-      <span class="num c-rung">1</span>
-      <span class="c-game">Kuhn poker</span>
-      <span class="serif dim c-proves">tabular CFR vs. the known exact equilibrium</span>
-      <span class="c-status">complete &middot; <a href="/rung1">Live demo &rarr;</a></span>
-    </div>
-    <div class="row">
-      <span class="num c-rung">2</span>
-      <span class="c-game">Leduc poker</span>
-      <span class="serif dim c-proves">CFR with a board, vs. published benchmarks</span>
-      <span class="c-status">next</span>
-    </div>
-    <div class="row">
-      <span class="num c-rung">3</span>
-      <span class="c-game">Mini-drawmaha</span>
-      <span class="serif dim c-proves">split pots, draws, the face-up draw-1 rule</span>
-      <span class="c-status">pending</span>
-    </div>
-    <div class="row">
-      <span class="num c-rung">4</span>
-      <span class="c-game">Full drawmaha</span>
-      <span class="serif dim c-proves">Deep CFR: nets replace the regret tables</span>
-      <span class="c-status">pending</span>
-    </div>
-  </div>
-</section>
+  <aside class="rail">
+    <svg class="mark" viewBox="0 0 46 46" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="23" cy="23" r="22"/>
+        <path d="M23 11c-4.4 4.6-8 8-8 11.6a8 8 0 0 0 16 0C31 19 27.4 15.6 23 11Z"/>
+        <path d="M23 30.6V35M19.4 35h7.2"/>
+      </g>
+    </svg>
+    <h1>Drawmaha<br>Solver.</h1>
+    <p class="quote">&ldquo;Each rung is checked against a known answer before we climb.&rdquo;</p>
+    <dl>
+      <div><dt>now</dt><dd>Rung 1, complete</dd></div>
+      <div><dt>next</dt><dd>Rung 2 &middot; Leduc poker</dd></div>
+      <div><dt>method</dt><dd>Deep CFR</dd></div>
+    </dl>
+    <span class="spacer"></span>
+    <svg class="sketch" viewBox="0 0 150 62" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">
+        <ellipse cx="34" cy="46" rx="20" ry="7"/><path d="M14 46v-7M54 46v-7"/>
+        <ellipse cx="34" cy="39" rx="20" ry="7"/><path d="M14 39v-7M54 39v-7"/>
+        <ellipse cx="34" cy="32" rx="20" ry="7"/>
+        <path d="M22 31.4a13 6 0 0 0 24 0" stroke-opacity=".55"/>
+        <ellipse cx="96" cy="50" rx="15" ry="5.4"/><path d="M81 50v-5.5M111 50v-5.5"/>
+        <ellipse cx="96" cy="44.5" rx="15" ry="5.4"/>
+        <rect x="112" y="16" width="24" height="33" rx="3" transform="rotate(11 124 32)"/>
+        <rect x="104" y="14" width="24" height="33" rx="3" transform="rotate(-4 116 30)"/>
+        <path d="M113 27.5l3.6-4 3.6 4-3.6 4.2z"/>
+        <path d="M6 57h138" stroke-opacity=".4"/>
+      </g>
+    </svg>
+    <a class="btn" href="/rung1#play">Play the solver &rarr;</a>
+  </aside>
 
-<section class="sect g12">
-  <div class="l4">
-    <h2 class="sec">Measured so far</h2>
-    <p class="serif dim" style="margin-top:14px;max-width:32ch;">Every number here
-    is exported from the solver's own run. The browser draws it and never
-    recomputes it.</p>
-  </div>
-  <div class="r8 records">
-    <div class="card">
-      <span class="label">Rung 0 &middot; Rock-paper-scissors</span>
-      <h3 class="rec">0.0009 chips per round from Nash</h3>
-      <p class="serif dim">Self-play average strategy (0.334, 0.333, 0.333)
-      against the uniform Nash. Against a 50%-rock opponent the ledger
-      converges to pure paper and earns +0.24 a round, against a best response
-      of +0.25.</p>
-      <ul class="fields">
-        <li><span class="label">Iterations</span><span class="v">100,000</span></li>
-        <li><span class="label">Exploitability</span><span class="v">0.0009 chips / round</span></li>
-        <li><span class="label">Vs 50% rock</span><span class="v">+0.24 / round</span></li>
-      </ul>
-      <div class="cta"><a class="btn" href="/rung0">Watch the ledger run <span aria-hidden="true">&rarr;</span></a></div>
-    </div>
-    <div class="card">
-      <span class="label">Rung 1 &middot; Kuhn poker</span>
-      <h3 class="rec">0.00063 chips per hand from Nash</h3>
-      <p class="serif dim">Vanilla CFR reproduces Kuhn's closed form: the jack
-      bluffs 0.220 of the time, the king value-bets 0.663, the 1:3 ratio found
-      from nothing.</p>
-      <ul class="fields">
-        <li><span class="label">Iterations</span><span class="v">100,000</span></li>
-        <li><span class="label">Game value</span><span class="v">&minus;0.05555 vs &minus;1/18</span></li>
-        <li><span class="label">Best response</span><span class="v">exact, over 2<sup>6</sup> strategies</span></li>
-      </ul>
-      <div class="cta"><a class="btn" href="/rung1">Scrub the solve <span aria-hidden="true">&rarr;</span></a></div>
-    </div>
-  </div>
-</section>
+  <main>
 
-<section class="sect g12">
-  <div class="l4">
-    <h2 class="sec">Writeups</h2>
-    <p class="serif dim" style="margin-top:14px;max-width:32ch;">Written as each
-    rung landed. They live in the repo until this site hosts them.</p>
-  </div>
-  <ul class="rows r8">
-    <li><span class="t">Regret matching, one ledger at a time</span><span class="m">Rung 0</span></li>
-    <li><span class="t">How CFR finds Kuhn's bluff</span><span class="m">Rung 1</span></li>
-    <li><span class="t">From Kuhn to Leduc: what a board changes</span><span class="m">Rung 2 delta</span></li>
-    <li><span class="t">How poker solvers are trained</span><span class="m">Survey &middot; 55 references</span></li>
-    <li><span class="t">Pre-registered evaluation protocol</span><span class="m">README</span></li>
-  </ul>
-</section>
+    <div class="panels">
+      <div class="panel">
+        <span class="no">01</span>
+        <div class="deal" style="display:flex;flex-direction:column;">
+          <p class="cue">CLICK TO DEAL</p>
+          <div class="ticket" id="ticket" role="button" tabindex="0" aria-label="Deal a new hand">
+            <div class="row">
+              <div class="f"><div class="tk">Game</div><div class="v big">DRAWMAHA</div></div>
+              <div class="f"><div class="tk">Variant</div><div class="v">pot-limit &middot; split</div></div>
+            </div>
+            <div class="perf"><i class="l"></i><i class="r"></i></div>
+            <div class="row">
+              <div class="f"><div class="tk">Your five</div><div class="v hand" id="hand">A&spades; K&spades; 7&hearts; 4&diams; 2&clubs;</div></div>
+            </div>
+            <div class="row" style="margin-top:11px;">
+              <div class="f"><div class="tk">Seat</div><div class="v">you</div></div>
+              <div class="f"><div class="tk">Rung</div><div class="v">1 of 5</div></div>
+              <div class="f"><div class="tk">Dealt</div><div class="v" id="clock">&mdash;</div></div>
+            </div>
+            <div class="foot">
+              <span class="note">a solver, built rung by rung</span>
+              <span class="serial">DMH-04</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <div class="panel">
+        <span class="no">02</span>
+        <figure style="margin:0;flex:1;display:flex;align-items:center;">
+          <svg viewBox="0 0 420 380" role="img" aria-label="A dealt five-card hand fanned on a card table, under a hanging lamp">
+            <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M210 4v36"/>
+              <path d="M180 74l14-34h32l14 34z"/>
+              <path d="M180 74h60" stroke-opacity=".5"/>
+              <g stroke-opacity=".3"><path d="M186 86l-14 26M234 86l14 26M210 86v26"/></g>
+              <ellipse cx="210" cy="248" rx="172" ry="76"/>
+              <ellipse cx="210" cy="240" rx="172" ry="76" stroke-opacity=".45"/>
+              <path d="M38 248c0 42 77 76 172 76s172-34 172-76"/>
+              <g stroke-opacity=".28">
+                <path d="M60 292l-9 11M86 308l-9 11M118 320l-9 11M154 329l-9 11
+                         M266 340l9-11M302 329l9-11M334 314l9-11M360 294l9-11"/>
+              </g>
+              <g>
+                <g transform="rotate(-26 210 318)"><rect x="184" y="176" width="52" height="74" rx="5"/><path d="M210 206l7-9 7 9-7 9z" stroke-opacity=".55"/></g>
+                <g transform="rotate(-13 210 318)"><rect x="184" y="172" width="52" height="74" rx="5"/><path d="M210 202l7-9 7 9-7 9z" stroke-opacity=".55"/></g>
+                <g><rect x="184" y="170" width="52" height="74" rx="5"/><path d="M210 200l7-9 7 9-7 9z" stroke-opacity=".55"/></g>
+                <g transform="rotate(13 210 318)"><rect x="184" y="172" width="52" height="74" rx="5"/><path d="M210 202l7-9 7 9-7 9z" stroke-opacity=".55"/></g>
+                <g transform="rotate(26 210 318)"><rect x="184" y="176" width="52" height="74" rx="5"/><path d="M210 206l7-9 7 9-7 9z" stroke-opacity=".55"/></g>
+              </g>
+              <g transform="translate(88 254)">
+                <ellipse cx="0" cy="24" rx="26" ry="9"/><path d="M-26 24v-8M26 24v-8"/>
+                <ellipse cx="0" cy="16" rx="26" ry="9"/><path d="M-26 16v-8M26 16v-8"/>
+                <ellipse cx="0" cy="8" rx="26" ry="9"/>
+                <path d="M-15 7a17 8 0 0 0 30 0" stroke-opacity=".5"/>
+              </g>
+              <g transform="translate(332 264)">
+                <ellipse cx="0" cy="20" rx="22" ry="8"/><path d="M-22 20v-7M22 20v-7"/>
+                <ellipse cx="0" cy="13" rx="22" ry="8"/>
+                <path d="M-12 12a14 7 0 0 0 24 0" stroke-opacity=".5"/>
+              </g>
+            </g>
+          </svg>
+        </figure>
+      </div>
+    </div>
+
+    <section>
+      <p class="stop">Stop 00 &middot; the ladder</p>
+      <h2 class="big">Five games between here and a Drawmaha solver.</h2>
+      <svg class="squiggle" viewBox="0 0 232 9" aria-hidden="true">
+        <path d="M2 6.2c14-5 28 3.4 42-.6s28-4.6 42 .4 28 4 42-.8 28-4 42 1 28 3.4 60-1"
+              fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+
+      <p class="lede">Drawmaha is a split-pot draw/Omaha hybrid with no existing
+      solver. So it gets built rung by rung: every rung is a smaller game whose
+      answer is already known, and nothing moves up until the solver
+      reproduces it.</p>
+
+      <div class="links">
+        <a href="/rung0">watch regret matching find Nash &rarr;</a>
+        <a href="/rung1">watch CFR discover the bluff &rarr;</a>
+      </div>
+
+      <table class="rows">
+        <tr>
+          <td class="n">0</td><td class="g">Rock-paper-scissors</td>
+          <td class="p">regret-matching ledger math</td>
+          <td class="s">complete &middot; <a href="/rung0">live demo &rarr;</a></td>
+        </tr>
+        <tr>
+          <td class="n">1</td><td class="g">Kuhn poker</td>
+          <td class="p">tabular CFR vs. the known exact equilibrium</td>
+          <td class="s">complete &middot; <a href="/rung1">live demo &rarr;</a></td>
+        </tr>
+        <tr class="pending">
+          <td class="n">2</td><td class="g">Leduc poker</td>
+          <td class="p">CFR with a board, vs. published benchmarks</td>
+          <td class="s">next</td>
+        </tr>
+        <tr class="pending">
+          <td class="n">3</td><td class="g">Mini-drawmaha</td>
+          <td class="p">split pots, draws, the face-up draw-1 rule</td>
+          <td class="s">pending</td>
+        </tr>
+        <tr class="pending">
+          <td class="n">4</td><td class="g">Full drawmaha</td>
+          <td class="p">Deep CFR: nets replace the regret tables</td>
+          <td class="s">pending</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <p class="stop">Stop 01 &middot; measured so far</p>
+      <h2 class="big">Every number is the solver's own.</h2>
+      <p class="lede">Exported from the run that produced it. The browser draws
+      these and never recomputes them.</p>
+
+      <div class="records">
+        <div class="panel">
+          <span class="k">Rung 0 &middot; rock-paper-scissors</span>
+          <h3>0.0009 chips per round from Nash</h3>
+          <p class="say">Self-play lands on (0.334, 0.333, 0.333). Against a
+          50%-rock opponent the ledger converges to pure paper and earns +0.24 a
+          round, against a best response of +0.25.</p>
+          <ul class="fields">
+            <li><span>iterations</span><span>100,000</span></li>
+            <li><span>exploitability</span><span>0.0009 / round</span></li>
+            <li><span>vs 50% rock</span><span>+0.24 / round</span></li>
+          </ul>
+        </div>
+
+        <figure class="polaroid">
+          <svg viewBox="0 0 300 190" role="img" aria-label="The jack's bluff frequency settling at one third of the king's value bet">
+            <g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round">
+              <path d="M34 158h240M34 158V22" stroke-opacity=".5"/>
+              <g stroke-opacity=".2"><path d="M34 118h240M34 78h240M34 38h240"/></g>
+              <path d="M34 150c26 0 34-64 52-64s28 26 46 26 30-14 52-14 40 4 90 3" stroke-width="1.9"/>
+              <path d="M34 156c30 2 44-22 62-22s30 8 48 8 34-4 56-4 38 1 74 1"
+                    stroke-width="1.3" stroke-dasharray="4 3.5"/>
+              <circle cx="274" cy="101" r="3.4" fill="currentColor"/>
+              <circle cx="274" cy="139" r="3.4" fill="currentColor"/>
+            </g>
+            <!-- Direct labels sit ABOVE their end point: beside it, they ran
+                 straight through the dot. -->
+            <text x="34" y="16" font-family="IBM Plex Mono, monospace" font-size="9"
+                  fill="currentColor" opacity=".65" letter-spacing="1.2">P(BET) BY CARD</text>
+            <text x="276" y="92" font-family="IBM Plex Mono, monospace" font-size="9"
+                  fill="currentColor" text-anchor="end">king .663</text>
+            <text x="276" y="130" font-family="IBM Plex Mono, monospace" font-size="9"
+                  fill="currentColor" text-anchor="end">jack .220</text>
+          </svg>
+          <figcaption>the bluff nobody taught it &mdash; exactly &#8531; of the value bet</figcaption>
+        </figure>
+      </div>
+
+      <div class="panel" style="margin-top:20px;max-width:52%;">
+          <span class="k">Rung 1 &middot; kuhn poker</span>
+          <h3>0.00063 chips per hand from Nash</h3>
+          <p class="say">Vanilla CFR reproduces Kuhn's closed form: the jack
+          bluffs 0.220 of the time and the king value-bets 0.663 &mdash; the 1:3
+          ratio the equilibrium requires, found from nothing.</p>
+          <ul class="fields">
+            <li><span>iterations</span><span>100,000</span></li>
+            <li><span>game value</span><span>&minus;0.05555 vs &minus;1/18</span></li>
+            <li><span>best response</span><span>exact, over 2&#8310; strategies</span></li>
+          </ul>
+      </div>
+    </section>
+
+  </main>
 </div>
 
-<footer class="band">
-  <div class="wrap g12">
-    <div class="about">
-      <a class="wordmark" href="/">drawmaha solver</a>
-      <p class="tiny">A Deep-CFR solver for heads-up pot-limit Drawmaha, built on
-      a validation ladder. This page is served until the rung-4 dashboard
-      exists.</p>
-    </div>
-    <div class="rungs">
-      <h3>Rungs</h3>
-      <ul>
-        <li><a href="/rung0">0 &middot; Rock-paper-scissors</a></li>
-        <li><a href="/rung1">1 &middot; Kuhn poker</a></li>
-        <li class="pending">2 &middot; Leduc poker &mdash; next</li>
-        <li class="pending">3 &middot; Mini-drawmaha &mdash; pending</li>
-        <li class="pending">4 &middot; Full drawmaha &mdash; pending</li>
-      </ul>
-    </div>
-  </div>
-  <div class="wrap">
-    <p class="tiny">Code, figures and writeups live in AlecROndo/drawmaha-solver (private).</p>
-  </div>
-</footer>
+<script>
+  // The one interactive object. A Drawmaha hand is five cards; clicking the
+  // ticket deals a fresh one and re-stamps the time.
+  var RANKS = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+  var SUITS = ['\\u2660','\\u2665','\\u2666','\\u2663'];
+
+  function deal() {
+    var seen = {}, out = [];
+    while (out.length < 5) {
+      var card = RANKS[Math.floor(Math.random() * RANKS.length)] +
+                 SUITS[Math.floor(Math.random() * SUITS.length)];
+      if (seen[card]) continue;
+      seen[card] = true;
+      out.push(card);
+    }
+    document.getElementById('hand').textContent = out.join(' ');
+    stamp();
+  }
+
+  function stamp() {
+    var d = new Date();
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    document.getElementById('clock').textContent =
+      pad(d.getHours() % 12 || 12) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) +
+      (d.getHours() < 12 ? ' AM' : ' PM');
+  }
+
+  var ticket = document.getElementById('ticket');
+  ticket.addEventListener('click', deal);
+  ticket.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); deal(); }
+  });
+  stamp();
+  setInterval(stamp, 1000);
+</script>
 </body>
 </html>
 """

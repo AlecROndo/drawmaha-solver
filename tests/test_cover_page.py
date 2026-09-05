@@ -60,15 +60,21 @@ def test_every_link_goes_somewhere_that_exists(page: str, routes: set[str]) -> N
 def test_the_fonts_it_self_hosts_are_the_ones_the_build_copies(page: str) -> None:
     """Every @font-face URL has a matching `copy_font` line in the build script."""
     script = (ROOT / "scripts" / "vercel_build.sh").read_text()
-    families = {"sans": [], "mono": [], "serif": []}
-    for family, weight in re.findall(r"/fonts/ibm-plex-(\w+)-latin-(\d+)-normal\.woff2", page):
-        families[family].append(weight)
 
-    assert families["serif"], "the redesign sets reading copy in Plex Serif — it must be hosted"
-    for family, weights in families.items():
+    wanted: dict[str, set[str]] = {}
+    for family, weight in re.findall(r"/fonts/([a-z-]+)-latin-(\d+)-normal\.woff2", page):
+        wanted.setdefault(family, set()).add(weight)
+
+    # The design runs on three voices and stops there; a fourth family loaded
+    # by the page but never copied is the failure this is really guarding.
+    assert set(wanted) == {"instrument-serif", "ibm-plex-mono", "kalam"}, (
+        f"the cover page loads {sorted(wanted)}, not the three voices the system defines"
+    )
+
+    for family, weights in wanted.items():
         for weight in weights:
-            copied = re.search(rf"for weight in ([\d ]+); do copy_font {family}\b", script)
+            looped = re.search(rf"for weight in ([\d ]+); do copy_font {family}\b", script)
             single = re.search(rf"copy_font {family} {weight}\b", script)
-            assert single or (copied and weight in copied.group(1).split()), (
-                f"the page loads ibm-plex-{family} {weight} but vercel_build.sh never copies it"
+            assert single or (looped and weight in looped.group(1).split()), (
+                f"the page loads {family} {weight} but vercel_build.sh never copies it"
             )

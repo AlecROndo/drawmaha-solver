@@ -109,7 +109,7 @@ export function Controls({ sim }: { sim: Simulation }) {
           disabled={!auto}
         />
       </label>
-      <span className="speed-readout">{fmtSpeed(sim.speed)} / s</span>
+      <span className="readout">{fmtSpeed(sim.speed)} / s</span>
 
       <label className="inline">
         seed

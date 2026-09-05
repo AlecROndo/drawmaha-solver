@@ -12,7 +12,7 @@ import {
   useChartHover,
   type ChartBox,
 } from './chartChrome'
-import { FigureHead } from './site'
+import { Panel } from './site'
 
 const BOX: ChartBox = { ...FULL, l: 50, r: 90, t: 14, b: 30 }
 
@@ -35,10 +35,14 @@ export function ConvergenceChart({ engine }: { engine: Engine }) {
   const last = history[history.length - 1]
 
   return (
-    <section className="sect" aria-label="Convergence of the average strategy">
-      <FigureHead n="Fig. 5" title="Each component of the average walks to one third">
-        The running average of σ, per action, on a log time axis.
-      </FigureHead>
+    <Panel
+      n="05"
+      wide
+      k="Fig. 5 · convergence"
+      title="Each component of the average walks to one third"
+      say="The running average of σ, per action, on a log time axis."
+      label="Convergence of the average strategy"
+    >
       <div className="legend">
         {ACTIONS.map((name, i) => (
           <span className="item" key={name}>
@@ -47,7 +51,7 @@ export function ConvergenceChart({ engine }: { engine: Engine }) {
           </span>
         ))}
         <span className="item">
-          <span className="swatch" style={{ background: 'var(--muted)' }} />⅓, the uniform Nash
+          <span className="swatch" style={{ background: 'var(--panel-dim)' }} />⅓, the uniform Nash
         </span>
       </div>
       <div className="chart-wrap" ref={wrapRef}>
@@ -61,7 +65,7 @@ export function ConvergenceChart({ engine }: { engine: Engine }) {
             x2={BOX.w - BOX.r}
             y1={y(1 / 3)}
             y2={y(1 / 3)}
-            stroke="var(--muted)"
+            stroke="var(--panel-dim)"
             strokeDasharray="4 3"
           />
           {history.length > 1 &&
@@ -98,7 +102,7 @@ export function ConvergenceChart({ engine }: { engine: Engine }) {
                   cy={y(hover.avg[i])}
                   r={3}
                   fill={ACTION_COLORS[i]}
-                  stroke="var(--surface)"
+                  stroke="var(--panel)"
                   strokeWidth="1.5"
                 />
               ))}
@@ -119,6 +123,6 @@ export function ConvergenceChart({ engine }: { engine: Engine }) {
           </ChartTooltip>
         )}
       </div>
-    </section>
+    </Panel>
   )
 }

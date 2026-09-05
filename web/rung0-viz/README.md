@@ -19,8 +19,9 @@ src/sim/   pure, framework-free simulation (seeded RNG, payoffs,
            regret ledger, engine with decimated history) + unit tests
 src/ui/    React figures: ledger, update trace, convergence chart,
            exploitability chart (log-log, 1/√T reference), simplex
-           canvas, scoreboard, controls — plus site.tsx, the nav,
-           footer and figure head shared with the rest of the site
+           canvas, scoreboard, controls — plus site.tsx, the ladder
+           nav, identity rail and panel shared with the rest of the
+           site
 ```
 
 ## Commands

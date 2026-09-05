@@ -11,6 +11,7 @@ import {
   type Act,
   type Card,
 } from '../kuhn'
+import { Panel } from './site'
 import { SOLVE } from './useSolve'
 
 /**
@@ -112,20 +113,20 @@ export function PlayPanel() {
   const yourCard = hand.cards[hand.humanSeat]
 
   return (
-    <section className="card side4" id="play" aria-label="Play against the equilibrium">
-      <span className="label">Fig. 3 · Play it</span>
-      <h3 className="fig">You cannot beat it. The number is how fast you lose.</h3>
-      <p className="serif dim">
-        The bot plays the solved average strategy, so it is a genuine equilibrium and never adapts
-        to you — exploitable for {SOLVE.exploitabilityAverage[FINAL].toFixed(5)} chips a hand.
-        Seats alternate because Kuhn is asymmetric.
-      </p>
+    <Panel
+      n="03"
+      id="play"
+      k="Fig. 3 · play it"
+      title="You cannot beat it. The number is how fast you lose."
+      say={`The bot plays the solved average strategy, so it is a genuine equilibrium and never adapts to you — exploitable for ${SOLVE.exploitabilityAverage[FINAL].toFixed(5)} chips a hand. Seats alternate because Kuhn is asymmetric.`}
+      label="Play against the equilibrium"
+    >
       <div className="hand">
         <div className="cardglyph" style={{ color: `var(--${CARD_NAME[yourCard]})` }}>
           {CARD_SYMBOL[yourCard]}
         </div>
         <div>
-          <span className="label">
+          <span className="k">
             Hand {hands + 1} · you are P{hand.humanSeat}
           </span>
           <p className="play-log">{hand.lines.length ? hand.lines.join('\n') : 'Your move.'}</p>
@@ -146,21 +147,21 @@ export function PlayPanel() {
       </div>
       <ul className="fields">
         <li>
-          <span className="label">Hands</span>
+          <span>Hands</span>
           <span className="v">{hands}</span>
         </li>
         <li>
-          <span className="label">Your chips</span>
+          <span>Your chips</span>
           <span className="v">
             {chips >= 0 ? '+' : ''}
             {chips}
           </span>
         </li>
         <li>
-          <span className="label">Per hand</span>
+          <span>Per hand</span>
           <span className="v">{hands === 0 ? '—' : (chips / hands).toFixed(3)}</span>
         </li>
       </ul>
-    </section>
+    </Panel>
   )
 }

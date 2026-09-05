@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { Engine } from '../sim/engine'
 import type { Vec3 } from '../sim/game'
 import { ACTIONS } from '../sim/game'
-import { FigureHead } from './site'
+import { Panel } from './site'
 
 const SIZE = 470
 const PAD = 42
@@ -43,9 +43,9 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, SIZE, SIZE)
 
-    const axis = cssVar(canvas, '--axis')
-    const muted = cssVar(canvas, '--muted')
-    const ink2 = cssVar(canvas, '--ink-2')
+    const axis = cssVar(canvas, '--panel-hair')
+    const muted = cssVar(canvas, '--panel-dim')
+    const ink2 = cssVar(canvas, '--panel-dim')
     const curCol = cssVar(canvas, '--cur-obj')
     const avgCol = cssVar(canvas, '--avg-obj')
     const actionCols = [cssVar(canvas, '--rock'), cssVar(canvas, '--paper'), cssVar(canvas, '--scissors')]
@@ -133,18 +133,20 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
       ctx.beginPath()
       ctx.arc(ax1, ay1, 4.5, 0, Math.PI * 2)
       ctx.fill()
-      ctx.strokeStyle = cssVar(canvas, '--surface')
+      ctx.strokeStyle = cssVar(canvas, '--panel')
       ctx.lineWidth = 2
       ctx.stroke()
     }
   }, [engine, version])
 
   return (
-    <section className="h6" aria-label="Strategy simplex">
-      <FigureHead n="Fig. 2" title="The average spirals in, the current strategy orbits">
-        Each point is a strategy; the corners are pure rock, paper and scissors. The grey trail is
-        the last 300 rounds of σ.
-      </FigureHead>
+    <Panel
+      n="02"
+      k="Fig. 2 · the simplex"
+      title="The average spirals in, the current strategy orbits"
+      say="Each point is a strategy; the corners are pure rock, paper and scissors. The faint trail is the last 300 rounds of σ."
+      label="Strategy simplex"
+    >
       <div className="legend">
         <span className="item">
           <span className="swatch" style={{ background: 'var(--avg-obj)' }} />
@@ -156,6 +158,6 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
         </span>
       </div>
       <canvas ref={canvasRef} style={{ width: '100%', maxWidth: SIZE, display: 'block' }} />
-    </section>
+    </Panel>
   )
 }
