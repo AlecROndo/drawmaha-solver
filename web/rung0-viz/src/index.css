@@ -29,7 +29,7 @@
   /* field = the page; mark = what sits on it; panel = the paper islands */
   --field: var(--oxblood);
   --mark: var(--bone);
-  --mark-dim: rgba(245, 240, 230, 0.7);
+  --mark-dim: rgba(245, 240, 230, 0.72);
   --hair: rgba(245, 240, 230, 0.28);
   --hair-strong: rgba(245, 240, 230, 0.55);
 
@@ -65,7 +65,7 @@
     --mark: var(--oxblood);
     --mark-dim: rgba(142, 32, 56, 0.76);
     --hair: rgba(142, 32, 56, 0.22);
-    --hair-strong: rgba(142, 32, 56, 0.45);
+    --hair-strong: rgba(142, 32, 56, 0.62);
 
     --panel: #eae0cb;
     --panel-border: rgba(142, 32, 56, 0.26);
@@ -74,6 +74,11 @@
     --panel-dim: #a1465c;
     --cur-obj: #825962;
     --win: #0d7431;
+    /* The one identity colour that does not survive the deeper panel: amber is
+       the lightest of the three, and only it drops under the 3:1 a legend dot
+       needs. Rung 1's three all clear it, which is why only this file carries
+       an identity override here. */
+    --scissors: #ac6d00;
   }
 }
 

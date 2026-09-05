@@ -55,7 +55,7 @@ PAGE = """\
 
     --field: var(--oxblood);
     --mark: var(--bone);
-    --mark-dim: rgba(245, 240, 230, 0.7);
+    --mark-dim: rgba(245, 240, 230, 0.72);
     --hair: rgba(245, 240, 230, 0.28);
 
     --panel: var(--bone);
