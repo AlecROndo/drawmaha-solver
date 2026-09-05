@@ -25,9 +25,14 @@ done
 
 # Both visualizers bundle the same @fontsource files, so either copy serves the
 # cover page; rung 0's is the one that has always been here.
+#
+# The weights differ by role, so each family names its own: sans carries the
+# 700 the cover's h1 sets in, serif is reading copy at one weight only, and
+# mono stops at 500 because it is only ever field labels and figures.
 fontsource=web/rung0-viz/node_modules/@fontsource
-for fam in sans mono; do
-  for weight in 400 500 600; do
-    cp "$fontsource/ibm-plex-$fam/files/ibm-plex-$fam-latin-$weight-normal.woff2" public/fonts/
-  done
-done
+copy_font() {
+  cp "$fontsource/ibm-plex-$1/files/ibm-plex-$1-latin-$2-normal.woff2" public/fonts/
+}
+for weight in 400 500 600 700; do copy_font sans "$weight"; done
+for weight in 400 500; do copy_font mono "$weight"; done
+copy_font serif 400

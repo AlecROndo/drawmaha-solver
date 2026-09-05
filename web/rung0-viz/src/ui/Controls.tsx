@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Mode } from '../sim/engine'
 import type { Vec3 } from '../sim/game'
 import { ACTIONS } from '../sim/game'
-import { fmtIter, fmtSpeed } from './format'
+import { fmtSpeed } from './format'
 import type { Simulation } from './useSimulation'
 
 const MODES: { key: Mode; label: string }[] = [
@@ -68,6 +68,8 @@ export function Controls({ sim }: { sim: Simulation }) {
 
   return (
     <div className="controls">
+      {/* Three readings of one page, so the choice is text with the live one
+          underlined — not a segmented control competing with the figures. */}
       <div className="mode-tabs" role="tablist" aria-label="Opponent mode">
         {MODES.map((m) => (
           <button
@@ -81,16 +83,18 @@ export function Controls({ sim }: { sim: Simulation }) {
         ))}
       </div>
 
-      <button className="ctl" disabled={!auto} onClick={() => sim.stepN(1)}>
+      <span className="grow" />
+
+      <button className="btn ghost" disabled={!auto} onClick={() => sim.stepN(1)}>
         Step ×1
       </button>
-      <button className="ctl" disabled={!auto} onClick={() => sim.stepN(100)}>
+      <button className="btn ghost" disabled={!auto} onClick={() => sim.stepN(100)}>
         ×100
       </button>
-      <button className="ctl" disabled={!auto} onClick={() => sim.stepN(10_000)}>
+      <button className="btn ghost" disabled={!auto} onClick={() => sim.stepN(10_000)}>
         ×10k
       </button>
-      <button className="ctl primary" disabled={!auto} onClick={() => sim.setRunning(!sim.running)}>
+      <button className="btn" disabled={!auto} onClick={() => sim.setRunning(!sim.running)}>
         {sim.running ? 'Pause' : 'Run'}
       </button>
 
@@ -105,11 +109,7 @@ export function Controls({ sim }: { sim: Simulation }) {
           disabled={!auto}
         />
       </label>
-      <span className="speed-readout">{fmtSpeed(sim.speed)} it/s</span>
-
-      <button className="ctl" onClick={sim.reset}>
-        Reset
-      </button>
+      <span className="speed-readout">{fmtSpeed(sim.speed)} / s</span>
 
       <label className="inline">
         seed
@@ -124,8 +124,16 @@ export function Controls({ sim }: { sim: Simulation }) {
         />
       </label>
 
+      <button className="btn ghost" onClick={sim.reset}>
+        Reset
+      </button>
+
+      {/* No round counter here: Fig. 1's own title states the round, and
+          repeating it in the toolbar pushed the row onto a second line. */}
+
       {sim.mode === 'vs-fixed' && (
         <div className="dist-sliders" aria-label="Opponent distribution">
+          <span className="label">Opponent plays</span>
           {ACTIONS.map((name, i) => (
             <label key={name}>
               {name}
@@ -141,11 +149,6 @@ export function Controls({ sim }: { sim: Simulation }) {
           ))}
         </div>
       )}
-
-      <span className="iter-readout">
-        <span className="k">t = </span>
-        {fmtIter(sim.engine.iteration)}
-      </span>
     </div>
   )
 }

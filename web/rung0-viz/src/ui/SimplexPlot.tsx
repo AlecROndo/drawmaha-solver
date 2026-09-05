@@ -2,9 +2,10 @@ import { useEffect, useRef } from 'react'
 import type { Engine } from '../sim/engine'
 import type { Vec3 } from '../sim/game'
 import { ACTIONS } from '../sim/game'
+import { FigureHead } from './site'
 
-const SIZE = 380
-const PAD = 34
+const SIZE = 470
+const PAD = 42
 
 /** Barycentric → canvas: rock bottom-left, paper bottom-right, scissors top. */
 function project(sigma: Vec3): [number, number] {
@@ -63,10 +64,10 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
     ctx.stroke()
 
     // vertex labels: action-colored dot, then the name in text ink
-    ctx.font = '11px "IBM Plex Mono", monospace'
+    ctx.font = '12px "IBM Plex Mono", monospace'
     const labels: [string, number, number, number][] = [
-      [ACTIONS[0], rx - 4, ry + 16, 0],
-      [ACTIONS[1], px - 34, py + 16, 1],
+      [ACTIONS[0], rx - 4, ry + 18, 0],
+      [ACTIONS[1], px - 38, py + 18, 1],
       [ACTIONS[2], sx + 10, sy + 2, 2],
     ]
     ctx.textAlign = 'left'
@@ -139,20 +140,22 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
   }, [engine, version])
 
   return (
-    <section className="panel span5" aria-label="Strategy simplex">
-      <h2>The simplex — current orbits, average converges</h2>
-      <p className="sub">every point is a mixed strategy; the center is Nash</p>
+    <section className="h6" aria-label="Strategy simplex">
+      <FigureHead n="Fig. 2" title="The average spirals in, the current strategy orbits">
+        Each point is a strategy; the corners are pure rock, paper and scissors. The grey trail is
+        the last 300 rounds of σ.
+      </FigureHead>
       <div className="legend">
         <span className="item">
-          <span className="swatch" style={{ background: 'var(--cur-obj)' }} />
-          current σ (cycles forever)
+          <span className="swatch" style={{ background: 'var(--avg-obj)' }} />
+          average S/n, every round so far
         </span>
         <span className="item">
-          <span className="swatch" style={{ background: 'var(--avg-obj)' }} />
-          average S/n (spirals in)
+          <span className="swatch" style={{ background: 'var(--cur-obj)' }} />
+          current σ, last 300 rounds
         </span>
       </div>
-      <canvas ref={canvasRef} style={{ width: '100%', maxWidth: SIZE, display: 'block', margin: '0 auto' }} />
+      <canvas ref={canvasRef} style={{ width: '100%', maxWidth: SIZE, display: 'block' }} />
     </section>
   )
 }

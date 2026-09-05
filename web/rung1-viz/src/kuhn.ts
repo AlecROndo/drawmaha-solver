@@ -138,23 +138,34 @@ export interface Edge {
   to: string
 }
 
-export const NODE_W = 132
-export const NODE_H = 74
+/**
+ * The tree runs left to right, one column per action taken, because that is
+ * the order a hand happens in and it lays the whole game on one line inside
+ * the page's full-bleed plate. Every coordinate below is a centre.
+ */
+export const TREE_W = 1010
+export const TREE_H = 400
+
+export const NODE_W = 214
+export const NODE_H = 96
+
+export const TERMINAL_W = 176
+export const TERMINAL_H = 34
 
 /** Node centres, placed by hand so no edge crosses another. */
 export const DECISION_NODES: DecisionNode[] = [
-  { key: '', cx: 330, cy: 56, caption: 'P0 opens' },
-  { key: 'p', cx: 176, cy: 200, caption: 'P1 · checked to' },
-  { key: 'b', cx: 508, cy: 200, caption: 'P1 · facing a bet' },
-  { key: 'pb', cx: 262, cy: 344, caption: 'P0 · facing a bet' },
+  { key: '', cx: 137, cy: 198, caption: 'P0 opens' },
+  { key: 'p', cx: 407, cy: 78, caption: 'P1 after a check' },
+  { key: 'b', cx: 407, cy: 318, caption: 'P1 facing a bet' },
+  { key: 'pb', cx: 677, cy: 78, caption: 'P0 facing a bet, after checking' },
 ]
 
 export const TERMINAL_NODES: TerminalNode[] = [
-  { key: 'pp', cx: 62, cy: 344, text: 'showdown ±1' },
-  { key: 'bp', cx: 424, cy: 344, text: 'P0 wins 1' },
-  { key: 'bb', cx: 574, cy: 344, text: 'showdown ±2' },
-  { key: 'pbp', cx: 168, cy: 468, text: 'P1 wins 1' },
-  { key: 'pbb', cx: 352, cy: 468, text: 'showdown ±2' },
+  { key: 'pp', cx: 658, cy: 195, text: 'showdown for 1' },
+  { key: 'bp', cx: 658, cy: 287, text: 'P1 folds · P0 +1' },
+  { key: 'bb', cx: 658, cy: 353, text: 'showdown for 2' },
+  { key: 'pbp', cx: 928, cy: 57, text: 'P0 folds · P1 +1' },
+  { key: 'pbb', cx: 928, cy: 123, text: 'showdown for 2' },
 ]
 
 export const EDGES: Edge[] = [
