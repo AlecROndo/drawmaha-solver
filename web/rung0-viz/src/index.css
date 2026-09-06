@@ -341,8 +341,13 @@ aside.rail .sketch {
   border-color: var(--mark);
 }
 
+/* --panel-hair is a decorative hairline (1.47:1) and fine as a row rule,
+   but on a ghost button it is the control's ONLY visible boundary —
+   1.4.11 wants 3:1 there. rung 1's Check button is exactly this case,
+   inside fig. 3's panel. --panel-dim is the secondary ink on a panel and
+   clears it at 4.51. */
 .panel .btn.ghost {
-  border-color: var(--panel-hair);
+  border-color: var(--panel-dim);
 }
 
 .panel .btn.ghost:hover:not(:disabled) {
