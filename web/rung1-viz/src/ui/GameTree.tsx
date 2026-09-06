@@ -5,7 +5,11 @@ import {
   EDGES,
   NODE_H,
   NODE_W,
+  TERMINAL_H,
   TERMINAL_NODES,
+  TERMINAL_W,
+  TREE_H,
+  TREE_W,
   actionFrequency,
   actionLabel,
   infosetKey,
@@ -31,10 +35,11 @@ import {
 const CARD_VAR = ['var(--jack)', 'var(--queen)', 'var(--king)']
 
 const BAR_X = 40
-// Leaves room for the value text: a bar at 1.00 must not run under it, or the
-// hairline lands on top of the digits.
-const BAR_W = 54
-const ROW_H = 14
+const BAR_W = 110
+const BAR_H = 6
+const ROW_H = 18
+/** First bar's baseline, below the node's caption. */
+const ROW_TOP = 36
 
 export interface GameTreeProps {
   index: number
@@ -42,15 +47,13 @@ export interface GameTreeProps {
   bet: Record<string, number[]>
   /** where each bar belongs, or null when no ground truth applies */
   hairline: Record<string, number> | null
-  heading: string
-  sub: string
   /** infosets the visitor has pinned, label to P(bet) — exploit tab only */
   locked?: Record<string, number>
   /** provided only when rows are clickable; absence makes the tree read-only */
   onToggleLock?: (key: string) => void
 }
 
-interface NodeCardProps extends Omit<GameTreeProps, 'heading' | 'sub'> {
+interface NodeCardProps extends GameTreeProps {
   node: (typeof DECISION_NODES)[number]
 }
 
@@ -59,16 +62,16 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
   const top = node.cy - NODE_H / 2
   return (
     <g>
-      <rect className="node-card" x={left} y={top} width={NODE_W} height={NODE_H} rx={3} />
-      <text className="node-caption" x={left + 10} y={top + 15}>
-        {node.caption}
+      <rect className="node-card" x={left} y={top} width={NODE_W} height={NODE_H} rx={8} />
+      <text className="node-caption" x={left + 14} y={top + 18}>
+        {node.caption.toUpperCase()}
       </text>
       {CARDS.map((card, row) => {
         const key = infosetKey(card as Card, node.key)
         const p = bet[key][index]
         const exact = hairline?.[key]
         const pinned = locked?.[key]
-        const y = top + 28 + row * ROW_H
+        const y = top + ROW_TOP + row * ROW_H
         return (
           <g
             key={key}
@@ -96,18 +99,18 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
           >
             {/* Hit area: the bar alone is 6px tall, too small to click at. */}
             {onToggleLock && (
-              <rect x={left + 4} y={y - 4} width={NODE_W - 8} height={ROW_H} fill="transparent" />
+              <rect x={left + 8} y={y - 6} width={NODE_W - 16} height={ROW_H} fill="transparent" />
             )}
-            <text className="node-letter" x={left + 10} y={y + 5} fill={CARD_VAR[card]}>
+            <text className="node-letter" x={left + 14} y={y + 6} fill={CARD_VAR[card]}>
               {CARD_SYMBOL[card]}
             </text>
-            <rect x={left + BAR_X} y={y} width={BAR_W} height={6} rx={1} fill="var(--grid)" />
+            <rect x={left + BAR_X} y={y} width={BAR_W} height={BAR_H} rx={1.5} fill="var(--panel-hair)" />
             <rect
               x={left + BAR_X}
               y={y}
               width={Math.max(0, p * BAR_W)}
-              height={6}
-              rx={1}
+              height={BAR_H}
+              rx={1.5}
               fill={CARD_VAR[card]}
               // A locked bar is held, not learned. Hollowing it keeps the two
               // populations legible at a glance: solid bars are what CFR
@@ -120,10 +123,10 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
               <line
                 x1={left + BAR_X + exact * BAR_W}
                 x2={left + BAR_X + exact * BAR_W}
-                y1={y - 2}
-                y2={y + 8}
-                stroke="var(--ink-2)"
-                strokeWidth={1}
+                y1={y - 3}
+                y2={y + BAR_H + 3}
+                stroke="var(--panel-mark)"
+                strokeWidth={1.5}
               />
             )}
             {/* Locked rows keep showing their number — it is the thing being
@@ -131,10 +134,9 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
                 rather than by a glyph competing with the digits. */}
             <text
               className="node-value"
-              x={left + NODE_W - 9}
+              x={left + BAR_X + BAR_W + 10}
               y={y + 6}
-              textAnchor="end"
-              fill={pinned === undefined ? undefined : 'var(--muted)'}
+              fill={pinned === undefined ? undefined : 'var(--panel-dim)'}
             >
               {(pinned ?? p).toFixed(2)}
             </text>
@@ -146,85 +148,82 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
 }
 
 export function GameTree(props: GameTreeProps) {
-  const { index, bet, heading, sub, onToggleLock } = props
+  const { index, bet } = props
   const betAt = (card: Card, history: string) => bet[infosetKey(card, history)][index]
   const centre = (key: string) =>
     DECISION_NODES.find((n) => n.key === key) ?? TERMINAL_NODES.find((n) => n.key === key)!
   const isDecision = (key: string) => DECISION_NODES.some((n) => n.key === key)
 
   return (
-    <section className="panel wide" aria-label="Game tree and strategy">
-      <h2>{heading}</h2>
-      <p className="sub">{sub}</p>
-      <p className="card-legend">
-        {CARDS.map((card) => (
-          <span className="chip" key={card}>
-            <span className="dot" style={{ background: CARD_VAR[card] }} />
-            {CARD_SYMBOL[card]}
-          </span>
-        ))}
-        {props.hairline && (
-          <span className="chip">
-            <span className="tick" /> target
-          </span>
-        )}
-        <span className="chip">
-          {onToggleLock
-            ? 'click any row to lock that spot'
-            : 'edge width = how often that action is taken, over the hands that reach it'}
-        </span>
-      </p>
-      <div className="tree-wrap">
-        <div className="tree">
-          <svg viewBox="0 0 640 500" role="img" aria-label="Kuhn poker game tree">
-            {EDGES.map((edge) => {
-              const from = centre(edge.from)!
-              const to = centre(edge.to)!
-              const p = actionFrequency(edge.from, edge.act, betAt)
-              const y1 = from.cy + NODE_H / 2
-              const y2 = isDecision(edge.to) ? to.cy - NODE_H / 2 : to.cy - 11
-              return (
-                <g key={`${edge.from}-${edge.act}`}>
-                  <path
-                    d={`M ${from.cx} ${y1} C ${from.cx} ${y1 + 26}, ${to.cx} ${y2 - 26}, ${to.cx} ${y2}`}
-                    fill="none"
-                    stroke="var(--axis)"
-                    strokeWidth={1 + 5 * p}
-                    strokeLinecap="round"
-                    opacity={0.55}
-                  />
-                  <text
-                    className="edge-label"
-                    x={(from.cx + to.cx) / 2}
-                    y={(y1 + y2) / 2 + 3}
-                    textAnchor="middle"
-                  >
-                    {actionLabel(edge.act, edge.from)}
-                  </text>
-                </g>
-              )
-            })}
-            {TERMINAL_NODES.map((node) => (
-              <g key={node.key}>
-                <rect
-                  className="terminal"
-                  x={node.cx - 54}
-                  y={node.cy - 11}
-                  width={108}
-                  height={22}
-                  rx={11}
+    <div className="tree-wrap">
+      <div className="tree">
+        <svg viewBox={`0 0 ${TREE_W} ${TREE_H}`} role="img" aria-label="Kuhn poker game tree">
+          {EDGES.map((edge) => {
+            const from = centre(edge.from)!
+            const to = centre(edge.to)!
+            const p = actionFrequency(edge.from, edge.act, betAt)
+            // The tree reads left to right, so an edge leaves a node's right
+            // face and arrives at the next one's left face.
+            const x1 = from.cx + NODE_W / 2
+            const x2 = to.cx - (isDecision(edge.to) ? NODE_W : TERMINAL_W) / 2
+            return (
+              <g key={`${edge.from}-${edge.act}`}>
+                <path
+                  d={`M ${x1} ${from.cy} C ${x1 + 40} ${from.cy}, ${x2 - 40} ${to.cy}, ${x2} ${to.cy}`}
+                  fill="none"
+                  stroke="var(--panel-hair)"
+                  strokeWidth={1 + 4 * p}
+                  strokeLinecap="round"
                 />
-                <text className="terminal-text" x={node.cx} y={node.cy + 4} textAnchor="middle">
-                  {node.text}
+                <text
+                  className="edge-label"
+                  x={(x1 + x2) / 2}
+                  y={(from.cy + to.cy) / 2 - 7}
+                  textAnchor="middle"
+                >
+                  {actionLabel(edge.act, edge.from)}
                 </text>
               </g>
-            ))}
-            {DECISION_NODES.map((node) => (
-              <NodeCard key={node.key || 'root'} node={node} {...props} />
-            ))}
-          </svg>
-        </div>
+            )
+          })}
+          {TERMINAL_NODES.map((node) => (
+            <g key={node.key}>
+              <rect
+                className="terminal"
+                x={node.cx - TERMINAL_W / 2}
+                y={node.cy - TERMINAL_H / 2}
+                width={TERMINAL_W}
+                height={TERMINAL_H}
+                rx={8}
+              />
+              <text className="terminal-text" x={node.cx - TERMINAL_W / 2 + 12} y={node.cy + 4}>
+                {node.key} · {node.text}
+              </text>
+            </g>
+          ))}
+          {DECISION_NODES.map((node) => (
+            <NodeCard key={node.key || 'root'} node={node} {...props} />
+          ))}
+        </svg>
       </div>
-    </section>
+    </div>
+  )
+}
+
+/** What the bars and ticks mean, sitting under the tree inside the plate. */
+export function TreeLegend({ hairlineIs }: { hairlineIs: string | null }) {
+  return (
+    <div className="legend" style={{ margin: '18px 0 0' }}>
+      {CARDS.map((card) => (
+        <span className="item" key={card}>
+          <span className="dot" style={{ background: CARD_VAR[card] }} />
+          {['jack', 'queen', 'king'][card]}
+        </span>
+      ))}
+      <span className="item" style={{ marginLeft: 'auto' }}>
+        bar = P(bet), reads as P(call) when facing a bet
+        {hairlineIs === null ? '' : ` · tick = ${hairlineIs}`}
+      </span>
+    </div>
   )
 }

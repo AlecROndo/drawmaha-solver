@@ -167,6 +167,23 @@ cd web/rung1-viz && npm run dev       # then http://localhost:5173/rung1/#exploi
 
 Exploit runs are live rather than replayed: the input is a strategy you type, so no committed file could cover it. Nothing about CFR is re-implemented in TypeScript — the browser posts six numbers and draws the trace Python returns.
 
+## The site
+
+Three surfaces, one design system: the cover page at `/` (`api/index.py`, stdlib only so the deploy can never break on a numeric dependency) and the two visualizers at `/rung0` and `/rung1`.
+
+The system is a duotone — one hue (oxblood) and one paper (bone), which swap for the light colour scheme rather than being redefined. The **validation ladder is the nav**: a line with a station per rung, filled where the rung is done and solid only as far as the climb has actually got, so "two of five complete" is the picture instead of a caption under it. A persistent identity rail runs down the left. Figures are rounded paper panels floating on the field, numbered; anything tabular is hairline rows.
+
+Three type voices with no overlap: **Instrument Serif** for display, **IBM Plex Mono for body copy as well as UI** — which is what makes the pages read as typed rather than set — and **Kalam** for the handful of handwritten annotations. Illustration is monoline at a single stroke weight.
+
+The one chromatic colour on the site lives *inside* a figure, where it carries an action's or a card's identity (rock/paper/scissors at rung 0, jack/queen/king at rung 1). The chrome never uses it.
+
+`npm run dev` in a visualizer serves that app alone, without the nav or the cover page. To see all three wired the way Vercel wires them:
+
+```bash
+bash scripts/vercel_build.sh          # builds public/
+uv run python scripts/serve_site.py   # http://localhost:4321
+```
+
 ## Status
 
 Rung 0 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, reports exploitability against an exact best response, and ships the analysis pipeline, figures, a play-against-it CLI, and an exploit mode that finds the best response to any strategy you lock. Next: the rung-1 writeup, then rung 2 — Leduc, where there is no closed form and OpenSpiel's sequence-form-LP value becomes the only ground truth.

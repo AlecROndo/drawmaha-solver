@@ -2,9 +2,10 @@ import { useEffect, useRef } from 'react'
 import type { Engine } from '../sim/engine'
 import type { Vec3 } from '../sim/game'
 import { ACTIONS } from '../sim/game'
+import { Panel } from './site'
 
-const SIZE = 380
-const PAD = 34
+const SIZE = 470
+const PAD = 42
 
 /** Barycentric → canvas: rock bottom-left, paper bottom-right, scissors top. */
 function project(sigma: Vec3): [number, number] {
@@ -42,9 +43,9 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, SIZE, SIZE)
 
-    const axis = cssVar(canvas, '--axis')
-    const muted = cssVar(canvas, '--muted')
-    const ink2 = cssVar(canvas, '--ink-2')
+    const axis = cssVar(canvas, '--panel-hair')
+    const muted = cssVar(canvas, '--panel-dim')
+    const ink2 = cssVar(canvas, '--panel-dim')
     const curCol = cssVar(canvas, '--cur-obj')
     const avgCol = cssVar(canvas, '--avg-obj')
     const actionCols = [cssVar(canvas, '--rock'), cssVar(canvas, '--paper'), cssVar(canvas, '--scissors')]
@@ -63,10 +64,10 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
     ctx.stroke()
 
     // vertex labels: action-colored dot, then the name in text ink
-    ctx.font = '11px "IBM Plex Mono", monospace'
+    ctx.font = '12px "IBM Plex Mono", monospace'
     const labels: [string, number, number, number][] = [
-      [ACTIONS[0], rx - 4, ry + 16, 0],
-      [ACTIONS[1], px - 34, py + 16, 1],
+      [ACTIONS[0], rx - 4, ry + 18, 0],
+      [ACTIONS[1], px - 38, py + 18, 1],
       [ACTIONS[2], sx + 10, sy + 2, 2],
     ]
     ctx.textAlign = 'left'
@@ -132,27 +133,31 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
       ctx.beginPath()
       ctx.arc(ax1, ay1, 4.5, 0, Math.PI * 2)
       ctx.fill()
-      ctx.strokeStyle = cssVar(canvas, '--surface')
+      ctx.strokeStyle = cssVar(canvas, '--panel')
       ctx.lineWidth = 2
       ctx.stroke()
     }
   }, [engine, version])
 
   return (
-    <section className="panel span5" aria-label="Strategy simplex">
-      <h2>The simplex — current orbits, average converges</h2>
-      <p className="sub">every point is a mixed strategy; the center is Nash</p>
+    <Panel
+      n="02"
+      k="Fig. 2 · the simplex"
+      title="The average spirals in, the current strategy orbits"
+      say="Each point is a strategy; the corners are pure rock, paper and scissors. The faint trail is the last 300 rounds of σ."
+      label="Strategy simplex"
+    >
       <div className="legend">
         <span className="item">
-          <span className="swatch" style={{ background: 'var(--cur-obj)' }} />
-          current σ (cycles forever)
+          <span className="swatch" style={{ background: 'var(--avg-obj)' }} />
+          average S/n, every round so far
         </span>
         <span className="item">
-          <span className="swatch" style={{ background: 'var(--avg-obj)' }} />
-          average S/n (spirals in)
+          <span className="swatch" style={{ background: 'var(--cur-obj)' }} />
+          current σ, last 300 rounds
         </span>
       </div>
-      <canvas ref={canvasRef} style={{ width: '100%', maxWidth: SIZE, display: 'block', margin: '0 auto' }} />
-    </section>
+      <canvas ref={canvasRef} style={{ width: '100%', maxWidth: SIZE, display: 'block' }} />
+    </Panel>
   )
 }

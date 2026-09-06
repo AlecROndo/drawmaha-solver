@@ -11,6 +11,7 @@ import {
   type Act,
   type Card,
 } from '../kuhn'
+import { Panel } from './site'
 import { SOLVE } from './useSolve'
 
 /**
@@ -112,35 +113,55 @@ export function PlayPanel() {
   const yourCard = hand.cards[hand.humanSeat]
 
   return (
-    <section className="panel" aria-label="Play against the equilibrium">
-      <h2>Fig. 3 · Play it</h2>
-      <p className="sub">
-        the solved average strategy · seats alternate · exploitable for{' '}
-        {SOLVE.exploitabilityAverage[FINAL].toFixed(5)} chips/hand
-      </p>
-      <p className="play-head">
-        You are P{hand.humanSeat}, holding the{' '}
-        <b style={{ color: `var(--${CARD_NAME[yourCard]})` }}>{CARD_NAME[yourCard]}</b>.
-      </p>
-      <p className="play-log">
-        {hand.lines.length ? hand.lines.join('\n') : 'Your move.'}
-      </p>
+    <Panel
+      n="03"
+      id="play"
+      k="Fig. 3 · play it"
+      title="You cannot beat it. The number is how fast you lose."
+      say={`The bot plays the solved average strategy, so it is a genuine equilibrium and never adapts to you — exploitable for ${SOLVE.exploitabilityAverage[FINAL].toFixed(5)} chips a hand. Seats alternate because Kuhn is asymmetric.`}
+      label="Play against the equilibrium"
+    >
+      <div className="hand">
+        <div className="cardglyph" style={{ color: `var(--${CARD_NAME[yourCard]})` }}>
+          {CARD_SYMBOL[yourCard]}
+        </div>
+        <div>
+          <span className="k">
+            Hand {hands + 1} · you are P{hand.humanSeat}
+          </span>
+          <p className="play-log">{hand.lines.length ? hand.lines.join('\n') : 'Your move.'}</p>
+        </div>
+      </div>
       <div className="play-buttons">
         {over ? (
-          <button onClick={next}>Next hand</button>
+          <button className="btn" onClick={next}>
+            Next hand
+          </button>
         ) : (
-          (['p', 'b'] as Act[]).map((a) => (
-            <button key={a} onClick={() => act(a)}>
+          (['b', 'p'] as Act[]).map((a, i) => (
+            <button key={a} className={i === 0 ? 'btn' : 'btn ghost'} onClick={() => act(a)}>
               {actionLabel(a, history)}
             </button>
           ))
         )}
       </div>
-      <p className="tally">
-        {hands === 0
-          ? 'no hands scored yet'
-          : `${hands} hand${hands === 1 ? '' : 's'} · ${chips >= 0 ? '+' : ''}${chips} chips · ${(chips / hands).toFixed(3)} per hand · equilibrium play breaks even at 0.000`}
-      </p>
-    </section>
+      <ul className="fields">
+        <li>
+          <span>Hands</span>
+          <span className="v">{hands}</span>
+        </li>
+        <li>
+          <span>Your chips</span>
+          <span className="v">
+            {chips >= 0 ? '+' : ''}
+            {chips}
+          </span>
+        </li>
+        <li>
+          <span>Per hand</span>
+          <span className="v">{hands === 0 ? '—' : (chips / hands).toFixed(3)}</span>
+        </li>
+      </ul>
+    </Panel>
   )
 }

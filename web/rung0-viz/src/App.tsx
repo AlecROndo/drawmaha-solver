@@ -8,6 +8,7 @@ import { LedgerPanel } from './ui/LedgerPanel'
 import { Scoreboard } from './ui/Scoreboard'
 import { SimplexPlot } from './ui/SimplexPlot'
 import { TracePanel } from './ui/TracePanel'
+import { IdentityRail, LadderLine, Squiggle } from './ui/site'
 import { useSimulation } from './ui/useSimulation'
 
 const ACTION_GLYPHS = ['✊', '✋', '✌️']
@@ -18,66 +19,87 @@ export default function App() {
 
   return (
     <>
-      <header className="app-header">
-        <p className="eyebrow">
-          <a href="/">drawmaha solver</a> · rung 0 · regret matching
-        </p>
-        <h1>Regret matching learns rock-paper-scissors</h1>
-        <p className="dek">
-          A live experiment in one algorithm. The current strategy chases yesterday's regrets and
-          cycles forever; its running average is what converges to Nash — watch both happen below.
-        </p>
-      </header>
+      <LadderLine here={0} />
 
-      <Controls sim={sim} />
+      <div className="shell">
+        <IdentityRail now="Rung 0, complete" next="Rung 2 · Leduc poker" />
 
-      {sim.mode === 'vs-you' && (
-        <div className="play-buttons" aria-label="Play a hand">
-          {ACTIONS.map((name, i) => (
-            <button key={name} onClick={() => sim.playUserAction(i as Action)}>
-              <span aria-hidden>{ACTION_GLYPHS[i]}</span>
-              <span className="chip">
-                <span className="dot" style={{ background: ACTION_COLORS[i] }} />
-                {name}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+        <main>
+          <section>
+            <p className="stop">Stop 01 · rung 0</p>
+            <h2 className="big">Regret matching learns rock-paper-scissors.</h2>
+            <Squiggle />
+            <p className="lede">
+              One algorithm, running live. The current strategy chases yesterday's regrets and
+              cycles forever; its running average is the thing that converges to Nash. Both happen
+              below, and you can stop it mid-round to read the arithmetic.
+            </p>
 
-      <div className="panels">
-        <LedgerPanel engine={sim.engine} />
-        <SimplexPlot engine={sim.engine} version={sim.version} />
-        <TracePanel engine={sim.engine} running={sim.running} />
-        <ConvergenceChart engine={sim.engine} />
-        <ExploitChart engine={sim.engine} />
-        {scored ? (
-          <Scoreboard engine={sim.engine} />
-        ) : (
-          <section className="panel wide aside" aria-label="Reading guide">
-            <h2>What to look for</h2>
-            <p className="sub">three behaviors, one algorithm</p>
-            <ul className="guide-list">
-              <li>
-                <strong>The current strategy never settles.</strong> Regret chases the last winner
-                in a permanent orbit — the gray trail in Fig. 2.
-              </li>
-              <li>
-                <strong>The average is the product.</strong> S/n spirals into (⅓, ⅓, ⅓); its
-                exploitability falls like 1/√T (Fig. 5).
-              </li>
-              <li>
-                <strong>Step mode shows the arithmetic.</strong> Pause, then press <kbd>→</kbd> and
-                follow one round through Fig. 3.
-              </li>
-            </ul>
+            <Controls sim={sim} />
+
+            {sim.mode === 'vs-you' && (
+              <div className="play-buttons" aria-label="Play a hand">
+                {ACTIONS.map((name, i) => (
+                  <button
+                    className="btn"
+                    key={name}
+                    onClick={() => sim.playUserAction(i as Action)}
+                  >
+                    <span aria-hidden>{ACTION_GLYPHS[i]}</span>
+                    <span className="chip">
+                      <span className="dot" style={{ background: ACTION_COLORS[i] }} />
+                      {name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="panels">
+              <LedgerPanel engine={sim.engine} />
+              <SimplexPlot engine={sim.engine} version={sim.version} />
+              <ExploitChart engine={sim.engine} />
+              <TracePanel engine={sim.engine} running={sim.running} />
+              <ConvergenceChart engine={sim.engine} />
+              {scored && <Scoreboard engine={sim.engine} />}
+            </div>
           </section>
-        )}
-      </div>
 
-      <p className="kbd-hint">
-        <kbd>space</kbd> run / pause · <kbd>→</kbd> step ×1 · same seed → bit-identical run
-      </p>
+          {!scored && (
+            <section aria-label="Reading guide">
+              <p className="stop">Stop 02 · what to look for</p>
+              <h2 className="big">Three behaviours, one algorithm.</h2>
+              <table className="rows">
+                <tbody>
+                  <tr>
+                    <td className="g">The current strategy never settles</td>
+                    <td className="p">Regret chases the last winner, in a permanent orbit.</td>
+                    <td className="s">Fig. 2</td>
+                  </tr>
+                  <tr>
+                    <td className="g">The average is the product</td>
+                    <td className="p">
+                      S/n spirals into (⅓, ⅓, ⅓) and its exploitability falls like 1/√T.
+                    </td>
+                    <td className="s">Fig. 3</td>
+                  </tr>
+                  <tr>
+                    <td className="g">Step mode shows the arithmetic</td>
+                    <td className="p">
+                      Pause, then press → and follow a single update, line by line.
+                    </td>
+                    <td className="s">Fig. 4</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <p className="kbd-hint">
+                <kbd>space</kbd> run / pause · <kbd>→</kbd> step ×1 · same seed, bit-identical run
+              </p>
+            </section>
+          )}
+        </main>
+      </div>
     </>
   )
 }
