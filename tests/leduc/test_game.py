@@ -90,6 +90,20 @@ def test_two_cards_share_a_rank_and_differ_in_suit():
     assert Ja.rank == Jb.rank
     assert Ja.suit != Jb.suit
 
+def test_comparing_two_cards_for_size_raises_instead_of_lying():
+    # Card is an IntEnum, so `<` would evaluate happily and answer by deck
+    # index: Ja < Jb is True and Jb < Ja is False, though the two hands are
+    # equal. Rank ordering is the real comparison and stays legal.
+    for compare in (
+        lambda: Ja < Jb,
+        lambda: Ja <= Jb,
+        lambda: Ka > Qa,
+        lambda: Ka >= Qa,
+    ):
+        with pytest.raises(TypeError, match="not ordered"):
+            compare()
+    assert Ja.rank < Qa.rank
+
 def test_a_card_renders_as_its_rank_and_suit_and_a_rank_as_one_letter():
     assert CARD_SYMBOL[Ja] == "Ja"
     assert CARD_SYMBOL[Kb] == "Kb"

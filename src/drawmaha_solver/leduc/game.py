@@ -55,9 +55,10 @@ class Card(IntEnum):
     """One of six physical cards: two of each rank, in two suits.
 
     Numbered 0..5 the way the referee numbers them, so `rank` is `card // 2`
-    and the twin of a card is its neighbour. Do NOT compare two Cards with `<`
-    to compare hands — card 1 is a jack and card 2 is a queen, but card 0 and
-    card 1 are the same hand. Compare `rank`, or better, `hand_strength`.
+    and the twin of a card is its neighbour. Ordering comparisons raise: card 1
+    is a jack and card 2 is a queen, but card 0 and card 1 are the same hand,
+    so `<` between two Cards is never the comparison anyone means. Compare
+    `rank`, or better, `hand_strength`.
     """
 
     JACK_A = 0
@@ -74,6 +75,24 @@ class Card(IntEnum):
     @property
     def suit(self) -> int:
         return int(self) % 2
+
+    # Rung 1's deck held one card per rank, so `<` on a card *was* the hand
+    # comparison. A two-suit deck breaks that: JACK_A < JACK_B evaluates True
+    # while the two hands are identical, and the reverse of the same expression
+    # is False, so an accidental `<` silently awards a pot to whoever's suit
+    # sorts lower. That is a wrong showdown with no traceback — the exact class
+    # of bug this module fails loudly on elsewhere — so the ordering is removed
+    # rather than merely warned about in the docstring.
+    def _unordered(self, other: object) -> bool:
+        raise TypeError(
+            "Cards are not ordered — JACK_A and JACK_B are the same hand. "
+            "Compare .rank, or hand_strength(private, board) for a showdown."
+        )
+
+    __lt__ = _unordered
+    __le__ = _unordered
+    __gt__ = _unordered
+    __ge__ = _unordered
 
 RANKS = (Rank.JACK, Rank.QUEEN, Rank.KING)
 
