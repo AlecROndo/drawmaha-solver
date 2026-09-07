@@ -242,6 +242,8 @@ def test_acting_on_a_finished_hand_raises():
         done.legal_actions()
     with pytest.raises(ValueError, match="terminal"):
         done.current_player  # noqa: B018 - property access is the call
+    with pytest.raises(ValueError, match="terminal"):
+        done.infoset()
 
 def test_acting_when_it_is_the_decks_turn_raises():
     waiting = drive((Ja, Qa), None, C, C)
@@ -249,6 +251,28 @@ def test_acting_when_it_is_the_decks_turn_raises():
         waiting.apply(Action.CALL)
     with pytest.raises(ValueError, match="chance node"):
         waiting.current_player  # noqa: B018 - property access is the call
+
+def test_dealing_the_board_away_from_the_decks_turn_raises():
+    # The deck acts exactly once, between the rounds. Asked anywhere else,
+    # chance_outcomes() would hand back the unseen cards as if a board were
+    # due, and a walker would graft a phantom chance layer onto the tree.
+    mid_round = LeducState(cards=(Ja, Qa))
+    finished = drive((Ja, Qa), Ka, R, F)
+    for state in (mid_round, finished):
+        with pytest.raises(ValueError, match="not a chance node"):
+            state.chance_outcomes()
+        with pytest.raises(ValueError, match="not a chance node"):
+            state.apply_chance(Kb)
+
+def test_scoring_or_keying_the_decks_turn_raises():
+    # A hand waiting on the board is neither terminal nor a decision: nobody
+    # has won it and nobody is to act, so both accessors refuse rather than
+    # score an unfinished hand or key a ledger nobody owns.
+    waiting = drive((Ja, Qa), None, C, C)
+    with pytest.raises(ValueError, match="not terminal"):
+        waiting.returns()
+    with pytest.raises(ValueError, match="chance node"):
+        waiting.infoset()
 
 def test_an_illegal_action_is_rejected_rather_than_applied():
     with pytest.raises(ValueError, match="not legal"):
