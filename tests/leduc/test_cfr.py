@@ -18,10 +18,13 @@ J, Q, K = Rank.JACK, Rank.QUEEN, Rank.KING
 Ja, Jb, Qa, Qb, Ka, Kb = DECK
 F, C, R = Action.FOLD, Action.CALL, Action.RAISE
 
-# The referee's ground truth: the sequence-form LP value of Leduc to P0, and
-# OpenSpiel CFR's own distance from it along its convergence curve
-# (figures/cfr_trace.json). Its updates alternate and ours are simultaneous,
-# so the iterates differ; only the destination and the rough pace are shared.
+# The referee's ground truth: the sequence-form LP value of Leduc to P0,
+# -0.085606424078 — the exact-solve constant (Koller-Megiddo-von Stengel
+# sequence-form LP) that OpenSpiel regression-tests its own Leduc solvers
+# against. The band below is calibrated to OpenSpiel CFR's own distance from
+# it along its convergence curve (its trace lands with B6's referee
+# fixtures). Its updates alternate and ours are simultaneous, so the
+# iterates differ; only the destination and the rough pace are shared.
 LP_VALUE_P0 = -0.0856064
 
 def expected_value_p0(strategies) -> float:
