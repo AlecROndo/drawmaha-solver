@@ -115,11 +115,8 @@ def _table(
     """One rendered block: a title, a rank header, one row per betting key."""
     lines = [title, " " * _LABEL_WIDTH + "".join(f"{RANK_SYMBOL[r]:<{_CELL_WIDTH}}" for r in RANKS)]
     for label, betting in row_keys:
-        cells = "".join(
-            f"{_cell(spot, strategies[spot]):<{_CELL_WIDTH}}"
-            for rank in RANKS
-            for spot in [InfoSet(rank=rank, board=board, betting=betting)]
-        )
+        spots = [InfoSet(rank=rank, board=board, betting=betting) for rank in RANKS]
+        cells = "".join(f"{_cell(spot, strategies[spot]):<{_CELL_WIDTH}}" for spot in spots)
         lines.append(f"{label:<{_LABEL_WIDTH}}{cells}")
     return lines
 
