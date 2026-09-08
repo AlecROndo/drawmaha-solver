@@ -45,6 +45,7 @@ to undo anything.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 
@@ -204,9 +205,12 @@ def _grow_round_lines() -> tuple[tuple[tuple[Action, ...], ...], ...]:
     """Every line one round can produce, grown from the three rules above.
 
     Breadth-first from the empty line: a fold or a closing call is a leaf,
-    anything else is a decision whose children are its legal actions. Fifteen
-    lines fall out — six decisions, four folds, five closes. Rung 1 listed its
-    nine histories by hand because there was no rule to derive them from: every
+    anything else is a decision whose children are its legal actions. The
+    frontier is a deque taken from the left, so the lines come out grouped by
+    depth — taking from the right instead would be depth-first and would
+    reorder them, and `all_infosets()` reads this order out. Fifteen lines
+    fall out — six decisions, four folds, five closes. Rung 1 listed its nine
+    histories by hand because there was no rule to derive them from: every
     action was legal at every Kuhn node. Here `legal_actions_for` *is* that
     rule, so a hand-written list would be a second, silently divergent copy of
     it. The independent statement lives in `test_game.py`, as a table typed out
@@ -215,9 +219,9 @@ def _grow_round_lines() -> tuple[tuple[tuple[Action, ...], ...], ...]:
     decisions: list[tuple[Action, ...]] = []
     folds: list[tuple[Action, ...]] = []
     closes: list[tuple[Action, ...]] = []
-    frontier: list[tuple[Action, ...]] = [()]
+    frontier: deque[tuple[Action, ...]] = deque([()])
     while frontier:
-        line = frontier.pop(0)
+        line = frontier.popleft()
         if _is_fold(line):
             folds.append(line)
         elif _is_closed(line):
