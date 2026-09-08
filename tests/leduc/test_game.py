@@ -19,6 +19,7 @@ from drawmaha_solver.leduc.game import (
     Card,
     InfoSet,
     LeducState,
+    NodeKind,
     Rank,
     action_label,
     all_infosets,
@@ -233,6 +234,26 @@ def test_apply_leaves_the_original_state_untouched():
     assert state.betting == ((),)
     assert child.betting == ((R,),)
     assert child.cards == state.cards
+
+def test_every_node_reports_which_of_the_three_kinds_it_is():
+    # `kind` is the value a walker branches on three ways, and the two
+    # predicates below are one-line readings of it. Pinning the enum itself,
+    # not only the predicates, is what stops a walker that reads `.kind` from
+    # ever disagreeing with one that reads `is_chance_node()` — the two would
+    # then visit different trees and neither would raise.
+    opening = LeducState(cards=(Ja, Qa))
+    board_due = drive((Ja, Qa), None, C, C)
+    folded = drive((Ja, Qa), Ka, R, F)
+    showdown = drive((Ja, Qa), Ka, C, C, C, C)
+
+    assert opening.kind is NodeKind.DECISION
+    assert board_due.kind is NodeKind.CHANCE
+    assert folded.kind is NodeKind.TERMINAL
+    assert showdown.kind is NodeKind.TERMINAL
+
+    for state in (opening, board_due, folded, showdown):
+        assert state.is_terminal() == (state.kind is NodeKind.TERMINAL)
+        assert state.is_chance_node() == (state.kind is NodeKind.CHANCE)
 
 def test_acting_on_a_finished_hand_raises():
     done = drive((Ja, Qa), Ka, R, F)
