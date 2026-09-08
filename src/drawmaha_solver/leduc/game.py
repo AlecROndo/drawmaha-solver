@@ -18,10 +18,17 @@ Three things change from `kuhn/game.py`, and each of them is a rule the referee
   `Action` value, which is why the tuple's order is documented and fixed.
 * **Two rounds of one shape.** Round 2 repeats round 1 exactly — P0 opens, the
   cap resets, the same six decision lines — with the bet size doubled from 2 to
-  4. One `_round` vocabulary therefore serves both, and `betting` is a tuple of
-  one line per round begun.
+  4. So the betting rules are three predicates (`legal_actions_for`,
+  `_is_fold`, `_is_closed`) that both rounds obey, and the fifteen lines a
+  round can produce are *grown* from them rather than listed. `betting` is a
+  tuple of one line per round begun.
 * **The board decides the showdown.** A private card that matches the board
   outranks every unpaired card, so on a jack board a jack beats a king.
+
+A node is one of three kinds — `NodeKind.DECISION`, `CHANCE`, `TERMINAL` — and
+that trichotomy is what a tree walker branches on. It is a single computed
+value here, not a pair of predicates each method re-derives, and every accessor
+declares the kind it belongs to and refuses at the other two.
 
 The vocabulary a solver needs: a **betting line** is the actions inside one
 round; a **history** is the pair of lines plus the cards; an **infoset** is what
@@ -39,7 +46,7 @@ to undo anything.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 
 # ---------------------------------------------------------------------------
 # Cards, ranks, and the private deal
@@ -97,8 +104,6 @@ class Card(IntEnum):
 RANKS = (Rank.JACK, Rank.QUEEN, Rank.KING)
 
 DECK = tuple(Card)
-
-N_SUITS = len(DECK) // len(RANKS)
 
 RANK_SYMBOL = {Rank.JACK: "J", Rank.QUEEN: "Q", Rank.KING: "K"}
 
@@ -161,43 +166,12 @@ def action_label(action: Action, line: tuple[Action, ...]) -> str:
 # ---------------------------------------------------------------------------
 # The shape of one betting round
 # ---------------------------------------------------------------------------
-
-# Both rounds have this shape, so these are lines *within* a round, not whole
-# histories. Listed rather than derived: fifteen tuples is the clearest
-# statement of the betting rules, and `test_game.py` re-derives them by walking.
-_F, _C, _R = Action.FOLD, Action.CALL, Action.RAISE
-
-ROUND_DECISION_LINES = (
-    (),              # P0 opens; nothing to call, so {call, raise}
-    (_C,),           # P0 checked; P1 checks behind or bets
-    (_C, _R),        # P0 checked and was bet into; {fold, call, raise}
-    (_C, _R, _R),    # ... and re-raised; the cap is spent, {fold, call}
-    (_R,),           # P0 bet; P1 has {fold, call, raise}
-    (_R, _R),        # P0 bet and was raised; the cap is spent, {fold, call}
-)
-
-# A fold ends the hand outright, whichever round it happens in.
-ROUND_FOLD_LINES = (
-    (_C, _R, _F),
-    (_C, _R, _R, _F),
-    (_R, _F),
-    (_R, _R, _F),
-)
-
-# A call with something already behind it closes the round with the stakes
-# level: after round 1 the board is dealt, after round 2 it is a showdown.
-# These are the five lines Figure "one deal, drawn" marks with a chance node.
-ROUND_CLOSING_LINES = (
-    (_C, _C),
-    (_C, _R, _C),
-    (_C, _R, _R, _C),
-    (_R, _C),
-    (_R, _R, _C),
-)
-
-REACHABLE_ROUND_LINES = frozenset(
-    ROUND_DECISION_LINES + ROUND_FOLD_LINES + ROUND_CLOSING_LINES
-)
+#
+# Three predicates are the whole betting rule set, and both rounds obey them
+# identically: what may be done, what ends the hand, what closes the round.
+# Which lines exist, and which of them are decisions, folds or closes, is grown
+# from those three below rather than written out — so a betting rule is stated
+# in exactly one place and cannot go stale against a list.
 
 def legal_actions_for(line: tuple[Action, ...]) -> tuple[Action, ...]:
     """What the player to act may do, given the round's line so far.
@@ -214,39 +188,88 @@ def legal_actions_for(line: tuple[Action, ...]) -> tuple[Action, ...]:
     return (Action.FOLD, Action.CALL)
 
 def _is_fold(line: tuple[Action, ...]) -> bool:
+    """True once someone has given up the hand, in either round."""
     return bool(line) and line[-1] is Action.FOLD
 
 def _is_closed(line: tuple[Action, ...]) -> bool:
     """True once the stakes are level and the round is over.
 
     The opening CALL is a check, not a close — `(call,)` is still P1's turn —
-    so a closing call needs something in front of it.
+    so a closing call needs something in front of it. After round 1 these are
+    the five lines that hand over to the deck; after round 2 they are showdowns.
     """
     return len(line) >= 2 and line[-1] is Action.CALL
 
-def _round_contributions(line: tuple[Action, ...], bet_size: int) -> tuple[int, int]:
-    """Chips (P0, P1) put into the pot during one round.
+def _grow_round_lines() -> tuple[tuple[tuple[Action, ...], ...], ...]:
+    """Every line one round can produce, grown from the three rules above.
 
-    After k raises the price of staying in is k * bet_size, so a CALL matches
-    that price and a RAISE sets a new one. A folder stops paying where they
-    stood, which is why folding to a re-raise still costs the raise already
-    made — the source of the +/-3 payoff the referee reports.
+    Breadth-first from the empty line: a fold or a closing call is a leaf,
+    anything else is a decision whose children are its legal actions. Fifteen
+    lines fall out — six decisions, four folds, five closes. Rung 1 listed its
+    nine histories by hand because there was no rule to derive them from: every
+    action was legal at every Kuhn node. Here `legal_actions_for` *is* that
+    rule, so a hand-written list would be a second, silently divergent copy of
+    it. The independent statement lives in `test_game.py`, as a table typed out
+    from the referee — which is the only place it can actually catch anything.
     """
-    paid = [0, 0]
-    raises = 0
-    for turn, action in enumerate(line):
-        if action is Action.FOLD:
-            break
-        if action is Action.RAISE:
-            raises += 1
-        paid[turn % 2] = raises * bet_size
-    return (paid[0], paid[1])
+    decisions: list[tuple[Action, ...]] = []
+    folds: list[tuple[Action, ...]] = []
+    closes: list[tuple[Action, ...]] = []
+    frontier: list[tuple[Action, ...]] = [()]
+    while frontier:
+        line = frontier.pop(0)
+        if _is_fold(line):
+            folds.append(line)
+        elif _is_closed(line):
+            closes.append(line)
+        else:
+            decisions.append(line)
+            frontier.extend(line + (action,) for action in legal_actions_for(line))
+    return tuple(decisions), tuple(folds), tuple(closes)
 
-def _validate_line(line: tuple[Action, ...]) -> None:
-    if not all(isinstance(a, Action) for a in line):
-        raise ValueError(f"betting must hold Action members, got {line}")
-    if line not in REACHABLE_ROUND_LINES:
-        raise ValueError(f"{line} is not a reachable betting line")
+ROUND_DECISION_LINES, ROUND_FOLD_LINES, ROUND_CLOSING_LINES = _grow_round_lines()
+
+REACHABLE_ROUND_LINES = frozenset(
+    ROUND_DECISION_LINES + ROUND_FOLD_LINES + ROUND_CLOSING_LINES
+)
+
+# ---------------------------------------------------------------------------
+# Validation at the boundary
+# ---------------------------------------------------------------------------
+
+def _validate_betting(
+    betting: tuple[tuple[Action, ...], ...], board: Rank | Card | None
+) -> None:
+    """Check a (betting, board) pair against the rules — the only place it happens.
+
+    `InfoSet` and `LeducState` describe the same position at two grains, ranks
+    and cards, so they agree on everything except which cards are which; this
+    is the single owner of the facts they share. A position the rules cannot
+    produce must not be constructible, because a silently-accepted one becomes
+    a ledger entry or a payoff that no traceback ever points at.
+    """
+    for line in betting:
+        # `Action` is an IntEnum, so a raw (1, 1) compares equal to
+        # (CALL, CALL) and would pass the reachability test below — then fail
+        # the `is Action.FOLD` identity test in `returns`, scoring a fold as a
+        # showdown. Reject the ints before the membership check, not after.
+        if not all(isinstance(a, Action) for a in line):
+            raise ValueError(f"betting must hold Action members, got {line}")
+        if line not in REACHABLE_ROUND_LINES:
+            raise ValueError(f"{line} is not a reachable betting line")
+    if not 1 <= len(betting) <= N_ROUNDS:
+        raise ValueError(f"a hand has {N_ROUNDS} rounds at most, got {len(betting)}")
+
+    # The board and the round count are two views of one fact: round 2 exists
+    # exactly when the deck has turned a card, and it opens only once round 1
+    # has closed with the stakes level.
+    opened_round_two = len(betting) == N_ROUNDS
+    if opened_round_two and not _is_closed(betting[0]):
+        raise ValueError(f"round 1 {betting[0]} must be closed before round 2 opens")
+    if opened_round_two and board is None:
+        raise ValueError("round 2 needs a board; deal it before betting again")
+    if not opened_round_two and board is not None:
+        raise ValueError(f"round 2 has not opened, so there is no board yet: {board!r}")
 
 # ---------------------------------------------------------------------------
 # Information sets
@@ -273,17 +296,17 @@ class InfoSet:
     betting: tuple[tuple[Action, ...], ...]
 
     def __post_init__(self) -> None:
-        # Same boundary as LeducState: enum members, not the ints behind them.
-        # Nothing reads an infoset by identity, so a raw key would render and
-        # hash as if it were real — an invisible duplicate ledger entry rather
-        # than a crash, which is strictly worse for a regret table.
+        # Enum members, not the ints behind them. Nothing reads an infoset by
+        # identity, so a raw key would render and hash as if it were real — an
+        # invisible duplicate ledger entry rather than a crash, which is
+        # strictly worse for a regret table than an exception.
         if not isinstance(self.rank, Rank):
             raise ValueError(f"rank must be a Rank member, got {self.rank!r}")
         if self.board is not None and not isinstance(self.board, Rank):
             raise ValueError(f"board must be a Rank member or None, got {self.board!r}")
-        for line in self.betting:
-            _validate_line(line)
-        _validate_rounds(self.betting, self.board)
+        _validate_betting(self.betting, self.board)
+        # An infoset is what the player *to act* knows, so unlike a state it
+        # exists only at a decision: there is no ledger for a finished hand.
         if self.betting[-1] not in ROUND_DECISION_LINES:
             raise ValueError(f"{self.betting[-1]} is not a decision node; nobody is to act")
 
@@ -335,8 +358,36 @@ def all_infosets() -> tuple[InfoSet, ...]:
     return round_one + round_two
 
 # ---------------------------------------------------------------------------
-# Showdown
+# The pot and the showdown
 # ---------------------------------------------------------------------------
+
+def _round_contributions(line: tuple[Action, ...], bet_size: int) -> tuple[int, int]:
+    """Chips (P0, P1) put into the pot during one round.
+
+    After k raises the price of staying in is k * bet_size, so a CALL matches
+    that price and a RAISE sets a new one. A folder stops paying where they
+    stood, which is why folding to a re-raise still costs the raise already
+    made — the source of the +/-3 payoff the referee reports.
+    """
+    paid = [0, 0]
+    raises = 0
+    for turn, action in enumerate(line):
+        if action is Action.FOLD:
+            break
+        if action is Action.RAISE:
+            raises += 1
+        paid[turn % 2] = raises * bet_size
+    return (paid[0], paid[1])
+
+def _chips(winner: int, stake: int) -> tuple[float, float]:
+    """The zero-sum payoff pair: `winner` collects `stake`, the other pays it.
+
+    One place the sign is decided. Written inline at each call site it is two
+    mirrored ternaries that read the same and mean opposite things, and getting
+    one backwards flips a payoff without failing any type check.
+    """
+    amount = float(stake)
+    return (amount, -amount) if winner == 0 else (-amount, amount)
 
 def hand_strength(private: Card, board: Card) -> int:
     """How good one private card is against a given board.
@@ -355,20 +406,25 @@ def hand_strength(private: Card, board: Card) -> int:
 # Game state
 # ---------------------------------------------------------------------------
 
-def _validate_rounds(
-    betting: tuple[tuple[Action, ...], ...], board: Rank | Card | None
-) -> None:
-    """The board and the round count are two views of the same fact."""
-    if not 1 <= len(betting) <= N_ROUNDS:
-        raise ValueError(f"a hand has {N_ROUNDS} rounds at most, got {len(betting)}")
-    if len(betting) == 1:
-        if board is not None:
-            raise ValueError("round 2 has not opened, so there is no board yet")
-        return
-    if not _is_closed(betting[0]):
-        raise ValueError(f"round 1 {betting[0]} must be closed before round 2 opens")
-    if board is None:
-        raise ValueError("round 2 needs a board; deal it before betting again")
+class NodeKind(StrEnum):
+    """Which of the three things a node can be — the trichotomy the walk turns on.
+
+    A tree walker asks this once per node and branches three ways: recurse on
+    the deck's outcomes, recurse on the player's actions, or bank a payoff.
+    Every accessor on `LeducState` belongs to exactly one kind and refuses at
+    the other two, so the kind is a value rather than something each method
+    re-derives from a pair of predicates.
+    """
+
+    DECISION = "decision"
+    CHANCE = "chance"
+    TERMINAL = "terminal"
+
+_WHO_ACTS = {
+    NodeKind.DECISION: "a player is to act",
+    NodeKind.CHANCE: "the deck is to act",
+    NodeKind.TERMINAL: "the hand is over",
+}
 
 @dataclass(frozen=True, slots=True)
 class LeducState:
@@ -392,27 +448,22 @@ class LeducState:
     betting: tuple[tuple[Action, ...], ...] = ((),)
 
     def __post_init__(self) -> None:
-        # Enum members, not the ints behind them. `Card` and `Action` are
-        # IntEnums, so a raw (0, 2) hashes and compares equal to (JACK_A,
-        # QUEEN_A) and would slip past every check below — but `returns` asks
-        # `is Action.FOLD` and `hand_strength` reads `.rank`, which a plain int
-        # fails, so a raw history scores the wrong winner or crashes far from
-        # the mistake. A solver that indexes deals or actions by number
-        # converts here, at the boundary.
+        # `Card` is an IntEnum, so a raw (0, 2) hashes and compares equal to
+        # (JACK_A, QUEEN_A) and would slip past the checks below — but
+        # `hand_strength` reads `.rank`, which a plain int lacks, so the
+        # mistake surfaces at a showdown far from where it was made. A solver
+        # that indexes deals by number converts here, at the boundary.
         if len(self.cards) != 2 or not all(isinstance(c, Card) for c in self.cards):
             raise ValueError(f"cards must be two Card members, got {self.cards}")
         if self.cards[0] == self.cards[1]:
             raise ValueError(f"cards must be two distinct cards, got {self.cards}")
-        if self.board is not None:
-            if not isinstance(self.board, Card):
-                raise ValueError(f"board must be a Card member, got {self.board!r}")
-            if self.board in self.cards:
-                raise ValueError(f"{self.board.name} was already dealt to a player")
-        for line in self.betting:
-            _validate_line(line)
-        _validate_rounds(self.betting, self.board)
+        if self.board is not None and not isinstance(self.board, Card):
+            raise ValueError(f"board must be a Card member, got {self.board!r}")
+        if self.board in self.cards:
+            raise ValueError(f"{self.board.name} was already dealt to a player")
+        _validate_betting(self.betting, self.board)
 
-    # -- node kind ----------------------------------------------------------
+    # -- which of the three kinds of node this is ---------------------------
 
     @property
     def round_index(self) -> int:
@@ -421,17 +472,45 @@ class LeducState:
 
     @property
     def _line(self) -> tuple[Action, ...]:
+        """The betting inside the round now in progress."""
         return self.betting[-1]
+
+    @property
+    def kind(self) -> NodeKind:
+        """Decision, chance, or terminal — read off the current round's line.
+
+        Three rules, in order. A fold ends the hand wherever it happens. A
+        round still open is somebody's decision. A round closed with the stakes
+        level hands over to the deck after round 1 and to the showdown after
+        round 2 — which is the whole structural difference from rung 1, stated
+        in one line.
+        """
+        if _is_fold(self._line):
+            return NodeKind.TERMINAL
+        if not _is_closed(self._line):
+            return NodeKind.DECISION
+        return NodeKind.TERMINAL if self.round_index == N_ROUNDS - 1 else NodeKind.CHANCE
 
     def is_terminal(self) -> bool:
         """True once a fold or a showdown has decided the hand."""
-        if _is_fold(self._line):
-            return True
-        return self.round_index == N_ROUNDS - 1 and _is_closed(self._line)
+        return self.kind is NodeKind.TERMINAL
 
     def is_chance_node(self) -> bool:
         """True when round 1 closed without a fold and the board is due."""
-        return self.round_index == 0 and _is_closed(self._line)
+        return self.kind is NodeKind.CHANCE
+
+    def _require(self, kind: NodeKind) -> None:
+        """Refuse an accessor that does not belong to this node's kind.
+
+        The alternative is answering anyway: `returns()` at a decision node
+        would report a pot nobody has won, and a walker would bank it. One
+        guard, one message shape, three kinds.
+        """
+        if self.kind is not kind:
+            raise ValueError(
+                f"{self.betting} is a {self.kind} node, not a {kind} node; "
+                f"{_WHO_ACTS[self.kind]}"
+            )
 
     # -- chance -------------------------------------------------------------
 
@@ -441,22 +520,23 @@ class LeducState:
         The chance branch reads its outcomes from here rather than from a
         hard-coded four, so the same walk serves a game that turns more cards.
         """
-        seen = set(self.cards) | ({self.board} if self.board is not None else set())
+        # `None` is not a Card, so an undealt board simply matches nothing.
+        seen = {*self.cards, self.board}
         return tuple(card for card in DECK if card not in seen)
 
     def chance_outcomes(self) -> tuple[tuple[Card, float], ...]:
         """Each card the board could be, with its probability — uniform, 1/4."""
-        if not self.is_chance_node():
-            raise ValueError(f"{self.betting} is not a chance node; the deck does not act")
+        self._require(NodeKind.CHANCE)
         survivors = self.remaining_deck()
         return tuple((card, 1.0 / len(survivors)) for card in survivors)
 
     def apply_chance(self, card: Card) -> LeducState:
-        """The state after the deck turns `card` as the board, opening round 2."""
-        if not self.is_chance_node():
-            raise ValueError(f"{self.betting} is not a chance node; the deck does not act")
-        if card in self.cards:
-            raise ValueError(f"{card!r} was already dealt to a player")
+        """The state after the deck turns `card` as the board, opening round 2.
+
+        Dealing a card already in a hand is caught by the new state's own
+        validation, not re-checked here.
+        """
+        self._require(NodeKind.CHANCE)
         return LeducState(cards=self.cards, board=card, betting=self.betting + ((),))
 
     # -- decisions ----------------------------------------------------------
@@ -464,17 +544,17 @@ class LeducState:
     @property
     def current_player(self) -> int:
         """Whose turn it is. P0 opens both rounds, and players alternate."""
-        self._require_decision()
+        self._require(NodeKind.DECISION)
         return len(self._line) % 2
 
     def legal_actions(self) -> tuple[Action, ...]:
         """What the player to act may do, in the fixed order ledgers index by."""
-        self._require_decision()
+        self._require(NodeKind.DECISION)
         return legal_actions_for(self._line)
 
     def apply(self, action: Action) -> LeducState:
         """The state after the player to act takes `action`."""
-        self._require_decision()
+        self._require(NodeKind.DECISION)
         if action not in self.legal_actions():
             raise ValueError(f"{action!r} is not legal after {self._line}")
         line = self._line + (action,)
@@ -484,29 +564,22 @@ class LeducState:
 
     def infoset(self) -> InfoSet:
         """What the player to act can see, with the suits dropped."""
-        self._require_decision()
+        self._require(NodeKind.DECISION)
         return InfoSet(
             rank=self.cards[self.current_player].rank,
             board=self.board.rank if self.board is not None else None,
             betting=self.betting,
         )
 
-    def _require_decision(self) -> None:
-        if self.is_terminal():
-            raise ValueError(f"{self.betting} is terminal; nobody is to act")
-        if self.is_chance_node():
-            raise ValueError(f"{self.betting} is a chance node; the deck acts, not a player")
-
     # -- payoffs ------------------------------------------------------------
 
     def contributions(self) -> tuple[int, int]:
         """Chips (P0, P1) have put in across the whole hand, ante included."""
-        totals = [ANTE, ANTE]
-        for index, line in enumerate(self.betting):
-            paid = _round_contributions(line, BET_SIZES[index])
-            totals[0] += paid[0]
-            totals[1] += paid[1]
-        return (totals[0], totals[1])
+        paid = [ANTE, ANTE]
+        for line, bet_size in zip(self.betting, BET_SIZES, strict=False):
+            for player, chips in enumerate(_round_contributions(line, bet_size)):
+                paid[player] += chips
+        return (paid[0], paid[1])
 
     def returns(self) -> tuple[float, float]:
         """Chips won by (P0, P1), in units of the ante. Sums to zero.
@@ -519,25 +592,18 @@ class LeducState:
         the board decides it: a pair beats every unpaired card, and two equal
         unpaired ranks split.
         """
-        if not self.is_terminal():
-            raise ValueError(f"{self.betting} is not terminal; no payoff yet")
-
+        self._require(NodeKind.TERMINAL)
         paid = self.contributions()
 
         if _is_fold(self._line):
-            folder = (len(self._line) - 1) % 2
-            stake = float(paid[folder])
-            return (-stake, stake) if folder == 0 else (stake, -stake)
+            loser = (len(self._line) - 1) % 2
+            return _chips(winner=1 - loser, stake=paid[loser])
 
         # Only a matched call reaches a showdown, so the stakes are level and
         # either player's contribution is the amount at risk.
         if paid[0] != paid[1]:
             raise AssertionError(f"showdown with unmatched stakes {paid}: {self.betting}")
-        strengths = (
-            hand_strength(self.cards[0], self.board),
-            hand_strength(self.cards[1], self.board),
-        )
+        strengths = tuple(hand_strength(card, self.board) for card in self.cards)
         if strengths[0] == strengths[1]:
             return (0.0, 0.0)
-        stake = float(paid[0])
-        return (stake, -stake) if strengths[0] > strengths[1] else (-stake, stake)
+        return _chips(winner=0 if strengths[0] > strengths[1] else 1, stake=paid[0])

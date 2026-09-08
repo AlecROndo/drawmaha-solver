@@ -236,32 +236,32 @@ def test_apply_leaves_the_original_state_untouched():
 
 def test_acting_on_a_finished_hand_raises():
     done = drive((Ja, Qa), Ka, R, F)
-    with pytest.raises(ValueError, match="terminal"):
-        done.apply(Action.CALL)
-    with pytest.raises(ValueError, match="terminal"):
-        done.legal_actions()
-    with pytest.raises(ValueError, match="terminal"):
-        done.current_player  # noqa: B018 - property access is the call
-    with pytest.raises(ValueError, match="terminal"):
-        done.infoset()
+    for act in (
+        lambda: done.apply(Action.CALL),
+        lambda: done.legal_actions(),
+        lambda: done.current_player,
+        lambda: done.infoset(),
+    ):
+        with pytest.raises(ValueError, match="is a terminal node, not a decision node"):
+            act()
 
 def test_acting_when_it_is_the_decks_turn_raises():
     waiting = drive((Ja, Qa), None, C, C)
-    with pytest.raises(ValueError, match="chance node"):
-        waiting.apply(Action.CALL)
-    with pytest.raises(ValueError, match="chance node"):
-        waiting.current_player  # noqa: B018 - property access is the call
+    for act in (
+        lambda: waiting.apply(Action.CALL),
+        lambda: waiting.current_player,
+    ):
+        with pytest.raises(ValueError, match="is a chance node, not a decision node"):
+            act()
 
 def test_dealing_the_board_away_from_the_decks_turn_raises():
     # The deck acts exactly once, between the rounds. Asked anywhere else,
     # chance_outcomes() would hand back the unseen cards as if a board were
     # due, and a walker would graft a phantom chance layer onto the tree.
-    mid_round = LeducState(cards=(Ja, Qa))
-    finished = drive((Ja, Qa), Ka, R, F)
-    for state in (mid_round, finished):
-        with pytest.raises(ValueError, match="not a chance node"):
+    for state, kind in ((LeducState(cards=(Ja, Qa)), "decision"), (drive((Ja, Qa), Ka, R, F), "terminal")):
+        with pytest.raises(ValueError, match=f"is a {kind} node, not a chance node"):
             state.chance_outcomes()
-        with pytest.raises(ValueError, match="not a chance node"):
+        with pytest.raises(ValueError, match=f"is a {kind} node, not a chance node"):
             state.apply_chance(Kb)
 
 def test_scoring_or_keying_the_decks_turn_raises():
@@ -269,9 +269,9 @@ def test_scoring_or_keying_the_decks_turn_raises():
     # has won it and nobody is to act, so both accessors refuse rather than
     # score an unfinished hand or key a ledger nobody owns.
     waiting = drive((Ja, Qa), None, C, C)
-    with pytest.raises(ValueError, match="not terminal"):
+    with pytest.raises(ValueError, match="is a chance node, not a terminal node"):
         waiting.returns()
-    with pytest.raises(ValueError, match="chance node"):
+    with pytest.raises(ValueError, match="is a chance node, not a decision node"):
         waiting.infoset()
 
 def test_an_illegal_action_is_rejected_rather_than_applied():
@@ -419,7 +419,7 @@ def test_only_a_showdown_can_pay_zero():
     assert drive((Ja, Jb), Ka, R, F).returns() == (1.0, -1.0)
 
 def test_scoring_an_unfinished_hand_raises():
-    with pytest.raises(ValueError, match="not terminal"):
+    with pytest.raises(ValueError, match="is a decision node, not a terminal node"):
         LeducState(cards=(Ja, Qa)).returns()
 
 # ---------------------------------------------------------------------------
