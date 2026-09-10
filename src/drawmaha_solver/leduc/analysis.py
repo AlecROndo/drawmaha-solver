@@ -231,8 +231,9 @@ def fig_exploitability(trajectory: Trajectory, out: Path) -> None:
 
 def fig_game_value(trajectory: Trajectory, out: Path) -> None:
     # The title carries the measured gap rather than claiming the line lands
-    # on the target: at 2,000 iterations it is still 0.002 short, and a figure
-    # that said "lands on" would be overstating its own evidence.
+    # on the target: at 2,000 iterations it is still a few thousandths short
+    # (0.0018 as last measured), and a figure that said "lands on" would be
+    # overstating its own evidence.
     gap = abs(trajectory.game_value[-1] - LP_VALUE_P0)
     fig, ax = new_axes(
         f"{trajectory.iterations[-1]:,} iterations bring the game value within "
