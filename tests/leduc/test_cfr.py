@@ -18,14 +18,9 @@ J, Q, K = Rank.JACK, Rank.QUEEN, Rank.KING
 Ja, Jb, Qa, Qb, Ka, Kb = DECK
 F, C, R = Action.FOLD, Action.CALL, Action.RAISE
 
-# The referee's ground truth: the sequence-form LP value of Leduc to P0,
-# -0.085606424078 — the exact-solve constant (Koller-Megiddo-von Stengel
-# sequence-form LP) that OpenSpiel regression-tests its own Leduc solvers
-# against. The band below is calibrated to OpenSpiel CFR's own distance from
-# it along its convergence curve (its trace lands with B6's referee
-# fixtures). Its updates alternate and ours are simultaneous, so the
-# iterates differ; only the destination and the rough pace are shared.
-LP_VALUE_P0 = -0.0856064
+# The exact value of Leduc to P0 no longer lives here as a literal: the
+# `lp_value` fixture reads it from `referee.json`, which the sequence-form LP
+# solver wrote. See `test_referee.py` for what else that fixture pins.
 
 def expected_value_p0(strategies) -> float:
     """P0's expected chips under `strategies`, computed without `cfr.walk`.
@@ -190,16 +185,17 @@ def test_zero_iterations_are_rejected():
 def solved():
     return average_strategy(train(300))
 
-def test_the_game_value_approaches_the_lp_value(solved):
-    # The referee's own solver sits 0.007 from the LP value at T=300 on its
-    # alternating-update curve; ours updates simultaneously, so hold it to a
-    # band of the same order rather than to the iterate.
-    assert expected_value_p0(solved) == pytest.approx(LP_VALUE_P0, abs=0.02)
+def test_the_game_value_approaches_the_lp_value(solved, lp_value):
+    # Ours updates simultaneously and the referee's alternates, so hold this
+    # to a band rather than to the iterate. Measured distance at T=300 is
+    # 0.003, so 0.01 has real headroom and still catches a solver that has
+    # started converging somewhere else.
+    assert expected_value_p0(solved) == pytest.approx(lp_value, abs=0.01)
 
-def test_more_iterations_move_the_game_value_closer(solved):
+def test_more_iterations_move_the_game_value_closer(solved, lp_value):
     short = expected_value_p0(average_strategy(train(20)))
     long = expected_value_p0(solved)
-    assert abs(long - LP_VALUE_P0) < abs(short - LP_VALUE_P0)
+    assert abs(long - lp_value) < abs(short - lp_value)
 
 def test_the_solve_finds_leducs_strategic_shape(solved):
     # Three facts pinned by dominance, not folklore. Holding J on a J board

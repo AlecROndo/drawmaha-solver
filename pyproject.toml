@@ -19,6 +19,8 @@ rps-play = "drawmaha_solver.rps.play:main"
 kuhn-analysis = "drawmaha_solver.kuhn.analysis:main"
 kuhn-play = "drawmaha_solver.kuhn.play:main"
 kuhn-exploit-server = "drawmaha_solver.kuhn.exploit_server:main"
+leduc-analysis = "drawmaha_solver.leduc.analysis:main"
+leduc-play = "drawmaha_solver.leduc.play:main"
 
 [build-system]
 requires = ["hatchling"]
