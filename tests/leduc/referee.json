@@ -1,0 +1,59 @@
+{
+  "_source": "OpenSpiel leduc_poker, interrogated by scripts/generate_leduc_referee.py. Do not hand-edit: regenerate.",
+  "openspiel_version": "2.0.2",
+  "census": {
+    "decision_nodes": 3780,
+    "board_nodes": 150,
+    "terminal_nodes": 5520
+  },
+  "infosets": {
+    "openspiel_information_states": 936,
+    "rank_keyed_spots": 288
+  },
+  "payoff_magnitudes": [
+    0,
+    1,
+    3,
+    5,
+    7,
+    9,
+    11,
+    13
+  ],
+  "path_probability": {
+    "after_deal": 0.03333333333333333,
+    "after_board": 0.008333333333333333
+  },
+  "lp_value_to_p0": -0.0856064240514536,
+  "lp_value_precision": 1e-09,
+  "cfr_exploitability": [
+    {
+      "iterations": 1,
+      "exploitability": 2.373611111111111
+    },
+    {
+      "iterations": 20,
+      "exploitability": 0.453145653416075
+    },
+    {
+      "iterations": 50,
+      "exploitability": 0.1890834659549564
+    },
+    {
+      "iterations": 120,
+      "exploitability": 0.0781080601018238
+    },
+    {
+      "iterations": 300,
+      "exploitability": 0.03552411624092963
+    },
+    {
+      "iterations": 500,
+      "exploitability": 0.02150720912667381
+    },
+    {
+      "iterations": 800,
+      "exploitability": 0.014361516669849111
+    }
+  ]
+}
