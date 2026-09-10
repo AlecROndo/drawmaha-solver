@@ -273,6 +273,21 @@ def _payoff_magnitudes() -> list[int]:
 # ---------------------------------------------------------------------------
 
 
+def _board_probability() -> float:
+    """What one board card is worth, read off a board node rather than assumed.
+
+    Writing `1 / 4` here would hard-code the size of the remaining deck into a
+    file whose whole job is provenance — and it is the deck, not this script,
+    that decides how many cards are left once two are in hands. Step 1 has
+    already checked this node's outcomes against the referee's, so reading it
+    is reading a verified surface.
+    """
+    state = LeducState(cards=DEALS[0])
+    while not state.is_chance_node():
+        state = state.apply(state.legal_actions()[0])
+    return state.chance_outcomes()[0][1]
+
+
 def _write(*, census, collapse, lp_value, curve, payoff_magnitudes) -> None:
     """Serialize the referee's answers, with the provenance a reader needs."""
     fixture = {
@@ -286,7 +301,7 @@ def _write(*, census, collapse, lp_value, curve, payoff_magnitudes) -> None:
         "payoff_magnitudes": payoff_magnitudes,
         "path_probability": {
             "after_deal": 1 / len(DEALS),
-            "after_board": 1 / (len(DEALS) * 4),
+            "after_board": (1 / len(DEALS)) * _board_probability(),
         },
         "lp_value_to_p0": lp_value,
         # The LP is solved numerically (cvxpy/ECOS), so its last digits move
