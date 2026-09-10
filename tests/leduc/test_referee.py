@@ -25,6 +25,7 @@ from drawmaha_solver.leduc.exploitability import expected_value, exploitability
 from drawmaha_solver.leduc.game import (
     DEAL_PROBABILITY,
     DEALS,
+    LP_VALUE_P0,
     LeducState,
     all_infosets,
 )
@@ -211,6 +212,15 @@ def test_the_fixture_records_where_it_came_from(referee):
     # surprising number has to be able to tell what produced it.
     assert "generate_leduc_referee.py" in referee["_source"]
     assert referee["openspiel_version"]
+
+
+def test_the_game_modules_copy_of_the_exact_value_matches_the_referees(referee):
+    # `game.LP_VALUE_P0` is what analysis.py and play.py report against; the
+    # fixture is what the LP solver actually said. They are two copies of one
+    # number, so something has to hold them together.
+    assert LP_VALUE_P0 == pytest.approx(
+        referee["lp_value_to_p0"], abs=referee["lp_value_precision"]
+    )
 
 
 def test_the_exact_value_is_recorded_to_more_precision_than_anything_asserts_on_it(referee):

@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from drawmaha_solver.leduc.game import LP_VALUE_P0
+
 _FIXTURE = Path(__file__).parent / "referee.json"
 
 
@@ -32,8 +34,13 @@ def referee() -> dict:
 def lp_value(referee) -> float:
     """The exact value of Leduc to the first player, from the sequence-form LP.
 
-    The number rung 2 exists to reach. Solved numerically, so its last digits
-    move between solver versions — assert against it with a band well outside
-    `lp_value_precision`, never for equality.
+    Returns `game.LP_VALUE_P0` — the copy callers outside the test suite use —
+    after checking it against the referee's, so a test asserting on it is
+    asserting on the same number `analysis.py` and `play.py` report. The
+    equality check lives in `test_referee.py`; this only guarantees a test
+    never silently reads a stale constant.
     """
-    return referee["lp_value_to_p0"]
+    assert LP_VALUE_P0 == pytest.approx(
+        referee["lp_value_to_p0"], abs=referee["lp_value_precision"]
+    )
+    return LP_VALUE_P0

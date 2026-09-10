@@ -150,6 +150,18 @@ RAISE_CAP = 2
 # cards, and if both are in hands there is none left for the board.
 PAIR_STRENGTH = int(Rank.KING) + 1
 
+# What the first seat earns per hand when both play optimally — the number
+# this rung exists to reach. Unlike Kuhn's -1/18 there is no closed form to
+# derive it from, so it is MEASURED: the sequence-form linear program solves
+# the game outright, and `tests/leduc/referee.json` holds that solver's
+# output. It is written here, where callers need it, rather than in the
+# fixture, because a strategy's distance from it is a fact about the game and
+# not about our test suite; `test_referee.py` checks this constant against the
+# fixture so the two cannot drift apart. Solved numerically, so the last
+# digits carry solver noise — compare against it with a band, never for
+# equality.
+LP_VALUE_P0 = -0.0856064240514536
+
 def action_label(action: Action, line: tuple[Action, ...]) -> str:
     """The poker word for `action` at a decision reached by `line`.
 

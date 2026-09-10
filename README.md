@@ -167,6 +167,58 @@ cd web/rung1-viz && npm run dev       # then http://localhost:5173/rung1/#exploi
 
 Exploit runs are live rather than replayed: the input is a strategy you type, so no committed file could cover it. Nothing about CFR is re-implemented in TypeScript — the browser posts six numbers and draws the trace Python returns.
 
+## Rung 2 — Leduc poker
+
+`src/drawmaha_solver/leduc/`. Six cards — two each of J, Q, K — one to each player, a betting round, one public card, a second betting round. Bets are 2 then 4, two raises to a round, both players ante 1.
+
+Two things change from Kuhn, and between them they are the whole rung. **The deck acts in the middle of the hand**, so the training walk meets a chance node rather than enumerating deals at the top; a jack is trash until a jack hits the board, at which point it is the best hand in the game. And **spots no longer all offer the same actions** — facing a raise you may fold, call or raise; at the open you may not fold, because there is nothing to fold to. So a ledger is 2 or 3 wide depending on where it sits (192 and 96 of them), and column 0 means *call* at the open but *fold* facing a raise. Every loop in the rung pairs `enumerate(legal_actions())` with the ledger's columns; nothing else keeps the two in step.
+
+288 spots, against Kuhn's 12. `exploitability.py` is a different algorithm as a result: rung 1 scored a strategy by listing all 64 pure rulebooks the opponent could follow, and one Leduc seat has about 6.3 × 10⁵¹. The replacement computes one best action per spot — sum across the hidden hands the spot could be, *then* take the maximum, because a maximum inside the sum is an opponent who peeks at face-down cards.
+
+### The referee
+
+Kuhn's equilibrium can be written down; Leduc's cannot. So ground truth comes from OpenSpiel — an independent implementation of the same game, plus an exact solve of it.
+
+`scripts/generate_leduc_referee.py` interrogates it once and writes `tests/leduc/referee.json`: the node census, the infoset collapse, the payoff ladder, the path probabilities, the sequence-form LP's value of the game, and OpenSpiel's own CFR convergence curve. `tests/leduc/test_referee.py` then re-derives every one of those facts from our code and demands agreement.
+
+`open_spiel` is deliberately **not** a dependency — its wheels are large and the Vercel build must not pull them. The generator is the only file that imports it, nothing imports the generator, and it runs by hand:
+
+```bash
+uv run --with open_spiel --with cvxpy --with ecos --no-project \
+    python3 scripts/generate_leduc_referee.py
+```
+
+The re-derivation is the point. A test that read a number out of the fixture and asserted it equalled itself would pass forever while the solver rotted, so the census comes from walking our own tree, the payoff ladder from our own terminals, and the referee's 936 suit-distinct spots from keying our own infosets on card instead of rank — which turns "936 collapse to 288 with nothing lost" from OpenSpiel's word into something CI checks.
+
+### Running it
+
+```bash
+uv run leduc-analysis   # solve, regenerate figures/rung2/, print the strategy tables
+uv run leduc-play       # play hands against the solved equilibrium
+```
+
+One iteration walks 9,450 nodes at about 50 ms, so `leduc-analysis` defaults to 2,000 iterations — roughly two minutes — where rung 1 could afford 100,000 in seconds. Like rung 1 it has no seed: vanilla CFR enumerates the whole tree and never samples, so two runs agree bit for bit and `figures/rung2/` doubles as a regression fingerprint.
+
+| iterations | exploitability (average) | exploitability (current) | game value |
+|---:|---:|---:|---:|
+| 10 | 0.34112 | 0.75510 | −0.13645 |
+| 100 | 0.06118 | 1.01113 | −0.08933 |
+| 500 | 0.02182 | 1.30054 | −0.08862 |
+| 1,000 | 0.01653 | 1.47580 | −0.08802 |
+| 2,000 | 0.01129 | 0.97171 | −0.08739 |
+
+The same two lessons rung 1 taught, on a game 460 times larger. The **average** strategy's exploitability falls steadily while the **current** strategy's wanders between 0.75 and 1.48 and is *worse* at 1,000 iterations than at 10. And the game value is the softer grader: by 100 iterations it is within 0.004 of the exact −0.08561 and looks finished, while the strategy is still five times more exploitable than it will be at 2,000.
+
+![Only the average strategy converges; the current one cycles forever](figures/rung2/exploitability.png)
+
+![2,000 iterations bring the game value within 0.0018 of the exact answer](figures/rung2/game_value.png)
+
+The early dive to −0.158 is real: at five iterations the average strategy is still mostly the uniform one it started from, which folds and calls in places no equilibrium would.
+
+![Three plays no equilibrium can miss, arriving out of the regret ledgers](figures/rung2/strategy_convergence.png)
+
+Rung 1's answer sheet compared all twelve infosets against a closed form. There is no closed form here, so the certificate is three plays that dominance pins whatever else the solve does — and the first one is a genuine poker idea nobody encoded. A jack on a jack board holds the best hand possible and still does **not** bet at the round-2 open: it checks, and raises when bet into. Leading would fold out every hand it beats; checking induces the bluff it wants to punish. Regret matching finds the check-raise on its own.
+
 ## The site
 
 Three surfaces, one design system: the cover page at `/` (`api/index.py`, stdlib only so the deploy can never break on a numeric dependency) and the two visualizers at `/rung0` and `/rung1`.
@@ -186,4 +238,8 @@ uv run python scripts/serve_site.py   # http://localhost:4321
 
 ## Status
 
-Rung 0 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, reports exploitability against an exact best response, and ships the analysis pipeline, figures, a play-against-it CLI, and an exploit mode that finds the best response to any strategy you lock. Next: the rung-1 writeup, then rung 2 — Leduc, where there is no closed form and OpenSpiel's sequence-form-LP value becomes the only ground truth.
+Rungs 0 and 1 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, reports exploitability against an exact best response, and ships the analysis pipeline, figures, a play-against-it CLI, and an exploit mode that finds the best response to any strategy you lock.
+
+Rung 2's solver is complete and checked against an outside referee: it reaches the sequence-form LP's −0.08561 game value, drives exploitability to 0.011 chips/hand, and holds a committed OpenSpiel fixture that pins the tree's shape, the payoff ladder and the exact answer — none of which any closed form could supply. It ships the analysis pipeline, three figures, and `leduc-play`. Still open at rung 2: a `/rung2` visualizer and an exploit mode, the two things rung 1 has that it does not.
+
+One gap worth naming: **CI runs no tests.** The only workflow is an automated code review, so the 441-test suite is run by hand rather than enforced on a pull request. Next: a test job, then rung 3 — mini-Drawmaha, where the tree stops fitting in memory and tabular CFR has to give way.
