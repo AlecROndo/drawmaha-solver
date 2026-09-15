@@ -95,8 +95,10 @@ lifted from the export.
 
 `web/rung2-viz/src/leduc.ts`: `legal(line)`, `closed(line)`, `keyFor(...)`,
 `potAfter(l1, board, l2)` (per-seat contributions — an uncalled bet is one
-seat's chips), `reach(l1)` (product over prefix of mean action probability
-across ranks), `stateAt(path, n)`, and the PATH/CUR transition functions
+seat's chips), `reach(l1)` (a deal-weighted forward pass over rank pairs —
+2/30 same-rank, 4/30 different — NOT the prototype's flat per-rank mean, which
+treats the seat behind a bet as a uniform deck; rung 1's `actionFrequency`
+documents the same correction), `stateAt(path, n)`, and the PATH/CUR transition functions
 (`jump`, `advance`). React holds `{path, cur}` in one state; components render
 from derived state.
 
