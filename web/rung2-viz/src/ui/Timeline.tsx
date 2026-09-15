@@ -3,14 +3,13 @@ import {
   potAfter,
   reach,
   word,
-  closed,
   RANKS,
   ANTE,
   type Act,
   type Rank,
 } from '../leduc'
 import { SOLVE } from '../solve'
-import { handOver, stateAt, type Step, type Walk } from '../timeline'
+import { boardPending, handOver, lineOver, stateAt, type Step, type Walk } from '../timeline'
 
 /** Matches `.tl li { flex: 0 0 150px }` — the rail is measured in these. */
 const STATION_W = 150
@@ -45,7 +44,7 @@ function stations(walk: Walk): Station[] {
     out.push({
       label: 'to act',
       ghost: true,
-      who: s.board === null && closed(s.l1) ? 'board' : `P${line.length % 2}`,
+      who: boardPending(s) ? 'board' : `P${line.length % 2}`,
       pot: potAfter(s.l1, s.board, s.l2),
     })
   }
@@ -110,7 +109,7 @@ export function NextActions({ walk, onStep }: { walk: Walk; onStep: (step: Step)
   const ahead = walk.path.length - walk.cur
 
   let body: React.ReactNode
-  if (!inR2 && closed(s.l1)) {
+  if (boardPending(s)) {
     body = (
       <>
         <span className="lab">the board turns</span>
@@ -127,7 +126,7 @@ export function NextActions({ walk, onStep }: { walk: Walk; onStep: (step: Step)
         ))}
       </>
     )
-  } else if (inR2 && closed(s.l2)) {
+  } else if (lineOver(s)) {
     body = (
       <span className="done-msg">The hand is over on this line — click a station to go back.</span>
     )
@@ -136,6 +135,8 @@ export function NextActions({ walk, onStep }: { walk: Walk; onStep: (step: Step)
       <>
         <span className="lab">next</span>
         {legal(line).map((a) => {
+          // Deliberate scope: `reach` is a round-1 pass, so round-2 buttons
+          // carry no percentage — a board-conditioned reach is future work.
           const w = inR2 ? null : reach(s.l1 + a, SOLVE.strategy)
           return (
             <button

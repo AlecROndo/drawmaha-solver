@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { advance, handOver, jump, stateAt, type Step, type Walk } from './timeline'
+import {
+  advance,
+  boardPending,
+  handOver,
+  jump,
+  lineOver,
+  stateAt,
+  type Step,
+  type Walk,
+} from './timeline'
 
 const CC_J_C: Step[] = [
   { k: 'a', v: 'c' },
@@ -54,5 +63,35 @@ describe('handOver', () => {
   it('needs a board and a closed second round', () => {
     expect(handOver(CC_J_C, 4)).toBe(false) // one check: round 2 still open
     expect(handOver([...CC_J_C, { k: 'a', v: 'c' }], 5)).toBe(true) // checked down
+  })
+
+  it('a round-1 fold ends the hand without any board', () => {
+    const rf: Step[] = [
+      { k: 'a', v: 'r' },
+      { k: 'a', v: 'f' },
+    ]
+    expect(handOver(rf, 2)).toBe(true)
+  })
+})
+
+describe('between the rounds it is the deck to act, not a seat', () => {
+  it('rewinding the opening line to closed round 1, pre-board', () => {
+    // The page's own default line, cursor on the second check: "cc" is a
+    // closing line, not a decision infoset — nobody is "to act".
+    const s = stateAt(CC_J_C, 2)
+    expect(boardPending(s)).toBe(true)
+    expect(lineOver(s)).toBe(false)
+  })
+
+  it('a fold closes round 1 but ends the hand instead of awaiting a board', () => {
+    const s = { l1: 'rf', board: null, l2: '' }
+    expect(boardPending(s)).toBe(false)
+    expect(lineOver(s)).toBe(true)
+  })
+
+  it('an open round is neither pending nor over', () => {
+    expect(boardPending(stateAt(CC_J_C, 1))).toBe(false)
+    expect(lineOver(stateAt(CC_J_C, 1))).toBe(false)
+    expect(lineOver(stateAt(CC_J_C, 4))).toBe(false) // round 2 still open
   })
 })

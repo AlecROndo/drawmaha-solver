@@ -86,8 +86,10 @@ export default function App() {
           </section>
 
           <p className="foot">
-            The percentages on the next-action buttons are how often play actually reaches each
-            branch under the solved strategy, so the 288 spots stop being equally weighted.
+            The percentages on the round-1 next-action buttons are how often play actually
+            reaches each branch under the solved strategy, so those spots stop being equally
+            weighted; round-2 buttons carry none — a board-conditioned reach is future work,
+            alongside the exploiter.
             Editing a range and watching the solver punish it needs a Leduc exploiter — that is
             the next PR, the rung-1 exploit tab’s equivalent. Everything shown here is real
             solver output.

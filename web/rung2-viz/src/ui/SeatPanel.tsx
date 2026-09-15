@@ -1,6 +1,6 @@
-import { keyFor, word, closed, RANKS, type Act, type Rank } from '../leduc'
+import { keyFor, word, RANKS, type Act, type Rank } from '../leduc'
 import { SOLVE } from '../solve'
-import { stateAt, type Line, type Walk } from '../timeline'
+import { boardPending, lineOver, stateAt, type Line, type Walk } from '../timeline'
 import { Panel } from './site'
 
 /** Bar and number order: aggression leads from the ink side of the duotone. */
@@ -64,8 +64,9 @@ export function SeatPanel({ seat, walk }: { seat: 0 | 1; walk: Walk }) {
   const s = stateAt(walk.path, walk.cur)
   const inR2 = s.board !== null
   const line = inR2 ? s.l2 : s.l1
-  const over = closed(line) && !(!inR2 && closed(s.l1))
-  const acting = over ? -1 : line.length % 2
+  const over = lineOver(s)
+  // Between rounds it is the deck's turn, not a seat's: nobody is "to act".
+  const acting = over || boardPending(s) ? -1 : line.length % 2
   const isAct = seat === acting
 
   const spot: Spot | null = isAct

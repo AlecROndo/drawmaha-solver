@@ -47,8 +47,16 @@ export function advance(walk: Walk, step: Step): Walk {
   return { path, cur: walk.cur + 1 }
 }
 
+/**
+ * Whether round 1 has closed with the board still to come. A fold also
+ * closes the line, but it ends the hand — there is no board after it.
+ */
+export const boardPending = (s: Line): boolean =>
+  s.board === null && closed(s.l1) && !s.l1.endsWith('f')
+
+/** Whether the hand has ended on this line: a round-1 fold, or a closed round 2. */
+export const lineOver = (s: Line): boolean =>
+  s.board === null ? s.l1.endsWith('f') : closed(s.l2)
+
 /** Whether the hand has ended by step `n`. */
-export function handOver(path: Step[], n: number): boolean {
-  const { board, l2 } = stateAt(path, n)
-  return board !== null && closed(l2)
-}
+export const handOver = (path: Step[], n: number): boolean => lineOver(stateAt(path, n))
