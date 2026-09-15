@@ -378,11 +378,13 @@ h2.big {
   font: 400 16px/1.5 var(--script);
 }
 
-section {
+/* Scoped to main's own children: the Panel component also renders a
+   <section>, and the bare selector marched every grid panel 74px down. */
+main > section {
   margin-top: 74px;
 }
 
-section:first-of-type {
+main > section:first-of-type {
   margin-top: 0;
 }
 
@@ -900,7 +902,25 @@ section:first-of-type {
   color: var(--panel-mark);
 }
 
+/* The certification line, in the annotation voice, at full ink — it is the
+   page's warrant, not an aside. */
+.note.script {
+  font: 400 16px/1.5 var(--script);
+  color: var(--mark);
+  opacity: 0.9;
+}
+
 /* legend swatches for the action colours */
+.panel.legendbox {
+  padding: 16px 26px;
+  /* the tilt lifts its corners; keep them clear of the seat panels above */
+  margin-top: 14px;
+}
+
+.panel.legendbox .legend {
+  margin: 0;
+}
+
 .legend .block {
   width: 18px;
   height: 12px;
