@@ -1,0 +1,927 @@
+/*
+ * DUOTONE / LADDER-AS-JOURNEY — the system shared by the cover page and every
+ * visualizer. The rules, in the order they matter:
+ *
+ *   1. Duotone. ONE saturated hue and one paper, nothing else in the chrome.
+ *      The two swap for the light colour scheme rather than being redefined.
+ *   2. The site's own thesis carried literally: the validation ladder IS the
+ *      nav, drawn as a line with a station per rung, solid as far as the
+ *      project has actually climbed.
+ *   3. A persistent identity rail down the left that never scrolls away.
+ *   4. Three sharply separated type voices — serif display, MONO body (the
+ *      unusual move; body copy is typed, not set), script annotation.
+ *   5. Figures are paper panels floating on the field, numbered.
+ *   6. Anything tabular is hairline rows, never cards.
+ *   7. One element per page deliberately off-axis.
+ *   8. Illustration is monoline: one stroke weight, hatched shading.
+ *
+ * The only chromatic colour on the site lives INSIDE a figure, where it
+ * carries an action's or a card's identity. Chrome never uses it.
+ *
+ * This rung sharpens the radii a step (5px panels, 3px controls, 2px bars):
+ * the timeline dashboard is boxier than the earlier rungs' pages, and soft
+ * corners read as a different product against its square stations.
+ */
+
+:root {
+  color-scheme: dark light;
+
+  /* the one hue, and the paper */
+  --oxblood: #8e2038;
+  --bone: #f5f0e6;
+
+  /* field = the page; mark = what sits on it; panel = the paper islands */
+  --field: var(--oxblood);
+  --mark: var(--bone);
+  --mark-dim: rgba(245, 240, 230, 0.72);
+  --hair: rgba(245, 240, 230, 0.28);
+  --hair-strong: rgba(245, 240, 230, 0.55);
+
+  --panel: var(--bone);
+  --panel-mark: var(--oxblood);
+  --panel-dim: #b04d65;
+  --panel-hair: rgba(142, 32, 56, 0.22);
+  --panel-border: transparent;
+
+  /* Identity colour, and the only chromatic ink on the site. It appears on a
+     paper panel and nowhere else — never in the chrome. One fixed colour per
+     rank, held across every figure on the page. */
+  --jack: #2a78d6;
+  --queen: #c2521f;
+  --king: #1b8f66;
+
+  /* Action identity, inside a figure only — the passive action comes from the
+     paper side of the duotone, the aggressive one from the ink side. */
+  --act-check: #cbb28a;
+  --act-bet: #8e2038;
+  --act-fold: #c9a9b2;
+
+  --serif: 'Instrument Serif', Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --script: 'Kalam', cursive;
+
+  --rail-w: 232px;
+  --gutter: clamp(20px, 3.4vw, 56px);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    /* Same two colours, swapped. The panels stay paper but deepen a step so
+       they still read as islands once the field is paper too. */
+    --field: var(--bone);
+    --mark: var(--oxblood);
+    --mark-dim: rgba(142, 32, 56, 0.76);
+    --hair: rgba(142, 32, 56, 0.22);
+    --hair-strong: rgba(142, 32, 56, 0.62);
+
+    --panel: #eae0cb;
+    --panel-border: rgba(142, 32, 56, 0.26);
+    /* The panel deepens a step in this scheme, so every ink that sits on it
+       has to come down with it or it loses the contrast it had on bone. */
+    --panel-dim: #a1465c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--field);
+  color: var(--mark);
+  font: 400 14px/1.6 var(--mono);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 3px;
+}
+
+/* Inside a paper panel the ring flips with everything else. --mark is bone and
+   so is the panel, so the field ring lands bone-on-bone — an invisible focus
+   indicator on the timeline's stations and action buttons, all of which live
+   on paper. */
+.panel :focus-visible {
+  outline-color: var(--panel-mark);
+}
+
+/* ---------- 2. the ladder, drawn as the nav ------------------------------ */
+
+nav.line {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--field);
+  border-bottom: 1px solid var(--hair);
+  padding: 22px 0 12px;
+}
+
+nav.line .track {
+  position: relative;
+  height: 34px;
+  margin: 0 var(--gutter);
+}
+
+/* Named .bar, not .rail — the identity sidebar owns .rail, and sharing the
+   name would put its flex/height/padding rules on these two absolute divs. */
+nav.line .bar {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 11px;
+  height: 1px;
+  background: var(--hair);
+}
+
+/* Stations sit at 10/30/50/70/90% — the centres of five equal columns — so
+   the climbed segment runs from the first station to the third. */
+nav.line .bar.done {
+  left: 10%;
+  right: 50%;
+  top: 10.5px;
+  height: 2px;
+  background: var(--mark);
+}
+
+nav.line ol {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+nav.line li {
+  text-align: center;
+  min-width: 0;
+}
+
+nav.line .dot {
+  display: block;
+  width: 13px;
+  height: 13px;
+  margin: 5px auto 0;
+  border-radius: 50%;
+  border: 2px solid var(--mark);
+  background: var(--field);
+}
+
+nav.line li.done .dot {
+  background: var(--mark);
+}
+
+nav.line li.todo .dot {
+  border-color: var(--mark-dim);
+}
+
+/* The station you are standing at gets a halo rather than a colour, because
+   there is no second colour to reach for. */
+nav.line li.here .dot {
+  box-shadow: 0 0 0 4px var(--field), 0 0 0 5.5px var(--mark);
+}
+
+nav.line a,
+nav.line span.stop-name {
+  display: block;
+  margin-top: 10px;
+  font: 500 11.5px/1 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+nav.line li.todo span.stop-name {
+  color: var(--mark-dim);
+}
+
+nav.line a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.3em;
+}
+
+nav.line .sub {
+  display: block;
+  margin-top: 5px;
+  font: 400 11px/1.3 var(--mono);
+  color: var(--mark-dim);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ---------- 3. the identity rail ---------------------------------------- */
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+}
+
+aside.rail {
+  position: sticky;
+  top: 92px;
+  align-self: start;
+  height: calc(100vh - 92px);
+  padding: 34px 26px 26px var(--gutter);
+  border-right: 1px solid var(--hair);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+aside.rail .mark {
+  width: 46px;
+  height: 46px;
+}
+
+aside.rail h1 {
+  font: 400 40px/0.98 var(--serif);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+aside.rail .quote {
+  font: 400 13px/1.55 var(--mono);
+  color: var(--mark-dim);
+  margin: 0;
+}
+
+aside.rail dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+aside.rail dt {
+  font: 600 13px/1.3 var(--mono);
+}
+
+aside.rail dd {
+  margin: 2px 0 0;
+  font: 400 12.5px/1.35 var(--mono);
+  color: var(--mark-dim);
+}
+
+aside.rail .spacer {
+  flex: 1;
+  min-height: 20px;
+}
+
+aside.rail .sketch {
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- buttons and links -------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  text-decoration: none;
+  background: transparent;
+  color: var(--mark);
+  border: 1px solid var(--mark);
+  border-radius: 3px;
+  padding: 10px 14px;
+  font: 500 11.5px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--mark);
+  color: var(--field);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Inside a paper panel the two colours are the other way round. */
+.panel .btn {
+  color: var(--panel-mark);
+  border-color: var(--panel-mark);
+}
+
+.panel .btn:hover:not(:disabled) {
+  background: var(--panel-mark);
+  color: var(--panel);
+}
+
+/* 10. links: mono, underlined, trailing arrow */
+.links {
+  margin: 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.links a,
+a.arrow {
+  font: 400 13.5px/1.4 var(--mono);
+  text-decoration: underline;
+  text-underline-offset: 0.32em;
+  width: fit-content;
+}
+
+.links a:hover,
+a.arrow:hover {
+  color: var(--mark-dim);
+}
+
+/* ---------- 4. the three type voices ------------------------------------- */
+
+main {
+  padding: 34px var(--gutter) 96px 40px;
+}
+
+.stop {
+  font: 500 11.5px/1 var(--mono);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--mark-dim);
+  margin: 0;
+}
+
+h2.big {
+  font: 400 clamp(34px, 4.6vw, 58px)/1.03 var(--serif);
+  letter-spacing: -0.015em;
+  margin: 14px 0 0;
+  max-width: 18ch;
+}
+
+.squiggle {
+  display: block;
+  width: 232px;
+  height: 9px;
+  margin: 7px 0 0;
+}
+
+.lede {
+  font: 400 14.5px/1.75 var(--mono);
+  max-width: 62ch;
+  margin: 26px 0 0;
+}
+
+.script {
+  font: 400 16px/1.5 var(--script);
+}
+
+section {
+  margin-top: 74px;
+}
+
+section:first-of-type {
+  margin-top: 0;
+}
+
+/* ---------- 5. figures are paper panels, numbered ------------------------ */
+
+.panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 26px;
+}
+
+.panel {
+  position: relative;
+  background: var(--panel);
+  color: var(--panel-mark);
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+  padding: 26px 26px 24px;
+  min-width: 0;
+}
+
+.panel.wide {
+  grid-column: 1 / -1;
+}
+
+.panel .no {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--panel-mark);
+  font: 500 12px/25px var(--mono);
+  text-align: center;
+  color: var(--panel-mark);
+}
+
+.panel h3 {
+  font: 400 26px/1.12 var(--serif);
+  letter-spacing: -0.01em;
+  margin: 9px 0 0;
+  max-width: 26ch;
+}
+
+.panel .k {
+  font: 400 9px/1 var(--mono);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--panel-dim);
+}
+
+.panel .say {
+  font: 400 12.5px/1.65 var(--mono);
+  color: var(--panel-dim);
+  margin: 10px 0 0;
+  max-width: 60ch;
+}
+
+/* readouts under a figure */
+.panel .stat {
+  display: flex;
+  gap: 34px;
+  flex-wrap: wrap;
+  margin: 18px 0 0;
+}
+
+.panel .stat div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.panel .stat dt {
+  font: 400 9px/1 var(--mono);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--panel-dim);
+}
+
+.panel .stat dd {
+  margin: 0;
+  font: 500 19px/1.1 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font: 400 11.5px/1.3 var(--mono);
+  color: var(--panel-dim);
+  margin: 14px 0 10px;
+}
+
+.legend .item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* ---------- 7. the one off-axis element ---------------------------------- */
+
+.tilt {
+  transform: rotate(-2.2deg);
+}
+
+.tilt.right {
+  transform: rotate(1.8deg);
+}
+
+.note {
+  font: 400 13px/1.65 var(--mono);
+  color: var(--mark-dim);
+  margin: 18px 0 0;
+  max-width: 68ch;
+}
+
+.foot {
+  font: 400 13px/1.7 var(--mono);
+  color: var(--mark-dim);
+  max-width: 74ch;
+  margin: 56px 0 0;
+}
+
+/* ---------- narrow -------------------------------------------------------- */
+
+@media (max-width: 1080px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  aside.rail {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--hair);
+  }
+
+  aside.rail .spacer {
+    display: none;
+  }
+
+  main {
+    padding: 30px var(--gutter) 70px;
+  }
+
+  .panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  nav.line .sub {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* =========================================================================
+   RUNG 2 ONLY — the action timeline, the two seat panels, and their bars.
+   Everything above this line is the shared system.
+   ========================================================================= */
+
+/* ---------- fig. 1: the timeline ----------------------------------------- */
+
+/* The panel's own padding comes off so the strip can bleed to the panel edge
+   and scroll; the figure label carries the inset instead. */
+.panel.timeline {
+  padding: 0;
+  overflow: hidden;
+}
+
+.panel.timeline .k {
+  display: block;
+  padding: 26px 34px 0;
+}
+
+.tl {
+  padding: 40px 34px 34px;
+}
+
+.tl .scroller {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+}
+
+.tl .track {
+  position: relative;
+}
+
+.tl .rail {
+  position: absolute;
+  top: 47px;
+  height: 2px;
+  z-index: 0;
+  background: var(--panel-hair);
+}
+
+.tl .rail.done {
+  background: var(--panel-mark);
+  height: 3px;
+  top: 46.5px;
+}
+
+.tl ol {
+  position: relative;
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  align-items: flex-start;
+  width: max-content;
+  min-width: 100%;
+}
+
+/* Fixed-width stations: the strip scrolls rather than compressing, so adding
+   a node never squeezes the ones already drawn. The rail math in Timeline.tsx
+   hardcodes the same 150. */
+.tl li {
+  flex: 0 0 150px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.tl .stn {
+  background: none;
+  border: 0;
+  padding: 10px 4px;
+  display: block;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  border-radius: 3px;
+}
+
+.tl button.stn {
+  cursor: pointer;
+}
+
+.tl button.stn:hover {
+  background: rgba(142, 32, 56, 0.07);
+}
+
+/* An inline span ignores height, and the rail's 47px is measured through this
+   16px — leave it block or the boxes sag below the line. */
+.tl .who {
+  display: block;
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--panel-dim);
+  height: 16px;
+  white-space: nowrap;
+}
+
+/* Stations are boxes, not dots — squarer company for the sharp-edged panels.
+   The current one is framed by crop marks, a surveyor's "you are here". */
+.tl .stn-box {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 14px auto 0;
+  border-radius: 2px;
+  border: 2px solid var(--panel-mark);
+  background: var(--panel);
+  position: relative;
+}
+
+.tl li.done .stn-box {
+  background: var(--panel-mark);
+}
+
+.tl li.future .stn-box {
+  border-color: var(--panel-hair);
+  border-style: dashed;
+}
+
+.tl li.here .stn-box::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  background:
+    linear-gradient(var(--panel-mark), var(--panel-mark)) left top / 8px 2px,
+    linear-gradient(var(--panel-mark), var(--panel-mark)) left top / 2px 8px,
+    linear-gradient(var(--panel-mark), var(--panel-mark)) right top / 8px 2px,
+    linear-gradient(var(--panel-mark), var(--panel-mark)) right top / 2px 8px,
+    linear-gradient(var(--panel-mark), var(--panel-mark)) left bottom / 8px 2px,
+    linear-gradient(var(--panel-mark), var(--panel-mark)) left bottom / 2px 8px,
+    linear-gradient(var(--panel-mark), var(--panel-mark)) right bottom / 8px 2px,
+    linear-gradient(var(--panel-mark), var(--panel-mark)) right bottom / 2px 8px;
+  background-repeat: no-repeat;
+}
+
+.tl .act {
+  margin-top: 20px;
+  font: 500 14px/1.2 var(--mono);
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tl .pot {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--panel-dim);
+}
+
+/* The board card is the one serif mark on the strip — a card, not a word. */
+.tl li.board-stn .act {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+}
+
+/* Explored but past where we are looking: still there, visibly not live. */
+.tl li.ahead .act {
+  color: var(--panel-dim);
+  opacity: 0.55;
+}
+
+.tl li.ahead .who,
+.tl li.ahead .pot {
+  opacity: 0.55;
+}
+
+.tl li.future .act {
+  color: var(--panel-dim);
+  opacity: 0.7;
+}
+
+/* the rank identity, on stations and rows alike */
+.rank {
+  font-weight: 600;
+}
+
+.rank.J { color: var(--jack); }
+.rank.Q { color: var(--queen); }
+.rank.K { color: var(--king); }
+
+/* ---------- the next-action strip ----------------------------------------- */
+
+.next {
+  padding: 22px 34px 24px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--panel-hair);
+  background: rgba(142, 32, 56, 0.03);
+}
+
+.next .lab {
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--panel-dim);
+  margin-right: 8px;
+}
+
+.next button {
+  font: 500 13.5px/1 var(--mono);
+  padding: 15px 22px;
+  border-radius: 3px;
+  border: 1px solid var(--panel-hair);
+  background: var(--panel);
+  color: var(--panel-mark);
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.next button:hover {
+  background: var(--panel-mark);
+  color: var(--panel);
+}
+
+/* The action the explored line already takes here. */
+.next button.onpath {
+  border-color: var(--panel-mark);
+  box-shadow: inset 0 0 0 1px var(--panel-mark);
+}
+
+.next button .w {
+  font-size: 11px;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.next .fork-note {
+  font-size: 11.5px;
+  color: var(--panel-dim);
+  margin-left: 4px;
+}
+
+.next .done-msg {
+  font-size: 13px;
+  color: var(--panel-dim);
+}
+
+/* ---------- the two seats -------------------------------------------------- */
+
+.seat-head {
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--panel-dim);
+  margin: 0 0 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.seat-sub {
+  font-size: 12.5px;
+  color: var(--panel-dim);
+  margin: 0 0 18px;
+  min-height: 38px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 5px 11px;
+  border-radius: 3px;
+  font: 500 9.5px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--panel-hair);
+}
+
+.badge.act {
+  background: var(--panel-mark);
+  color: var(--panel);
+  border-color: transparent;
+}
+
+/* Rows stay hairline — the house rule is "anything tabular is hairline rows,
+   never cards" — but they get real height so the panel breathes. */
+.rankrow {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--panel-hair);
+}
+
+.rankrow:last-of-type {
+  border-bottom: 0;
+  padding-bottom: 6px;
+}
+
+.rankrow > .rank {
+  font-size: 17px;
+}
+
+/* The whole mixed strategy at one infoset, one bar: aggression reads left to
+   right — bet leads from the ink side of the duotone, check trails on the
+   paper side, fold's hatch takes the tail. */
+.mix {
+  display: flex;
+  height: 32px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(142, 32, 56, 0.08);
+}
+
+.mix i {
+  display: block;
+  height: 100%;
+}
+
+.mix i.r {
+  background: var(--act-bet);
+}
+
+.mix i.c {
+  background: var(--act-check);
+}
+
+.mix i.f {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--act-fold),
+    var(--act-fold) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+}
+
+.nums {
+  grid-column: 2;
+  font-size: 11.5px;
+  color: var(--panel-dim);
+  margin-top: 10px;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.nums b {
+  font-weight: 600;
+  color: var(--panel-mark);
+}
+
+/* legend swatches for the action colours */
+.legend .block {
+  width: 18px;
+  height: 12px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.legend .block.r {
+  background: var(--act-bet);
+}
+
+.legend .block.c {
+  background: var(--act-check);
+}
+
+.legend .block.f {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--act-fold),
+    var(--act-fold) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+}
