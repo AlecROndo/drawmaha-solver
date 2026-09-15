@@ -136,10 +136,10 @@ nav.line .bar {
 }
 
 /* Stations sit at 10/30/50/70/90% — the centres of five equal columns — so
-   the climbed segment runs from the first station to the second. */
+   the climbed segment runs from the first station to the third. */
 nav.line .bar.done {
   left: 10%;
-  right: 70%;
+  right: 50%;
   top: 10.5px;
   height: 2px;
   background: var(--mark);
