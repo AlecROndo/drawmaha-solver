@@ -239,7 +239,7 @@ Three type voices with no overlap: **Instrument Serif** for display, **IBM Plex 
 
 The one chromatic colour on the site lives *inside* a figure, where it carries an action's or a card's identity (rock/paper/scissors at rung 0, jack/queen/king at rungs 1 and 2 — where the action mix itself also splits across the duotone, bet from the ink side, check from the paper side). The chrome never uses it.
 
-`npm run dev` in a visualizer serves that app alone, without the nav or the cover page. To see all three wired the way Vercel wires them:
+`npm run dev` in a visualizer serves that app alone, without the nav or the cover page. To see all four wired the way Vercel wires them:
 
 ```bash
 bash scripts/vercel_build.sh          # builds public/
@@ -250,6 +250,6 @@ uv run python scripts/serve_site.py   # http://localhost:4321
 
 Rungs 0 and 1 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, reports exploitability against an exact best response, and ships the analysis pipeline, figures, a play-against-it CLI, and an exploit mode that finds the best response to any strategy you lock.
 
-Rung 2's solver is complete and checked against an outside referee: it reaches the sequence-form LP's −0.08561 game value, drives exploitability to 0.011 chips/hand, and holds a committed OpenSpiel fixture that pins the tree's shape, the payoff ladder and the exact answer — none of which any closed form could supply. It ships the analysis pipeline, three figures, and `leduc-play`. Still open at rung 2: a `/rung2` visualizer and an exploit mode, the two things rung 1 has that it does not.
+Rung 2's solver is complete and checked against an outside referee: it reaches the sequence-form LP's −0.08561 game value, drives exploitability to 0.011 chips/hand, and holds a committed OpenSpiel fixture that pins the tree's shape, the payoff ladder and the exact answer — none of which any closed form could supply. It ships the analysis pipeline, three figures, `leduc-play`, and the `/rung2` action-timeline visualizer over a committed solve. Still open at rung 2: an exploit mode — lock a range and watch a Leduc best-responder punish it, the rung-1 exploit tab's equivalent.
 
-One gap worth naming: **CI runs no tests.** The only workflow is an automated code review, so the 441-test suite is run by hand rather than enforced on a pull request. Next: a test job, then rung 3 — mini-Drawmaha, where the tree stops fitting in memory and tabular CFR has to give way.
+One gap worth naming: **CI runs no tests.** The only workflow is an automated code review, so the 500-plus-test suite is run by hand rather than enforced on a pull request. Next: a test job, then rung 3 — mini-Drawmaha, where the tree stops fitting in memory and tabular CFR has to give way.
