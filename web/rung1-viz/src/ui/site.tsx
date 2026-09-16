@@ -11,7 +11,7 @@
 const RUNGS = [
   { n: 0, name: 'Rung 0', sub: 'rock-paper-scissors', href: '/rung0', done: true },
   { n: 1, name: 'Rung 1', sub: 'kuhn poker', href: '/rung1', done: true },
-  { n: 2, name: 'Rung 2', sub: 'leduc', href: null, done: false },
+  { n: 2, name: 'Rung 2', sub: 'leduc', href: '/rung2', done: true },
   { n: 3, name: 'Rung 3', sub: 'mini-drawmaha', href: null, done: false },
   { n: 4, name: 'Rung 4', sub: 'full drawmaha', href: null, done: false },
 ]

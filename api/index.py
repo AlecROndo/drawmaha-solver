@@ -113,9 +113,9 @@ PAGE = """\
     background: var(--hair);
   }
   /* Stations sit at 10/30/50/70/90% — the centres of five equal columns — so
-     the climbed segment runs from the first station to the second. */
+     the climbed segment runs from the first station to the third. */
   nav.line .bar.done {
-    left: 10%; right: 70%; top: 10.5px; height: 2px; background: var(--mark);
+    left: 10%; right: 50%; top: 10.5px; height: 2px; background: var(--mark);
   }
   nav.line ol {
     position: relative; display: grid; grid-template-columns: repeat(5, 1fr);
@@ -319,7 +319,7 @@ PAGE = """\
     <ol>
       <li class="done"><span class="dot"></span><a href="/rung0">Rung 0<span class="sub">rock-paper-scissors</span></a></li>
       <li class="done"><span class="dot"></span><a href="/rung1">Rung 1<span class="sub">kuhn poker</span></a></li>
-      <li class="todo"><span class="dot"></span><span class="stop-name">Rung 2<span class="sub">leduc</span></span></li>
+      <li class="done"><span class="dot"></span><a href="/rung2">Rung 2<span class="sub">leduc</span></a></li>
       <li class="todo"><span class="dot"></span><span class="stop-name">Rung 3<span class="sub">mini-drawmaha</span></span></li>
       <li class="todo"><span class="dot"></span><span class="stop-name">Rung 4<span class="sub">full drawmaha</span></span></li>
     </ol>
@@ -339,8 +339,8 @@ PAGE = """\
     <h1>Drawmaha<br>Solver.</h1>
     <p class="quote">&ldquo;Each rung is checked against a known answer before we climb.&rdquo;</p>
     <dl>
-      <div><dt>now</dt><dd>Rung 1, complete</dd></div>
-      <div><dt>next</dt><dd>Rung 2 &middot; Leduc poker</dd></div>
+      <div><dt>now</dt><dd>Rung 2, complete</dd></div>
+      <div><dt>next</dt><dd>Rung 3 &middot; mini-Drawmaha</dd></div>
       <div><dt>method</dt><dd>Deep CFR</dd></div>
     </dl>
     <span class="spacer"></span>
@@ -446,6 +446,7 @@ PAGE = """\
       <div class="links">
         <a href="/rung0">watch regret matching find Nash &rarr;</a>
         <a href="/rung1">watch CFR discover the bluff &rarr;</a>
+        <a href="/rung2">walk the betting line, range against range &rarr;</a>
       </div>
 
       <table class="rows">
@@ -459,10 +460,10 @@ PAGE = """\
           <td class="p">tabular CFR vs. the known exact equilibrium</td>
           <td class="s">complete &middot; <a href="/rung1">live demo &rarr;</a></td>
         </tr>
-        <tr class="pending">
+        <tr>
           <td class="n">2</td><td class="g">Leduc poker</td>
           <td class="p">CFR with a board, vs. published benchmarks</td>
-          <td class="s">next</td>
+          <td class="s">complete &middot; <a href="/rung2">live demo &rarr;</a></td>
         </tr>
         <tr class="pending">
           <td class="n">3</td><td class="g">Mini-drawmaha</td>

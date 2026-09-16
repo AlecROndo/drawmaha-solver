@@ -3,8 +3,10 @@
  * identity rail down the left, and the paper panel a figure sits on.
  *
  * Deliberately duplicated in each visualizer rather than extracted to a
- * package: the two apps deploy independently and a shared build step would buy
- * ~120 lines at the cost of a workspace. When a third rung ships, extract.
+ * package: the apps deploy independently and a shared build step would buy
+ * ~120 lines at the cost of a workspace. This is the third copy — rung 1's
+ * "when a third rung ships, extract" marker has arrived — so extract when
+ * rung 3 starts rather than growing a fourth copy.
  */
 
 /** The five rungs, and how far the project has actually climbed. */

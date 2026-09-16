@@ -13,6 +13,7 @@ Stdlib only, same as the page it serves.
 
 import argparse
 import importlib.util
+import json
 import sys
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -21,8 +22,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PUBLIC = ROOT / "public"
 
-# Mirrors the "rewrites" block of vercel.json.
-REWRITES = {"/rung0": "/rung0/index.html", "/rung1": "/rung1/index.html"}
+# Read from vercel.json rather than mirrored by hand: a hand copy silently
+# missed each new rung's rewrite, which is the one thing this server exists
+# to reproduce. "/" is handled specially below, the way Vercel hands it to
+# the api entrypoint.
+REWRITES = {
+    rule["source"]: rule["destination"]
+    for rule in json.loads((ROOT / "vercel.json").read_text())["rewrites"]
+    if rule["source"] != "/"
+}
 
 
 def cover_page() -> bytes:

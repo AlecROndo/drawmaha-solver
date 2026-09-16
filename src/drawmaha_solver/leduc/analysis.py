@@ -31,6 +31,7 @@ number shows up as a dirty working tree.
 from __future__ import annotations
 
 import argparse
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -39,6 +40,7 @@ import numpy as np
 from drawmaha_solver.leduc.cfr import run_iteration
 from drawmaha_solver.leduc.exploitability import expected_value, exploitability
 from drawmaha_solver.leduc.game import (
+    ACTION_SYMBOL,
     LP_VALUE_P0,
     Action,
     InfoSet,
@@ -120,6 +122,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Rung-2 convergence analysis")
     parser.add_argument("--iters", type=int, default=2_000)
     parser.add_argument("--out", type=Path, default=Path("figures/rung2"))
+    parser.add_argument(
+        "--json",
+        type=Path,
+        default=None,
+        help="also write the final strategy here, for the rung-2 visualizer",
+    )
     args = parser.parse_args()
 
     trajectory = run(args.iters)
@@ -127,6 +135,9 @@ def main() -> None:
     fig_exploitability(trajectory, args.out / "exploitability.png")
     fig_game_value(trajectory, args.out / "game_value.png")
     fig_strategy_convergence(trajectory, args.out / "strategy_convergence.png")
+
+    if args.json is not None:
+        write_json(trajectory, args.json)
 
     print(f"\nvanilla CFR, {args.iters:,} iterations\n")
     print(format_strategy_tables(trajectory.final_average))
@@ -199,6 +210,42 @@ def _probability(
     wrong column at every 2-wide spot in this file.
     """
     return float(strategies[spot][spot.legal_actions().index(action)])
+
+
+# ---------------------------------------------------------------------------
+# Export for the visualizer
+# ---------------------------------------------------------------------------
+
+
+def to_json(trajectory: Trajectory) -> dict:
+    """The final answer as plain JSON, keyed by infoset label ("J:cc|Q:r").
+
+    The rung-2 visualizer renders this rather than re-implementing CFR in
+    TypeScript — one copy of the reach-weighted walk, under one test suite.
+    Only the last checkpoint ships: the page shows the converged strategy,
+    and per-checkpoint playback is a later PR's export.
+    """
+    return {
+        "iterations": int(trajectory.iterations[-1]),
+        "exploitabilityAverage": float(trajectory.exploitability_average[-1]),
+        "exploitabilityCurrent": float(trajectory.exploitability_current[-1]),
+        "gameValue": float(trajectory.game_value[-1]),
+        "gameValueExact": LP_VALUE_P0,
+        "strategy": {
+            str(spot): {
+                ACTION_SYMBOL[action]: float(p)
+                for action, p in zip(spot.legal_actions(), probs, strict=True)
+            }
+            for spot, probs in trajectory.final_average.items()
+        },
+    }
+
+
+def write_json(trajectory: Trajectory, path: Path) -> None:
+    """Write `to_json` to `path`, creating the directory if needed."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(to_json(trajectory), indent=1) + "\n")
+    print(f"wrote {path.resolve()}")
 
 
 # ---------------------------------------------------------------------------

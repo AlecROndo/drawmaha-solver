@@ -219,17 +219,27 @@ The early dive to −0.158 is real: at five iterations the average strategy is s
 
 Rung 1's answer sheet compared all twelve infosets against a closed form. There is no closed form here, so the certificate is three plays that dominance pins whatever else the solve does — and the first one is a genuine poker idea nobody encoded. A jack on a jack board holds the best hand possible and still does **not** bet at the round-2 open: it checks, and raises when bet into. Leading would fold out every hand it beats; checking induces the bluff it wants to punish. Regret matching finds the check-raise on its own.
 
+### Seeing it
+
+`web/rung2-viz`, served at `/rung2` — the solved strategy as a dashboard. Rung 1 could draw its whole tree on screen; 288 information sets cannot be drawn at once, so this page shows one betting line at a time, drawn as the site's own ladder motif: one station per action, the board card a station too, the rail solid as far as the hand has been played. Click any station to rewind — rewinding never deletes the stations ahead; only choosing a different action forks the line, and the page warns first. Under the timeline both seats are on screen at every node, one bar per rank, each bar that rank's whole mixed strategy — range against range, never card against card.
+
+```bash
+cd web/rung2-viz && npm install && npm run dev
+```
+
+The page renders a solve exported from the Python solver (`leduc-analysis --json`, committed at `web/rung2-viz/src/data/solve.json`), not a TypeScript reimplementation of CFR. Only the rules arithmetic is transcribed — betting grammar, pot accounting, infoset labels, reach weights — and `leduc.test.ts` pins it, including the deal-weighting the reach pass needs because the seat behind a bet is no longer a uniform deck. Locking a range and watching the solver punish it needs a Leduc exploiter; that is the next PR, this rung's equivalent of the rung-1 exploit tab.
+
 ## The site
 
-Three surfaces, one design system: the cover page at `/` (`api/index.py`, stdlib only so the deploy can never break on a numeric dependency) and the two visualizers at `/rung0` and `/rung1`.
+Four surfaces, one design system: the cover page at `/` (`api/index.py`, stdlib only so the deploy can never break on a numeric dependency) and the three visualizers at `/rung0`, `/rung1` and `/rung2`.
 
-The system is a duotone — one hue (oxblood) and one paper (bone), which swap for the light colour scheme rather than being redefined. The **validation ladder is the nav**: a line with a station per rung, filled where the rung is done and solid only as far as the climb has actually got, so "two of five complete" is the picture instead of a caption under it. A persistent identity rail runs down the left. Figures are rounded paper panels floating on the field, numbered; anything tabular is hairline rows.
+The system is a duotone — one hue (oxblood) and one paper (bone), which swap for the light colour scheme rather than being redefined. The **validation ladder is the nav**: a line with a station per rung, filled where the rung is done and solid only as far as the climb has actually got, so "three of five complete" is the picture instead of a caption under it. A persistent identity rail runs down the left. Figures are rounded paper panels floating on the field, numbered; anything tabular is hairline rows.
 
 Three type voices with no overlap: **Instrument Serif** for display, **IBM Plex Mono for body copy as well as UI** — which is what makes the pages read as typed rather than set — and **Kalam** for the handful of handwritten annotations. Illustration is monoline at a single stroke weight.
 
-The one chromatic colour on the site lives *inside* a figure, where it carries an action's or a card's identity (rock/paper/scissors at rung 0, jack/queen/king at rung 1). The chrome never uses it.
+The one chromatic colour on the site lives *inside* a figure, where it carries an action's or a card's identity (rock/paper/scissors at rung 0, jack/queen/king at rungs 1 and 2 — where the action mix itself also splits across the duotone, bet from the ink side, check from the paper side). The chrome never uses it.
 
-`npm run dev` in a visualizer serves that app alone, without the nav or the cover page. To see all three wired the way Vercel wires them:
+`npm run dev` in a visualizer serves that app alone, without the nav or the cover page. To see all four wired the way Vercel wires them:
 
 ```bash
 bash scripts/vercel_build.sh          # builds public/
@@ -240,6 +250,6 @@ uv run python scripts/serve_site.py   # http://localhost:4321
 
 Rungs 0 and 1 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, reports exploitability against an exact best response, and ships the analysis pipeline, figures, a play-against-it CLI, and an exploit mode that finds the best response to any strategy you lock.
 
-Rung 2's solver is complete and checked against an outside referee: it reaches the sequence-form LP's −0.08561 game value, drives exploitability to 0.011 chips/hand, and holds a committed OpenSpiel fixture that pins the tree's shape, the payoff ladder and the exact answer — none of which any closed form could supply. It ships the analysis pipeline, three figures, and `leduc-play`. Still open at rung 2: a `/rung2` visualizer and an exploit mode, the two things rung 1 has that it does not.
+Rung 2's solver is complete and checked against an outside referee: it reaches the sequence-form LP's −0.08561 game value, drives exploitability to 0.011 chips/hand, and holds a committed OpenSpiel fixture that pins the tree's shape, the payoff ladder and the exact answer — none of which any closed form could supply. It ships the analysis pipeline, three figures, `leduc-play`, and the `/rung2` action-timeline visualizer over a committed solve. Still open at rung 2: an exploit mode — lock a range and watch a Leduc best-responder punish it, the rung-1 exploit tab's equivalent.
 
-One gap worth naming: **CI runs no tests.** The only workflow is an automated code review, so the 441-test suite is run by hand rather than enforced on a pull request. Next: a test job, then rung 3 — mini-Drawmaha, where the tree stops fitting in memory and tabular CFR has to give way.
+One gap worth naming: **CI runs no tests.** The only workflow is an automated code review, so the 500-plus-test suite is run by hand rather than enforced on a pull request. Next: a test job, then rung 3 — mini-Drawmaha, where the tree stops fitting in memory and tabular CFR has to give way.
