@@ -5,7 +5,9 @@ import { SOLVE } from './solve'
 import { advance, jump, type Step, type Walk } from './timeline'
 import { NextActions, Timeline } from './ui/Timeline'
 import { PlayPanel } from './ui/PlayPanel'
+import { ResponsePanel } from './ui/ResponsePanel'
 import { SeatPanel } from './ui/SeatPanel'
+import { useExploit, type Exploit } from './ui/useExploit'
 import { IdentityRail, LadderLine, Panel, Squiggle } from './ui/site'
 
 const TABS = [
@@ -35,7 +37,7 @@ const OPENING: Step[] = [
   { k: 'a', v: 'c' },
 ]
 
-function WalkTab({ walk, setWalk }: { walk: Walk; setWalk: (w: Walk) => void }) {
+function WalkTab({ walk, setWalk, x }: { walk: Walk; setWalk: (w: Walk) => void; x: Exploit }) {
   return (
     <>
       <div className="block">
@@ -50,17 +52,18 @@ function WalkTab({ walk, setWalk }: { walk: Walk; setWalk: (w: Walk) => void }) 
       </div>
 
       <div className="panels block">
-        <SeatPanel seat={0} walk={walk} />
-        <SeatPanel seat={1} walk={walk} />
+        <SeatPanel seat={0} walk={walk} x={x} />
+        <SeatPanel seat={1} walk={walk} x={x} />
+        <ResponsePanel x={x} />
       </div>
 
       <p className="foot">
         The percentages on the round-1 next-action buttons are how often play actually reaches
-        each branch under the solved strategy, so the 288 spots stop being equally weighted;
-        round-2 buttons carry none — a board-conditioned reach is future work, alongside the
-        exploiter. Editing a range and watching the solver punish it needs a Leduc exploiter —
-        that is the next PR, the rung-1 exploit tab’s equivalent. Everything shown here is real
-        solver output.
+        each branch under the strategy on display, so the 288 spots stop being equally weighted;
+        round-2 buttons carry none — a board-conditioned reach is future work. Exploit runs are
+        live: the locked rows are POSTed to a local Python process running
+        src/drawmaha_solver/leduc/ — the same walk, with your rows held still. No CFR is
+        re-implemented in TypeScript; the browser only draws numbers Python computed.
       </p>
     </>
   )
@@ -69,8 +72,10 @@ function WalkTab({ walk, setWalk }: { walk: Walk; setWalk: (w: Walk) => void }) 
 export default function App() {
   const [tab, setTab] = useState<TabId>(tabFromHash)
   // Both tabs' state lives here so flipping tabs loses nothing: the walk
-  // keeps its explored line, the play tab its bankroll and hand in progress.
+  // keeps its explored line (and the exploit locks and last run with it),
+  // the play tab its bankroll and hand in progress.
   const [walk, setWalk] = useState<Walk>({ path: OPENING, cur: OPENING.length })
+  const x = useExploit()
   const [play, setPlay] = useState<Session>(() => freshSession(SOLVE.strategy))
 
   // The identity rail's "Play the solver" button points at #play from every
@@ -132,7 +137,7 @@ export default function App() {
             </div>
 
             {tab === 'walk' ? (
-              <WalkTab walk={walk} setWalk={setWalk} />
+              <WalkTab walk={walk} setWalk={setWalk} x={x} />
             ) : (
               <div className="block">
                 <PlayPanel session={play} setSession={setPlay} />
