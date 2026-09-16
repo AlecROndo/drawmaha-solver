@@ -98,17 +98,16 @@ export function sampleAction(
  */
 
 /** Aggression descending: the order the roll's segments stack in. */
-const AGGRESSION: Act[] = ['r', 'c', 'f']
+export const AGGRESSION: Act[] = ['r', 'c', 'f']
 
 /** The [start, end) roll segment (0-100) an action owns under `mix`. */
 function segmentOf(mix: Partial<Record<Act, number>>, act: Act): [number, number] {
   let start = 0
   for (const a of AGGRESSION) {
-    const width = (mix[a] ?? 0) * 100
-    if (a === act) return [start, start + width]
-    start += width
+    if (a === act) break
+    start += (mix[a] ?? 0) * 100
   }
-  return [start, start]
+  return [start, start + (mix[act] ?? 0) * 100]
 }
 
 /** The action the strategy prescribes for this roll. */
@@ -147,6 +146,8 @@ export type PlayRow =
       seat: 0 | 1
       human: boolean
       act: Act
+      /** the round line the actor faced — what names `c` a call vs a check */
+      line: string
       /** the poker word for `act` in its context */
       label: string
       /** the solve's whole mix at the actor's spot */
@@ -215,6 +216,7 @@ export function drive(prev: Hand, strategy: Strategy, uniform: () => number = Ma
       seat: (1 - h.humanSeat) as 0 | 1,
       human: false,
       act,
+      line,
       label: word(act, line),
       mix: strategy[key] ?? {},
       roll: null,
@@ -299,6 +301,7 @@ export function playAct(
         seat: h.humanSeat,
         human: true,
         act,
+        line,
         label: word(act, line),
         mix,
         roll,

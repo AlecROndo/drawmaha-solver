@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 
 import { legal, potAfter, roundInFor, word, BETS, ANTE, type Act, type Rank } from '../leduc'
-import { nextHand, playAct, roundLine, type PlayRow, type Session } from '../play'
+import { AGGRESSION, nextHand, playAct, roundLine, type PlayRow, type Session } from '../play'
 import { SOLVE } from '../solve'
 import { Panel } from './site'
 
@@ -21,15 +21,15 @@ import { Panel } from './site'
 
 const pct = (x: number): string => `${(x * 100).toFixed(0)}`
 
-/** Bar order for the mix captions: aggression first, the roll's own order. */
-const ORDER: Act[] = ['r', 'c', 'f']
-
 function MixCaption({ row }: { row: Extract<PlayRow, { kind: 'action' }> }) {
+  // AGGRESSION is the roll's own segment order, and row.line is the line the
+  // actor actually faced — so a facing-a-bet mix reads "call/raise", not
+  // "check/bet".
   return (
     <span className="side-mix">
-      {ORDER.filter((a) => a in row.mix).map((a) => (
+      {AGGRESSION.filter((a) => a in row.mix).map((a) => (
         <span key={a} className={a === row.act ? 'chosen' : ''}>
-          {word(a, '')} {pct(row.mix[a] ?? 0)}
+          {word(a, row.line)} {pct(row.mix[a] ?? 0)}
         </span>
       ))}
     </span>
@@ -82,7 +82,8 @@ function SidePanel({
                     <span className="ok">✓</span>
                   ) : (
                     <span className="bad">
-                      {Math.round(row.mistake ?? 0)}% off — roll said {word(row.correct as Act, '')}
+                      {Math.round(row.mistake ?? 0)}% off — roll said{' '}
+                      {word(row.correct as Act, row.line)}
                     </span>
                   )}
                 </span>
@@ -183,21 +184,27 @@ export function PlayPanel({
     : 2 * ANTE + (inR2 ? ((r) => r[0] + r[1])(roundInFor(hand.l1, BETS[0])) : 0)
 
   const [sweep, setSweep] = useState<{ amounts: [number, number]; id: number } | null>(null)
-  const prev = useRef<{ handId: string; phase: string; inFor: [number, number] } | null>(null)
+  const prev = useRef<{ handId: string; phase: string } | null>(null)
   const handId = `${hands}:${hand.humanSeat}`
   const phase = over ? 'over' : inR2 ? 'r2' : 'r1'
   useEffect(() => {
     const was = prev.current
-    prev.current = { handId, phase, inFor: liveInFor }
+    prev.current = { handId, phase }
     if (!was || was.handId !== handId) {
       setSweep(null)
       return
     }
-    if (was.phase !== phase && (was.inFor[0] > 0 || was.inFor[1] > 0)) {
-      setSweep((s) => ({ amounts: was.inFor, id: (s?.id ?? 0) + 1 }))
+    if (was.phase === phase) return
+    // The round that just closed is the one that was live last render. Its
+    // final chips are read from the committed line, not a render snapshot:
+    // the closing call, the bot's reply, and the board reveal all land in one
+    // update, so the previous render never saw the caller's chips go in.
+    const amounts =
+      was.phase === 'r1' ? roundInFor(hand.l1, BETS[0]) : roundInFor(hand.l2, BETS[1])
+    if (amounts[0] > 0 || amounts[1] > 0) {
+      setSweep((s) => ({ amounts, id: (s?.id ?? 0) + 1 }))
     }
-    // liveInFor is derived from the same state as `phase`; tracking it too
-    // would re-fire mid-round.
+    // hand.l1/l2 are frozen once their round closes; `phase` is the trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handId, phase])
 

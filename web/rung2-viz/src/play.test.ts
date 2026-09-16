@@ -12,7 +12,7 @@ import {
   strength,
   type Hand,
 } from './play'
-import type { Act, Strategy } from './leduc'
+import { word, type Act, type Strategy } from './leduc'
 
 describe('the deck', () => {
   it('is six cards, two per rank', () => {
@@ -240,6 +240,25 @@ describe('the transcript rows', () => {
     expect(kinds).toEqual(['you', 'bot', 'board'])
     const bot = s1.hand.rows[1]
     if (bot.kind === 'action') expect(bot.roll).toBeNull()
+  })
+
+  it('rows carry the round line the actor faced, so a call names itself a call', () => {
+    // The sidebar re-words every action from row.line; a hardcoded '' would
+    // read "check" at a facing-a-bet spot. Bot bets after the human checks,
+    // the human calls: that row must carry 'cr', which words `c` as a call.
+    const aggro: Strategy = { 'J:c': { r: 1 }, 'K:cr': { f: 0.5, c: 0.5 } }
+    const dealt = drive(fresh0, aggro, () => 0.4)
+    const s1 = playAct({ hand: dealt, chips: 0, hands: 0 }, 'c', aggro, () => 0.4)
+    const s2 = playAct(s1, 'c', aggro, () => 0.4)
+    const call = s2.hand.rows[2]
+    expect(call.kind).toBe('action')
+    if (call.kind === 'action') {
+      expect(call.human).toBe(true)
+      expect(call.line).toBe('cr')
+      expect(word(call.act, call.line)).toBe('call')
+      // roll 40 sits inside call's 0-50 segment, so the prescription IS the call
+      expect(word(call.correct as Act, call.line)).toBe('call')
+    }
   })
 
   it('a half-and-half round-2 spot grades a deliberate deviation', () => {
