@@ -72,11 +72,11 @@ function WalkTab({ walk, setWalk, x }: { walk: Walk; setWalk: (w: Walk) => void;
 export default function App() {
   const [tab, setTab] = useState<TabId>(tabFromHash)
   // Both tabs' state lives here so flipping tabs loses nothing: the walk
-  // keeps its explored line, the locks and last run stay set, and the play
-  // tab keeps its bankroll and hand in progress.
+  // keeps its explored line (and the exploit locks and last run with it),
+  // the play tab its bankroll and hand in progress.
   const [walk, setWalk] = useState<Walk>({ path: OPENING, cur: OPENING.length })
-  const [play, setPlay] = useState<Session>(() => freshSession(SOLVE.strategy))
   const x = useExploit()
+  const [play, setPlay] = useState<Session>(() => freshSession(SOLVE.strategy))
 
   // The identity rail's "Play the solver" button points at #play from every
   // page. On this page that is a hash change with no reload, so listen.
