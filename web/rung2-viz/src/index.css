@@ -1358,6 +1358,71 @@ main > section:first-of-type {
   color: var(--panel-mark);
 }
 
+/* what a seat just did, spoken at the seat */
+.seat-spot .did {
+  font: 400 11px/1 var(--mono);
+  color: var(--panel-dim);
+  min-height: 11px;
+}
+
+/* chips: monoline plates, the amount beside them */
+.chipstack {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--panel-mark);
+}
+
+.chipstack svg {
+  width: 26px;
+  height: 20px;
+  display: block;
+}
+
+.chipstack b {
+  font: 600 11.5px/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.seat-spot .pot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* A closed round's chips slide to the pile. The tokens are transient: they
+   spawn at the seat, glide to the middle, fade, and unmount. */
+.sweep {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.sweep.from-villain {
+  top: 30%;
+  animation: sweep-down 0.55s ease-in forwards;
+}
+
+.sweep.from-hero {
+  bottom: 30%;
+  animation: sweep-up 0.55s ease-in forwards;
+}
+
+@keyframes sweep-down {
+  to {
+    transform: translateX(-50%) translateY(58px);
+    opacity: 0;
+  }
+}
+
+@keyframes sweep-up {
+  to {
+    transform: translateX(-50%) translateY(-58px);
+    opacity: 0;
+  }
+}
+
 @media (max-width: 1080px) {
   .playwrap {
     grid-template-columns: minmax(0, 1fr);

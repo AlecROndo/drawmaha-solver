@@ -1,6 +1,6 @@
-import type { Dispatch, SetStateAction } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 
-import { legal, potAfter, word, type Act, type Rank } from '../leduc'
+import { legal, potAfter, roundInFor, word, BETS, ANTE, type Act, type Rank } from '../leduc'
 import { nextHand, playAct, roundLine, type PlayRow, type Session } from '../play'
 import { SOLVE } from '../solve'
 import { Panel } from './site'
@@ -72,7 +72,8 @@ function SidePanel({
               <span className="side-who">{row.human ? 'you' : 'solver'}</span>
               <span className="side-main">
                 <b>{row.label}</b>
-                <MixCaption row={row} />
+                {/* your rows teach; the solver's stay face down, like its card */}
+                {row.human && <MixCaption row={row} />}
               </span>
               {row.human && row.roll !== null && (
                 <span className="side-grade">
@@ -115,6 +116,36 @@ function SidePanel({
   )
 }
 
+/** A monoline chip stack: one ellipse per two chips, the amount beside it. */
+function Chips({ n, quiet }: { n: number; quiet?: boolean }) {
+  if (n <= 0) return null
+  const plates = Math.min(4, Math.ceil(n / 2))
+  return (
+    <span className="chipstack" aria-label={`${n} chips`}>
+      <svg viewBox="0 0 26 20" aria-hidden>
+        <g fill="none" stroke="currentColor" strokeWidth="1.2">
+          {Array.from({ length: plates }, (_, i) => (
+            <g key={i}>
+              <ellipse cx="13" cy={16 - i * 3.4} rx="9" ry="3" />
+            </g>
+          ))}
+        </g>
+      </svg>
+      {/* the pile sits beside "pot N", which already speaks the amount */}
+      {!quiet && <b>{n}</b>}
+    </span>
+  )
+}
+
+/** The last thing a seat did this hand, spoken at the seat itself. */
+const lastActionOf = (rows: PlayRow[], seat: 0 | 1): string | null => {
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const row = rows[i]
+    if (row.kind === 'action' && row.seat === seat) return `${row.label}s`
+  }
+  return null
+}
+
 function CardGlyph({ rank, hidden }: { rank?: Rank; hidden?: boolean }) {
   if (hidden) return <span className="pcard back" aria-label="a card, face down" />
   if (!rank) return <span className="pcard empty" aria-label="no card yet" />
@@ -138,6 +169,38 @@ export function PlayPanel({
   const act = (a: Act) => setSession((s) => playAct(s, a, SOLVE.strategy))
   const next = () => setSession((s) => nextHand(s, SOLVE.strategy))
 
+  // Chips in front of each seat this round, and the pile already in the
+  // middle. When a round closes its chips slide to the pile: the slide is a
+  // pair of transient tokens spawned by watching the round change.
+  const inR2 = hand.board !== null
+  const liveInFor: [number, number] = over
+    ? [0, 0]
+    : inR2
+      ? roundInFor(hand.l2, BETS[1])
+      : roundInFor(hand.l1, BETS[0])
+  const pile = over
+    ? pot
+    : 2 * ANTE + (inR2 ? ((r) => r[0] + r[1])(roundInFor(hand.l1, BETS[0])) : 0)
+
+  const [sweep, setSweep] = useState<{ amounts: [number, number]; id: number } | null>(null)
+  const prev = useRef<{ handId: string; phase: string; inFor: [number, number] } | null>(null)
+  const handId = `${hands}:${hand.humanSeat}`
+  const phase = over ? 'over' : inR2 ? 'r2' : 'r1'
+  useEffect(() => {
+    const was = prev.current
+    prev.current = { handId, phase, inFor: liveInFor }
+    if (!was || was.handId !== handId) {
+      setSweep(null)
+      return
+    }
+    if (was.phase !== phase && (was.inFor[0] > 0 || was.inFor[1] > 0)) {
+      setSweep((s) => ({ amounts: was.inFor, id: (s?.id ?? 0) + 1 }))
+    }
+    // liveInFor is derived from the same state as `phase`; tracking it too
+    // would re-fire mid-round.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handId, phase])
+
   return (
     <Panel
       className="playpanel"
@@ -156,15 +219,31 @@ export function PlayPanel({
         <div className="seat-spot villain">
           <span className="who">the solver · P{1 - hand.humanSeat}</span>
           {reveal ? <CardGlyph rank={hand.cards[1 - hand.humanSeat].rank} /> : <CardGlyph hidden />}
+          <span className="did">{lastActionOf(hand.rows, (1 - hand.humanSeat) as 0 | 1) ?? '\u00A0'}</span>
+          <Chips n={liveInFor[1 - hand.humanSeat]} />
         </div>
         <div className="seat-spot centre">
           <CardGlyph rank={hand.board ?? undefined} />
-          <span className="pot">pot {pot}</span>
+          <span className="pot">
+            <Chips n={pile} quiet /> pot {pot}
+          </span>
         </div>
         <div className="seat-spot hero">
+          <Chips n={liveInFor[hand.humanSeat]} />
+          <span className="did">{lastActionOf(hand.rows, hand.humanSeat) ?? '\u00A0'}</span>
           <CardGlyph rank={hand.cards[hand.humanSeat].rank} />
           <span className="who">you · P{hand.humanSeat}</span>
         </div>
+        {sweep && sweep.amounts[1 - hand.humanSeat] > 0 && (
+          <span key={`v${sweep.id}`} className="sweep from-villain" onAnimationEnd={() => setSweep(null)}>
+            <Chips n={sweep.amounts[1 - hand.humanSeat]} />
+          </span>
+        )}
+        {sweep && sweep.amounts[hand.humanSeat] > 0 && (
+          <span key={`h${sweep.id}`} className="sweep from-hero" onAnimationEnd={() => setSweep(null)}>
+            <Chips n={sweep.amounts[hand.humanSeat]} />
+          </span>
+        )}
       </div>
 
           <div className="play-buttons">
