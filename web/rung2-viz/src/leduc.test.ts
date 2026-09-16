@@ -135,6 +135,15 @@ describe('rankWeights — what a seat likely holds, given everything so far', ()
     expect(w[2]).toBeCloseTo(2 / 5, 10)
   })
 
+  it('an unreachable line falls back to the deal, not flat thirds — the board is still gone', () => {
+    // allCheck never bets, so the 'rc' line has probability zero for every
+    // rank; the fallback should still know the jack board left the deck.
+    const w = rankWeights(0, { l1: 'rc', board: 'J', l2: '' }, allCheck)
+    expect(w[0]).toBeCloseTo(1 / 5, 10)
+    expect(w[1]).toBeCloseTo(2 / 5, 10)
+    expect(w[2]).toBeCloseTo(2 / 5, 10)
+  })
+
   it('actions in BOTH rounds shape the range', () => {
     const r2Bettor: Strategy = {
       'J:': { c: 1, r: 0 },
