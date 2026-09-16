@@ -227,7 +227,15 @@ Rung 1's answer sheet compared all twelve infosets against a closed form. There 
 cd web/rung2-viz && npm install && npm run dev
 ```
 
-The page renders a solve exported from the Python solver (`leduc-analysis --json`, committed at `web/rung2-viz/src/data/solve.json`), not a TypeScript reimplementation of CFR. Only the rules arithmetic is transcribed — betting grammar, pot accounting, infoset labels, reach weights — and `leduc.test.ts` pins it, including the deal-weighting the reach pass needs because the seat behind a bet is no longer a uniform deck. Locking a range and watching the solver punish it needs a Leduc exploiter; that is the next PR, this rung's equivalent of the rung-1 exploit tab.
+The page renders a solve exported from the Python solver (`leduc-analysis --json`, committed at `web/rung2-viz/src/data/solve.json`), not a TypeScript reimplementation of CFR. Only the rules arithmetic is transcribed — betting grammar, pot accounting, infoset labels, reach weights, the payout ladder — and `leduc.test.ts` / `play.test.ts` pin it, including the deal-weighting the reach pass needs because the seat behind a bet is no longer a uniform deck, and the referee's ±3 fold-to-a-re-raise.
+
+### Playing it
+
+The **Play the solver** tab deals one hand at a time on a monoline oval: your card face up, the solver's face down, the board landing mid-table when round 1 closes. The bot samples the committed average strategy and never adapts.
+
+### Breaking it
+
+Lock any rank's row with ◇ in a seat panel, drag its frequencies off Nash, and press Run: the locked rows are POSTed to a local Python process (`uv run leduc-exploit-server`, port 8001 — `src/drawmaha_solver/leduc/exploiter.py` re-solving with your rows held still). Every bar then shows the response in full colour over a muted lane where Nash stood, so the baseline is never hidden while you read what your edit did to the whole game. Lock a whole seat and the run is graded against an exact best response, rung 1's four numbers included.
 
 ## The site
 
