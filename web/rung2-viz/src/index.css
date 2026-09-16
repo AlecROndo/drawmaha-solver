@@ -474,31 +474,6 @@ main > section:first-of-type {
   font-variant-numeric: tabular-nums;
 }
 
-.legend {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  font: 400 11.5px/1.3 var(--mono);
-  color: var(--panel-dim);
-  margin: 14px 0 10px;
-}
-
-.legend .item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-/* ---------- 7. the one off-axis element ---------------------------------- */
-
-.tilt {
-  transform: rotate(-2.2deg);
-}
-
-.tilt.right {
-  transform: rotate(1.8deg);
-}
-
 .note {
   font: 400 13px/1.65 var(--mono);
   color: var(--mark-dim);
@@ -969,40 +944,4 @@ main > section:first-of-type {
   font: 400 16px/1.5 var(--script);
   color: var(--mark);
   opacity: 0.9;
-}
-
-/* legend swatches for the action colours */
-.panel.legendbox {
-  padding: 16px 26px;
-  /* the tilt lifts its corners; keep them clear of the seat panels above */
-  margin-top: 14px;
-}
-
-.panel.legendbox .legend {
-  margin: 0;
-}
-
-.legend .block {
-  width: 18px;
-  height: 12px;
-  border-radius: 2px;
-  display: inline-block;
-}
-
-.legend .block.r {
-  background: var(--act-bet);
-}
-
-.legend .block.c {
-  background: var(--act-check);
-}
-
-.legend .block.f {
-  background: repeating-linear-gradient(
-    45deg,
-    var(--act-fold),
-    var(--act-fold) 3px,
-    transparent 3px,
-    transparent 6px
-  );
 }

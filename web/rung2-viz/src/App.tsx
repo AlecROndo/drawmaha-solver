@@ -63,26 +63,6 @@ export default function App() {
           <section className="panels">
             <SeatPanel seat={0} walk={walk} />
             <SeatPanel seat={1} walk={walk} />
-            {/* the page's one off-axis element */}
-            <Panel className="wide legendbox tilt right" label="Legend">
-              <div className="legend">
-                <span className="item">
-                  <span className="block r" />
-                  bet / raise
-                </span>
-                <span className="item">
-                  <span className="block c" />
-                  check / call
-                </span>
-                <span className="item">
-                  <span className="block f" />
-                  fold
-                </span>
-                <span className="item">
-                  — each row is one rank’s whole mixed strategy at this infoset
-                </span>
-              </div>
-            </Panel>
           </section>
 
           <p className="foot">
