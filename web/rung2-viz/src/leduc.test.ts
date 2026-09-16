@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { closed, keyFor, legal, potAfter, reach, word, type Strategy } from './leduc'
+import { closed, keyFor, legal, potAfter, rankWeights, reach, word, type Strategy } from './leduc'
 
 describe('legal / closed', () => {
   it('opens with check or bet, faces a bet with fold/call/raise, caps at two raises', () => {
@@ -93,5 +93,62 @@ describe('reach', () => {
     // …but the caller behind that bet is NOT a uniform deck: the bettor holds
     // a king, so the second seat holds K with probability 1/5, not 1/3.
     expect(reach('rc', kingOnly)).toBeCloseTo((1 / 3) * (1 / 5), 10)
+  })
+})
+
+describe('rankWeights — what a seat likely holds, given everything so far', () => {
+  const allCheck: Strategy = {
+    'J:': { c: 1, r: 0 },
+    'Q:': { c: 1, r: 0 },
+    'K:': { c: 1, r: 0 },
+    'J:c': { c: 1, r: 0 },
+    'Q:c': { c: 1, r: 0 },
+    'K:c': { c: 1, r: 0 },
+  }
+
+  it('is the uniform deck before anyone acts', () => {
+    const w = rankWeights(0, { l1: '', board: null, l2: '' }, allCheck)
+    expect(w[0]).toBeCloseTo(1 / 3, 10)
+    expect(w[1]).toBeCloseTo(1 / 3, 10)
+    expect(w[2]).toBeCloseTo(1 / 3, 10)
+  })
+
+  it('a bet from a king-only bettor makes its range pure king — and drains kings from the caller', () => {
+    const kingOnly: Strategy = {
+      'J:': { c: 1, r: 0 },
+      'Q:': { c: 1, r: 0 },
+      'K:': { c: 0, r: 1 },
+    }
+    const s = { l1: 'r', board: null, l2: '' } as const
+    expect(rankWeights(0, s, kingOnly)).toEqual([0, 0, 1])
+    // The bettor holds a king, so the other seat draws from J2 Q2 K1 of 5.
+    const w1 = rankWeights(1, s, kingOnly)
+    expect(w1[0]).toBeCloseTo(2 / 5, 10)
+    expect(w1[1]).toBeCloseTo(2 / 5, 10)
+    expect(w1[2]).toBeCloseTo(1 / 5, 10)
+  })
+
+  it('the board card leaves the deck: a jack board makes jacks half as likely', () => {
+    const w = rankWeights(0, { l1: 'cc', board: 'J', l2: '' }, allCheck)
+    expect(w[0]).toBeCloseTo(1 / 5, 10)
+    expect(w[1]).toBeCloseTo(2 / 5, 10)
+    expect(w[2]).toBeCloseTo(2 / 5, 10)
+  })
+
+  it('actions in BOTH rounds shape the range', () => {
+    const r2Bettor: Strategy = {
+      'J:': { c: 1, r: 0 },
+      'Q:': { c: 1, r: 0 },
+      'K:': { c: 1, r: 0 },
+      'J:c': { c: 1, r: 0 },
+      'Q:c': { c: 1, r: 0 },
+      'K:c': { c: 1, r: 0 },
+      'J:cc|Q:': { c: 1, r: 0 },
+      'Q:cc|Q:': { c: 1, r: 0 },
+      'K:cc|Q:': { c: 0, r: 1 },
+    }
+    // After check-check, board Q, and a round-2 bet: the bettor is pure king.
+    const w = rankWeights(0, { l1: 'cc', board: 'Q', l2: 'r' }, r2Bettor)
+    expect(w).toEqual([0, 0, 1])
   })
 })

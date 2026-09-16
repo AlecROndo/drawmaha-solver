@@ -119,12 +119,14 @@ nav.line {
   z-index: 20;
   background: var(--field);
   border-bottom: 1px solid var(--hair);
-  padding: 22px 0 12px;
+  padding: 20px 0 16px;
 }
 
+/* No fixed height: the track must grow with its labels, or the sub-lines
+   hang below the bar's background and float transparent over whatever
+   scrolls under them. */
 nav.line .track {
   position: relative;
-  height: 34px;
   margin: 0 var(--gutter);
 }
 
@@ -191,7 +193,7 @@ nav.line a,
 nav.line span.stop-name {
   display: block;
   margin-top: 10px;
-  font: 500 11.5px/1 var(--mono);
+  font: 500 13px/1 var(--mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   text-decoration: none;
@@ -209,7 +211,7 @@ nav.line a:hover {
 nav.line .sub {
   display: block;
   margin-top: 5px;
-  font: 400 11px/1.3 var(--mono);
+  font: 400 12px/1.3 var(--mono);
   color: var(--mark-dim);
   text-transform: none;
   letter-spacing: 0;
@@ -224,9 +226,9 @@ nav.line .sub {
 
 aside.rail {
   position: sticky;
-  top: 92px;
+  top: 98px;
   align-self: start;
-  height: calc(100vh - 92px);
+  height: calc(100vh - 98px);
   padding: 34px 26px 26px var(--gutter);
   border-right: 1px solid var(--hair);
   display: flex;
@@ -470,31 +472,6 @@ main > section:first-of-type {
   margin: 0;
   font: 500 19px/1.1 var(--mono);
   font-variant-numeric: tabular-nums;
-}
-
-.legend {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  font: 400 11.5px/1.3 var(--mono);
-  color: var(--panel-dim);
-  margin: 14px 0 10px;
-}
-
-.legend .item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-/* ---------- 7. the one off-axis element ---------------------------------- */
-
-.tilt {
-  transform: rotate(-2.2deg);
-}
-
-.tilt.right {
-  transform: rotate(1.8deg);
 }
 
 .note {
@@ -832,14 +809,72 @@ main > section:first-of-type {
   border-color: transparent;
 }
 
+/* The acting seat wears the timeline's crop-mark frame, scaled up — one "you
+   are here" vocabulary at two scales. The marks sit on the field outside the
+   panel, so they take the field's ink, not the panel's. */
+.panel.seat.acting::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--mark), var(--mark)) left top / 18px 2.5px,
+    linear-gradient(var(--mark), var(--mark)) left top / 2.5px 18px,
+    linear-gradient(var(--mark), var(--mark)) right top / 18px 2.5px,
+    linear-gradient(var(--mark), var(--mark)) right top / 2.5px 18px,
+    linear-gradient(var(--mark), var(--mark)) left bottom / 18px 2.5px,
+    linear-gradient(var(--mark), var(--mark)) left bottom / 2.5px 18px,
+    linear-gradient(var(--mark), var(--mark)) right bottom / 18px 2.5px,
+    linear-gradient(var(--mark), var(--mark)) right bottom / 2.5px 18px;
+  background-repeat: no-repeat;
+}
+
+/* What the seat likely holds — identity colours, read before the action
+   bars. Slim on purpose: it is a fact about the deal and the line, not a
+   decision, so it must not compete with the strategy rows below it. */
+.holding {
+  margin: 16px 0 4px;
+}
+
+.holding .k {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.range-bar {
+  display: flex;
+  height: 14px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(142, 32, 56, 0.08);
+}
+
+.range-bar i {
+  display: block;
+  height: 100%;
+}
+
+.range-bar i.J { background: var(--jack); }
+.range-bar i.Q { background: var(--queen); }
+.range-bar i.K { background: var(--king); }
+
+.range-nums {
+  display: flex;
+  gap: 16px;
+  margin-top: 7px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Rows stay hairline — the house rule is "anything tabular is hairline rows,
-   never cards" — but they get real height so the panel breathes. */
+   never cards" — with the numbers in their own right column so the bars stop
+   sprawling the panel's full height. */
 .rankrow {
   display: grid;
-  grid-template-columns: 26px 1fr;
+  grid-template-columns: 26px minmax(0, 1fr) 118px;
   gap: 16px;
   align-items: center;
-  padding: 22px 0;
+  padding: 15px 0;
   border-bottom: 1px solid var(--panel-hair);
 }
 
@@ -857,7 +892,7 @@ main > section:first-of-type {
    paper side, fold's hatch takes the tail. */
 .mix {
   display: flex;
-  height: 32px;
+  height: 26px;
   border-radius: 2px;
   overflow: hidden;
   background: rgba(142, 32, 56, 0.08);
@@ -887,14 +922,15 @@ main > section:first-of-type {
 }
 
 .nums {
-  grid-column: 2;
   font-size: 11.5px;
   color: var(--panel-dim);
-  margin-top: 10px;
   font-variant-numeric: tabular-nums;
   display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .nums b {
@@ -908,40 +944,4 @@ main > section:first-of-type {
   font: 400 16px/1.5 var(--script);
   color: var(--mark);
   opacity: 0.9;
-}
-
-/* legend swatches for the action colours */
-.panel.legendbox {
-  padding: 16px 26px;
-  /* the tilt lifts its corners; keep them clear of the seat panels above */
-  margin-top: 14px;
-}
-
-.panel.legendbox .legend {
-  margin: 0;
-}
-
-.legend .block {
-  width: 18px;
-  height: 12px;
-  border-radius: 2px;
-  display: inline-block;
-}
-
-.legend .block.r {
-  background: var(--act-bet);
-}
-
-.legend .block.c {
-  background: var(--act-check);
-}
-
-.legend .block.f {
-  background: repeating-linear-gradient(
-    45deg,
-    var(--act-fold),
-    var(--act-fold) 3px,
-    transparent 3px,
-    transparent 6px
-  );
 }

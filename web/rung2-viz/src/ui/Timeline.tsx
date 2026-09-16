@@ -84,9 +84,16 @@ export function Timeline({ walk, onJump }: { walk: Walk; onJump: (n: number) => 
                   ) : (
                     <button
                       className="stn"
-                      onClick={() => onJump(i)}
+                      // A board station is the card, so clicking it offers the
+                      // card: rewind to just before it, where the board chooser
+                      // is the live decision — not to the seat acting after it.
+                      onClick={() => onJump(st.board ? i - 1 : i)}
                       aria-current={i === walk.cur ? 'step' : undefined}
-                      aria-label={`rewind to ${st.label}, pot ${st.pot}`}
+                      aria-label={
+                        st.board
+                          ? `change the board card, currently ${st.label}`
+                          : `rewind to ${st.label}, pot ${st.pot}`
+                      }
                     >
                       {inner}
                     </button>

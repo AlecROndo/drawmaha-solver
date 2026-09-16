@@ -77,29 +77,80 @@ export function potAfter(l1: string, board: Rank | null, l2: string): number {
   return pot
 }
 
+/** The point in a hand the page is looking at, as the two lines and a board. */
+interface Node {
+  l1: string
+  board: Rank | null
+  l2: string
+}
+
+/**
+ * How many ways the deal produces (P0 rank, P1 rank, this board): two cards
+ * per rank, drawn without replacement — so a board rank a player also holds
+ * has one card left, and a rank held by both players and the board has none.
+ */
+function dealCount(r0: Rank, r1: Rank, board: Rank | null): number {
+  let count = 2 * (r1 === r0 ? 1 : 2)
+  if (board !== null) count *= 2 - Number(board === r0) - Number(board === r1)
+  return count
+}
+
+/** P(this line's actions | the two seats hold r0, r1), both rounds. */
+function lineProb(r0: Rank, r1: Rank, s: Node, strategy: Strategy): number {
+  let p = 1
+  for (let i = 0; i < s.l1.length; i++) {
+    const rank = i % 2 === 0 ? r0 : r1
+    p *= strategy[keyFor(rank, null, s.l1.slice(0, i), '')]?.[s.l1[i] as Act] ?? 0
+  }
+  if (s.board !== null) {
+    for (let i = 0; i < s.l2.length; i++) {
+      const rank = i % 2 === 0 ? r0 : r1
+      p *= strategy[keyFor(rank, s.board, s.l1, s.l2.slice(0, i))]?.[s.l2[i] as Act] ?? 0
+    }
+  }
+  return p
+}
+
 /**
  * How often play reaches a round-1 line, before the board.
  *
- * A forward pass over the exported strategy, weighted by the deal: six cards,
- * two per rank, so an ordered rank pair weighs 2/30 when the ranks match and
- * 4/30 when they differ. The flat per-node mean would treat the seat behind a
- * bet as a uniform deck, but the bettor's own card has left it — rung 1's
- * `actionFrequency` documents the same correction. Reading the solve is not
- * redoing it.
+ * A forward pass over the exported strategy, weighted by the deal. The flat
+ * per-node mean would treat the seat behind a bet as a uniform deck, but the
+ * bettor's own card has left it — rung 1's `actionFrequency` documents the
+ * same correction. Reading the solve is not redoing it.
  */
 export function reach(l1: string, strategy: Strategy): number {
+  const s: Node = { l1, board: null, l2: '' }
   let total = 0
   for (const r0 of RANKS) {
     for (const r1 of RANKS) {
-      const dealWeight = r0 === r1 ? 2 / 30 : 4 / 30
-      let lineWeight = 1
-      for (let i = 0; i < l1.length; i++) {
-        const rank = i % 2 === 0 ? r0 : r1
-        const row = strategy[keyFor(rank, null, l1.slice(0, i), '')]
-        lineWeight *= row?.[l1[i] as Act] ?? 0
-      }
-      total += dealWeight * lineWeight
+      total += (dealCount(r0, r1, null) / 30) * lineProb(r0, r1, s, strategy)
     }
   }
   return total
+}
+
+/**
+ * What `seat` likely holds here: P(rank | the board and every action so far),
+ * as [J, Q, K] summing to 1.
+ *
+ * This is the bar that keeps a red strategy row honest — a rank can bet 100%
+ * of the time and still be almost never held, because the deal, the board,
+ * and the seat's own earlier actions have already filtered it. Bayes over the
+ * deal: deal weight × the probability both seats' strategies produce this
+ * exact line. Unreachable nodes fall back to the uniform deck rather than
+ * dividing by zero.
+ */
+export function rankWeights(seat: 0 | 1, s: Node, strategy: Strategy): [number, number, number] {
+  const out: [number, number, number] = [0, 0, 0]
+  RANKS.forEach((r0, i0) => {
+    RANKS.forEach((r1, i1) => {
+      const count = dealCount(r0, r1, s.board)
+      if (count === 0) return
+      out[seat === 0 ? i0 : i1] += count * lineProb(r0, r1, s, strategy)
+    })
+  })
+  const total = out[0] + out[1] + out[2]
+  if (total === 0) return [1 / 3, 1 / 3, 1 / 3]
+  return [out[0] / total, out[1] / total, out[2] / total]
 }

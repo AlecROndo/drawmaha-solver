@@ -105,9 +105,12 @@ PAGE = """\
 
   nav.line {
     position: sticky; top: 0; z-index: 20; background: var(--field);
-    border-bottom: 1px solid var(--hair); padding: 22px 0 12px;
+    border-bottom: 1px solid var(--hair); padding: 20px 0 16px;
   }
-  nav.line .track { position: relative; height: 34px; margin: 0 var(--gutter); }
+  /* No fixed height: the track must grow with its labels, or the sub-lines
+     hang below the bar's background and float transparent over whatever
+     scrolls under them. */
+  nav.line .track { position: relative; margin: 0 var(--gutter); }
   nav.line .bar {
     position: absolute; left: 10%; right: 10%; top: 11px; height: 1px;
     background: var(--hair);
@@ -129,13 +132,13 @@ PAGE = """\
   nav.line li.done .dot { background: var(--mark); }
   nav.line li.todo .dot { border-color: var(--mark-dim); }
   nav.line a, nav.line span.stop-name {
-    display: block; margin-top: 10px; font: 500 11.5px/1 var(--mono);
+    display: block; margin-top: 10px; font: 500 13px/1 var(--mono);
     letter-spacing: 0.06em; text-transform: uppercase; text-decoration: none;
   }
   nav.line li.todo span.stop-name { color: var(--mark-dim); }
   nav.line a:hover { text-decoration: underline; text-underline-offset: 0.3em; }
   nav.line .sub {
-    display: block; margin-top: 5px; font: 400 11px/1.3 var(--mono);
+    display: block; margin-top: 5px; font: 400 12px/1.3 var(--mono);
     color: var(--mark-dim); text-transform: none; letter-spacing: 0;
   }
 
@@ -143,7 +146,7 @@ PAGE = """\
 
   .shell { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); }
   aside.rail {
-    position: sticky; top: 92px; align-self: start; height: calc(100vh - 92px);
+    position: sticky; top: 98px; align-self: start; height: calc(100vh - 98px);
     padding: 34px 26px 26px var(--gutter); border-right: 1px solid var(--hair);
     display: flex; flex-direction: column; gap: 20px;
   }
