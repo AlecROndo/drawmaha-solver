@@ -138,7 +138,8 @@ export function reach(l1: string, strategy: Strategy): number {
  * of the time and still be almost never held, because the deal, the board,
  * and the seat's own earlier actions have already filtered it. Bayes over the
  * deal: deal weight × the probability both seats' strategies produce this
- * exact line. Unreachable nodes fall back to the uniform deck rather than
+ * exact line. Unreachable nodes fall back to the deal alone — the strategy
+ * factor is gone, but a board card has still left the deck — rather than
  * dividing by zero.
  */
 export function rankWeights(seat: 0 | 1, s: Node, strategy: Strategy): [number, number, number] {
@@ -151,6 +152,15 @@ export function rankWeights(seat: 0 | 1, s: Node, strategy: Strategy): [number, 
     })
   })
   const total = out[0] + out[1] + out[2]
-  if (total === 0) return [1 / 3, 1 / 3, 1 / 3]
+  if (total === 0) {
+    const deal: [number, number, number] = [0, 0, 0]
+    RANKS.forEach((r0, i0) => {
+      RANKS.forEach((r1, i1) => {
+        deal[seat === 0 ? i0 : i1] += dealCount(r0, r1, s.board)
+      })
+    })
+    const dealTotal = deal[0] + deal[1] + deal[2]
+    return [deal[0] / dealTotal, deal[1] / dealTotal, deal[2] / dealTotal]
+  }
   return [out[0] / total, out[1] / total, out[2] / total]
 }
