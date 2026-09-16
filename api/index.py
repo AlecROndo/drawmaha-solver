@@ -361,7 +361,7 @@ PAGE = """\
         <path d="M6 57h138" stroke-opacity=".4"/>
       </g>
     </svg>
-    <a class="btn" href="/rung1#play">Play the solver &rarr;</a>
+    <a class="btn" href="/rung2#play">Play the solver &rarr;</a>
   </aside>
 
   <main>

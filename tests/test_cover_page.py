@@ -54,7 +54,9 @@ def test_every_link_goes_somewhere_that_exists(page: str, routes: set[str]) -> N
         if fragment:
             # Cross-page fragments are the visualizers' business, not ours; the
             # route existing is all this page can promise.
-            assert path in {"/rung0", "/rung1"}, f"{href} anchors into a page with no app"
+            assert path in {"/rung0", "/rung1", "/rung2"}, (
+                f"{href} anchors into a page with no app"
+            )
 
 
 def test_the_fonts_it_self_hosts_are_the_ones_the_build_copies(page: str) -> None:
