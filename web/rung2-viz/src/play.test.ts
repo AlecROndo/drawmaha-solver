@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DECK, sampleAction, settle, strength } from './play'
+import { DECK, drive, nextHand, playAct, sampleAction, settle, strength, type Hand } from './play'
 import type { Strategy } from './leduc'
 
 describe('the deck', () => {
@@ -63,5 +63,83 @@ describe('sampleAction', () => {
 
   it('falls back to uniform over legal actions at an unknown spot', () => {
     expect(sampleAction(strategy, 'J:zz', ['f', 'c'], () => 0.6)).toBe('c')
+  })
+})
+
+describe('the hand loop — drive, playAct, nextHand', () => {
+  /** Human is P0 with the king, bot P1 with the jack, queen waiting to turn. */
+  const fresh = (humanSeat: 0 | 1 = 0): Hand => ({
+    cards: [
+      { rank: 'K', suit: 0 },
+      { rank: 'J', suit: 0 },
+    ],
+    boardCard: { rank: 'Q', suit: 0 },
+    humanSeat,
+    l1: '',
+    board: null,
+    l2: '',
+    lines: [],
+    result: null,
+  })
+
+  /** The bot checks and calls everything, at every key this suite reaches. */
+  const passive: Strategy = {
+    'J:': { c: 1 },
+    'J:c': { c: 1 },
+    'J:cc|Q:c': { c: 1 },
+  }
+
+  it('stops at the human without acting for them', () => {
+    const h = drive(fresh(0), passive)
+    expect(h.l1).toBe('')
+    expect(h.result).toBeNull()
+    expect(h.lines).toEqual([])
+  })
+
+  it('lets the bot open when it has the first seat', () => {
+    const h = drive(fresh(1), passive)
+    expect(h.l1).toBe('c')
+    expect(h.lines).toEqual(['the solver checks'])
+    expect(h.result).toBeNull()
+  })
+
+  it('plays a checked-down hand end to end: board turns, showdown, bank', () => {
+    const s0 = { hand: fresh(0), chips: 0, hands: 0 }
+    const s1 = playAct(s0, 'c', passive)
+    expect(s1.hand.l1).toBe('cc')
+    expect(s1.hand.board).toBe('Q') // round 1 closed, so drive turned the board
+    expect(s1.hand.lines).toEqual(['you check', 'the solver checks', 'the board turns Q'])
+    expect(s1.hand.result).toBeNull() // round 2 opens on the human
+
+    const s2 = playAct(s1, 'c', passive)
+    expect(s2.hand.l2).toBe('cc')
+    expect(s2.hand.result).toBe(1) // king over jack for the antes
+    expect(s2.hand.lines.at(-1)).toBe('you held K · the solver held J — you win 1')
+    expect(s2.chips).toBe(1)
+    expect(s2.hands).toBe(1)
+  })
+
+  it('a fold ends the hand before any board and banks the loss', () => {
+    const aggro: Strategy = { 'J:c': { r: 1 } }
+    const s1 = playAct({ hand: fresh(0), chips: 0, hands: 0 }, 'c', aggro)
+    expect(s1.hand.lines).toEqual(['you check', 'the solver bets'])
+    const s2 = playAct(s1, 'f', aggro)
+    expect(s2.hand.board).toBeNull()
+    expect(s2.hand.result).toBe(-1) // the ante, exactly what settle('crf') says
+    expect(s2.chips).toBe(-1)
+    expect(s2.hands).toBe(1)
+  })
+
+  it('leaves a finished hand untouched', () => {
+    const done = { hand: { ...fresh(0), result: 1 }, chips: 1, hands: 1 }
+    expect(playAct(done, 'c', passive)).toBe(done)
+  })
+
+  it('nextHand swaps the seats and carries the bankroll', () => {
+    const s = nextHand({ hand: fresh(0), chips: 3, hands: 2 }, passive, () => 0)
+    expect(s.hand.humanSeat).toBe(1)
+    expect(s.chips).toBe(3)
+    expect(s.hands).toBe(2)
+    expect(s.hand.result).toBeNull() // a hand can never end without the human
   })
 })

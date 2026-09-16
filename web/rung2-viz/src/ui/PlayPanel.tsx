@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 
-import { keyFor, legal, potAfter, word, type Act, type Rank } from '../leduc'
-import { sampleAction, settle, shuffled, type Card } from '../play'
+import { legal, potAfter, word, type Act, type Rank } from '../leduc'
+import { nextHand, playAct, roundLine, type Session } from '../play'
 import { SOLVE } from '../solve'
-import { boardPending, lineOver } from '../timeline'
 import { Panel } from './site'
 
 /**
@@ -11,72 +10,14 @@ import { Panel } from './site'
  * strategy and never adapts — you are playing the same numbers every figure
  * on this page draws. Seats alternate each hand; both cards are revealed at
  * settlement, a fold included, because the point is to study the line.
+ *
+ * The session itself (hand, bankroll) lives in App, like the walk state, so
+ * flipping tabs does not tear down a hand in progress. The transitions are
+ * pure functions in `play.ts`, applied here in updater form: they read only
+ * the state they are given, so a double-fired click cannot act on a stale
+ * hand, and the banked chips land in the same update as the hand that earned
+ * them — nothing for StrictMode's replays to double-count.
  */
-
-interface Hand {
-  cards: [Card, Card]
-  boardCard: Card
-  humanSeat: 0 | 1
-  l1: string
-  board: Rank | null
-  l2: string
-  lines: string[]
-  /** chips to the human, set exactly once when the hand ends */
-  result: number | null
-}
-
-const node = (h: Hand) => ({ l1: h.l1, board: h.board, l2: h.l2 })
-const roundLine = (h: Hand): string => (h.board === null ? h.l1 : h.l2)
-const actorOf = (h: Hand): 0 | 1 => (roundLine(h).length % 2) as 0 | 1
-
-const appendAct = (h: Hand, act: Act): void => {
-  if (h.board === null) h.l1 += act
-  else h.l2 += act
-}
-
-/**
- * Run the hand forward — the board turning, the bot acting — until it is the
- * human's move or the hand is over, then settle. Mutates its own copy.
- */
-function drive(prev: Hand): Hand {
-  const h: Hand = { ...prev, lines: [...prev.lines] }
-  for (;;) {
-    if (lineOver(node(h))) break
-    if (boardPending(node(h))) {
-      h.board = h.boardCard.rank
-      h.lines.push(`the board turns ${h.board}`)
-      continue
-    }
-    if (actorOf(h) === h.humanSeat) return h
-    const bot = h.cards[1 - h.humanSeat].rank
-    const line = roundLine(h)
-    const act = sampleAction(SOLVE.strategy, keyFor(bot, h.board, h.l1, h.l2), legal(line))
-    h.lines.push(`the solver ${word(act, line)}s`)
-    appendAct(h, act)
-  }
-  const toP0 = settle(h.l1, h.board, h.l2, h.cards[0].rank, h.cards[1].rank)
-  h.result = h.humanSeat === 0 ? toP0 : -toP0
-  const you = h.cards[h.humanSeat].rank
-  const bot = h.cards[1 - h.humanSeat].rank
-  const verdict =
-    h.result === 0 ? 'a push' : h.result > 0 ? `you win ${h.result}` : `the solver wins ${-h.result}`
-  h.lines.push(`you held ${you} · the solver held ${bot} — ${verdict}`)
-  return h
-}
-
-function deal(humanSeat: 0 | 1): Hand {
-  const deck = shuffled()
-  return drive({
-    cards: [deck[0], deck[1]],
-    boardCard: deck[2],
-    humanSeat,
-    l1: '',
-    board: null,
-    l2: '',
-    lines: [],
-    result: null,
-  })
-}
 
 function CardGlyph({ rank, hidden }: { rank?: Rank; hidden?: boolean }) {
   if (hidden) return <span className="pcard back" aria-label="a card, face down" />
@@ -84,31 +25,22 @@ function CardGlyph({ rank, hidden }: { rank?: Rank; hidden?: boolean }) {
   return <span className={`pcard rank ${rank}`}>{rank}</span>
 }
 
-export function PlayPanel() {
-  const [hand, setHand] = useState<Hand>(() => deal(0))
-  const [chips, setChips] = useState(0)
-  const [hands, setHands] = useState(0)
+export function PlayPanel({
+  session,
+  setSession,
+}: {
+  session: Session
+  setSession: Dispatch<SetStateAction<Session>>
+}) {
+  const { hand, chips, hands } = session
 
   const over = hand.result !== null
   const line = roundLine(hand)
   const pot = potAfter(hand.l1, hand.board, hand.l2)
   const reveal = over // both cards show at settlement, fold included
 
-  const act = (a: Act) => {
-    if (over) return
-    const played: Hand = { ...hand, lines: [...hand.lines, `you ${word(a, line)}`] }
-    appendAct(played, a)
-    const done = drive(played)
-    setHand(done)
-    if (done.result !== null) {
-      // Bank inside the handler, not an effect: StrictMode replays effects
-      // and would count every hand twice.
-      setChips((c) => c + (done.result ?? 0))
-      setHands((n) => n + 1)
-    }
-  }
-
-  const next = () => setHand((h) => deal((1 - h.humanSeat) as 0 | 1))
+  const act = (a: Act) => setSession((s) => playAct(s, a, SOLVE.strategy))
+  const next = () => setSession((s) => nextHand(s, SOLVE.strategy))
 
   return (
     <Panel
