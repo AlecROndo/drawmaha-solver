@@ -149,7 +149,7 @@ export function SeatPanel({ seat, walk, x }: { seat: 0 | 1; walk: Walk; x: Explo
     <Panel className={isAct ? 'seat acting' : 'seat'} label={`Player ${seat}`}>
       <div className="seat-head">
         <span>P{seat}</span>
-        <span className={`badge ${isAct ? 'act' : ''}`}>{badge}</span>
+        <span className={isAct ? 'badge act' : 'badge'}>{badge}</span>
       </div>
       <Holding seat={seat} s={s} x={x} />
       <p className="seat-sub">{sub}</p>
