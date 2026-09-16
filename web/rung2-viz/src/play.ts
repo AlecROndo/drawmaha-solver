@@ -118,7 +118,8 @@ export function prescribed(mix: Partial<Record<Act, number>>, roll: number): Act
     start += (mix[a] ?? 0) * 100
     if (roll < start) return a
   }
-  return present[present.length - 1]
+  // An empty mix is a spot the export lacks; check/call is always legal.
+  return present[present.length - 1] ?? 'c'
 }
 
 /** Percentage points between the roll and the played action's segment. */
@@ -203,7 +204,9 @@ export function drive(prev: Hand, strategy: Strategy, uniform: () => number = Ma
     if (actorOf(h) === h.humanSeat) {
       // The turn arrives: the roll is drawn now, once, so the sidebar can
       // show it BEFORE the click — it is the instruction, not the grade.
-      if (h.pendingRoll === null) h.pendingRoll = Math.round(uniform() * 100)
+      // floor, not round: uniform over 0-99, the integers of the [0,100)
+      // segment space — rounding would give 0 and 100 half a width each.
+      if (h.pendingRoll === null) h.pendingRoll = Math.floor(uniform() * 100)
       return h
     }
     const bot = h.cards[1 - h.humanSeat].rank

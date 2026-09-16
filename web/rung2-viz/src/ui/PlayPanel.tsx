@@ -53,8 +53,10 @@ function SidePanel({
   over: boolean
   verdict: string | null
 }) {
+  // Sum the per-row ROUNDED mistakes, so the total equals what a reader adds
+  // up from the rows instead of drifting a point on fractional deviations.
   const mistakes = rows.reduce(
-    (sum, r) => sum + (r.kind === 'action' && r.human ? (r.mistake ?? 0) : 0),
+    (sum, r) => sum + (r.kind === 'action' && r.human ? Math.round(r.mistake ?? 0) : 0),
     0,
   )
   return (
@@ -111,7 +113,7 @@ function SidePanel({
         )}
       </ol>
       <p className="side-total">
-        mistakes this hand <b>{Math.round(mistakes)}%</b>
+        mistakes this hand <b>{mistakes}%</b>
       </p>
     </aside>
   )

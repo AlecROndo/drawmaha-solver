@@ -183,6 +183,10 @@ describe('the roll — a mixed strategy made playable', () => {
     expect(mistakeOf(never, 40, 'r')).toBe(40)
   })
 
+  it('an absent spot prescribes the always-legal check/call', () => {
+    expect(prescribed({}, 40)).toBe('c')
+  })
+
   it('three actions stack fold at the top of the rolls', () => {
     const mix: Partial<Record<Act, number>> = { f: 0.2, c: 0.3, r: 0.5 }
     expect(prescribed(mix, 10)).toBe('r')
