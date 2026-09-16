@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { freshSession, type Session } from './play'
 import { SOLVE } from './solve'
 import { advance, jump, type Step, type Walk } from './timeline'
 import { NextActions, Timeline } from './ui/Timeline'
@@ -70,10 +71,12 @@ function WalkTab({ walk, setWalk, x }: { walk: Walk; setWalk: (w: Walk) => void;
 
 export default function App() {
   const [tab, setTab] = useState<TabId>(tabFromHash)
-  // Walk state lives here so flipping tabs does not lose the explored line;
-  // so do the locks and the last run, for the same reason.
+  // Both tabs' state lives here so flipping tabs loses nothing: the walk
+  // keeps its explored line (and the exploit locks and last run with it),
+  // the play tab its bankroll and hand in progress.
   const [walk, setWalk] = useState<Walk>({ path: OPENING, cur: OPENING.length })
   const x = useExploit()
+  const [play, setPlay] = useState<Session>(() => freshSession(SOLVE.strategy))
 
   // The identity rail's "Play the solver" button points at #play from every
   // page. On this page that is a hash change with no reload, so listen.
@@ -137,7 +140,7 @@ export default function App() {
               <WalkTab walk={walk} setWalk={setWalk} x={x} />
             ) : (
               <div className="block">
-                <PlayPanel />
+                <PlayPanel session={play} setSession={setPlay} />
               </div>
             )}
           </section>
