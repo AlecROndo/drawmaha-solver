@@ -144,21 +144,17 @@ export function reach(l1: string, strategy: Strategy): number {
  */
 export function rankWeights(seat: 0 | 1, s: Node, strategy: Strategy): [number, number, number] {
   const out: [number, number, number] = [0, 0, 0]
+  const deal: [number, number, number] = [0, 0, 0]
   RANKS.forEach((r0, i0) => {
     RANKS.forEach((r1, i1) => {
       const count = dealCount(r0, r1, s.board)
       if (count === 0) return
+      deal[seat === 0 ? i0 : i1] += count
       out[seat === 0 ? i0 : i1] += count * lineProb(r0, r1, s, strategy)
     })
   })
   const total = out[0] + out[1] + out[2]
   if (total === 0) {
-    const deal: [number, number, number] = [0, 0, 0]
-    RANKS.forEach((r0, i0) => {
-      RANKS.forEach((r1, i1) => {
-        deal[seat === 0 ? i0 : i1] += dealCount(r0, r1, s.board)
-      })
-    })
     const dealTotal = deal[0] + deal[1] + deal[2]
     return [deal[0] / dealTotal, deal[1] / dealTotal, deal[2] / dealTotal]
   }

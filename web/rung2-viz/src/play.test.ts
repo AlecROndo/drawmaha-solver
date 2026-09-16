@@ -82,11 +82,14 @@ describe('the hand loop — drive, playAct, nextHand', () => {
     result: null,
   })
 
-  /** The bot checks and calls everything, at every key this suite reaches. */
+  /** The bot checks and calls everything, at every key this suite reaches —
+   * including 'K:', which the bot opens from when the human sits in seat 1;
+   * a missing key falls back to a RANDOM uniform draw and a coin-flip test. */
   const passive: Strategy = {
     'J:': { c: 1 },
     'J:c': { c: 1 },
     'J:cc|Q:c': { c: 1 },
+    'K:': { c: 1 },
   }
 
   it('stops at the human without acting for them', () => {
