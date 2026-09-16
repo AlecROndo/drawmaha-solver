@@ -1234,15 +1234,132 @@ main > section:first-of-type {
   text-transform: uppercase;
 }
 
-.play-log {
-  font: 400 12.5px/1.6 var(--mono);
-  color: var(--panel-dim);
-  margin: 18px auto 0;
-  max-width: 46ch;
-  white-space: pre-line;
-  min-height: calc(4 * 1.6em);
-}
-
 .playpanel .stat {
   justify-content: center;
+}
+
+/* ---------- the decision sidebar ----------------------------------------- */
+
+/* Table on the left, the hand's transcript on the right: one node per row,
+   newest at the bottom, the live roll waiting at the tail. */
+.playwrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 296px;
+  gap: 30px;
+  align-items: start;
+  margin-top: 8px;
+}
+
+.playside .k {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.playside ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.side-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--panel-hair);
+}
+
+.side-who {
+  font: 500 9.5px/1.6 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--panel-dim);
+}
+
+.side-main b {
+  font: 600 13px/1.4 var(--mono);
+}
+
+.side-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font: 400 12px/1.5 var(--mono);
+}
+
+.side-mix {
+  display: flex;
+  gap: 10px;
+  font-size: 10.5px;
+  color: var(--panel-dim);
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+}
+
+.side-mix .chosen {
+  color: var(--panel-mark);
+  font-weight: 600;
+}
+
+.side-row.board .side-act {
+  font: 400 19px/1 var(--serif);
+}
+
+.side-grade {
+  grid-column: 2;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin-top: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The roll is an instruction, so it wears the lock's ink: your hand on the
+   hand. */
+.side-grade .roll {
+  border: 1px solid var(--lock);
+  color: var(--lock);
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-weight: 600;
+}
+
+.side-grade .ok {
+  color: var(--king);
+  font-weight: 600;
+}
+
+.side-grade .bad {
+  color: #b3243c;
+  font-weight: 500;
+}
+
+.side-row.live {
+  border-left: 2px solid var(--lock);
+  padding-left: 10px;
+  margin-left: -12px;
+}
+
+.side-row.verdict .side-main {
+  color: var(--panel-dim);
+  font-size: 11.5px;
+}
+
+.side-total {
+  margin: 12px 0 0;
+  font: 400 11.5px/1.5 var(--mono);
+  color: var(--panel-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.side-total b {
+  color: var(--panel-mark);
+}
+
+@media (max-width: 1080px) {
+  .playwrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

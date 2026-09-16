@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import { DECK, drive, nextHand, playAct, sampleAction, settle, strength, type Hand } from './play'
-import type { Strategy } from './leduc'
+import {
+  DECK,
+  drive,
+  mistakeOf,
+  nextHand,
+  playAct,
+  prescribed,
+  sampleAction,
+  settle,
+  strength,
+  type Hand,
+} from './play'
+import type { Act, Strategy } from './leduc'
 
 describe('the deck', () => {
   it('is six cards, two per rank', () => {
@@ -79,6 +90,8 @@ describe('the hand loop — drive, playAct, nextHand', () => {
     board: null,
     l2: '',
     lines: [],
+    rows: [],
+    pendingRoll: null,
     result: null,
   })
 
@@ -144,5 +157,97 @@ describe('the hand loop — drive, playAct, nextHand', () => {
     expect(s.chips).toBe(3)
     expect(s.hands).toBe(2)
     expect(s.hand.result).toBeNull() // a hand can never end without the human
+  })
+})
+
+describe('the roll — a mixed strategy made playable', () => {
+  // Aggression descending: bet/raise owns the LOW rolls, then check/call,
+  // then fold. bet 50% / check 50%: rolls 0-50 bet, 50-100 check.
+  const half: Partial<Record<Act, number>> = { c: 0.5, r: 0.5 }
+
+  it('prescribes the action whose segment holds the roll', () => {
+    expect(prescribed(half, 40)).toBe('r')
+    expect(prescribed(half, 60)).toBe('c')
+  })
+
+  it('grades a deviation by its distance into the right region', () => {
+    // Supposed to bet on anything under 50; checking on a 40 is 10 points deep.
+    expect(mistakeOf(half, 40, 'c')).toBe(10)
+    expect(mistakeOf(half, 40, 'r')).toBe(0)
+    // Betting on a 70 overshoots the bet region by 20.
+    expect(mistakeOf(half, 70, 'r')).toBe(20)
+  })
+
+  it('an action the strategy never takes costs the full distance to its empty segment', () => {
+    const never: Partial<Record<Act, number>> = { c: 1, r: 0 }
+    expect(mistakeOf(never, 40, 'r')).toBe(40)
+  })
+
+  it('three actions stack fold at the top of the rolls', () => {
+    const mix: Partial<Record<Act, number>> = { f: 0.2, c: 0.3, r: 0.5 }
+    expect(prescribed(mix, 10)).toBe('r')
+    expect(prescribed(mix, 60)).toBe('c')
+    expect(prescribed(mix, 90)).toBe('f')
+    expect(mistakeOf(mix, 90, 'r')).toBeCloseTo(40, 10) // 90 is 40 past bet's end at 50
+  })
+})
+
+describe('the transcript rows', () => {
+  const fresh0: Hand = {
+    cards: [
+      { rank: 'K', suit: 0 },
+      { rank: 'J', suit: 0 },
+    ],
+    boardCard: { rank: 'Q', suit: 0 },
+    humanSeat: 0,
+    l1: '',
+    board: null,
+    l2: '',
+    lines: [],
+    rows: [],
+    pendingRoll: null,
+    result: null,
+  }
+
+  const passive: Strategy = {
+    'J:': { c: 1 },
+    'J:c': { c: 1 },
+    'J:cc|Q:c': { c: 1 },
+    'K:': { c: 1 },
+    'K:cc|Q:': { c: 0.5, r: 0.5 },
+  }
+
+  it('draws a roll for the live human decision and grades the action against it', () => {
+    const dealt = drive(fresh0, passive, () => 0.4)
+    expect(dealt.pendingRoll).toBe(40)
+
+    const s1 = playAct({ hand: dealt, chips: 0, hands: 0 }, 'c', passive, () => 0.4)
+    const humanRow = s1.hand.rows[0]
+    expect(humanRow.kind).toBe('action')
+    if (humanRow.kind === 'action') {
+      expect(humanRow.human).toBe(true)
+      expect(humanRow.roll).toBe(40)
+      expect(humanRow.act).toBe('c')
+      // K: checks 100% here, so any roll prescribes the check — no mistake.
+      expect(humanRow.mistake).toBe(0)
+    }
+  })
+
+  it('records bot and board rows without rolls, in order', () => {
+    const dealt = drive(fresh0, passive, () => 0.4)
+    const s1 = playAct({ hand: dealt, chips: 0, hands: 0 }, 'c', passive, () => 0.4)
+    const kinds = s1.hand.rows.map((r) => (r.kind === 'board' ? 'board' : r.human ? 'you' : 'bot'))
+    expect(kinds).toEqual(['you', 'bot', 'board'])
+    const bot = s1.hand.rows[1]
+    if (bot.kind === 'action') expect(bot.roll).toBeNull()
+  })
+
+  it('a half-and-half round-2 spot grades a deliberate deviation', () => {
+    const dealt = drive(fresh0, passive, () => 0.4)
+    const s1 = playAct({ hand: dealt, chips: 0, hands: 0 }, 'c', passive, () => 0.4)
+    // Round 2, human holds K at 'K:cc|Q:' = bet 50 / check 50, roll 40 → bet.
+    const s2 = playAct(s1, 'c', passive, () => 0.4)
+    const row = s2.hand.rows.find((r) => r.kind === 'action' && r.human && r.mistake !== 0)
+    expect(row && row.kind === 'action' && row.mistake).toBe(10)
   })
 })
