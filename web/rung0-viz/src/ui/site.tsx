@@ -128,7 +128,7 @@ export function IdentityRail({ now, next }: { now: string; next: string }) {
       </dl>
       <span className="spacer" />
       <Sketch />
-      <a className="btn" href="/rung1#play">
+      <a className="btn" href="/rung2#play">
         Play the solver →
       </a>
     </aside>
