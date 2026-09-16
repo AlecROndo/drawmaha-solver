@@ -36,9 +36,9 @@ export default function App() {
               far as the climb has got. A hand of Leduc is the same shape — a line of decisions —
               so this page reuses the motif: one station per action, the board card is a station
               too, and the rail is solid as far as the hand has been played.{' '}
-              <strong>Click any station to rewind to it.</strong> Rewinding never deletes the
-              stations ahead; only choosing a different action forks the line, and the page warns
-              before it does. You never see a card — each seat is its whole range, which is the
+              <strong>Click any station to rewind to it; click the board card to change it.</strong>{' '}
+              Rewinding never deletes the stations ahead; only choosing a different action forks
+              the line, and the page warns before it does. You never see a card — each seat is its whole range, which is the
               only thing either player could actually condition on.
             </p>
             <p className="note script">
