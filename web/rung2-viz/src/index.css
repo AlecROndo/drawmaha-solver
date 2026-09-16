@@ -390,6 +390,59 @@ main > section:first-of-type {
   margin-top: 0;
 }
 
+/* The same rhythm for a tab's inner blocks, which are divs precisely so the
+   Panel-section rule above cannot reach them. */
+.block {
+  margin-top: 74px;
+}
+
+/* ---------- the two views, as text rather than a control ----------------- */
+
+.views {
+  display: flex;
+  gap: 40px;
+  border-top: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair);
+  padding: 18px 0;
+  margin-top: 30px;
+  flex-wrap: wrap;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.view b {
+  font: 500 12px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mark-dim);
+}
+
+.view:hover b {
+  color: var(--mark);
+}
+
+.view.current b {
+  color: var(--mark);
+  text-decoration: underline;
+  text-underline-offset: 0.35em;
+}
+
+.view span {
+  font: 400 13px/1.4 var(--mono);
+  color: var(--mark-dim);
+}
+
 /* ---------- 5. figures are paper panels, numbered ------------------------ */
 
 .panels {
@@ -944,4 +997,116 @@ main > section:first-of-type {
   font: 400 16px/1.5 var(--script);
   color: var(--mark);
   opacity: 0.9;
+}
+
+/* ---------- fig. 2: the table ------------------------------------------- */
+
+/* The oval IS the table: one monoline ellipse in the site's single stroke
+   weight, cards laid where the seats sit, the board landing in the middle. */
+.table {
+  position: relative;
+  max-width: 560px;
+  margin: 22px auto 0;
+}
+
+.table .felt {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: var(--panel-mark);
+}
+
+.seat-spot {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.seat-spot.villain {
+  top: 4%;
+}
+
+.seat-spot.centre {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.seat-spot.hero {
+  bottom: 4%;
+}
+
+.seat-spot .who {
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--panel-dim);
+  white-space: nowrap;
+}
+
+.seat-spot .pot {
+  font-size: 11.5px;
+  color: var(--panel-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.pcard {
+  width: 52px;
+  height: 72px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 26px/1 var(--mono);
+  background: var(--panel);
+  flex: none;
+}
+
+/* face down: the fold hatch, reused — unknowable is unknowable */
+.pcard.back {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      var(--panel-hair),
+      var(--panel-hair) 3px,
+      transparent 3px,
+      transparent 7px
+    )
+    var(--panel);
+}
+
+/* the board's empty seat, before round 1 closes */
+.pcard.empty {
+  border-style: dashed;
+  border-color: var(--panel-hair);
+  background: transparent;
+}
+
+.play-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+.play-buttons .btn {
+  text-transform: uppercase;
+}
+
+.play-log {
+  font: 400 12.5px/1.6 var(--mono);
+  color: var(--panel-dim);
+  margin: 18px auto 0;
+  max-width: 46ch;
+  white-space: pre-line;
+  min-height: calc(4 * 1.6em);
+}
+
+.playpanel .stat {
+  justify-content: center;
 }
