@@ -1,6 +1,9 @@
+import { useState } from 'react'
+
 import { keyFor, rankWeights, word, RANKS, type Act, type Rank } from '../leduc'
 import { SOLVE } from '../solve'
 import { boardPending, lineOver, stateAt, type Line, type Walk } from '../timeline'
+import { activeStrategy, type Exploit } from './useExploit'
 import { Panel } from './site'
 
 /** Bar and number order: aggression leads from the ink side of the duotone. */
@@ -10,12 +13,41 @@ const acts = (row: Partial<Record<Act, number>>): Act[] => ORDER.filter((a) => a
 
 const pct = (x: number): string => `${(x * 100).toFixed(0)}%`
 
-function Mix({ row }: { row: Partial<Record<Act, number>> }) {
+const SAME = 1e-4
+
+const rowsDiffer = (
+  a: Partial<Record<Act, number>>,
+  b: Partial<Record<Act, number>>,
+): boolean => (Object.keys(a) as Act[]).some((act) => Math.abs((a[act] ?? 0) - (b[act] ?? 0)) > SAME)
+
+/**
+ * One row's whole mixed strategy — and, once a run exists, the Nash baseline
+ * as a slim muted lane beneath it, so "where it was" and "where it moved"
+ * read in one glance without a separate diff view.
+ */
+function Mix({
+  row,
+  base,
+  locked,
+}: {
+  row: Partial<Record<Act, number>>
+  base: Partial<Record<Act, number>> | null
+  locked: boolean
+}) {
   return (
-    <div className="mix">
-      {acts(row).map((a) => (
-        <i key={a} className={a} style={{ width: `${((row[a] ?? 0) * 100).toFixed(2)}%` }} />
-      ))}
+    <div className="mixwrap">
+      <div className={locked ? 'mix held' : 'mix'}>
+        {acts(row).map((a) => (
+          <i key={a} className={a} style={{ width: `${((row[a] ?? 0) * 100).toFixed(2)}%` }} />
+        ))}
+      </div>
+      {base && (
+        <div className="mix was" aria-label="the Nash baseline before your edit">
+          {acts(base).map((a) => (
+            <i key={a} className={a} style={{ width: `${((base[a] ?? 0) * 100).toFixed(2)}%` }} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -24,10 +56,11 @@ function Mix({ row }: { row: Partial<Record<Act, number>> }) {
  * What the seat likely holds, before a word about what it does. A strategy
  * row can be solid oxblood — "bets every king" — while kings are nearly gone
  * from the range, filtered out by the deal, the board, and the line itself.
- * This bar is that filter, in the ranks' identity colours.
+ * This bar is that filter, in the ranks' identity colours. It reads the
+ * response strategy when a run exists: edited strategies move ranges too.
  */
-function Holding({ seat, s }: { seat: 0 | 1; s: Line }) {
-  const weights = rankWeights(seat, s, SOLVE.strategy)
+function Holding({ seat, s, x }: { seat: 0 | 1; s: Line; x: Exploit }) {
+  const weights = rankWeights(seat, s, activeStrategy(x.run))
   return (
     <div className="holding">
       <span className="k">likely holding</span>
@@ -86,14 +119,13 @@ function lastActed(seat: number, s: Line): Spot | null {
 }
 
 /**
- * One seat at the node the cursor is on: what it likely holds (the range
- * bar), then a row per rank — each bar that rank's full mixed strategy. The
- * acting seat reads at its live spot and wears the timeline's crop-mark
- * frame; the waiting seat re-reads the spot it acted at last, named — a
- * range reading "check 100%" under a timeline saying it bet would look like
- * a contradiction rather than an off-tree line.
+ * One seat at the node the cursor is on: what it likely holds, then a row
+ * per rank. Each row can be locked (◇→◆) and edited with sliders; a locked
+ * row is what the exploit run holds still. After a run, every bar shows the
+ * response over its Nash baseline.
  */
-export function SeatPanel({ seat, walk }: { seat: 0 | 1; walk: Walk }) {
+export function SeatPanel({ seat, walk, x }: { seat: 0 | 1; walk: Walk; x: Exploit }) {
+  const [editing, setEditing] = useState<string | null>(null)
   const s = stateAt(walk.path, walk.cur)
   const inR2 = s.board !== null
   const line = inR2 ? s.l2 : s.l1
@@ -119,16 +151,29 @@ export function SeatPanel({ seat, walk }: { seat: 0 | 1; walk: Walk }) {
         <span>P{seat}</span>
         <span className={`badge ${isAct ? 'act' : ''}`}>{badge}</span>
       </div>
-      <Holding seat={seat} s={s} />
+      <Holding seat={seat} s={s} x={x} />
       <p className="seat-sub">{sub}</p>
       {spot !== null &&
         RANKS.map((r) => {
-          const row = SOLVE.strategy[keyFor(r, spot.board, spot.l1, spot.l2)]
-          if (!row) return null
+          const key = keyFor(r, spot.board, spot.l1, spot.l2)
+          const nash = SOLVE.strategy[key]
+          if (!nash) return null
+          const lockedRow = x.locked[key] ?? null
+          // Priority: a pending lock edit shows immediately; else the run's
+          // response; else Nash. The baseline lane appears whenever what is
+          // shown has actually moved off Nash.
+          const row = lockedRow ?? (x.run ? (x.run.strategy[key] ?? nash) : nash)
+          const showBase = rowsDiffer(row, nash)
+          const isEditing = editing === key
           return (
-            <div key={r} className="rankrow">
+            <div
+              key={r}
+              className={['rankrow', lockedRow ? 'locked' : '', isEditing ? 'editing' : '']
+                .filter(Boolean)
+                .join(' ')}
+            >
               <span className={`rank ${r}`}>{r}</span>
-              <Mix row={row} />
+              <Mix row={row} base={showBase ? nash : null} locked={lockedRow !== null} />
               <span className="nums">
                 {spot.took !== null ? (
                   <span>
@@ -142,6 +187,34 @@ export function SeatPanel({ seat, walk }: { seat: 0 | 1; walk: Walk }) {
                   ))
                 )}
               </span>
+              <button
+                className="lockbtn"
+                title={lockedRow ? 'clear this lock' : 'lock this row and edit it'}
+                aria-pressed={lockedRow !== null}
+                onClick={() => {
+                  x.toggleLock(key)
+                  setEditing(lockedRow ? null : key)
+                }}
+              >
+                {lockedRow ? '◆' : '◇'}
+              </button>
+              {isEditing && lockedRow && (
+                <div className="editor">
+                  {acts(lockedRow).map((a) => (
+                    <label className="row" key={a}>
+                      <span>{word(a, spot.ctx)}</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={Math.round((lockedRow[a] ?? 0) * 100)}
+                        onChange={(e) => x.setLockValue(key, a, Number(e.target.value) / 100)}
+                      />
+                      <span>{pct(lockedRow[a] ?? 0)}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           )
         })}
