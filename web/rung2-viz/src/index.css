@@ -832,14 +832,72 @@ main > section:first-of-type {
   border-color: transparent;
 }
 
+/* The acting seat wears the timeline's crop-mark frame, scaled up — one "you
+   are here" vocabulary at two scales. The marks sit on the field outside the
+   panel, so they take the field's ink, not the panel's. */
+.panel.seat.acting::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--mark), var(--mark)) left top / 18px 2.5px,
+    linear-gradient(var(--mark), var(--mark)) left top / 2.5px 18px,
+    linear-gradient(var(--mark), var(--mark)) right top / 18px 2.5px,
+    linear-gradient(var(--mark), var(--mark)) right top / 2.5px 18px,
+    linear-gradient(var(--mark), var(--mark)) left bottom / 18px 2.5px,
+    linear-gradient(var(--mark), var(--mark)) left bottom / 2.5px 18px,
+    linear-gradient(var(--mark), var(--mark)) right bottom / 18px 2.5px,
+    linear-gradient(var(--mark), var(--mark)) right bottom / 2.5px 18px;
+  background-repeat: no-repeat;
+}
+
+/* What the seat likely holds — identity colours, read before the action
+   bars. Slim on purpose: it is a fact about the deal and the line, not a
+   decision, so it must not compete with the strategy rows below it. */
+.holding {
+  margin: 16px 0 4px;
+}
+
+.holding .k {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.range-bar {
+  display: flex;
+  height: 14px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(142, 32, 56, 0.08);
+}
+
+.range-bar i {
+  display: block;
+  height: 100%;
+}
+
+.range-bar i.J { background: var(--jack); }
+.range-bar i.Q { background: var(--queen); }
+.range-bar i.K { background: var(--king); }
+
+.range-nums {
+  display: flex;
+  gap: 16px;
+  margin-top: 7px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Rows stay hairline — the house rule is "anything tabular is hairline rows,
-   never cards" — but they get real height so the panel breathes. */
+   never cards" — with the numbers in their own right column so the bars stop
+   sprawling the panel's full height. */
 .rankrow {
   display: grid;
-  grid-template-columns: 26px 1fr;
+  grid-template-columns: 26px minmax(0, 1fr) 118px;
   gap: 16px;
   align-items: center;
-  padding: 22px 0;
+  padding: 15px 0;
   border-bottom: 1px solid var(--panel-hair);
 }
 
@@ -857,7 +915,7 @@ main > section:first-of-type {
    paper side, fold's hatch takes the tail. */
 .mix {
   display: flex;
-  height: 32px;
+  height: 26px;
   border-radius: 2px;
   overflow: hidden;
   background: rgba(142, 32, 56, 0.08);
@@ -887,14 +945,15 @@ main > section:first-of-type {
 }
 
 .nums {
-  grid-column: 2;
   font-size: 11.5px;
   color: var(--panel-dim);
-  margin-top: 10px;
   font-variant-numeric: tabular-nums;
   display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .nums b {

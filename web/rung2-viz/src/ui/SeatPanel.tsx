@@ -1,4 +1,4 @@
-import { keyFor, word, RANKS, type Act, type Rank } from '../leduc'
+import { keyFor, rankWeights, word, RANKS, type Act, type Rank } from '../leduc'
 import { SOLVE } from '../solve'
 import { boardPending, lineOver, stateAt, type Line, type Walk } from '../timeline'
 import { Panel } from './site'
@@ -8,12 +8,44 @@ const ORDER: Act[] = ['r', 'c', 'f']
 
 const acts = (row: Partial<Record<Act, number>>): Act[] => ORDER.filter((a) => a in row)
 
+const pct = (x: number): string => `${(x * 100).toFixed(0)}%`
+
 function Mix({ row }: { row: Partial<Record<Act, number>> }) {
   return (
     <div className="mix">
       {acts(row).map((a) => (
         <i key={a} className={a} style={{ width: `${((row[a] ?? 0) * 100).toFixed(2)}%` }} />
       ))}
+    </div>
+  )
+}
+
+/**
+ * What the seat likely holds, before a word about what it does. A strategy
+ * row can be solid oxblood — "bets every king" — while kings are nearly gone
+ * from the range, filtered out by the deal, the board, and the line itself.
+ * This bar is that filter, in the ranks' identity colours.
+ */
+function Holding({ seat, s }: { seat: 0 | 1; s: Line }) {
+  const weights = rankWeights(seat, s, SOLVE.strategy)
+  return (
+    <div className="holding">
+      <span className="k">likely holding</span>
+      <div className="range-bar">
+        {RANKS.map(
+          (r, i) =>
+            weights[i] > 0.0005 && (
+              <i key={r} className={r} style={{ width: `${(weights[i] * 100).toFixed(2)}%` }} />
+            ),
+        )}
+      </div>
+      <span className="range-nums">
+        {RANKS.map((r, i) => (
+          <span key={r} className={`rank ${r}`}>
+            {r} {pct(weights[i])}
+          </span>
+        ))}
+      </span>
     </div>
   )
 }
@@ -54,11 +86,12 @@ function lastActed(seat: number, s: Line): Spot | null {
 }
 
 /**
- * One seat's whole range at the node the cursor is on: a row per rank, each
- * bar that rank's full mixed strategy. The acting seat reads at its live
- * spot; the waiting seat re-reads the spot it acted at last, named — a range
- * reading "check 100%" under a timeline saying it bet would look like a
- * contradiction rather than an off-tree line.
+ * One seat at the node the cursor is on: what it likely holds (the range
+ * bar), then a row per rank — each bar that rank's full mixed strategy. The
+ * acting seat reads at its live spot and wears the timeline's crop-mark
+ * frame; the waiting seat re-reads the spot it acted at last, named — a
+ * range reading "check 100%" under a timeline saying it bet would look like
+ * a contradiction rather than an off-tree line.
  */
 export function SeatPanel({ seat, walk }: { seat: 0 | 1; walk: Walk }) {
   const s = stateAt(walk.path, walk.cur)
@@ -81,11 +114,12 @@ export function SeatPanel({ seat, walk }: { seat: 0 | 1; walk: Walk }) {
       : 'Hasn’t acted yet — its first read of the hand is still to come.'
 
   return (
-    <Panel label={`Player ${seat}`}>
+    <Panel className={`seat ${isAct ? 'acting' : ''}`} label={`Player ${seat}`}>
       <div className="seat-head">
         <span>P{seat}</span>
         <span className={`badge ${isAct ? 'act' : ''}`}>{badge}</span>
       </div>
+      <Holding seat={seat} s={s} />
       <p className="seat-sub">{sub}</p>
       {spot !== null &&
         RANKS.map((r) => {
@@ -97,14 +131,13 @@ export function SeatPanel({ seat, walk }: { seat: 0 | 1; walk: Walk }) {
               <Mix row={row} />
               <span className="nums">
                 {spot.took !== null ? (
-                  <>
-                    took <b>{word(spot.took, spot.ctx)}</b> ·{' '}
-                    {((row[spot.took] ?? 0) * 100).toFixed(0)}% of the time
-                  </>
+                  <span>
+                    took <b>{word(spot.took, spot.ctx)}</b> {pct(row[spot.took] ?? 0)}
+                  </span>
                 ) : (
                   acts(row).map((a) => (
                     <span key={a}>
-                      {word(a, spot.ctx)} <b>{((row[a] ?? 0) * 100).toFixed(0)}%</b>
+                      {word(a, spot.ctx)} <b>{pct(row[a] ?? 0)}</b>
                     </span>
                   ))
                 )}
