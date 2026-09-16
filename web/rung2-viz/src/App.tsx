@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { freshSession, type Session } from './play'
 import { SOLVE } from './solve'
 import { advance, jump, type Step, type Walk } from './timeline'
 import { NextActions, Timeline } from './ui/Timeline'
@@ -70,9 +71,11 @@ function WalkTab({ walk, setWalk, x }: { walk: Walk; setWalk: (w: Walk) => void;
 
 export default function App() {
   const [tab, setTab] = useState<TabId>(tabFromHash)
-  // Walk state lives here so flipping tabs does not lose the explored line;
-  // so do the locks and the last run, for the same reason.
+  // Both tabs' state lives here so flipping tabs loses nothing: the walk
+  // keeps its explored line, the locks and last run stay set, and the play
+  // tab keeps its bankroll and hand in progress.
   const [walk, setWalk] = useState<Walk>({ path: OPENING, cur: OPENING.length })
+  const [play, setPlay] = useState<Session>(() => freshSession(SOLVE.strategy))
   const x = useExploit()
 
   // The identity rail's "Play the solver" button points at #play from every
@@ -137,7 +140,7 @@ export default function App() {
               <WalkTab walk={walk} setWalk={setWalk} x={x} />
             ) : (
               <div className="block">
-                <PlayPanel />
+                <PlayPanel session={play} setSession={setPlay} />
               </div>
             )}
           </section>
