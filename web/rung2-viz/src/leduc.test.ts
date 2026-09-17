@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { closed, keyFor, legal, potAfter, rankWeights, reach, word, type Strategy } from './leduc'
+import {
+  closed,
+  keyFor,
+  legal,
+  potAfter,
+  rankWeights,
+  reach,
+  roundInFor,
+  word,
+  type Strategy,
+} from './leduc'
 
 describe('legal / closed', () => {
   it('opens with check or bet, faces a bet with fold/call/raise, caps at two raises', () => {
@@ -159,5 +169,14 @@ describe('rankWeights — what a seat likely holds, given everything so far', ()
     // After check-check, board Q, and a round-2 bet: the bettor is pure king.
     const w = rankWeights(0, { l1: 'cc', board: 'Q', l2: 'r' }, r2Bettor)
     expect(w).toEqual([0, 0, 1])
+  })
+})
+
+describe('roundInFor — the chips standing in front of each seat', () => {
+  it('a bet and a call stand level; a folder stops where they stood', () => {
+    expect(roundInFor('rc', 2)).toEqual([2, 2])
+    expect(roundInFor('rf', 2)).toEqual([2, 0])
+    expect(roundInFor('rrc', 2)).toEqual([4, 4])
+    expect(roundInFor('cc', 2)).toEqual([0, 0])
   })
 })

@@ -88,6 +88,48 @@ export function sampleAction(
   return legalActs[legalActs.length - 1]
 }
 
+/**
+ * The roll: a mixed strategy made playable by hand. Aggression owns the LOW
+ * rolls — bet/raise first, then check/call, then fold — so "bet 50%" means
+ * every roll under 50 is a bet. `prescribed` names the action whose segment
+ * holds the roll; `mistakeOf` grades a deviation by how many points deep the
+ * roll sat inside the action you should have taken — checking on a 40 when
+ * the bet region runs to 50 is a 10% mistake.
+ */
+
+/** Aggression descending: the order the roll's segments stack in. */
+export const AGGRESSION: Act[] = ['r', 'c', 'f']
+
+/** The [start, end) roll segment (0-100) an action owns under `mix`. */
+function segmentOf(mix: Partial<Record<Act, number>>, act: Act): [number, number] {
+  let start = 0
+  for (const a of AGGRESSION) {
+    if (a === act) break
+    start += (mix[a] ?? 0) * 100
+  }
+  return [start, start + (mix[act] ?? 0) * 100]
+}
+
+/** The action the strategy prescribes for this roll. */
+export function prescribed(mix: Partial<Record<Act, number>>, roll: number): Act {
+  let start = 0
+  const present = AGGRESSION.filter((a) => a in mix)
+  for (const a of present) {
+    start += (mix[a] ?? 0) * 100
+    if (roll < start) return a
+  }
+  // An empty mix is a spot the export lacks; check/call is always legal.
+  return present[present.length - 1] ?? 'c'
+}
+
+/** Percentage points between the roll and the played action's segment. */
+export function mistakeOf(mix: Partial<Record<Act, number>>, roll: number, act: Act): number {
+  const [start, end] = segmentOf(mix, act)
+  if (roll < start) return start - roll
+  if (roll >= end) return roll - end
+  return 0
+}
+
 /** A uniformly shuffled copy of the deck. */
 export function shuffled(uniform: () => number = Math.random): Card[] {
   const cards = [...DECK]
@@ -98,6 +140,28 @@ export function shuffled(uniform: () => number = Math.random): Card[] {
   return cards
 }
 
+/** One node of the transcript: an action with its true mix, or the board. */
+export type PlayRow =
+  | {
+      kind: 'action'
+      seat: 0 | 1
+      human: boolean
+      act: Act
+      /** the round line the actor faced — what names `c` a call vs a check */
+      line: string
+      /** the poker word for `act` in its context */
+      label: string
+      /** the solve's whole mix at the actor's spot */
+      mix: Partial<Record<Act, number>>
+      /** the pre-drawn roll — human decisions only */
+      roll: number | null
+      /** what that roll prescribed — human decisions only */
+      correct: Act | null
+      /** points of deviation; 0 is a followed prescription */
+      mistake: number | null
+    }
+  | { kind: 'board'; rank: Rank }
+
 /** One hand in progress against the solve, transcript included. */
 export interface Hand {
   cards: [Card, Card]
@@ -107,6 +171,9 @@ export interface Hand {
   board: Rank | null
   l2: string
   lines: string[]
+  rows: PlayRow[]
+  /** the roll for the live human decision, drawn when the turn arrives */
+  pendingRoll: number | null
   /** chips to the human, set exactly once when the hand ends */
   result: number | null
 }
@@ -125,19 +192,40 @@ const appendAct = (h: Hand, act: Act): void => {
  * human's move or the hand is over, then settle. Mutates its own copy.
  */
 export function drive(prev: Hand, strategy: Strategy, uniform: () => number = Math.random): Hand {
-  const h: Hand = { ...prev, lines: [...prev.lines] }
+  const h: Hand = { ...prev, lines: [...prev.lines], rows: [...prev.rows] }
   for (;;) {
     if (lineOver(node(h))) break
     if (boardPending(node(h))) {
       h.board = h.boardCard.rank
       h.lines.push(`the board turns ${h.board}`)
+      h.rows.push({ kind: 'board', rank: h.board })
       continue
     }
-    if (actorOf(h) === h.humanSeat) return h
+    if (actorOf(h) === h.humanSeat) {
+      // The turn arrives: the roll is drawn now, once, so the sidebar can
+      // show it BEFORE the click — it is the instruction, not the grade.
+      // floor, not round: uniform over 0-99, the integers of the [0,100)
+      // segment space — rounding would give 0 and 100 half a width each.
+      if (h.pendingRoll === null) h.pendingRoll = Math.floor(uniform() * 100)
+      return h
+    }
     const bot = h.cards[1 - h.humanSeat].rank
     const line = roundLine(h)
-    const act = sampleAction(strategy, keyFor(bot, h.board, h.l1, h.l2), legal(line), uniform)
+    const key = keyFor(bot, h.board, h.l1, h.l2)
+    const act = sampleAction(strategy, key, legal(line), uniform)
     h.lines.push(`the solver ${word(act, line)}s`)
+    h.rows.push({
+      kind: 'action',
+      seat: (1 - h.humanSeat) as 0 | 1,
+      human: false,
+      act,
+      line,
+      label: word(act, line),
+      mix: strategy[key] ?? {},
+      roll: null,
+      correct: null,
+      mistake: null,
+    })
     appendAct(h, act)
   }
   const toP0 = settle(h.l1, h.board, h.l2, h.cards[0].rank, h.cards[1].rank)
@@ -166,6 +254,8 @@ export function deal(
       board: null,
       l2: '',
       lines: [],
+      rows: [],
+      pendingRoll: null,
       result: null,
     },
     strategy,
@@ -199,7 +289,31 @@ export function playAct(
   uniform: () => number = Math.random,
 ): Session {
   if (s.hand.result !== null) return s
-  const played: Hand = { ...s.hand, lines: [...s.hand.lines, `you ${word(act, roundLine(s.hand))}`] }
+  const h = s.hand
+  const line = roundLine(h)
+  const key = keyFor(h.cards[h.humanSeat].rank, h.board, h.l1, h.l2)
+  const mix = strategy[key] ?? {}
+  const roll = h.pendingRoll
+  const played: Hand = {
+    ...h,
+    lines: [...h.lines, `you ${word(act, line)}`],
+    rows: [
+      ...h.rows,
+      {
+        kind: 'action',
+        seat: h.humanSeat,
+        human: true,
+        act,
+        line,
+        label: word(act, line),
+        mix,
+        roll,
+        correct: roll === null ? null : prescribed(mix, roll),
+        mistake: roll === null ? null : mistakeOf(mix, roll, act),
+      },
+    ],
+    pendingRoll: null,
+  }
   appendAct(played, act)
   const done = drive(played, strategy, uniform)
   return done.result === null

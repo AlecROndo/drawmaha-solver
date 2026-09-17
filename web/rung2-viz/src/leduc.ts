@@ -54,26 +54,33 @@ export const keyFor = (rank: Rank, board: Rank | null, l1: string, l2: string): 
  * moves nothing. An uncalled bet is one seat's chips — the whole reason this
  * cannot be counted as raises × size × 2.
  */
-export function potAfter(l1: string, board: Rank | null, l2: string): number {
-  const round = (line: string, size: number): number => {
-    const inFor = [0, 0]
-    let level = 0
-    for (let i = 0; i < line.length; i++) {
-      const seat = i % 2
-      const act = line[i]
-      if (act === 'r') {
-        level += size
-        inFor[seat] = level
-      } else if (act === 'c') {
-        inFor[seat] = Math.max(inFor[seat], level)
-      } else {
-        break // a fold ends the round; nothing more goes in
-      }
+/** Chips each seat has put in during one round — the bets standing in front
+ * of a seat before the round closes and they slide to the middle. */
+export function roundInFor(line: string, size: number): [number, number] {
+  const inFor: [number, number] = [0, 0]
+  let level = 0
+  for (let i = 0; i < line.length; i++) {
+    const seat = i % 2
+    const act = line[i]
+    if (act === 'r') {
+      level += size
+      inFor[seat] = level
+    } else if (act === 'c') {
+      inFor[seat] = Math.max(inFor[seat], level)
+    } else {
+      break // a fold ends the round; nothing more goes in
     }
-    return inFor[0] + inFor[1]
   }
-  let pot = 2 * ANTE + round(l1, BETS[0])
-  if (board !== null) pot += round(l2, BETS[1])
+  return inFor
+}
+
+export function potAfter(l1: string, board: Rank | null, l2: string): number {
+  const one = roundInFor(l1, BETS[0])
+  let pot = 2 * ANTE + one[0] + one[1]
+  if (board !== null) {
+    const two = roundInFor(l2, BETS[1])
+    pot += two[0] + two[1]
+  }
   return pot
 }
 
