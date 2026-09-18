@@ -364,9 +364,10 @@ def test_cells_print_the_whole_mixed_strategy_in_legal_action_order():
     assert "f0.33 c0.33 p0.33" in text  # a three-wide spot, still uniform
 
 def test_the_draw_cells_name_the_card_each_throw_takes():
-    # `ACTION_SYMBOL` is the PUBLIC record, where all three one-card throws read
-    # `t1` because that is exactly what the table sees. A readout is for the
-    # player, who knows which card went, so the cells name the position.
+    # The public record of a throw is its count, and a count cannot separate the
+    # three one-card throws — deliberately, since the count is the whole of what
+    # the opponent learns. A readout is for the player, who knows which card
+    # went, so the cells name the position instead.
     keys = spots(player=0, hole=HOLE, board=BOARD_ONE)
     text = format_strategy_tables(
         current_strategy(new_infoset_table(keys)), player=0, hole=HOLE, board=BOARD_ONE

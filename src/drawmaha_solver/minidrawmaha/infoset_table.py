@@ -263,12 +263,15 @@ def average_strategy(table: InfoSetTable) -> StrategyView:
 # ---------------------------------------------------------------------------
 
 # The four throws as a cell can afford to print them: "pat", "low", "mid",
-# "top". `ACTION_SYMBOL` is deliberately not used — it is the PUBLIC record,
-# where all three one-card throws read `t1` because `t1` is precisely what the
-# table sees. A readout is for the player, who knows which card went, so the
-# cells name the position instead. The words come from `action_label` so that
-# the two ways of naming a throw cannot drift apart, and a restored two-card cap
-# renders as "low+mid" here without this file knowing the cap changed.
+# "top". `ACTION_SYMBOL` cannot serve here and is not asked to: it is the
+# BETTING shorthand, and a draw never appears inside a betting line, so it holds
+# no throw at all. What the table records of a throw is its count, and a count
+# cannot separate the three one-card throws — deliberately, since that is the
+# whole of what the opponent learns. A readout is for the player, who knows
+# which card went, so the cells name the position instead. The words come from
+# `action_label` so that the two ways of naming a throw cannot drift apart, and
+# a restored two-card cap renders as "low+mid" here without this file knowing
+# the cap changed.
 _THROW_SYMBOL = {
     action: action_label(action).removeprefix("throw ").removeprefix("stand ")
     for action in DRAW_ACTIONS
@@ -277,10 +280,12 @@ _THROW_SYMBOL = {
 def _column_symbol(action: Action, actions: tuple[Action, ...]) -> str:
     """One action's letter inside a cell, in the context of its legal set.
 
-    CHECK_CALL is absent from `ACTION_SYMBOL` because it is a check or a call
-    depending on whether anything is owed, and the legal set answers that
-    without the line: fold is offered exactly when there is something to fold
-    against.
+    Two of the three branches exist because `ACTION_SYMBOL` covers only FOLD and
+    POT. CHECK_CALL is absent from it because it is a check or a call depending
+    on whether anything is owed, and the legal set answers that without needing
+    the line: fold is offered exactly when there is something to fold against.
+    The throws are absent because a throw never appears inside a betting line,
+    which is the only thing that shorthand spells.
     """
     if action is Action.CHECK_CALL:
         return "c" if Action.FOLD in actions else "x"
