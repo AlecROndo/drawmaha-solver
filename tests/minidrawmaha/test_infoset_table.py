@@ -159,6 +159,15 @@ def test_one_private_key_at_two_different_points_is_two_ledgers():
     assert opening != drawing
     assert len(new_infoset_table([opening, drawing])) == 2
 
+def test_the_same_key_handed_in_twice_is_refused_rather_than_overwritten():
+    # A dict comprehension would keep the second ledger and drop the first
+    # without a word — the same "two spots, one strategy" failure the probe
+    # above catches at the enumerator, arriving instead through the allocator's
+    # own argument. The guard costs one integer and no 3.1M-key set.
+    twice = keys_at(THE_OPEN, [0, 0])
+    with pytest.raises(ValueError, match="twice"):
+        new_infoset_table(twice)
+
 def test_a_key_the_walk_should_never_produce_has_no_ledger():
     # Pre-allocated rather than filled on demand: a lookup that misses raises
     # instead of quietly gaining a ledger nothing will ever train.
@@ -309,6 +318,16 @@ def test_a_hand_shape_no_decision_point_has_is_refused_rather_than_empty():
     # spots. An empty readout would read as a solve with no data in it.
     with pytest.raises(ValueError, match="no decision point"):
         spots(player=0, hole=HOLE, board=BOARD_ONE, discarded=THROWN)
+
+def test_a_card_in_two_places_is_refused_before_it_can_be_relabelled():
+    # The trap in the one place a human types cards instead of a state machine
+    # dealing them: neither `canonical` nor `InfoSet` looks across the three
+    # groups, so a duplicate would quietly relabel into a real key belonging to
+    # a different hand and read out somebody else's strategy.
+    with pytest.raises(ValueError, match="two places"):
+        spots(player=0, hole=HOLE, board=HOLE[:1])
+    with pytest.raises(ValueError, match="two places"):
+        spots(player=0, hole=HOLE, board=BOARD_TWO, discarded=BOARD_TWO[:1])
 
 def test_the_readout_canonicalises_the_hand_it_is_given():
     # A human types physical suits; the table is keyed on canonical ones. Doing

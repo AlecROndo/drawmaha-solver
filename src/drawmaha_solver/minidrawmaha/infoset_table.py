@@ -43,8 +43,10 @@ Leduc's key has no suits; here the relabelling is joint over hole and board, so
 two different holes against "the same" board land in different canonical frames
 and cannot share a column. So the hand is fixed and the *spots* become the rows:
 `format_strategy_tables` answers "holding these cards, what does the solve do
-everywhere it could be asked?" — eleven rows for a seat before the draw,
-twenty-eight after it.
+everywhere it could be asked?" — before the draw that is eleven rows for the
+seat that draws first and eighteen for the seat that draws second, because P0's
+count is public by the time P1 chooses; after the draw it is twenty-eight for
+either seat.
 
 Nothing here walks the tree or computes reach probabilities. The table only
 stores and reports; `mccfr.py` reads sigma from it on the way down and banks
@@ -99,25 +101,42 @@ def new_infoset_table(keys: Iterable[InfoSet] | None = None) -> InfoSetTable:
     without paying for the real table. The keys are consumed in the order given,
     so a slice of `all_infosets()` and the full table agree entry for entry.
 
+    A key arriving twice raises. A dict comprehension would keep the second
+    ledger and throw the first away without a word, which is the same failure as
+    two spots sharing one ledger — the thing this table exists to make
+    impossible — and it would land silently in the middle of a 3.1M-key build.
+    Counting the keys consumed and comparing against the table's own length
+    catches it with one integer per call and no set of 3.1 million keys to hold;
+    `enumeration.py` refuses the equivalent collapse in `merged()` for the same
+    reason, one layer up.
+
     A one-wide spot would be refused by `RegretMatcher`, which is the wanted
     behaviour rather than an edge case to smooth over: a ledger with one legal
     action has no regret to accumulate, and the betting rules only produce one
     at a stack size this game does not use.
     """
-    return {
-        infoset: RegretMatcher(len(infoset.legal_actions()))
-        for infoset in (all_infosets() if keys is None else keys)
-    }
+    table: InfoSetTable = {}
+    for seen, infoset in enumerate(all_infosets() if keys is None else keys, start=1):
+        table[infoset] = RegretMatcher(len(infoset.legal_actions()))
+        if len(table) != seen:
+            raise ValueError(f"{infoset} was handed to the table twice")
+    return table
 
 def ledger_widths() -> dict[int, int]:
     """How many ledgers of each width the full table holds — without allocating one.
 
     `{2: 2228280, 3: 893640, 4: 20370}`, which is `census.json`'s
-    `by_ledger_width`, and it is reachable in milliseconds because the width of
-    a ledger never depends on the cards. `legal_actions()` reads a key's betting
-    and its draw signals, both of which are the public half, so every key
-    standing on one public point has one width — and the table's whole shape is
-    a 141-term sum over (that width, how many private keys of that shape exist).
+    `by_ledger_width`, and it is reachable without building a ledger because the
+    width of one never depends on the cards. `legal_actions()` reads a key's
+    betting and its draw signals, both of which are the public half, so every
+    key standing on one public point has one width — and the table's whole shape
+    is a 141-term sum over (that width, how many private keys of that shape
+    exist).
+
+    Costs 3.9 s on a cold process and 0.02 ms after, because the sum needs the
+    *sizes* of the four private-key shapes and `private_keys` caches them. That
+    is the same 3.9 s the table itself pays before its first ledger, so asking
+    this question first is free against allocating anyway.
 
     Worth having as a function rather than a comment because it is the question
     asked *before* committing 1.77 GB, and because it is the cheap half of the
@@ -152,7 +171,17 @@ def spots(
     A shape no decision point has — a discard while only one board card is out,
     which is a draw that has not happened yet — raises rather than returning
     nothing. An empty readout reads as a solve with no data in it.
+
+    One card in two of the three groups is refused here and nowhere else. This
+    is the first place in the rung where a *human* hands in raw cards rather
+    than a state machine handing in cards it dealt itself, and neither
+    `canonical` nor `InfoSet` checks across groups — so a fat-fingered duplicate
+    would relabel into a perfectly ordinary key belonging to a different hand
+    and read out somebody else's strategy.
     """
+    dealt = hole + discarded + board
+    if len(set(dealt)) != len(dealt):
+        raise ValueError(f"one card cannot be in two places: {hand_symbol(dealt)}")
     hole, discarded, board = canonical(hole, discarded, board)
     points = [
         point
@@ -307,9 +336,10 @@ def format_strategy_tables(
     The question a human actually has in front of 3.1 million ledgers is not
     "show me the table" — it is "I hold these three cards on this board: what
     does the solve do?". So the hand is the argument and the rows are the spots
-    it can be asked at: up to eleven before the draw (four betting spots and
-    seven draws), twenty-eight after it. Each cell spells the whole mix in
-    legal-action order.
+    it can be asked at: before the draw, eleven rows for P0 (four betting spots
+    and seven draws) and eighteen for P1 (four and fourteen, since P0's draw
+    count is public by then); after the draw, twenty-eight for either seat. Each
+    cell spells the whole mix in legal-action order.
 
     Reading a converged solve: the `-` row of round 1 is the opening play with
     this hand, the draw block says which of the three cards it throws, and a
