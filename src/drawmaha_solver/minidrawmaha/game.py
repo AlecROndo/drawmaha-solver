@@ -10,9 +10,9 @@ rung-3 plan. The hand, start to finish:
    before anybody has seen a board card.
 2. Three private cards each, then **board card 1**, face up.
 3. **Betting round 1.**
-4. **The draw**, sequential: P0 throws at most two of their three cards, then P1
-   does, knowing *how many* P0 took but never which. Every replacement is dealt
-   **face down**, whatever the count — the full game's face-up draw-one house
+4. **The draw**, sequential: P0 throws **at most one** of their three cards,
+   then P1 does, knowing *whether* P0 drew but never which card. The
+   replacement is dealt **face down** — the full game's face-up draw-one house
    rule is not played at this rung.
 5. **Board card 2**, then **betting round 2**, then the showdown.
 6. **The pot splits in half.** The **inner** half goes to the best 3-card hand
@@ -24,10 +24,12 @@ Three things here are genuinely new against rung 2, and each has a trap:
 
 * **The chance node depends on the action.** Leduc's board came out the same way
   whatever anyone did. Here the draw decides whether a chance node happens at
-  all and how many cards it deals: stand pat and the deck never acts, throw two
-  and it deals two. A throw is therefore two nodes — the decision, then one
-  chance node for all `k` replacements — and in between, the actor's hole is
-  *short*, which is exactly how `kind` knows the deck owes them cards.
+  all: stand pat and the deck never acts, throw a card and it deals one. A
+  throw is therefore two nodes — the decision, then the replacement — and in
+  between, the actor's hole is *short*, which is exactly how `kind` knows the
+  deck owes them a card. The machinery deals `k` at a chance node rather than
+  one, because the cap is a constant and the rest of the file does not know
+  what it is.
 * **Thrown cards leave the deck for good, and only their owner knows which.**
   `remaining_deck()` is derived from the state, never counted down from 15, so a
   discard can never be redealt to anybody.
@@ -103,13 +105,18 @@ N_ROUNDS = 2
 # Board card 1 comes before the betting, board card 2 after the draw.
 BOARD_STREETS = (1, 1)
 
-# At most two of your three cards, which is realised by the seven masks in
-# `DISCARD_MASK` — this constant states the cap the masks obey rather than
-# generating them. It is the biggest single lever on this rung's cost: dropping
-# the three two-card masks takes the draw node from 7 actions to 4 and the
-# post-draw key count from 61,590 to 11,140, and it leaves both ranking tables
-# untouched because they depend on the deck and not on the cap.
-THROW_CAP = 2
+# At most ONE of your three cards, realised by the four masks in `DISCARD_MASK`
+# — this constant states the cap the masks obey rather than generating them.
+#
+# The cap is the biggest single lever on this rung's cost, bigger than the deck:
+# at two, the draw node is 7 actions wide and the post-draw key count is 61,590;
+# at one it is 4 wide and 11,140, which is fewer keys than the whole 12-card deck
+# would cost at a cap of two. Both ranking tables are untouched either way —
+# they depend on the deck, not on the cap. What one buys instead of two is the
+# loss of the two-card draw: a player can improve a card, never a pair of them,
+# so no line ever reshapes a hand wholesale. Restoring it is this constant plus
+# the three two-card masks; nothing else in the file counts to two.
+THROW_CAP = 1
 
 class Action(IntEnum):
     """Every decision in the game, betting and drawing, in one enum.
@@ -117,11 +124,11 @@ class Action(IntEnum):
     The values are NOT ledger indices. A ledger is as wide as
     `legal_actions()` at its infoset, and entry k belongs to
     `legal_actions()[k]` — which at a betting node is 2 or 3 of the first three
-    members and at a draw node is all seven throws.
+    members and at a draw node is all four throws.
 
     The throws are a 3-bit mask over the actor's three cards with popcount at
-    most two, and the names read low/mid/top in `draw_order` — the canonical
-    order, not the order the cards happened to be dealt in.
+    most `THROW_CAP`, and the names read low/mid/top in `draw_order` — the
+    canonical order, not the order the cards happened to be dealt in.
     """
 
     FOLD = 0
@@ -132,9 +139,6 @@ class Action(IntEnum):
     THROW_LOW = 4  # 0b001
     THROW_MID = 5  # 0b010
     THROW_TOP = 6  # 0b100
-    THROW_LO_MI = 7  # 0b011
-    THROW_LO_TO = 8  # 0b101
-    THROW_MI_TO = 9  # 0b110
 
 BETTING_ACTIONS = (Action.FOLD, Action.CHECK_CALL, Action.POT)
 
@@ -143,9 +147,6 @@ DISCARD_MASK = {
     Action.THROW_LOW: 0b001,
     Action.THROW_MID: 0b010,
     Action.THROW_TOP: 0b100,
-    Action.THROW_LO_MI: 0b011,
-    Action.THROW_LO_TO: 0b101,
-    Action.THROW_MI_TO: 0b110,
 }
 
 # Ascending by value, which is the order a draw ledger's columns are in.
@@ -352,10 +353,10 @@ def betting_legal_actions(betting: tuple[tuple[Action, ...], ...]) -> tuple[Acti
 class DrawSignal:
     """What the table learns when a player draws: the count, and nothing else.
 
-    *Which* cards were thrown is private and *what* replaced them is dealt face
-    down, so this one number is the entire public record of a draw. The full
-    game's face-up draw-one rule would add a card here; at this rung it does
-    not exist.
+    *Which* card was thrown is private and *what* replaced it is dealt face
+    down, so this one number — 0 or 1 at this cap — is the entire public record
+    of a draw. The full game's face-up draw-one rule would add a card here; at
+    this rung it does not exist.
     """
 
     count: int
@@ -380,7 +381,7 @@ def draw_order(
     suit, "the lowest card" is the board-suited card in one and the offsuit card
     in the other, so a single strategy would be throwing two different cards.
     Ordered by canonical label, position k is the same card in both, and the
-    ledger's seven columns mean one thing each.
+    ledger's four columns mean one thing each.
     """
     relabelling = canonical_relabelling(hole, discarded, board)
     return tuple(sorted(hole, key=lambda card: (card.rank, relabelling[card.suit])))
@@ -935,7 +936,7 @@ class MiniState:
 # ---------------------------------------------------------------------------
 
 def legal_actions_for(state: MiniState) -> tuple[Action, ...]:
-    """What may be done at `state` — betting actions, or all seven throws.
+    """What may be done at `state` — betting actions, or all four throws.
 
     The free function the rest of the package calls, so a walker never has to
     know whether it is looking at a bet or a draw.

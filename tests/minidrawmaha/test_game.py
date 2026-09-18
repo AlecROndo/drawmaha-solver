@@ -36,7 +36,7 @@ from drawmaha_solver.minidrawmaha.game import (
     random_deal,
     throw_count,
 )
-from drawmaha_solver.minidrawmaha.hands import inner_score, outer_score
+from drawmaha_solver.minidrawmaha.hands import HOLE_CARDS, inner_score, outer_score
 
 F, X, P = Action.FOLD, Action.CHECK_CALL, Action.POT
 
@@ -240,48 +240,54 @@ def test_the_shorthand_and_the_labels_read_the_two_jobs_of_check_call():
     assert action_label(P, ()) == "bet"
     assert action_label(P, (P,)) == "raise"
     assert action_label(Action.THROW_NONE) == "stand pat"
-    assert action_label(Action.THROW_LO_TO) == "throw low+top"
+    assert action_label(Action.THROW_TOP) == "throw top"
 
 # ---------------------------------------------------------------------------
 # The draw
 # ---------------------------------------------------------------------------
 
-def test_the_draw_offers_seven_throws_of_at_most_two_cards():
+def test_the_draw_offers_four_throws_of_at_most_one_card():
+    # The cap is one, so the draw node is 4 wide rather than 7: stand pat, or
+    # throw exactly one of the three. A player can improve a card here, never a
+    # pair of them.
     state = play(BOARD_ONE, X, X)
     assert state.is_draw_decision()
     assert state.legal_actions() == DRAW_ACTIONS
-    assert len(DRAW_ACTIONS) == 7
-    assert {throw_count(action) for action in DRAW_ACTIONS} == {0, 1, 2}
+    assert THROW_CAP == 1
+    assert len(DRAW_ACTIONS) == 4
+    assert {throw_count(action) for action in DRAW_ACTIONS} == {0, 1}
     assert all(throw_count(action) <= THROW_CAP for action in DRAW_ACTIONS)
-    assert len(set(DISCARD_MASK.values())) == 7
+    assert len(set(DISCARD_MASK.values())) == 4
 
 def test_standing_pat_does_not_wake_the_deck_and_a_throw_does():
     draw = play(BOARD_ONE, X, X)
     assert draw.apply(Action.THROW_NONE).kind is NodeKind.DECISION
-    thrown_one = draw.apply(Action.THROW_MID)
-    assert thrown_one.kind is NodeKind.CHANCE
-    assert all(len(cards) == 1 for cards, _ in thrown_one.chance_outcomes())
-    thrown_two = draw.apply(Action.THROW_LO_TO)
-    assert all(len(cards) == 2 for cards, _ in thrown_two.chance_outcomes())
-    assert len(thrown_two.chance_outcomes()) == len(tuple(combinations(range(8), 2)))
+    thrown = draw.apply(Action.THROW_MID)
+    assert thrown.kind is NodeKind.CHANCE
+    outcomes = thrown.chance_outcomes()
+    # One replacement, drawn from the eight cards the deal and the first board
+    # card left, and each is equally likely.
+    assert all(len(cards) == 1 for cards, _ in outcomes)
+    assert len(outcomes) == 8
+    assert sum(probability for _, probability in outcomes) == pytest.approx(1.0)
 
-def test_the_deck_deals_the_replacements_in_one_node_and_the_hole_fills_back_up():
-    state = play(BOARD_ONE, X, X, Action.THROW_LO_MI)
-    assert len(state.holes[0]) == 1
-    assert state.draws == (DrawSignal(2),)
-    replacements = state.chance_outcomes()[0][0]
-    filled = state.apply_chance(replacements)
+def test_the_deck_deals_the_replacement_and_the_hole_fills_back_up():
+    state = play(BOARD_ONE, X, X, Action.THROW_LOW)
+    assert len(state.holes[0]) == 2
+    assert state.draws == (DrawSignal(1),)
+    replacement = state.chance_outcomes()[0][0]
+    filled = state.apply_chance(replacement)
     assert len(filled.holes[0]) == 3
-    assert set(replacements) <= set(filled.holes[0])
+    assert set(replacement) <= set(filled.holes[0])
     assert filled.is_draw_decision() and filled.current_player == 1
 
 def test_a_throw_names_its_cards_by_canonical_position():
     draw = play(BOARD_ONE, X, X)
     ordered = draw_order(hole=draw.holes[0], discarded=(), board=draw.board)
     assert ordered == parse_cards("2c 3c 6d")
-    thrown = draw.apply(Action.THROW_LO_TO)
-    assert thrown.discards[0] == parse_cards("2c 6d")
-    assert thrown.holes[0] == parse_cards("3c")
+    thrown = draw.apply(Action.THROW_TOP)
+    assert thrown.discards[0] == parse_cards("6d")
+    assert thrown.holes[0] == parse_cards("2c 3c")
 
 def test_a_relabelled_position_throws_the_relabelled_card():
     # The trap `draw_order` exists for. These two positions are one position
@@ -303,14 +309,14 @@ def test_a_relabelled_position_throws_the_relabelled_card():
 def test_every_throw_maps_a_whole_infoset_to_one_infoset():
     """The draw mask's soundness, checked exhaustively rather than by example.
 
-    A ledger's seven columns are shared by every concrete position in an
+    A ledger's four columns are shared by every concrete position in an
     infoset, so an action has to mean one decision across all of them: throwing
     column k must land every member of the class in the *same* child class. It
     does — over all 970 canonical (hole, board-1) classes and the 5,460 concrete
     pictures behind them, zero classes split.
 
     The second half is why `draw_order` exists. Order the hole by physical suit
-    numbers instead of canonical labels and 1,400 (class, action) pairs split
+    numbers instead of canonical labels and 700 (class, action) pairs split
     apart: one strategy, two different cards thrown, and a solve that is wrong
     with no traceback. That is the §7.3 trap in its most concrete form.
     """
@@ -340,10 +346,41 @@ def test_every_throw_maps_a_whole_infoset_to_one_infoset():
     split_canonical = sum(splits(canonically, mask) for mask in DISCARD_MASK.values())
     split_physical = sum(splits(physically, mask) for mask in DISCARD_MASK.values())
     assert split_canonical == 0
-    assert split_physical == 1_400
+    assert split_physical == 700
+
+def test_the_cap_of_one_costs_eleven_thousand_post_draw_keys():
+    """The number `THROW_CAP`'s comment claims, re-derived rather than asserted.
+
+    A post-draw key is (what I hold, what I threw, the board so far) up to suit
+    relabelling — the private position a ledger is allocated against once the
+    draw is over. At a cap of one there are 11,140 of them: 970 for standing pat
+    and 10,170 for the three one-card throws. At a cap of two the same count is
+    61,590, which is why the cap is a bigger lever on this rung's cost than the
+    deck size is.
+
+    This is not PR 3's census, which measures *infosets* — these differ by the
+    opponent's draw signal, the second board card and the betting lines. It
+    pins only the term the cap actually moves.
+    """
+    stood_pat, drew = set(), set()
+    for hole in combinations(DECK, HOLE_CARDS):
+        for board_card in (card for card in DECK if card not in hole):
+            board = (board_card,)
+            stood_pat.add(canonical(hole, (), board))
+            ordered = draw_order(hole=hole, discarded=(), board=board)
+            for mask in DISCARD_MASK.values():
+                thrown = tuple(card for bit, card in enumerate(ordered) if mask >> bit & 1)
+                if not thrown:
+                    continue
+                kept = tuple(card for card in hole if card not in thrown)
+                for drawn in DECK:
+                    if drawn not in hole and drawn != board_card:
+                        drew.add(canonical(tuple(sorted(kept + (drawn,))), thrown, board))
+    assert (len(stood_pat), len(drew)) == (970, 10_170)
+    assert len(stood_pat | drew) == 11_140
 
 def test_a_discard_is_gone_from_the_deck_and_never_comes_back():
-    state = play(BOARD_ONE, X, X, Action.THROW_LO_MI)
+    state = play(BOARD_ONE, X, X, Action.THROW_LOW)
     discarded = set(state.discards[0])
     assert discarded and not discarded & set(state.remaining_deck())
     assert all(not discarded & set(cards) for cards, _ in state.chance_outcomes())
@@ -368,11 +405,11 @@ def test_the_deck_never_runs_dry_whatever_both_players_throw(first, second):
     assert len(state.apply_chance(board_two[0][0]).remaining_deck()) == 7 - thrown
 
 def test_only_the_count_of_a_draw_is_public():
-    signal = DrawSignal(2)
-    assert signal.count == 2
+    signal = DrawSignal(1)
+    assert signal.count == 1
     assert [field for field in DrawSignal.__dataclass_fields__] == ["count"]
-    with pytest.raises(ValueError, match="throws 0 to 2"):
-        DrawSignal(3)
+    with pytest.raises(ValueError, match="throws 0 to 1"):
+        DrawSignal(2)
 
 # ---------------------------------------------------------------------------
 # Infosets
@@ -429,11 +466,11 @@ def test_which_cards_were_kept_and_which_drawn_is_merged():
 
 def test_the_opponent_s_draw_count_is_part_of_the_key():
     stood_pat = play(BOARD_ONE, X, X, Action.THROW_NONE)
-    threw_two = play(BOARD_ONE, X, X, Action.THROW_LO_MI).apply_chance(parse_cards("6c 6h"))
-    assert stood_pat.current_player == threw_two.current_player == 1
+    drew_one = play(BOARD_ONE, X, X, Action.THROW_LOW).apply_chance(parse_cards("6c"))
+    assert stood_pat.current_player == drew_one.current_player == 1
     assert stood_pat.infoset().draws == (DrawSignal(0),)
-    assert threw_two.infoset().draws == (DrawSignal(2),)
-    assert stood_pat.infoset() != threw_two.infoset()
+    assert drew_one.infoset().draws == (DrawSignal(1),)
+    assert stood_pat.infoset() != drew_one.infoset()
 
 def test_a_ledger_is_as_wide_as_the_legal_actions_at_every_spot():
     for moves in (

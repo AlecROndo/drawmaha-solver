@@ -42,9 +42,12 @@ def test_three_suits_is_what_makes_trips_possible():
     for rank in RANKS:
         assert len([card for card in DECK if card.rank == rank]) == 3
 
-def test_the_deck_floor_leaves_three_cards_of_slack():
-    # §4.1: 6 private + board 1 + both players throwing 2 + board 2 = 12.
-    assert len(DECK) - (2 * 3 + 1 + 2 * 2 + 1) == 3
+def test_the_deck_floor_leaves_five_cards_of_slack():
+    # §4.1, at a throw cap of one: 6 private + board 1 + both players throwing
+    # 1 + board 2 = 10 cards out of 15. No line can exhaust the stub, so the
+    # last board card always has several outcomes and no reshuffle rule is
+    # needed. (At a cap of two the floor was 12 and the slack 3.)
+    assert len(DECK) - (2 * 3 + 1 + 2 * 1 + 1) == 5
 
 def test_cards_render_and_parse_back():
     assert hand_symbol(DECK[:4]) == "2c 2d 2h 3c"
