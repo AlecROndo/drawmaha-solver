@@ -3,27 +3,35 @@
 A tabular solver has to know its own size before it allocates anything, and
 rung 3 is the first rung where that question cannot be answered by walking the
 game. The concrete tree — one node per (deal, board card, actions,
-replacements) history — holds **8.7 x 10^11 decision nodes**. Rung 2's
-`all_infosets()` could afford to be a literal list comprehension over 288
-positions; the same approach here does not run slowly, it does not run.
+replacements) history — holds **85,129,644,600 decision nodes**. Rung 2's
+`all_infosets()` could afford to be a literal list comprehension over Leduc's
+288 positions; the same approach here does not run slowly, it does not run.
 
 What makes the count reachable anyway is that the position factorises into two
 independent halves, and neither half is large:
 
 * a **public point** — the betting lines so far, both draw counts, how many
-  board cards are out, and whose turn it is. There are **288** of them, and not
+  board cards are out, and whose turn it is. There are **141** of them, and not
   one depends on a single card, so ONE representative deal walks all of them.
-  That is the same 288 whether the deck is 15 cards or 52.
+  That is the same 141 whether the deck is 15 cards or 52.
 * a **private key** — the acting player's own `(hole, discarded, board)` after
-  the joint canonical relabelling. **970 / 10,170 / 50,450** while one board
-  card is out and **5,160 / 50,450 / 226,200** once two are, each triple
-  ordered by whether that player has thrown 0, 1 or 2 cards. The first triple
-  sums to 61,590, which is the number §4.3 of the plan measured from the other
-  side — by walking draw histories rather than by building keys directly.
+  the joint canonical relabelling. **970 / 10,170** while one board card is out
+  and **5,160 / 50,450** once two are, each pair ordered by whether that player
+  has thrown 0 or 1 cards. The first pair sums to 11,140, which is the number
+  §4.3 of the plan measured from the other side — by walking draw histories
+  rather than by building keys directly.
 
 An infoset is exactly one of each, so the enumerator is two nested loops and
-the census is a 288-term sum of products: **23,706,960 ledgers, about 11.85
-million per player.**
+the census is a 141-term sum of products: **3,142,290 ledgers, 1,567,750 for
+P0 and 1,574,540 for P1.**
+
+Every count here is the game at `THROW_CAP = 1`. The cap is the dominant term
+and it pulls twice — it sets the draw's ledger width AND how many draw points
+P1 has, since P0's count is public by then — so at a cap of two the same
+factorisation reported 288 public points and 23,706,960 ledgers, 2.37x over
+this rung's budget. That measurement is what moved the cap. Nothing below
+hard-codes either setting; the numbers in this docstring are the only place
+the current one is written down.
 
 **Why every pairing is real, and why none is counted twice.** Reachability is
 the claim that could quietly be wrong in either direction, so both halves of it
@@ -31,15 +39,15 @@ are argued here and tested in `tests/minidrawmaha/test_census.py`:
 
 * *Nothing is missing.* A public point constrains the actor's own throw count
   (it is in `draws`) and nothing else about the cards; a private key constrains
-  the cards and nothing about the betting. The deck has three cards of slack at
-  the deepest line (§4.1), so the opponent's hand and both board cards always
-  fit around any private key, and every subset of at most two of a hole is a
-  legal throw — so card removal never blocks a pairing.
+  the cards and nothing about the betting. The deepest line spends 10 of the
+  15 cards (§4.1), so the opponent's hand and both board cards always fit
+  around any private key, and every subset of at most `THROW_CAP` cards of a
+  hole is a legal throw — so card removal never blocks a pairing.
 * *Nothing is doubled.* `player`, `draws` and `betting` are all carried inside
   the key, so two different public points can never produce the same `InfoSet`,
   and inside one point the private keys are distinct by construction. Counting
-  what comes out is therefore exact, which matters: a `set` of 23.7 million
-  keys would cost around twelve gigabytes to hold.
+  what comes out is therefore exact, which matters: a `set` of 3.1 million keys
+  costs some hundreds of megabytes to hold, and holding it buys nothing.
 
 `all_infosets()` is deliberately the ONLY walk. The census script counts what
 it yields, and the ledger table allocates one `RegretMatcher` per key it
@@ -116,7 +124,7 @@ class PublicPoint:
 def merged(seen: PublicPoint, arriving: PublicPoint) -> PublicPoint:
     """One public point out of two arrivals at it, with their weights added.
 
-    Three of the seven throws take one card and the table cannot tell them
+    Three of the four throws take one card and the table cannot tell them
     apart afterwards, so the walk reaches the same public point by different
     routes and their concrete histories have to add up rather than overwrite.
 
@@ -140,10 +148,10 @@ def merged(seen: PublicPoint, arriving: PublicPoint) -> PublicPoint:
 
 @cache
 def public_tree() -> tuple[PublicPoint, ...]:
-    """Every public node of mini-drawmaha: 288 decisions, 78 chances, 393 terminals.
+    """Every public node of mini-drawmaha: 141 decisions, 36 chances, 178 terminals.
 
     Walked from a representative deal rather than derived, so that the betting
-    rules, the draw's seven actions and the action-dependent chance branch are
+    rules, the draw's four actions and the action-dependent chance branch are
     read off `game.py` itself — a change to any of them moves this tree without
     anybody having to remember to update a table. Which cards the deal holds
     cannot matter: the public tree is the same for all 100,100 of them, and
@@ -155,8 +163,8 @@ def public_tree() -> tuple[PublicPoint, ...]:
       differ only in which cards come out, which is invisible at this grain, so
       the walk follows the first and multiplies the weight it carries by how
       many there were. That weight is `concrete_nodes`, and it is what lets the
-      census report the ~10^12 concrete tree it refuses to walk.
-    * **nodes are merged by signature.** Three of the seven throws take one
+      census report the 8.5 x 10^10 concrete tree it refuses to walk.
+    * **nodes are merged by signature.** Three of the four throws take one
       card, and the table cannot tell them apart afterwards, so they arrive at
       the same public point and their weights add.
     """
@@ -197,7 +205,7 @@ def public_tree() -> tuple[PublicPoint, ...]:
 
 @cache
 def public_decision_points() -> tuple[PublicPoint, ...]:
-    """The 288 public points a ledger can stand on, in walk order.
+    """The 141 public points a ledger can stand on, in walk order.
 
     Chance and terminal nodes are dropped here rather than never built: the
     census reports all three counts, and a terminal that the walk stopped
@@ -216,16 +224,16 @@ def private_keys(*, board_cards: int, discards: int) -> tuple[PrivateKey, ...]:
     Built in **key space**, not history space: three disjoint groups of the
     right sizes, relabelled jointly, deduped. The equivalent design-time script
     walked draw histories instead — dealt hand, throw, replacement — and got
-    the same 61,590 at one board card, which is the cross-check that the
+    the same 11,140 at one board card, which is the cross-check that the
     shortcut is sound. It is sound because the throw cap allows *every* subset
-    of at most two cards, so no split of a hole into kept and thrown is
-    unreachable, and the deck's three cards of slack mean the opponent always
-    fits around whatever is left.
+    of at most `THROW_CAP` cards, so no split of a hole into kept and thrown is
+    unreachable, and the five cards the deepest line leaves in the stub mean
+    the opponent always fits around whatever is left.
 
     Sorted rather than left in set order so that two runs of the census, and
     two allocations of the ledger table, see the keys in the same order.
-    Cached because the six shapes cost about twenty-five seconds together and
-    every one of the 288 public points asks for one of them.
+    Cached because the four shapes cost about four and a half seconds together
+    and every one of the 141 public points asks for one of them.
     """
     keys: set[PrivateKey] = set()
     for hole in combinations(DECK, HOLE_CARDS):
@@ -241,13 +249,14 @@ def private_keys(*, board_cards: int, discards: int) -> tuple[PrivateKey, ...]:
 # ---------------------------------------------------------------------------
 
 def all_infosets() -> Iterator[InfoSet]:
-    """Every infoset in mini-drawmaha, each exactly once. 23,706,960 of them.
+    """Every infoset in mini-drawmaha, each exactly once. 3,142,290 of them.
 
     A generator, and the only walk: `scripts/generate_minidrawmaha_census.py`
     counts what it yields and `infoset_table.py` allocates one ledger per key
     it yields, so the census and the table can never disagree about what the
-    game is. Consuming the whole of it takes minutes — hold the two building
-    blocks above instead if all you want is a count or a slice.
+    game is. Consuming the whole of it builds 3.1 million `InfoSet` objects —
+    hold the two building blocks above instead if all you want is a count or a
+    slice, since a count is a sum of products over them and needs no walk.
     """
     for point in public_decision_points():
         for hole, thrown, board in private_keys(

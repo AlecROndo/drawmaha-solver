@@ -9,14 +9,14 @@ loudly, instead of quietly shipping a solver for a different game.
 
 The two derivations are deliberately different:
 
-* the fixture's totals were produced by **consuming the generator** — 23.7
-  million `InfoSet` objects, about four minutes;
+* the fixture's totals were produced by **consuming the generator** — 3.1
+  million `InfoSet` objects;
 * the tests below rebuild them as a **sum of products** over the enumerator's
   two building blocks, in about twenty-five seconds, and check a 150,000-key
   prefix of the generator against that product.
 
 Agreement between the two is the real check: a generator that skipped a public
-point, or yielded one twice, would match neither. The whole four-minute count is
+point, or yielded one twice, would match neither. The whole generator count is
 here as well, behind `MINIDRAWMAHA_FULL_CENSUS=1`, so the default run stays
 short — the fast tests already move whenever the slow one would.
 
@@ -63,7 +63,7 @@ FULL_RUN = os.environ.get("MINIDRAWMAHA_FULL_CENSUS") == "1"
 # How many cards a player may already have thrown, at whichever cap the rules
 # are set to. Read from `THROW_CAP` rather than written out, because the cap is
 # this rung's declared cost lever (`game.py:104`) and a referee that spelled out
-# its own three shapes would pass a cap change while silently refereeing the
+# its own key shapes would pass a cap change while silently refereeing the
 # game it was written for.
 THROW_RANGE = tuple(range(THROW_CAP + 1))
 
@@ -81,7 +81,7 @@ PLAN_POST_DRAW_KEYS = {1: 11_140, 2: 61_590, 3: 212_440}
 PREFIX = 150_000
 
 # ---------------------------------------------------------------------------
-# The public tree: 288 decision points that do not depend on a single card
+# The public tree: 141 decision points that do not depend on a single card
 # ---------------------------------------------------------------------------
 
 def test_the_public_tree_is_the_shape_the_census_recorded():
@@ -123,7 +123,7 @@ def test_the_cap_widens_the_draw_twice_over_once_per_seat():
     assert (seats.count(0), seats.count(1)) == (7, 7 * (THROW_CAP + 1))
 
 def test_two_public_points_can_never_share_an_infoset():
-    # This is why counting the generator is enough and no 23.7-million-entry
+    # This is why counting the generator is enough and no 3.1-million-entry
     # set has to be built: `player`, `draws` and `betting` are all carried in
     # the key itself, so two distinct public points cannot produce one key,
     # and within a point the private keys are distinct by construction.
@@ -132,7 +132,7 @@ def test_two_public_points_can_never_share_an_infoset():
     assert len(signatures) == len(points)
 
 def test_two_routes_to_one_public_point_add_their_concrete_histories():
-    # Three of the seven throws take one card, so the walk arrives at the same
+    # Three of the four throws take one card, so the walk arrives at the same
     # public point three times over and the weights must accumulate rather than
     # overwrite — otherwise the concrete count below is silently short.
     point = next(p for p in public_decision_points() if p.is_draw_decision)
@@ -232,7 +232,7 @@ def _product_census() -> dict[str, dict[str, int]]:
     """The infoset count as a sum of products, which is how the gate is read.
 
     One public point contributes exactly as many ledgers as there are private
-    keys of its shape, so the whole count is a 288-term sum and needs no walk.
+    keys of its shape, so the whole count is a 141-term sum and needs no walk.
     """
     by_player = {"0": 0, "1": 0}
     by_stage = {"round_one": 0, "draw": 0, "round_two": 0}
@@ -275,7 +275,7 @@ def test_the_generator_agrees_with_the_product_on_the_keys_it_emits():
 
 @pytest.mark.skipif(
     not FULL_RUN,
-    reason="the whole 23.7M-key count takes ~4 minutes; set MINIDRAWMAHA_FULL_CENSUS=1",
+    reason="builds all 3.1M keys; set MINIDRAWMAHA_FULL_CENSUS=1 to run it",
 )
 def test_the_generator_yields_exactly_the_committed_census():
     # The fixture's own derivation, repeated: count what comes out, and trust
@@ -384,7 +384,7 @@ def realise(key: InfoSet) -> MiniState:
     return state
 
 def test_every_public_point_can_be_dealt_into_with_a_sample_of_its_keys():
-    # Every one of the 288 public points, three keys each: the first, the last
+    # Every one of the 141 public points, three keys each: the first, the last
     # and one drawn at random. Structural enumeration is only a census of this
     # game if each thing it counts is a position the rules can actually reach.
     rng = Random(20260918)

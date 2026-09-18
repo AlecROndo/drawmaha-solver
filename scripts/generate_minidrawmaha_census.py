@@ -11,24 +11,25 @@ quietly shipping a solver for a different game.
 
     uv run python3 scripts/generate_minidrawmaha_census.py
 
-It takes a few minutes, which is the point of committing the answer. The cost
-is not the arithmetic — it is that this script **counts what the enumerator
-yields**, one `InfoSet` at a time, all 23.7 million of them. It deliberately
-does not compute the total any cheaper way: the test does that, and two
-derivations that agree are worth more than one that is fast.
+It takes about fifteen seconds — long enough to be worth committing the answer
+rather than recomputing it on every run. The cost is not the arithmetic: it is
+that this script **counts what the enumerator yields**, one `InfoSet` at a
+time, all 3.1 million of them. It deliberately does not compute the total any
+cheaper way: the test does that, and two derivations that agree are worth more
+than one that is fast.
 
 The facts it records, and why each is worth pinning:
 
-- **The public tree** — 288 decision points, 78 chance nodes, 393 terminals.
+- **The public tree** — 141 decision points, 36 chance nodes, 178 terminals.
   The shape of the game with the cards taken out, and the thing a mis-stated
   betting rule moves first.
 - **The concrete tree** — what the same tree costs per (deal, board, actions,
-  replacements) history: 8.7 x 10^11 decision nodes. Nobody walks it. It is
+  replacements) history: 85,129,644,600 decision nodes. Nobody walks it. It is
   recorded because it is the reason the rest of this file is measured at the
   grain it is measured at.
 - **The private keys** — how many canonical `(hole, discarded, board)` pictures
-  exist per shape. The 61,590 at one board card is the plan's §4.3 number,
-  reached here from key space rather than from draw histories.
+  exist per shape. The 11,140 at one board card is the plan's §4.3 number for
+  this throw cap, reached here from key space rather than from draw histories.
 - **The infosets** — the ledger count, split by player, by stage and by ledger
   width. This is the deck gate's number.
 - **The gate verdict** — measured against §8's budget of ~5 million infosets
