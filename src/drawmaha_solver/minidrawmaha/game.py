@@ -42,11 +42,14 @@ Three things here are genuinely new against rung 2, and each has a trap:
 
 Betting is pot-limit with the action set `{fold, check/call, pot}`, one
 pot-sized bet, and the stack is what caps the escalation: from the 2-chip ante
-pot the raise war would commit 2 → 8 → 26, so a 26-chip stack buys a bet, a
-raise and an all-in shove, and nothing deeper. That is the whole reason for the
-number. Round 1 has 13 complete lines; round 2 opens in whichever of four
-(pot, stacks) states round 1 left behind, so the infoset key needs no explicit
-chip counts — the lines determine them.
+pot an *uncapped* raise war would commit each actor 2 → 8 → 26 of their own
+chips, so a 26-chip stack buys a bet, a raise and an all-in shove, and nothing
+deeper. Those are the uncapped numbers, and only the first two are what a stack
+of 26 actually pays: 25 is all there is behind the ante, so the third level
+truncates to an all-in and `chip_state().in_round` tops out at 25, never 26.
+That is the whole reason for the number. Round 1 has 13 complete lines; round 2
+opens in whichever of four (pot, stacks) states round 1 left behind, so the
+infoset key needs no explicit chip counts — the lines determine them.
 
 A node is one of three kinds — `DECISION`, `CHANCE`, `TERMINAL` — and that
 trichotomy is what a tree walker branches on. States are frozen: `apply` and
