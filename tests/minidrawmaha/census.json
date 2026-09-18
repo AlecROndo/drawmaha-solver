@@ -1,0 +1,65 @@
+{
+  "_source": "drawmaha_solver.minidrawmaha.enumeration, counted by scripts/generate_minidrawmaha_census.py. Do not hand-edit: regenerate.",
+  "configuration": {
+    "deck_cards": 15,
+    "ranks": 5,
+    "suits": 3,
+    "hole_cards": 3,
+    "board_cards": 2,
+    "throw_cap": 1,
+    "ante": 1,
+    "stack": 26,
+    "root_deals": 100100
+  },
+  "public_tree": {
+    "decision_points": 141,
+    "chance_points": 36,
+    "terminal_points": 178,
+    "decision_points_by_stage": {
+      "draw": 21,
+      "round_one": 8,
+      "round_two": 112
+    },
+    "decision_points_by_player": {
+      "0": 67,
+      "1": 74
+    }
+  },
+  "concrete_tree": {
+    "chance": 3979375400,
+    "decision": 85129644600,
+    "terminal": 130477347000
+  },
+  "private_keys": {
+    "by_shape": {
+      "1_0": 970,
+      "1_1": 10170,
+      "2_0": 5160,
+      "2_1": 50450
+    },
+    "post_draw_board_one_total": 11140
+  },
+  "infosets": {
+    "total": 3142290,
+    "by_player": {
+      "0": 1567750,
+      "1": 1574540
+    },
+    "by_stage": {
+      "draw": 20370,
+      "round_one": 7760,
+      "round_two": 3114160
+    },
+    "by_ledger_width": {
+      "2": 2228280,
+      "3": 893640,
+      "4": 20370
+    }
+  },
+  "gate": {
+    "budget_infosets_per_player": 5000000,
+    "measured_worst_player": 1574540,
+    "ratio_to_budget": 0.314908,
+    "verdict": "within_budget"
+  }
+}
