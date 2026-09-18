@@ -156,12 +156,15 @@ def throw_count(action: Action) -> int:
     """How many cards `action` throws away — the public half of a draw."""
     return DISCARD_MASK[action].bit_count()
 
-# CHECK_CALL is deliberately absent: it renders as `x` or `c` depending on
-# whether anything is owed, which is context the dict does not have. See
-# `line_symbol`.
-ACTION_SYMBOL = {Action.FOLD: "f", Action.POT: "p"} | {
-    action: f"t{throw_count(action)}" for action in DRAW_ACTIONS
-}
+# The betting shorthand, and only the betting: a draw never appears inside a
+# betting line, so a throw has no symbol here. It reads as a word through
+# `action_label` and as a count through `InfoSet.__str__`, which is the whole
+# of what the table learns about it anyway.
+#
+# CHECK_CALL is absent for a different reason: it renders as `x` or `c`
+# depending on whether anything is owed, which is context a dict does not have.
+# See `line_symbol`.
+ACTION_SYMBOL = {Action.FOLD: "f", Action.POT: "p"}
 
 def _facing_bet(line: tuple[Action, ...]) -> bool:
     """True when the player to act has chips to match.
