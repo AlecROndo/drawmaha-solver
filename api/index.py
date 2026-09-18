@@ -470,7 +470,7 @@ PAGE = """\
         </tr>
         <tr class="pending">
           <td class="n">3</td><td class="g">Mini-drawmaha</td>
-          <td class="p">split pots, draws, the face-up draw-1 rule</td>
+          <td class="p">split pots, and a draw the deck answers differently</td>
           <td class="s">pending</td>
         </tr>
         <tr class="pending">
