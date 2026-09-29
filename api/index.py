@@ -924,7 +924,8 @@ const SCENES = {};
 /* the logo: the chip, tilted, turning slowly; faster under the mouse */
 SCENES.logo = {
   palette: logoPalette(), fontPx: 4, still: 0,
-  init() { this.yaw = 0.6; },
+  /* init runs again on resize and once the fonts land; keep the yaw so the chip does not jump */
+  init() { if (this.yaw === undefined) this.yaw = 0.6; },
   frame(g, t, dt) {
     const { W, H } = g;
     const R = Math.min(W, H) * 0.46, cx = W / 2, cy = H / 2;

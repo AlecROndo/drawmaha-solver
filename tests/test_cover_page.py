@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
+SITE = "https://drawmaha.app"
 
 
 def _load_cover_page() -> str:
@@ -50,6 +51,10 @@ def test_every_link_goes_somewhere_that_exists(page: str, routes: set[str]) -> N
             # A same-page anchor: the id has to be on this page.
             assert f'id="{fragment}"' in page, f"{href} points at no id on the page"
             continue
+        if path.startswith(SITE):
+            # The rail's chip links home by the canonical address. That is this
+            # same deploy, so the path after the origin still has to be a route.
+            path = path[len(SITE) :] or "/"
         assert path in routes, f"{href} is not a route in vercel.json"
         if fragment:
             # Cross-page fragments are the visualizers' business, not ours; the
@@ -57,6 +62,18 @@ def test_every_link_goes_somewhere_that_exists(page: str, routes: set[str]) -> N
             assert path in {"/rung0", "/rung1", "/rung2"}, (
                 f"{href} anchors into a page with no app"
             )
+
+
+def test_every_canvas_on_the_page_has_a_scene_in_the_script(page: str) -> None:
+    """The markup and the script are two strings glued together; a canvas whose
+    scene the script never defines is skipped at mount and stays blank."""
+    scenes = set(re.findall(r'<canvas data-scene="([^"]+)"', page))
+    assert scenes == {"logo", "D1", "G5"}, f"the cover page mounts {sorted(scenes)}"
+    assert "<script>\n" in page and "requestAnimationFrame(tick);" in page, (
+        "HERO_JS is not embedded in the page"
+    )
+    for name in scenes:
+        assert f"SCENES.{name} = {{" in page, f"canvas {name} has no SCENES.{name} in the script"
 
 
 def test_the_fonts_it_self_hosts_are_the_ones_the_build_copies(page: str) -> None:
