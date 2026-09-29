@@ -23,6 +23,9 @@ for rung in "${rungs[@]}"; do
   cp -r "web/$rung-viz/dist" "public/$rung"
 done
 
+# The hero studies: a static page and its clips, served at /hero.
+cp -r web/hero-studies public/hero
+
 # Both visualizers bundle the same @fontsource files, so either copy serves the
 # cover page; rung 0's is the one that has always been here.
 #
