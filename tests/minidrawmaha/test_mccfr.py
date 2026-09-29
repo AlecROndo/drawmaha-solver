@@ -45,7 +45,12 @@ from drawmaha_solver.leduc.infoset_table import (
     average_strategy as leduc_average_strategy,
 )
 from drawmaha_solver.leduc.infoset_table import new_infoset_table as new_leduc_table
-from drawmaha_solver.minidrawmaha.game import DRAW_ACTIONS, InfoSet, random_deal
+from drawmaha_solver.minidrawmaha.game import (
+    DRAW_ACTIONS,
+    Action,
+    InfoSet,
+    random_deal,
+)
 from drawmaha_solver.minidrawmaha.mccfr import (
     Solve,
     load_solve,
@@ -316,6 +321,12 @@ def grade(solve: Solve) -> tuple[float, float]:
 # 200k 0.10-0.13 / 0.0001-0.0034; 1M 0.046-0.055 / 0.0003-0.0014. Seed 1 is the
 # slowest of the three at 50k, so the default gate runs on the worst case.
 #
+# The gates follow ONE deterministic trajectory, so they are not flaky, but
+# they are tied to it: anything that changes how the walk consumes the RNG (a
+# change to `_pick`, the traversal order, the deal) moves seed 1 onto another
+# trajectory and can trip a gate with no real regression. Re-measure the three
+# seeds before reading a failure after such a change as a broken walk.
+#
 # What these gates do NOT do at 50k is catch a double-weighted walk. A walk
 # that threads the opponent's reach into the regret weight measured 0.24-0.34
 # at 50k with a value gap of 0.0002-0.0054 — inside every bound here. The spy
@@ -348,7 +359,7 @@ def test_leduc_exploitability_falls_under_sampling(seed_one_trajectory):
 
 @pytest.mark.skipif(
     not FULL_CALIBRATION,
-    reason="a million Leduc iterations is ~5.5 min; set MINIDRAWMAHA_FULL_CALIBRATION=1",
+    reason="a million Leduc iterations is ~4.5 min; set MINIDRAWMAHA_FULL_CALIBRATION=1",
 )
 def test_a_million_iterations_separate_the_walk_from_a_double_weighted_one():
     # Correct walk at 1M: 0.046-0.055 over seeds 1-3. Opponent-reach mutant:
@@ -395,6 +406,31 @@ def test_mini_drawmahas_root_is_dealt_by_the_deck_first():
     train(new_solve(0, table=table, deal=random_deal), 1)
     assert all(len(key.board) >= 1 for key in table)
 
+def test_mini_drawmahas_deck_deals_one_probability_per_public_point():
+    # The claim that makes threading the chance reach inert: at one public
+    # point every world sees the same chance probabilities, because the deck
+    # deals combinations of the stub uniformly and the stub's size is public.
+    # Many deals walked down one public line — call every bet, throw one card
+    # at every draw — must meet the same probabilities at every chance node.
+    rng = np.random.default_rng(0)
+    lines = set()
+    for _ in range(200):
+        state, line = random_deal(rng), []
+        while not state.is_terminal():
+            if state.is_chance_node():
+                outcomes = state.chance_outcomes()
+                probabilities = {probability for _, probability in outcomes}
+                assert len(probabilities) == 1
+                line.append((len(outcomes), probabilities.pop()))
+                state = state.apply_chance(outcomes[rng.integers(len(outcomes))][0])
+            elif state.is_draw_decision():
+                state = state.apply(Action.THROW_LOW)
+            else:
+                state = state.apply(Action.CHECK_CALL)
+        lines.add(tuple(line))
+    assert len(lines) == 1
+    assert len(next(iter(lines))) >= 4
+
 @pytest.mark.skipif(
     not FULL_TABLE,
     reason="the whole 3.1M-ledger table is 1.77 GB; set MINIDRAWMAHA_FULL_TABLE=1",
@@ -437,6 +473,33 @@ def test_load_refuses_a_table_of_another_shape(tmp_path):
     table[last] = RegretMatcher(table[last].n_actions + 1)
     with pytest.raises(ValueError, match="width"):
         load_solve(path, table=table, deal=leduc_deal)
+
+def test_save_refuses_an_empty_table(tmp_path):
+    with pytest.raises(ValueError, match="empty"):
+        save_solve(new_solve(0, table={}, deal=leduc_deal), tmp_path / "solve.npz")
+
+def test_save_refuses_a_stream_it_cannot_restore(tmp_path):
+    solve = leduc_solve(9)
+    solve.rng = np.random.Generator(np.random.Philox(9))
+    with pytest.raises(ValueError, match="PCG64"):
+        save_solve(solve, tmp_path / "solve.npz")
+
+def test_load_refuses_an_unrestorable_stream_before_touching_the_table(tmp_path):
+    path = tmp_path / "solve.npz"
+    save_solve(train(leduc_solve(9), 10), path)
+    with np.load(path) as saved:
+        arrays = dict(saved)
+    state = json.loads(str(arrays["rng_state"]))
+    state["bit_generator"] = "Philox"
+    arrays["rng_state"] = np.str_(json.dumps(state))
+    np.savez(path, **arrays)
+    table = new_leduc_table()
+    with pytest.raises(ValueError, match="PCG64"):
+        load_solve(path, table=table, deal=leduc_deal)
+    assert not any(
+        ledger.cumulative_regret.any() or ledger.strategy_sum.any()
+        for ledger in table.values()
+    )
 
 def test_load_refuses_a_table_of_another_size(tmp_path):
     path = tmp_path / "solve.npz"

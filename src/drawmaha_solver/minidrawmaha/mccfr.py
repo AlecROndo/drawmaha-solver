@@ -36,17 +36,23 @@ converges somewhere else. On Leduc that walk stalls at an exploitability of
 0.14–0.20 where this one reaches 0.05, and is indistinguishable from it for
 the first few hundred thousand iterations. (The chance half is inert in both
 games: every chance probability at one public point is the same number, so it
-rescales a ledger uniformly.) That is the one way to get this file wrong by
-pattern-matching `leduc/cfr.py`, so `traverse` has no reach parameter to
-thread.
+rescales a ledger uniformly. In mini-drawmaha that is because the deck deals
+combinations of the stub uniformly and the stub's size is public; a test walks
+many worlds through one public line to pin it.) That is the one way to get
+this file wrong by pattern-matching `leduc/cfr.py`, so `traverse` has no reach
+parameter to thread.
 
 The strategy sum is banked at the OPPONENT's spots, where the walk samples from
 σ anyway: arriving there already happened with the opponent's own reach, so
 adding σ once per arrival reproduces the own-reach weighting rung 2 wrote out
 by hand. The traverser's own spots bank no strategy — they were enumerated,
 not played, and counting them would credit every action with having been
-chosen. The weight `t` is linear averaging: later, better iterates count more,
-without CFR+'s regret clipping, which interacts badly with sampling noise.
+chosen. The weight `t` makes the AVERAGE linear: later, better iterates count
+more in the answer. The regrets are not weighted — they still accumulate at
+weight 1 — so this is vanilla regret with a linearly weighted average, not
+Linear CFR, which weights both. Weighting the regrets by `t` too, or CFR+'s
+regret clipping, are the plan's levers if convergence stalls; neither has been
+measured against sampling noise here.
 
 Linear weighting makes `t` part of a run's state, which is why training takes a
 `Solve` — table, RNG, root sampler and iteration count together — rather than a
@@ -265,8 +271,15 @@ def save_solve(solve: Solve, path: Path) -> None:
     ledger's strategy sum, are laid end to end in the table's own order, with
     each ledger's width alongside so `load_solve` can slice them back apart and
     refuse a table they do not fit.
+
+    Raises on an empty table, which has nothing to restore, and on a generator
+    other than the PCG64 `new_solve` and `load_solve` build, whose state could
+    not be restored.
     """
     ledgers = list(solve.table.values())
+    if not ledgers:
+        raise ValueError("the table is empty; there is nothing to checkpoint")
+    _require_restorable(solve.rng.bit_generator.state)
     with Path(path).open("wb") as file:
         np.savez(
             file,
@@ -289,24 +302,41 @@ def load_solve(path: Path, *, table: Table, deal: RootSampler = random_deal) -> 
     The widths are the fingerprint: a table with another ledger count or any
     ledger of another width raises before anything is written. A table of the
     same shape but different keys cannot be told apart from the numbers alone,
-    which is why the order contract is the caller's.
+    which is why the order contract is the caller's. The random stream is
+    restored before any ledger is written too, so a checkpoint whose stream
+    cannot be restored leaves the table untouched.
     """
     with np.load(Path(path), allow_pickle=False) as saved:
         widths = saved["widths"]
         _validate_shape(widths, table)
+        rng_state = json.loads(str(saved["rng_state"]))
+        _require_restorable(rng_state)
+        rng = np.random.default_rng()
+        rng.bit_generator.state = rng_state
         regret, strategy_sum = saved["regret"], saved["strategy_sum"]
         ends = np.cumsum(widths)
         for ledger, end, width in zip(table.values(), ends, widths, strict=True):
             ledger.cumulative_regret[:] = regret[end - width : end]
             ledger.strategy_sum[:] = strategy_sum[end - width : end]
-        rng = np.random.default_rng()
-        rng.bit_generator.state = json.loads(str(saved["rng_state"]))
         return Solve(
             table=table,
             rng=rng,
             deal=deal,
             seed=int(saved["seed"]),
             iteration=int(saved["iteration"]),
+        )
+
+def _require_restorable(rng_state: Mapping[str, Any]) -> None:
+    """Refuse a random stream a checkpoint cannot carry, with a message that says so.
+
+    Only PCG64 is carried: it is what `new_solve` seeds and what `load_solve`
+    rebuilds, and its state is plain integers, so it survives JSON. Another
+    generator's state holds arrays, and would fail deep inside NumPy or JSON.
+    """
+    name = rng_state.get("bit_generator")
+    if name != "PCG64":
+        raise ValueError(
+            f"a checkpoint carries only a PCG64 random stream, not {name!r}"
         )
 
 def _widths(table: Table) -> np.ndarray:
