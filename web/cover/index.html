@@ -1,0 +1,2417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drawmaha Solver — the strategy explorer for a game that never had one</title>
+<meta name="description" content="A solver for Drawmaha, the split-pot draw/Omaha hybrid nobody has solved, built rung by rung: rock-paper-scissors, Kuhn, Leduc, mini-Drawmaha, then the full game.">
+<style>
+@font-face{font-family:'Instrument Serif';font-style:normal;font-weight:400;src:url('/fonts/instrument-serif-latin-400-normal.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Instrument Serif';font-style:italic;font-weight:400;src:url('/fonts/instrument-serif-latin-400-italic.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;src:url('/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');font-display:block}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;src:url('/fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2');font-display:block}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;src:url('/fonts/ibm-plex-mono-latin-600-normal.woff2') format('woff2');font-display:block}
+@font-face{font-family:'Instrument Sans';font-style:normal;font-weight:400;src:url('/fonts/instrument-sans-latin-400-normal.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Instrument Sans';font-style:normal;font-weight:500;src:url('/fonts/instrument-sans-latin-500-normal.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Instrument Sans';font-style:normal;font-weight:600;src:url('/fonts/instrument-sans-latin-600-normal.woff2') format('woff2');font-display:swap}
+
+:root{
+  --field:#0c0a0b;            /* the page */
+  --panel:#131011;            /* windows and widgets */
+  --well:#0a0809;             /* inside a window: the cells, the table */
+  --ivory:#f5f0e6;
+  --iv-80:rgba(245,240,230,.8);
+  --iv-60:rgba(245,240,230,.6);
+  --iv-45:rgba(245,240,230,.45);
+  --iv-30:rgba(245,240,230,.3);
+  --iv-16:rgba(245,240,230,.16);
+  --iv-10:rgba(245,240,230,.1);
+  --iv-06:rgba(245,240,230,.06);
+  --iv-03:rgba(245,240,230,.035);
+  --ox:#8e2038;               /* brand: the chip's pattern, fills, the squiggle */
+  --ox-lit:#b52a4c;           /* oxblood lifted one step so a stroke reads on black */
+  --yellow:#e9b862;           /* data: the thing you are pointing at */
+  --yellow-20:rgba(233,184,98,.2);
+  --pink:#d8566f;             /* action: bet / raise, the head of a trail */
+  --pink-20:rgba(216,86,111,.2);
+  --serif:'Instrument Serif',Georgia,serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --sans:'Instrument Sans',system-ui,-apple-system,sans-serif;
+  --max:1312px;
+  --gutter:clamp(18px,3.6vw,48px);
+}
+*{box-sizing:border-box}
+html{background:var(--field);color:var(--ivory);scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;font-family:var(--sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+::selection{background:var(--yellow);color:var(--field)}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 var(--gutter)}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--iv-60);display:flex;align-items:center;gap:10px}
+.eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--pink);box-shadow:0 0 0 3px var(--pink-20)}
+h1,h2,h3{font-weight:400;margin:0}
+h1{font-family:var(--serif);font-size:clamp(46px,4.9vw,72px);line-height:.98;letter-spacing:-.015em;text-wrap:balance}
+h1 em,h2 em{font-style:italic;color:var(--yellow)}
+h2{font-family:var(--serif);font-size:clamp(34px,3.2vw,46px);line-height:1.04;letter-spacing:-.01em}
+h3{font-family:var(--serif);font-size:30px;line-height:1.1}
+p{margin:0}
+.lede{font-size:18px;line-height:1.5;color:var(--iv-80);max-width:50ch}
+.lede b{color:var(--ivory);font-weight:500}
+.squig{display:block;height:12px;width:190px;margin-top:12px}
+.squig path{fill:none;stroke:var(--ox-lit);stroke-width:2.2;stroke-linecap:round}
+.btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:500;letter-spacing:.02em;padding:11px 16px;border-radius:4px;text-decoration:none;border:1px solid var(--iv-30);white-space:nowrap;transition:border-color .15s,background .15s,color .15s}
+.btn:hover{border-color:var(--ivory);background:var(--iv-06)}
+.btn .k{color:var(--iv-45);font-weight:400}
+.btn.primary{background:var(--ivory);color:var(--field);border-color:var(--ivory)}
+.btn.primary:hover{background:var(--yellow);border-color:var(--yellow)}
+.btn.pink{background:var(--pink);color:var(--field);border-color:var(--pink)}
+.btn.pink:hover{background:var(--yellow);border-color:var(--yellow)}
+
+/* ---------- top bar ---------- */
+.top{position:sticky;top:0;z-index:10;background:linear-gradient(var(--field) 72%,rgba(12,10,11,0));backdrop-filter:blur(6px)}
+.top .wrap{display:flex;align-items:center;gap:20px;height:64px}
+.chip-home{display:flex;align-items:center;gap:12px;text-decoration:none}
+.chip-home canvas{width:56px;height:56px;display:block}
+.chip-home .word{font-family:var(--serif);font-size:24px;line-height:1}
+.chip-home .word small{display:block;white-space:nowrap;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--iv-45);margin-top:3px}
+/*@NAVCSS@*/
+.nav{margin-left:auto;display:flex;align-items:center;gap:2px;font-family:var(--mono);font-size:13px}
+.navbtn{display:inline-flex;align-items:center;height:34px;padding:0 12px;border-radius:4px;text-decoration:none;color:var(--iv-60);font:inherit;background:none;border:0;cursor:pointer;transition:background .15s,color .15s}
+.navbtn:hover{background:var(--iv-06);color:var(--ivory)}
+.navbtn.on,.navbtn.on:hover{background:var(--iv-10);color:var(--ivory)}
+/* the rungs: a rope ladder pulled open from the button. The menu sits before the button in the row (order:-1) so it
+   spills leftward and pushes Rules aside; the rope is threaded through the gaps between the rung cells. */
+.rungs{display:flex;align-items:center}
+.rungs.open .rungs-btn{background:var(--iv-10);color:var(--ivory)}
+.rungs-menu{order:-1;position:relative;display:flex;align-items:center;justify-content:flex-end;gap:14px;height:64px;width:0;padding-right:10px;overflow-x:clip;overflow-y:visible;visibility:hidden;transition:width .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .16s}
+.rungs.open .rungs-menu{visibility:visible;transition:width .5s cubic-bezier(.2,.8,.2,1),visibility 0s}
+.rungs-menu::before{content:'';position:absolute;left:8px;right:0;top:50%;height:2px;margin-top:-1px;background:repeating-linear-gradient(90deg,var(--iv-45) 0 3px,var(--iv-10) 3px 6px);transform:scaleX(0);transform-origin:right center;transition:transform .55s cubic-bezier(.2,.8,.2,1)}
+.rungs.open .rungs-menu::before{transform:scaleX(1)}
+.rcell{position:relative;flex:0 0 auto;background:var(--field);opacity:0;transform:translateX(26px);transition:opacity .26s ease,transform .34s cubic-bezier(.2,.8,.2,1);transition-delay:calc(var(--i)*75ms)}
+.rungs.open .rcell{opacity:1;transform:none}
+.rungs:not(.open) .rcell{transition-delay:0s;transition-duration:.14s}
+.rcell::after{content:'';position:absolute;left:0;right:0;top:100%;height:14px}
+.rmain{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border:1px solid var(--iv-30);border-radius:4px;text-decoration:none;color:var(--ivory);white-space:nowrap;transition:background .15s,border-color .15s}
+.rmain b{font-family:var(--serif);font-weight:400;font-size:21px;line-height:1;min-width:11px;text-align:center}
+.rmain span{font-size:11px;letter-spacing:.02em;color:var(--iv-60)}
+.rmain:hover,.rcell:focus-within .rmain{background:var(--iv-06);border-color:var(--iv-60)}
+.rcell.now .rmain{border-color:rgba(216,86,111,.35)} .rcell.now .rmain b{color:var(--pink)} .rcell.now .rmain span{color:var(--iv-45)}
+.rcell.todo .rmain{border-color:var(--iv-16)} .rcell.todo .rmain b{color:var(--iv-45)} .rcell.todo .rmain span{color:var(--iv-30)}
+.racts{position:absolute;left:0;top:100%;margin-top:8px;display:flex;gap:2px;padding:4px;background:var(--panel);border:1px solid var(--iv-16);border-radius:4px;box-shadow:0 12px 30px rgba(0,0,0,.55);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .15s,transform .15s,visibility 0s linear .15s}
+.rcell:hover .racts,.rcell:focus-within .racts{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+.racts a{font-size:11px;letter-spacing:.04em;padding:5px 9px;border-radius:3px;text-decoration:none;color:var(--iv-60);white-space:nowrap}
+.racts a:hover,.racts a:focus-visible{background:var(--iv-06);color:var(--ivory)}
+@media (prefers-reduced-motion:reduce){.rungs-menu,.rungs-menu::before,.rcell,.racts,.rungs:not(.open) .rcell{transition:none}}
+/*@/NAVCSS@*/
+
+/* ---------- hero: copy beside the object ---------- */
+.hero{padding:22px 0 0}
+.hero-grid{display:grid;grid-template-columns:minmax(0,9fr) minmax(0,12fr);gap:24px;align-items:center;min-height:520px}
+.hero-copy{padding:8px 0 24px}
+.hero-copy h1{margin-top:18px}
+.hero-copy .lede{margin-top:22px}
+.hero-copy .cta{display:flex;gap:10px;margin-top:28px;flex-wrap:wrap}
+.rules-link{display:inline-block;margin-top:18px;font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--iv-45);text-decoration:none;border-bottom:1px solid var(--iv-16);padding-bottom:2px;transition:color .15s,border-color .15s}
+.rules-link:hover{color:var(--yellow);border-color:var(--yellow)}
+.object{position:relative;height:548px;min-width:0}
+.object canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.object .cap{position:absolute;right:0;bottom:8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--iv-30);text-align:right;line-height:1.6}
+.object .cap b{display:block;font-weight:500;color:var(--iv-60)}
+
+/* ---------- the console strip: rung 0 running ---------- */
+.console{margin-top:8px;border:1px solid var(--iv-10);border-radius:6px;background:var(--panel);font-family:var(--mono);font-size:12px;display:grid;grid-template-columns:auto minmax(300px,1.2fr) auto auto minmax(190px,.9fr);align-items:stretch;overflow:hidden}
+.console>div{padding:12px 16px;border-right:1px solid var(--iv-10);display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0;overflow:hidden}
+.console>div:last-child{border-right:0}
+.console .lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45)}
+.console .cmd{color:var(--iv-60);white-space:nowrap}
+.console .cmd b{color:var(--ivory);font-weight:500}
+.console .lbl .st{display:inline-flex;align-items:center;gap:6px;margin-left:10px;color:var(--pink);text-transform:none;letter-spacing:.02em;font-size:11px}
+.console .lbl .st i{width:6px;height:6px;border-radius:50%;background:var(--pink);animation:blink 1.6s infinite}
+.console .lbl .st.done{color:var(--yellow)}
+.console .lbl .st.done i{background:var(--yellow);animation:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.console .prog{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;white-space:nowrap}
+.console .prog b{font-weight:500;color:var(--ivory);font-variant-numeric:tabular-nums;min-width:17.5ch}
+.console .prog .bar{height:8px;background:var(--iv-06);border-radius:2px;overflow:hidden;min-width:80px}
+.console .prog .bar i{display:block;height:100%;width:0;background:var(--pink);transition:width .12s linear}
+.console .prog .pct{color:var(--iv-60);font-variant-numeric:tabular-nums;min-width:4ch;text-align:right}
+.console .big{font-size:20px;font-weight:500;line-height:1;font-variant-numeric:tabular-nums;color:var(--ivory)}
+.console .big small{font-size:11px;font-weight:400;color:var(--iv-45);margin-left:6px}
+.console .big.y{color:var(--yellow)}
+.console .mix{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:center;font-size:11px;color:var(--iv-60);white-space:nowrap}
+.console .mix .b{height:5px;background:var(--iv-06);border-radius:2px;width:64px;overflow:hidden}
+.console .mix .b i{display:block;height:100%;background:var(--yellow);width:33%}
+.console .mix .v{font-variant-numeric:tabular-nums;color:var(--ivory)}
+.console canvas{width:100%;height:44px;display:block}
+.console button{color:var(--iv-60);font-size:11px;text-align:left}
+.console button:hover{color:var(--ivory)}
+
+/* ---------- the product frame ---------- */
+.frame{margin-top:28px;background:var(--panel);border:1px solid var(--iv-16);border-radius:8px;box-shadow:0 40px 100px rgba(0,0,0,.6),0 1px 0 var(--iv-06) inset;overflow:hidden}
+.titlebar{display:flex;align-items:center;gap:16px;height:40px;padding:0 14px;border-bottom:1px solid var(--iv-10);font-family:var(--mono);font-size:12px;color:var(--iv-60);overflow:hidden}
+.titlebar .dots{display:flex;gap:6px}
+.titlebar .dots i{width:10px;height:10px;border-radius:50%;border:1px solid var(--iv-30)}
+.titlebar .path{color:var(--iv-80);white-space:nowrap}
+.titlebar .path b{font-weight:500;color:var(--ivory)}
+.titlebar .tabs{display:flex;gap:2px;margin-left:8px}
+.titlebar .tabs a{padding:4px 10px;border-radius:3px;color:var(--iv-60);text-decoration:none}
+.titlebar .tabs a:hover{color:var(--ivory)}
+.titlebar .tabs a.on{background:var(--iv-10);color:var(--ivory)}
+.titlebar .meta{margin-left:auto;display:flex;gap:18px;white-space:nowrap}
+.titlebar .meta b{font-weight:500;color:var(--ivory)}
+.titlebar .live{display:inline-flex;align-items:center;gap:6px;color:var(--yellow)}
+.titlebar .live i{width:6px;height:6px;border-radius:50%;background:var(--yellow);animation:blink 2s infinite}
+.body{display:grid;grid-template-columns:200px 1fr 320px;min-height:520px}
+.statusbar{display:flex;gap:22px;height:28px;align-items:center;padding:0 14px;border-top:1px solid var(--iv-10);font-family:var(--mono);font-size:10.5px;color:var(--iv-45);white-space:nowrap;overflow:hidden}
+.statusbar .r{margin-left:auto;color:var(--iv-60)}
+.rail{border-right:1px solid var(--iv-10);padding:16px 14px;font-family:var(--mono);font-size:12px}
+.rail .grp{margin-bottom:18px}
+.lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45);margin-bottom:6px}
+.seg{display:flex;flex-wrap:wrap;gap:4px}
+.seg button{padding:5px 8px;border:1px solid var(--iv-16);border-radius:3px;font-family:var(--mono);font-size:12px;color:var(--iv-80);min-width:34px}
+.seg button:hover{border-color:var(--iv-60)}
+.seg button.on{background:var(--ivory);color:var(--field);border-color:var(--ivory);font-weight:500}
+.seg button[disabled]{opacity:.3;cursor:default}
+.rail .hint{color:var(--iv-45);font-size:11px;line-height:1.45;margin-top:22px}
+.rail .hint b{color:var(--iv-60);font-weight:500}
+.rail .keys{margin-top:14px;font-size:11px;color:var(--iv-45);line-height:1.7}
+.rail .keys code{color:var(--iv-80);background:var(--iv-06);padding:0 4px;border-radius:2px}
+.rail .keys i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+.main{padding:16px 18px 14px;display:flex;flex-direction:column;min-width:0}
+.actions{display:flex;gap:8px;align-items:stretch;margin-bottom:12px}
+.act{flex:1;display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--iv-16);border-radius:4px;text-align:left;font-family:var(--mono);transition:border-color .15s,background .15s;--c:var(--iv-60)}
+.act[data-a="c"]{--c:var(--yellow)}
+.act[data-a="r"]{--c:var(--pink)}
+.act:hover{border-color:var(--iv-60)}
+.act .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--iv-60);display:flex;align-items:center;gap:6px}
+.act .k::before{content:'';width:8px;height:8px;border-radius:2px;background:var(--c)}
+.act .v{font-size:22px;font-weight:500;line-height:1.1}
+.act .bar{height:3px;background:var(--iv-06);margin-top:6px;border-radius:2px;overflow:hidden}
+.act .bar i{display:block;height:100%;background:var(--c);width:0;transition:width .35s ease;opacity:.55}
+.act.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent)}
+.act.on .k{color:var(--c)}
+.act.on .bar i{opacity:1}
+.gridwrap{flex:1;display:grid;grid-template-columns:34px 1fr;grid-template-rows:auto 1fr;gap:0 6px;min-height:0}
+.colhead{grid-column:2;display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:4px}
+.colhead div{font-family:var(--mono);font-size:10px;line-height:1.3;color:var(--iv-45);padding:0 2px 4px;border-bottom:1px solid var(--iv-10)}
+.colhead div b{display:block;font-weight:500;color:var(--iv-80);letter-spacing:.04em}
+.rowhead{grid-column:1;display:grid;grid-template-rows:repeat(3,1fr);gap:4px}
+.rowhead div{display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:24px;color:var(--iv-80);border-right:1px solid var(--iv-10)}
+.grid{grid-column:2;display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(3,1fr);gap:4px;--c:var(--pink)}
+.grid.a-f{--c:var(--iv-60)} .grid.a-c{--c:var(--yellow)} .grid.a-r{--c:var(--pink)}
+.cell{position:relative;border:1px solid var(--iv-10);border-radius:3px;overflow:hidden;background:var(--well);cursor:crosshair;text-align:left;min-height:64px;transition:border-color .12s}
+.cell pre{margin:0;font-family:var(--mono);font-size:9px;line-height:10px;letter-spacing:.06em;color:var(--c);white-space:pre;position:absolute;inset:3px 4px;overflow:hidden;opacity:.95}
+.cell .pct{position:absolute;right:5px;bottom:3px;font-family:var(--mono);font-size:11px;font-weight:500;color:var(--ivory);background:rgba(12,10,11,.85);padding:0 3px;border-radius:2px}
+.cell:hover,.cell.pin{border-color:var(--yellow)}
+.cell.pin{box-shadow:0 0 0 1px var(--yellow) inset}
+.cell.na pre{opacity:.18}
+.cell.na .pct{color:var(--iv-45)}
+.legend{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px;font-family:var(--mono);font-size:10.5px;color:var(--iv-45)}
+.legend .ramp{white-space:nowrap;font-size:11px;letter-spacing:.14em;color:var(--iv-80);background:var(--well);padding:2px 6px;border-radius:2px}
+
+.side{border-left:1px solid var(--iv-10);padding:14px 16px 12px;display:flex;flex-direction:column;gap:12px;font-family:var(--mono);font-size:12px}
+.spot .key{font-size:20px;font-weight:500;line-height:1.1}
+.spot .key small{font-size:12px;font-weight:400;color:var(--iv-60);margin-left:6px}
+.spot .desc{color:var(--iv-80);margin-top:4px;line-height:1.45;font-size:11.5px;min-height:32px}
+.bars{display:grid;grid-template-columns:52px 1fr 48px;gap:6px 8px;align-items:center;margin-top:10px}
+.bars .n{color:var(--iv-60)}
+.bars .b{height:10px;background:var(--iv-06);border-radius:2px;overflow:hidden}
+.bars .b i{display:block;height:100%;background:var(--iv-45);width:0;transition:width .35s ease}
+.bars .b.c i{background:var(--yellow)} .bars .b.r i{background:var(--pink)}
+.bars .p{text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
+.tablebox{position:relative;border:1px solid var(--iv-10);border-radius:4px;background:var(--well);height:226px;overflow:hidden}
+.tablebox canvas{position:absolute;inset:0;width:100%;height:100%}
+.tablebox .tag{position:absolute;left:8px;top:6px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--iv-45)}
+.tablebox .tag b{color:var(--yellow);font-weight:500}
+.tablebox .seat{position:absolute;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45);padding:1px 6px;border:1px solid var(--iv-16);border-radius:2px;background:rgba(12,10,11,.7)}
+.tablebox .seat.s2{top:12%}
+.tablebox .seat.s1{bottom:5%}
+.tablebox .seat.on{color:var(--yellow);border-color:var(--yellow)}
+.meter .scale{position:relative;height:38px;margin-top:6px}
+.meter .track{position:absolute;left:0;right:0;top:12px;height:6px;background:var(--iv-06);border-radius:3px}
+.meter .track i{position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,var(--iv-16),var(--yellow));border-radius:3px;width:0;transition:width 1.2s cubic-bezier(.2,.7,.2,1)}
+.meter .tick{position:absolute;top:22px;font-size:9px;color:var(--iv-45);transform:translateX(-50%)}
+.meter .tick::before{content:'';position:absolute;left:50%;top:-8px;height:6px;border-left:1px solid var(--iv-16)}
+.meter .pin{position:absolute;top:6px;width:2px;height:18px;background:var(--yellow);transform:translateX(-50%)}
+.meter .pin.dim{background:var(--iv-45);height:12px;top:9px}
+.meter .read{display:flex;justify-content:space-between;align-items:baseline}
+.meter .read b{font-size:20px;font-weight:500}
+.meter .read span{color:var(--iv-60);font-size:11px}
+.meter .others{display:flex;gap:10px;font-size:10px;color:var(--iv-45);margin-top:4px;white-space:nowrap}
+.caption{font-family:var(--mono);font-size:12px;color:var(--iv-60);margin:12px 0 0;line-height:1.55;max-width:104ch}
+.caption b{color:var(--iv-80);font-weight:500}
+.caption code{color:var(--ivory)}
+
+/* ---------- sections ---------- */
+section{padding:104px 0 0}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+.stands{display:grid;grid-template-columns:1fr 1fr 1fr;gap:28px}
+.stands>div{border-top:1px solid var(--iv-16);padding-top:16px}
+.stands h3{font-size:26px;margin-bottom:8px}
+.stands p{font-size:15px;color:var(--iv-80);max-width:36ch}
+.stands .n{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--iv-45);margin-bottom:12px}
+
+.feat{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;padding:56px 0;border-top:1px solid var(--iv-10)}
+.feat:first-of-type{border-top:0;padding-top:28px}
+.feat.flip .copy{order:2}
+.feat .copy h3{font-size:34px;margin:8px 0 12px}
+.feat .copy p{color:var(--iv-80);max-width:48ch}
+.feat .copy p+p{margin-top:12px}
+.feat .copy .btn{margin-top:22px}
+.widget{background:var(--panel);border:1px solid var(--iv-16);border-radius:8px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.widget .titlebar{height:34px}
+.widget .pane{padding:14px 16px;font-family:var(--mono);font-size:12px}
+.widget canvas{display:block;width:100%}
+.stat{display:flex;gap:22px;margin-top:10px;flex-wrap:wrap}
+.stat div{font-size:11px;color:var(--iv-60)}
+.stat div b{display:block;font-size:16px;font-weight:500;color:var(--ivory);font-variant-numeric:tabular-nums}
+.stat div b span{color:var(--iv-45);font-weight:400}
+.keyrow{display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--iv-60)}
+.keyrow span::before{content:'';display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:6px;background:var(--iv-60)}
+.keyrow .y::before{background:var(--yellow)} .keyrow .p::before{background:var(--pink)}
+.keyrow .d::before{background:repeating-linear-gradient(90deg,var(--iv-60) 0 3px,transparent 3px 6px)}
+.chartwrap{position:relative}
+.tip{position:absolute;pointer-events:none;background:var(--field);border:1px solid var(--iv-16);border-radius:3px;padding:6px 8px;font-size:11px;line-height:1.5;color:var(--iv-80);white-space:nowrap;display:none;z-index:2}
+.tip b{color:var(--ivory);font-weight:500}
+
+/* play widget */
+.play{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.play .cardrow{display:flex;gap:10px;align-items:flex-end}
+.pcard{width:54px;height:76px;border-radius:5px;background:var(--ivory);color:var(--ox);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:34px;position:relative;box-shadow:0 4px 0 rgba(0,0,0,.6)}
+.pcard.back{background:repeating-linear-gradient(45deg,var(--ox) 0 2px,transparent 2px 6px);color:transparent;border:1px solid var(--ox-lit)}
+.pcard.board{border:1px solid var(--iv-30);background:transparent;color:var(--ivory)}
+.pcard.empty{border:1px dashed var(--iv-16);background:transparent;color:var(--iv-16);box-shadow:none}
+.pcard .who{position:absolute;left:0;right:0;bottom:-18px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--iv-45);letter-spacing:.06em}
+.playbtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:28px;align-items:center}
+.playbtns button{padding:7px 12px;border:1px solid var(--iv-30);border-radius:3px;font-family:var(--mono);font-size:12px;font-weight:500}
+.playbtns button:hover{border-color:var(--yellow);color:var(--yellow)}
+.playbtns button[disabled]{opacity:.3;cursor:default}
+.playbtns button.next{background:var(--ivory);color:var(--field);border-color:var(--ivory)}
+.playbtns .wait{font-size:11px;color:var(--iv-45)}
+.log{height:150px;overflow:hidden;font-size:11.5px;line-height:1.55;color:var(--iv-80);border-left:1px solid var(--iv-10);padding-left:12px;display:flex;flex-direction:column;justify-content:flex-end}
+.log .bot{color:var(--yellow)}
+.log .dim{color:var(--iv-45)}
+
+/* the ladder: a chronological walk down the five rungs. Each rung is its object (raymarched, turns on hover),
+   the words, the numbers, and a graph drawn from the run that produced them. */
+.ladder-head{display:grid;grid-template-columns:1fr auto;align-items:end;gap:40px}
+.ladder-head>p{margin:0;max-width:440px;font-size:15px;line-height:1.55;color:var(--iv-60)}
+.ladder-head>p i{font-style:normal;color:var(--iv-80)}
+.ladder-head>p i.y{color:var(--yellow)} .ladder-head>p i.p{color:var(--pink)}
+.ladder{margin-top:30px;border-top:1px solid var(--iv-16)}
+.rung{scroll-margin-top:72px;display:grid;grid-template-columns:300px minmax(0,1fr) minmax(0,1.05fr);gap:0 44px;padding:52px 0 56px;border-bottom:1px solid var(--iv-10);position:relative;transition:background .2s}
+.rung:hover{background:linear-gradient(90deg,var(--iv-03),transparent 40%)}
+.rung .obj{position:relative;min-width:0}
+.rung .num{font-family:var(--serif);font-size:84px;line-height:.9;letter-spacing:-.03em;color:var(--ivory)}
+.rung .num small{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--iv-45);margin-top:14px}
+.rung.now .num{color:var(--pink)}
+.rung.todo .num{color:var(--iv-45)}
+.rung .obj canvas{display:block;width:300px;height:224px;margin-top:6px}
+.rung .name{font-family:var(--serif);font-size:34px;line-height:1.1;margin:4px 0 8px}
+.rung.todo .name{color:var(--iv-60)}
+.rung .method{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45);margin-bottom:18px}
+.rung .method b{color:var(--yellow);font-weight:500}
+.rung .words p{font-size:15px;line-height:1.62;color:var(--iv-80);max-width:46ch}
+.rung .words p b{color:var(--ivory);font-weight:500}
+.rung .nums{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin:20px 0 0;font-family:var(--mono);font-size:12px;line-height:1.55;color:var(--iv-80)}
+.rung .nums>div{border-top:1px solid var(--iv-10);padding-top:8px}
+.rung .nums dt{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45);margin-bottom:3px}
+.rung .nums dd{margin:0;font-variant-numeric:tabular-nums}
+.rung .nums dd b{color:var(--ivory);font-weight:500}
+.rung .go{display:inline-flex;gap:8px;align-items:center;margin-top:22px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--ivory);text-decoration:none}
+.rung .go .arrow{transition:transform .18s}
+.rung .go:hover{color:var(--yellow)} .rung .go:hover .arrow{transform:translateX(4px)}
+.rung .st{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:3px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:none;white-space:nowrap}
+.rung .st i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.rung .st.pass{background:var(--yellow);color:var(--field)}
+.rung .st.prog{background:var(--pink);color:var(--field)}
+.rung .st.prog i{animation:blink 1.6s infinite}
+.rung .st.pend{border:1px solid var(--iv-30);color:var(--iv-60)}
+.fig{position:relative;min-width:0}
+.fig svg,.fig canvas{width:100%;height:auto;display:block;overflow:visible}
+.fig canvas{aspect-ratio:560/330}
+.fig .cap{margin-top:12px;font-family:var(--mono);font-size:11px;line-height:1.6;color:var(--iv-45)}
+.fig .cap b{color:var(--iv-80);font-weight:500}
+.fig .cap i{font-style:normal;color:var(--yellow)}
+.fig .cap em{font-style:normal;color:var(--pink)}
+.fig text{font-family:var(--mono);font-size:11px;fill:var(--iv-45);letter-spacing:.03em}
+.fig text.d{fill:var(--ivory)} .fig text.y{fill:var(--yellow)} .fig text.r{fill:var(--pink)}
+.fig .grid{stroke:var(--iv-06);stroke-width:1}
+.fig .base{stroke:var(--iv-30);stroke-width:1}
+.fig .ref{stroke:var(--iv-30);stroke-width:1;stroke-dasharray:3 5}
+.fig .ser{fill:none;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+/* a line draws on fast and then decelerates over the last two thirds, the same curve as the Kuhn chart */
+.fig .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);transition:stroke-dashoffset 2.8s cubic-bezier(.12,.8,.2,1) .2s}
+.in .fig .draw{stroke-dashoffset:0}
+.fig .late{transition-delay:.7s}
+.fig .fade{opacity:0;transition:opacity .8s ease 2.2s}
+.in .fig .fade{opacity:1}
+.fig .bar{transition:width 1.6s cubic-bezier(.12,.8,.2,1)}
+.between{display:grid;grid-template-columns:300px minmax(0,1fr);gap:0 44px;padding:30px 0 32px;border-bottom:1px solid var(--iv-10)}
+.between .tick{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--iv-45);padding-top:6px}
+.between p{font-size:18px;line-height:1.5;color:var(--iv-60);max-width:40em}
+.between p b{font-weight:500;color:var(--ivory)}
+@media (prefers-reduced-motion:reduce){
+  .fig .draw{stroke-dashoffset:0;transition:none}
+  .fig .fade{opacity:1;transition:none}
+  .fig .bar{transition:none}
+  .rung .st.prog i{animation:none}
+}
+
+/* cta + footer */
+.ctaband{margin-top:112px;padding:64px 0;border-top:1px solid var(--iv-16)}
+.ctaband .wrap{display:grid;grid-template-columns:1fr auto;gap:32px;align-items:center}
+.ctaband .btns{display:flex;gap:10px;flex-wrap:wrap}
+footer{padding:64px 0 56px;font-family:var(--mono);font-size:12px;color:var(--iv-60);text-align:center}
+footer .chip-end{display:inline-block;width:132px;height:132px}
+footer .chip-end canvas{width:132px;height:132px;display:block}
+footer .tag{display:block;margin-top:14px;font-family:var(--serif);font-style:italic;font-size:19px;color:var(--iv-80)}
+footer .links{margin-top:18px;display:flex;justify-content:center;gap:20px}
+footer a{text-decoration:none}
+footer a:hover{color:var(--ivory)}
+
+/* ---------- responsive ---------- */
+/*@NAVNARROW@*/
+@media (max-width:1240px){
+  /* narrow: the rungs open as a list under the button, each rung's actions under it */
+  .rungs{position:relative}
+  .rungs-menu{position:absolute;top:calc(100% + 8px);right:0;width:auto!important;height:auto;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:4px;padding:8px;background:var(--panel);border:1px solid var(--iv-16);border-radius:6px;box-shadow:0 18px 44px rgba(0,0,0,.6);overflow:visible;transition:visibility 0s linear .3s}
+  .rungs-menu::before{display:none}
+  .rcell{display:block;background:none;transform:translateY(-8px);transition-delay:calc(var(--j)*55ms)}
+  .rcell::after{display:none}
+  .rmain{padding:0 12px}
+  .racts{position:static;margin:0;padding:2px 0 6px 12px;opacity:1;visibility:visible;transform:none;background:none;border:0;box-shadow:none}
+  .racts a{padding:4px 8px 4px 0;color:var(--iv-45)}
+  .rcell.todo .racts a{color:var(--iv-30)}
+}
+/*@/NAVNARROW@*/
+@media (max-width:1100px){
+  .body{grid-template-columns:180px 1fr}
+  .side{grid-column:1/-1;border-left:0;border-top:1px solid var(--iv-10);flex-direction:row;flex-wrap:wrap}
+  .side>div{flex:1 1 260px}
+  .console{grid-template-columns:1fr 1fr}
+  .console>div:nth-child(2n){border-right:0}
+  .console>div{border-bottom:1px solid var(--iv-10)}
+  .rung{grid-template-columns:220px minmax(0,1fr) minmax(0,1fr);gap:0 28px}
+  .rung .obj canvas{width:220px;height:164px}
+  .rung .num{font-size:68px}
+  .between{grid-template-columns:220px minmax(0,1fr);gap:0 28px}
+}
+@media (max-width:820px){
+  .hero-grid{grid-template-columns:1fr;min-height:0;gap:8px}
+  .object{order:-1;height:min(88vw,420px)}
+  .object .cap{display:none}
+  .feat,.feat.flip{grid-template-columns:1fr;gap:28px}
+  .feat.flip .copy{order:0}
+  h3{font-size:26px}
+  .body{grid-template-columns:1fr}
+  .rail{border-right:0;border-bottom:1px solid var(--iv-10)}
+  .rail .grp{display:inline-block;vertical-align:top;margin-right:16px}
+  .rail .hint,.rail .keys{display:none}
+  .stands{grid-template-columns:1fr}
+  .ctaband .wrap{grid-template-columns:1fr}
+  .titlebar .meta,.titlebar .tabs{display:none}
+  .ladder-head{grid-template-columns:1fr}
+  .rung{grid-template-columns:1fr;gap:24px 0;padding:40px 0 44px}
+  .rung .obj{display:flex;align-items:flex-end;gap:22px}
+  .rung .obj canvas{margin-top:0;width:min(60vw,260px);height:min(45vw,194px)}
+  .rung .num{font-size:64px}
+  .rung .name{font-size:28px}
+  .between{grid-template-columns:1fr;gap:8px 0;padding:24px 0 26px}
+}
+@media (max-width:640px){
+  .chip-home .word{display:none}
+}
+@media (max-width:480px){
+  .wrap{padding:0 16px}
+  .top .btn{padding:8px 10px;font-size:12px}
+  .chip-home canvas{width:44px;height:44px}
+  .console{grid-template-columns:1fr}
+  .console>div{border-right:0}
+  .actions{flex-direction:column}
+  .gridwrap{overflow-x:auto;grid-template-columns:28px 1fr}
+  .grid,.colhead{min-width:520px}
+  .cell pre{font-size:7px;line-height:8px}
+  .play{grid-template-columns:1fr}
+  .log{border-left:0;padding-left:0;height:120px}
+  .rung .nums{grid-template-columns:1fr}
+  .rung .obj canvas{width:200px;height:150px}
+  .between p{font-size:16px}
+  footer .chip-end,footer .chip-end canvas{width:96px;height:96px}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="chip-home" href="https://drawmaha.app" aria-label="Drawmaha home">
+      <canvas data-chip data-font="3"></canvas>
+      <span class="word">Drawmaha<small>Solver · Deep CFR</small></span>
+    </a>
+    <nav class="nav" aria-label="Site">
+      <a class="navbtn" href="rules.html">Rules</a>
+      <div class="rungs" id="rungs">
+        <button class="navbtn rungs-btn" type="button" aria-expanded="false" aria-controls="rungsMenu" aria-haspopup="true">Rungs</button>
+        <div class="rungs-menu" id="rungsMenu" role="group" aria-label="The five rungs">
+          <div class="rcell done" style="--i:4;--j:0">
+            <a class="rmain" href="https://drawmaha.app/rung0"><b>0</b><span>Rock-paper-scissors</span></a>
+            <div class="racts"><a href="https://drawmaha.app/rung0">Analysis</a></div>
+          </div>
+          <div class="rcell done" style="--i:3;--j:1">
+            <a class="rmain" href="https://drawmaha.app/rung1"><b>1</b><span>Kuhn</span></a>
+            <div class="racts"><a href="https://drawmaha.app/rung1">Analysis</a></div>
+          </div>
+          <div class="rcell done" style="--i:2;--j:2">
+            <a class="rmain" href="https://drawmaha.app/rung2"><b>2</b><span>Leduc</span></a>
+            <div class="racts"><a href="https://drawmaha.app/rung2">Analysis</a><a href="https://drawmaha.app/rung2#walk">Solver</a><a href="https://drawmaha.app/rung2#play">Trainer</a></div>
+          </div>
+          <div class="rcell now" style="--i:1;--j:3">
+            <a class="rmain" href="#rung3"><b>3</b><span>Mini-Drawmaha</span></a>
+            <div class="racts"><a href="#rung3">Analysis</a></div>
+          </div>
+          <div class="rcell todo" style="--i:0;--j:4">
+            <a class="rmain" href="#rung4"><b>4</b><span>Full Drawmaha</span></a>
+            <div class="racts"><a href="#rung4">Analysis</a></div>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <a class="btn primary" href="https://drawmaha.app/rung2">Open the solver →</a>
+  </div>
+</header>
+
+<main>
+<section class="hero" id="explorer" style="padding-top:0">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="dot"></span>Deep CFR · rung 3 of 4 in progress</p>
+        <h1>The solver Drawmaha <em>never had.</em></h1>
+        <svg class="squig" viewBox="0 0 190 12" aria-hidden="true"><path d="M2 7 C 12 1, 20 12, 30 7 S 48 1, 58 7 S 76 12, 86 7 S 104 1, 114 7 S 132 12, 142 7 S 160 1, 170 7 S 184 12, 188 7"/></svg>
+        <p class="lede">Drawmaha is a split-pot draw/Omaha hybrid nobody has solved. We are building the solver one rung at a time: <b>every rung is a smaller game whose answer is already known</b>, and nothing moves up until the solver reproduces it.</p>
+        <div class="cta">
+          <a class="btn primary" href="https://drawmaha.app/rung2">Open the explorer</a>
+          <a class="btn" href="https://drawmaha.app/rung2">Play heads-up Leduc <span class="k">/rung2</span></a>
+        </div>
+        <a class="rules-link" href="rules.html">How Drawmaha is played →</a>
+      </div>
+      <div class="object" aria-hidden="true">
+        <canvas id="object" data-font="6"></canvas>
+        <p class="cap"><b>Raymarched in the browser</b>signed-distance fields · key and rim light · contact shadow</p>
+      </div>
+    </div>
+
+    <div class="console" id="console" aria-label="Rung 0 running: regret matching on rock-paper-scissors">
+      <div>
+        <span class="lbl">Rung 0 · live<span class="st" id="cst"><i></i><span id="cstTxt">running</span></span></span>
+        <span class="cmd">regret matching · <b>self-play</b> · seed <b id="seed">22</b></span>
+        <button type="button" id="cRestart">restart with a new seed →</button>
+      </div>
+      <div>
+        <span class="lbl">Iteration</span>
+        <div class="prog"><b id="cIt">0 / 100,000</b><span class="bar"><i id="cBar"></i></span><span class="pct" id="cPct">0%</span></div>
+      </div>
+      <div>
+        <span class="lbl">Exploitability of σ̄</span>
+        <span class="big y" id="cEx">—<small>chips / round</small></span>
+      </div>
+      <div>
+        <span class="lbl">σ̄ · Nash ⅓ each</span>
+        <div class="mix" id="cMix"></div>
+      </div>
+      <div>
+        <span class="lbl">Exploitability vs iteration · log-log</span>
+        <canvas id="cSpark"></canvas>
+      </div>
+    </div>
+
+    <div class="frame" id="frame">
+      <div class="titlebar">
+        <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+        <span class="path">drawmaha.app / <b>rung2</b> / explorer</span>
+        <div class="tabs"><a class="on" href="#explorer">Strategy</a><a href="#verify">Verify</a><a href="#play">Play</a></div>
+        <div class="meta">
+          <span>Leduc hold'em · CFR · <b>2,000</b> iterations</span>
+          <span>288 spots</span>
+          <span class="live"><i></i>solve.json</span>
+        </div>
+      </div>
+      <div class="body">
+        <aside class="rail">
+          <div class="grp">
+            <div class="lbl">Street</div>
+            <div class="seg" id="segStreet">
+              <button data-v="pre" class="on">Preflop</button>
+              <button data-v="flop">Flop</button>
+            </div>
+          </div>
+          <div class="grp">
+            <div class="lbl">Line before the flop</div>
+            <div class="seg" id="segLine">
+              <button data-v="cc" class="on" disabled>cc</button>
+              <button data-v="rc" disabled>rc</button>
+              <button data-v="crc" disabled>crc</button>
+              <button data-v="rrc" disabled>rrc</button>
+              <button data-v="crrc" disabled>crrc</button>
+            </div>
+          </div>
+          <div class="grp">
+            <div class="lbl">Board card</div>
+            <div class="seg" id="segBoard">
+              <button data-v="J" class="on" disabled>J</button>
+              <button data-v="Q" disabled>Q</button>
+              <button data-v="K" disabled>K</button>
+            </div>
+          </div>
+          <div class="hint"><b>Leduc</b> deals one card each from J J Q Q K K, bets a round, turns one board card, bets again. Pair beats high card. Antes 1; bets 2 then 4; two raises cap a round.</div>
+          <div class="keys"><i style="background:var(--iv-60)"></i><code>f</code> fold<br><i style="background:var(--yellow)"></i><code>c</code> check / call<br><i style="background:var(--pink)"></i><code>r</code> bet / raise</div>
+        </aside>
+
+        <div class="main">
+          <div class="actions" role="group" aria-label="Shade the grid by action">
+            <button class="act" data-a="f"><span class="k">Fold</span><span class="v" id="avgF">—</span><span class="bar"><i id="barF"></i></span></button>
+            <button class="act" data-a="c"><span class="k">Check / call</span><span class="v" id="avgC">—</span><span class="bar"><i id="barC"></i></span></button>
+            <button class="act on" data-a="r"><span class="k">Bet / raise</span><span class="v" id="avgR">—</span><span class="bar"><i id="barR"></i></span></button>
+          </div>
+          <div class="gridwrap">
+            <div class="colhead" id="colhead"></div>
+            <div class="rowhead"><div>J</div><div>Q</div><div>K</div></div>
+            <div class="grid a-r" id="grid" role="grid" aria-label="Strategy grid: rows are your card, columns are the spot in the round"></div>
+          </div>
+          <div class="legend">
+            <span>rows: your card · columns: where the round stands · ink density = how often the shaded action is taken</span>
+            <span class="ramp" id="rampLegend"></span>
+          </div>
+        </div>
+
+        <aside class="side">
+          <div class="spot">
+            <div class="lbl">Spot</div>
+            <div class="key"><span id="spotKey">K:</span><small id="spotSeat">seat 1 to act</small></div>
+            <div class="desc" id="spotDesc"></div>
+            <div class="bars">
+              <span class="n">fold</span><span class="b f" id="bF"><i></i></span><span class="p" id="pF">—</span>
+              <span class="n">call</span><span class="b c" id="bC"><i></i></span><span class="p" id="pC">—</span>
+              <span class="n">raise</span><span class="b r" id="bR"><i></i></span><span class="p" id="pR">—</span>
+            </div>
+          </div>
+          <div>
+            <div class="lbl">Table</div>
+            <div class="tablebox"><canvas id="tableCv"></canvas><span class="tag">to act: <b id="tagSeat">seat 1</b></span><span class="seat s2" id="seatTag2">seat 2</span><span class="seat s1 on" id="seatTag1">seat 1</span></div>
+          </div>
+          <div class="meter">
+            <div class="lbl">Exploitability of this solve</div>
+            <div class="read"><b>0.0113</b><span>chips / hand from Nash</span></div>
+            <div class="scale">
+              <div class="track"><i id="meterFill"></i></div>
+              <span class="tick" style="left:0%">1</span>
+              <span class="tick" style="left:25%">10⁻¹</span>
+              <span class="tick" style="left:50%">10⁻²</span>
+              <span class="tick" style="left:75%">10⁻³</span>
+              <span class="tick" style="left:100%">10⁻⁴</span>
+              <span class="pin dim" style="left:76.1%" title="Rung 0, RPS: 0.0009 per round"></span>
+              <span class="pin dim" style="left:80.1%" title="Rung 1, Kuhn: 0.00063"></span>
+              <span class="pin" id="meterPin" style="left:48.7%"></span>
+            </div>
+            <div class="others"><span>◆ rung 2 · 0.0113</span><span>│ rung 1 · 0.00063</span><span>│ rung 0 · 0.0009</span></div>
+          </div>
+        </aside>
+      </div>
+      <div class="statusbar"><span id="stShown">18 of 288 spots shown</span><span>action means are unweighted over the spots shown</span><span>hover a cell · click to pin · click an action to re-shade</span><span class="r">game value −0.0874 · exact −0.0856</span></div>
+    </div>
+    <p class="caption"><b>What you are looking at.</b> The real rung-2 solution, loaded from <code>solve.json</code>: Leduc hold'em, CFR, 2,000 iterations, 288 information sets. Leduc has three ranks, so the hand grid is three rows where a 13×13 hold'em grid would be 169. Hover a cell for its full mix, click an action to re-shade, click a cell to pin it. The table lights the seat to act. Every number is the solver's; nothing here is drawn by hand.</p>
+  </div>
+</section>
+
+<section class="reveal" id="stands" style="padding-top:88px">
+  <div class="wrap">
+    <div class="stands">
+      <div><div class="n">What we stand for</div><h3>Known answers first</h3><p>Every rung is a smaller game whose solution is already in the literature or in closed form. The solver has to reproduce it, to the third decimal, before anything moves up.</p></div>
+      <div><div class="n">&nbsp;</div><h3>Exploitability, not vibes</h3><p>A strategy is graded by how many chips a best response wins against it. That number is printed on every rung and it is the only score that counts.</p></div>
+      <div><div class="n">&nbsp;</div><h3>The ledger is the product</h3><p>Regret tables, then sampled regret tables, then nets that replace them. You can open the ledger at any rung and read what the solver believes, spot by spot.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal" id="features" style="padding-top:88px">
+  <div class="wrap">
+    <p class="eyebrow">What the software does</p>
+    <h2 style="margin-top:10px">Solve. Verify. <em>Play.</em></h2>
+    <svg class="squig" viewBox="0 0 190 12" aria-hidden="true"><path d="M2 7 C 12 1, 20 12, 30 7 S 48 1, 58 7 S 76 12, 86 7 S 104 1, 114 7 S 132 12, 142 7 S 160 1, 170 7 S 184 12, 188 7"/></svg>
+
+    <div class="feat" id="solve">
+      <div class="copy">
+        <p class="eyebrow">Solve</p>
+        <h3>Regret matching, climbing.</h3>
+        <p>The same idea at every scale: keep a ledger of how much you regret not having taken each action, and next time play in proportion to the regrets. Rock-paper-scissors needs a three-line ledger. Kuhn needs twelve. Leduc needs 288. Mini-Drawmaha needs 3.1 million spots and 1.77 GB, and full Drawmaha needs a net to hold it.</p>
+        <p>On the right, the shape of that settling: the average strategy spirals from a corner of the triangle into the centre, where rung 0 lands at (0.334, 0.333, 0.333) after 100,000 iterations. The exact run ticks in the console at the top of the page.</p>
+        <a class="btn" href="https://drawmaha.app/rung0">Rung 0: the triangle, live →</a>
+      </div>
+      <div class="widget">
+        <div class="titlebar"><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div><span class="path">rung0 / <b>regret matching</b> / the settling</span><div class="meta"><span class="live"><i></i>stylised</span></div></div>
+        <div class="pane">
+          <canvas id="rpsCv" height="270"></canvas>
+          <div class="stat"><div>iteration<b id="rpsIt">0</b></div><div>average mix (R, P, S)<b id="rpsMix">—</b></div><div>rung 0 lands on<b>(0.334, 0.333, 0.333)</b></div><div>from Nash<b>0.0009 <span>chips / round</span></b></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feat flip" id="verify">
+      <div class="copy">
+        <p class="eyebrow">Verify</p>
+        <h3>The answer key is printed on the page.</h3>
+        <p>Kuhn poker has a closed-form equilibrium: the jack bluffs with probability α and the king value-bets with 3α. Rung 1 runs vanilla CFR for 100,000 iterations and lands on α = 0.220 and 0.663 for the king, a game value of −0.05555 against the exact −1/18, and 0.00063 chips per hand of exploitability.</p>
+        <p>These are the solver's own curves, straight from rung 1's export, drawn against the closed-form lines.</p>
+        <a class="btn" href="https://drawmaha.app/rung1">Rung 1: Kuhn, checked →</a>
+      </div>
+      <div class="widget">
+        <div class="titlebar"><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div><span class="path">rung1 / <b>kuhn</b> / bet frequency vs iteration</span><div class="meta"><span>vanilla CFR · <b>100,000</b> it</span></div></div>
+        <div class="pane">
+          <div class="chartwrap"><canvas id="kuhnCv" height="260"></canvas><div class="tip" id="kuhnTip"></div></div>
+          <div class="keyrow"><span class="y">king value-bets</span><span class="p">jack bluffs</span><span class="d">closed form α, 3α</span></div>
+          <div class="stat"><div>jack bluffs<b><span id="kNumJ" style="color:inherit">0.220</span> <span>/ α 0.220</span></b></div><div>king value-bets<b><span id="kNumK" style="color:inherit">0.663</span> <span>/ 3α 0.660</span></b></div><div>exploitable<b>0.00063</b></div><div>game value<b>−0.05555 <span>/ −1/18</span></b></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feat" id="play">
+      <div class="copy">
+        <p class="eyebrow">Play</p>
+        <h3>Sit down against the ledger.</h3>
+        <p>The rung-2 strategy you explored above is a bot you can play. It samples its action from the same 288 rows, so when it bets a jack into a king board you can go back to the grid and read exactly how often it does that.</p>
+        <p>This is a real hand of Leduc against the real solution, scored in chips. On drawmaha.app the same table has a decision coach that grades every choice you make against the equilibrium.</p>
+        <a class="btn" href="https://drawmaha.app/rung2">Rung 2: play with the coach →</a>
+      </div>
+      <div class="widget">
+        <div class="titlebar"><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div><span class="path">rung2 / <b>table</b> / heads-up</span><div class="meta"><span>bankroll <b id="bank">+0</b></span><span>hand <b id="handNo">1</b></span></div></div>
+        <div class="pane play">
+          <div>
+            <div class="cardrow" id="cardrow"></div>
+            <div class="playbtns" id="playbtns"></div>
+            <div class="stat"><div>pot<b id="pot">2</b></div><div>you are<b id="youSeat">seat 1</b></div></div>
+          </div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reveal" id="ladder" style="padding-top:88px">
+  <div class="wrap">
+    <div class="ladder-head">
+      <div>
+        <p class="eyebrow">The ladder, in order</p>
+        <h2 style="margin-top:10px">Five rungs. <em>Three climbed,</em> one under way, one pending.</h2>
+        <svg class="squig" viewBox="0 0 190 12" aria-hidden="true"><path d="M2 7 C 12 1, 20 12, 30 7 S 48 1, 58 7 S 76 12, 86 7 S 104 1, 114 7 S 132 12, 142 7 S 160 1, 170 7 S 184 12, 188 7"/></svg>
+      </div>
+      <p>Each climbed rung ships as a page you can play. The graphs are drawn from the runs that produced the numbers; the <i class="p">rings</i> and <i>dashed lines</i> are the answers they have to reach. Hover a rung to turn its object.</p>
+    </div>
+    <div class="ladder">
+
+      <article class="rung reveal" id="rung0">
+        <div class="obj">
+          <div class="num">0<small>climbed</small></div>
+          <canvas data-icon="chip" aria-label="One chip on the felt, a second leaning on it"></canvas>
+        </div>
+        <div class="words">
+          <h3 class="name">Rock, paper, scissors</h3>
+          <div class="method"><span><b>Regret matching</b> · 100,000 iterations</span><span class="st pass"><i></i>Passed</span></div>
+          <p>The smallest game with a mixed answer, and nothing to hide. Self-play lands on <b>(0.334, 0.333, 0.333)</b>, 0.0009 chips a round from Nash. Against a 50 %-rock opponent the ledger converges to pure paper and earns +0.24 a round; the best response earns +0.25.</p>
+          <dl class="nums">
+            <div><dt>Known answer</dt><dd>Nash at (⅓, ⅓, ⅓) · best response to 50 %-rock earns +0.25 a round</dd></div>
+            <div><dt>Solver's answer</dt><dd><b>(0.334, 0.333, 0.333)</b> · 0.0009 chips/round exploitable · vs 50 %-rock: pure paper, +0.24</dd></div>
+          </dl>
+          <a class="go" href="https://drawmaha.app/rung0">Play rung 0 <span class="arrow">→</span></a>
+        </div>
+        <div class="fig">
+          <canvas id="fig-rps" aria-label="The strategy simplex for rock, paper, scissors: the average strategy of a regret-matching self-play run walks from a corner and settles on the centre, the Nash point."></canvas>
+          <p class="cap"><b>The strategy triangle.</b> Each corner is a pure strategy; the <i>yellow path</i> is the average strategy of a self-play run made in this page, settling on the <em>Nash point</em> at the centre. Checkpoints are log-spaced and the path is smoothed: it shows the settling, not every step.</p>
+        </div>
+      </article>
+      <div class="between">
+        <div class="tick">0 → 1</div>
+        <p>Rock-paper-scissors has no cards and nothing hidden; it only tests that regret matching finds a mix. The next rung adds <b>a deck and a secret</b>: each player holds one card the other cannot see, and the solver has to learn to bluff the right amount.</p>
+      </div>
+
+      <article class="rung reveal" id="rung1">
+        <div class="obj">
+          <div class="num">1<small>climbed</small></div>
+          <canvas data-icon="cards" aria-label="Three cards fanned on the felt"></canvas>
+        </div>
+        <div class="words">
+          <h3 class="name">Kuhn poker</h3>
+          <div class="method"><span><b>Vanilla CFR</b> · 100,000 iterations</span><span class="st pass"><i></i>Passed</span></div>
+          <p>Reproduces the closed form: the jack bluffs <b>0.220</b> of the time, the king value-bets <b>0.663</b>, the 1 : 3 ratio the equilibrium requires. Game value −0.05555 against the exact −1/18. Exploitability 0.00063 chips a hand.</p>
+          <dl class="nums">
+            <div><dt>Known answer</dt><dd>jack bluffs α, king value-bets 3α · game value −1/18</dd></div>
+            <div><dt>Solver's answer</dt><dd><b>α = 0.220, king 0.663</b> · value −0.05555 · 0.00063 chips/hand exploitable</dd></div>
+          </dl>
+          <a class="go" href="https://drawmaha.app/rung1">Play rung 1 <span class="arrow">→</span></a>
+        </div>
+        <div class="fig">
+          <svg id="fig-kuhn" viewBox="0 0 560 300" aria-label="Chart: the jack's bluff frequency and the king's value-bet frequency over 100,000 CFR iterations settle on 0.220 and 0.663; the closed-form targets 0.220 and 0.660 are marked."></svg>
+          <p class="cap"><b>Opening with a bet.</b> The <i>king</i> and the <em>jack</em> over 100,000 iterations, from the run's own log; the <b>dashed lines</b> are Kuhn's closed form, α = 0.220 and 3α = 0.660.</p>
+        </div>
+      </article>
+      <div class="between">
+        <div class="tick">1 → 2</div>
+        <p>Kuhn has one card each and one round of betting. The next rung adds <b>a board</b>: a shared card that changes what every hand is worth, and a second betting round after it. It is the first rung where a strategy has to react to public information.</p>
+      </div>
+
+      <article class="rung reveal" id="rung2">
+        <div class="obj">
+          <div class="num">2<small>climbed</small></div>
+          <canvas data-icon="table" aria-label="The oval table: a raised rail, the felt, and a chip at each of four seats"></canvas>
+        </div>
+        <div class="words">
+          <h3 class="name">Leduc poker</h3>
+          <div class="method"><span><b>CFR</b> · with a board · 2,000 iterations</span><span class="st pass"><i></i>Passed</span></div>
+          <p>Checked against published benchmarks: game value −0.0874 against the published −0.0856, exploitability 0.0113 chips a hand. Play it heads-up on the oval table, edit any frequency and read the response: <b>a decision coach</b>.</p>
+          <dl class="nums">
+            <div><dt>Known answer</dt><dd>published benchmarks · exact game value −0.0856</dd></div>
+            <div><dt>Solver's answer</dt><dd><b>value −0.0874</b> · 0.0113 chips/hand exploitable · 288 infosets, every one editable</dd></div>
+          </dl>
+          <a class="go" href="https://drawmaha.app/rung2">Take a seat at rung 2 <span class="arrow">→</span></a>
+        </div>
+        <div class="fig">
+          <svg id="fig-exp" viewBox="0 0 560 300" aria-label="Log-log chart: exploitability of the average strategy against iterations. Rung 1's full curve, with the final points of rung 0, rung 1 and rung 2 marked."></svg>
+          <p class="cap"><b>The gap, on one axis.</b> Exploitability against iterations, log-log. The <i>yellow curve</i> is rung 1's run; the <em>marks</em> are where each climbed rung ended: rung 0 at 0.0009, rung 1 at 0.00063, rung 2 at 0.0113 after 2,000 iterations.</p>
+        </div>
+      </article>
+      <div class="between">
+        <div class="tick">2 → 3</div>
+        <p>Leduc has six cards. Drawmaha has fifty-two, five per hand, and a draw. Even the cut-down version is too big for a table that lists every decision, so the next rung <b>samples</b>: it visits a slice of the game each iteration, and is graded on Leduc before it is trusted with the real deck.</p>
+      </div>
+
+      <article class="rung reveal now" id="rung3">
+        <div class="obj">
+          <div class="num">3<small>in progress</small></div>
+          <canvas data-icon="deck" aria-label="The deck, one card lifted through the gate"></canvas>
+        </div>
+        <div class="words">
+          <h3 class="name">Mini-Drawmaha</h3>
+          <div class="method"><span><b>External-sampling MCCFR</b> · being built</span><span class="st prog"><i></i>In progress</span></div>
+          <p>The deck gate: <b>1.57M infosets</b> per player. The ledger table: 3.1M spots, 1.77 GB. The sampled learner, graded on Leduc before it touches the real deck.</p>
+          <dl class="nums">
+            <div><dt>The gate</dt><dd>1.57M infosets per player</dd></div>
+            <div><dt>The ledger</dt><dd><b>3.1M spots, 1.77 GB</b> · sampler graded on Leduc</dd></div>
+          </dl>
+        </div>
+        <div class="fig">
+          <svg id="fig-size" viewBox="0 0 560 300" aria-label="Bar chart on a log scale: the number of information sets per player grows from 12 in Kuhn to 288 in Leduc to 1.57 million in mini-Drawmaha."></svg>
+          <p class="cap"><b>How big the game gets.</b> Decision points per player, log scale: <i>12</i> in Kuhn, <i>288</i> in Leduc, <i>1.57M</i> in mini-Drawmaha, whose ledger of 3.1M spots weighs 1.77 GB. The full game does not fit on this axis.</p>
+        </div>
+      </article>
+      <div class="between">
+        <div class="tick">3 → 4</div>
+        <p>Past mini-Drawmaha, no table fits in memory. The last rung replaces the regret tables with <b>neural nets</b> that generalise across spots the solver has never visited. Every rung below it is the proof that the nets are learning the right thing.</p>
+      </div>
+
+      <article class="rung reveal todo" id="rung4">
+        <div class="obj">
+          <div class="num">4<small>pending</small></div>
+          <canvas data-icon="stack" aria-label="A stack of chips"></canvas>
+        </div>
+        <div class="words">
+          <h3 class="name">Full Drawmaha</h3>
+          <div class="method"><span><b>Deep CFR</b> · nets replace the regret tables</span><span class="st pend"><i></i>Pending</span></div>
+          <p>Nets replace the regret tables. The rungs above are the proof that the climb is safe.</p>
+        </div>
+        <div class="fig">
+          <svg id="fig-net" viewBox="0 0 560 300" aria-label="A sketch: a regret table on the left, a small network on the right, an arrow between them."></svg>
+          <p class="cap"><b>A sketch, not data.</b> Rungs 0 to 3 keep a number for every spot. Rung 4 keeps weights that <i>estimate</i> the number for any spot, which is the only way the full game fits.</p>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+</main>
+
+<div class="ctaband">
+  <div class="wrap">
+    <div>
+      <h2>Open the ledger. <em>Read what it believes.</em></h2>
+      <p class="lede" style="margin-top:12px">Three rungs are live today. Start at the triangle, check the Kuhn curves, then sit down against the Leduc bot with the coach watching.</p>
+    </div>
+    <div class="btns">
+      <a class="btn pink" href="https://drawmaha.app/rung2">Open the explorer</a>
+      <a class="btn" href="https://drawmaha.app/rung1">Rung 1</a>
+      <a class="btn" href="https://drawmaha.app/rung0">Rung 0</a>
+    </div>
+  </div>
+</div>
+<footer>
+  <div class="wrap">
+    <a class="chip-end" href="https://drawmaha.app" aria-label="Drawmaha home"><canvas data-chip data-font="4" data-speed="0.32"></canvas></a>
+    <div class="links"><a href="https://drawmaha.app/rung0">/rung0</a><a href="https://drawmaha.app/rung1">/rung1</a><a href="https://drawmaha.app/rung2">/rung2</a><a href="https://drawmaha.app">drawmaha.app</a></div>
+  </div>
+</footer>
+
+<script>/*@NAVJS@*/
+/* the Rungs menu: opens on hover (250 ms), click, tap or keyboard focus; Escape and a click outside close it */
+(function () {
+  const root = document.getElementById('rungs'); if (!root) return;
+  const btn = root.querySelector('.rungs-btn'), menu = root.querySelector('.rungs-menu'), cells = Array.from(menu.querySelectorAll('.rcell'));
+  const narrow = () => matchMedia('(max-width:1240px)').matches;
+  let open = false, pinned = false, hoverT = 0, leaveT = 0;
+  const fit = () => { if (narrow()) { menu.style.width = ''; return; } const a = cells[0], z = cells[cells.length - 1]; menu.style.width = open ? (z.offsetLeft + z.offsetWidth - a.offsetLeft + 10) + 'px' : '0px'; };
+  function setOpen(v, pin) { open = v; pinned = v && !!pin; root.classList.toggle('open', v); btn.setAttribute('aria-expanded', String(v)); fit(); }
+  root.addEventListener('mouseenter', () => { clearTimeout(leaveT); if (!open) hoverT = setTimeout(() => { if (!open) setOpen(true, false); }, 250); });
+  root.addEventListener('mouseleave', () => { clearTimeout(hoverT); if (open && !pinned) leaveT = setTimeout(() => setOpen(false), 280); });
+  btn.addEventListener('click', () => { clearTimeout(hoverT); if (open && pinned) setOpen(false); else setOpen(true, true); });
+  btn.addEventListener('focus', () => { if (btn.matches(':focus-visible') && !open) setOpen(true, true); });
+  root.addEventListener('focusout', (e) => { if (open && e.relatedTarget && !root.contains(e.relatedTarget)) setOpen(false); });
+  document.addEventListener('click', (e) => { if (open && !root.contains(e.target)) setOpen(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && open) { setOpen(false); btn.focus(); } });
+  addEventListener('resize', () => { if (open) fit(); });
+  window.__rungs = { open: (v) => setOpen(v, true) };
+})();
+/*@/NAVJS@*/</script>
+<script>
+/* chip.js — the Drawmaha chip: a dithered, tilted poker chip turning on its axis, drawn as ASCII on a canvas.
+   Drop-in: include this script, add <a href="https://drawmaha.app"><canvas data-chip></canvas></a> sized by CSS
+   (square, e.g. 92x92), and call mountChips({ mark: '#f5f0e6', ink: '#12070a' }) with the glyph colour. Transparent field.
+   Options per canvas via data attributes: data-font="4" (cell px), data-speed="0.3" (rad/s), data-tilt="0.8". */
+(function () {
+const FONT = "'IBM Plex Mono', ui-monospace, Menlo, monospace";
+const RAMP = " .'`,:;~-=+*x%#@";
+let CHARSET = '';
+for (let c = 32; c < 127; c++) CHARSET += String.fromCharCode(c);
+CHARSET += '♠♥♦♣·';
+const CIDX = {}; for (let i = 0; i < CHARSET.length; i++) CIDX[CHARSET[i]] = i;
+const RAMPIDX = [...RAMP].map((c) => CIDX[c]);
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+class Grid {
+  constructor(canvas, palette, fontPx) {
+    this.canvas = canvas; this.ctx = canvas.getContext('2d');
+    this.palette = palette; this.fontPx = fontPx || 11;
+    this.mouse = { x: -1e6, y: -1e6, in: false };
+    this.c = 1;
+    this.resize();
+    const move = (cx, cy) => {
+      const r = canvas.getBoundingClientRect();
+      this.mouse.x = ((cx - r.left) - this.ox) / this.cw;
+      this.mouse.y = (((cy - r.top) - this.oy) / this.ch) * this.ar;
+      this.mouse.in = true;
+      this.dirty = true;
+    };
+    canvas.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
+    canvas.addEventListener('mouseleave', () => { this.mouse.in = false; this.dirty = true; });
+    canvas.addEventListener('touchmove', (e) => { const t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: true });
+  }
+  resize() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const r = this.canvas.getBoundingClientRect();
+    if (r.width === 0) return;
+    this.dpr = dpr;
+    this.canvas.width = Math.round(r.width * dpr); this.canvas.height = Math.round(r.height * dpr);
+    const ctx = this.ctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.font = `${this.fontPx}px ${FONT}`;
+    this.cw = ctx.measureText('M').width;
+    this.ch = this.fontPx * 1.02;
+    this.cols = Math.floor(r.width / this.cw); this.rows = Math.floor(r.height / this.ch);
+    this.ar = this.ch / this.cw;
+    this.W = this.cols; this.H = this.rows * this.ar;
+    this.ox = (r.width - this.cols * this.cw) / 2; this.oy = (r.height - this.rows * this.ch) / 2;
+    this.n = this.cols * this.rows;
+    this.chb = new Uint8Array(this.n); this.cob = new Uint8Array(this.n);
+    this.buildAtlas();
+    this.dirty = true;
+  }
+  buildAtlas() {
+    const dpr = this.dpr, gw = Math.ceil(this.cw * dpr), gh = Math.ceil(this.ch * dpr);
+    this.gw = gw; this.gh = gh;
+    this.atlas = this.palette.map((col) => {
+      const c = document.createElement('canvas');
+      c.width = gw * CHARSET.length; c.height = gh;
+      const x = c.getContext('2d');
+      x.font = `${this.fontPx * dpr}px ${FONT}`; x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillStyle = col;
+      for (let i = 0; i < CHARSET.length; i++) x.fillText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5);
+      return c;
+    });
+  }
+  clear() { this.chb.fill(0); this.cob.fill(0); }
+  draw() {
+    const ctx = this.ctx, { gw, gh, cols, rows, dpr } = this;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (this.palette[0] === 'transparent') ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    else { ctx.fillStyle = this.palette[0]; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
+    const ox = this.ox * dpr, oy = this.oy * dpr, pw = this.cw * dpr, ph = this.ch * dpr;
+    let i = 0;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++, i++) {
+      const c = this.chb[i]; if (!c) continue;
+      ctx.drawImage(this.atlas[this.cob[i]], c * gw, 0, gw, gh, ox + x * pw, oy + y * ph, gw, gh);
+    }
+  }
+  /* set a cell by cell coordinates */
+  set(cx, cy, ci, col) {
+    if (cx < 0 || cy < 0 || cx >= this.cols || cy >= this.rows) return;
+    const i = cy * this.cols + cx; this.chb[i] = ci; this.cob[i] = col;
+  }
+  ramp(v) { return RAMPIDX[clamp(Math.round(v * (RAMP.length - 1)), 0, RAMP.length - 1)]; }
+  /* fill a bbox (scene units) with fn(px,py) -> brightness; fn may reassign g.c for colour */
+  fill(x0, y0, x1, y1, col, fn) {
+    const cx0 = Math.max(0, Math.floor(x0)), cx1 = Math.min(this.cols - 1, Math.ceil(x1));
+    const cy0 = Math.max(0, Math.floor(y0 / this.ar)), cy1 = Math.min(this.rows - 1, Math.ceil(y1 / this.ar));
+    for (let cy = cy0; cy <= cy1; cy++) {
+      const py = (cy + 0.5) * this.ar;
+      for (let cx = cx0; cx <= cx1; cx++) {
+        this.c = col;
+        const v = fn(cx + 0.5, py);
+        if (v > 0) { const i = cy * this.cols + cx; this.chb[i] = this.ramp(v); this.cob[i] = this.c; }
+        else if (v < -1) { const i = cy * this.cols + cx; this.chb[i] = 0; }
+      }
+    }
+  }
+  /* a stroke between two scene points; the glyph follows the slope unless given */
+  line(x0, y0, x1, y1, col, ch) {
+    const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy / this.ar);
+    const n = Math.max(1, Math.ceil(len * 2));
+    const ci = CIDX[ch || slopeChar(Math.atan2(dy, dx))];
+    for (let k = 0; k <= n; k++) {
+      const s = k / n;
+      this.set(Math.floor(x0 + dx * s), Math.floor((y0 + dy * s) / this.ar), ci, col);
+    }
+  }
+  text(cx, cy, str, col) {
+    for (let i = 0; i < str.length; i++) { const ci = CIDX[str[i]]; if (ci) this.set(cx + i, cy, ci, col); }
+  }
+  /* where a scene point lands, in cells */
+  cellOf(x, y) { return [Math.floor(x), Math.floor(y / this.ar)]; }
+}
+const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+/* ================================================================
+   SHARED PIECES FOR THE SECOND ROUND
+   ================================================================ */
+const rotX = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[1, 0, 0], [0, c, -s], [0, s, c]]; };
+const rotY = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, 0, s], [0, 1, 0], [-s, 0, c]]; };
+const rotZ = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, -s, 0], [s, c, 0], [0, 0, 1]]; };
+const mul = (A, B) => A.map((r, i) => [0, 1, 2].map((j) => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j]));
+const norm3 = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+/* a ray-traced chip. o.M = 3x3, columns are the chip's local axes in screen space (x right, y down, z away) */
+function rayChip(g, o) {
+  const { cols, rows, ar } = g, m = o.M;
+  const toLocal = (x, y, z) => [m[0][0] * x + m[1][0] * y + m[2][0] * z, m[0][1] * x + m[1][1] * y + m[2][1] * z, m[0][2] * x + m[1][2] * y + m[2][2] * z];
+  const toWorld = (x, y, z) => [m[0][0] * x + m[0][1] * y + m[0][2] * z, m[1][0] * x + m[1][1] * y + m[1][2] * z, m[2][0] * x + m[2][1] * y + m[2][2] * z];
+  const R = o.R, hz = o.hz, L = o.L, sectors = o.sectors || 12;
+  const d = toLocal(0, 0, 1);
+  const chars = [0, CIDX['.'], CIDX[':'], CIDX['+'], CIDX['%'], CIDX['@']];
+  const ext = R * 1.05 + hz;
+  const cx0 = Math.max(0, Math.floor(o.cx - ext)), cx1 = Math.min(cols - 1, Math.ceil(o.cx + ext));
+  const cy0 = Math.max(0, Math.floor((o.cy - ext) / ar)), cy1 = Math.min(rows - 1, Math.ceil((o.cy + ext) / ar));
+  for (let cyy = cy0; cyy <= cy1; cyy++) {
+    const py = (cyy + 0.5) * ar - o.cy;
+    for (let cxx = cx0; cxx <= cx1; cxx++) {
+      const px = cxx + 0.5 - o.cx;
+      if (px * px + py * py > ext * ext) continue;
+      const oo = toLocal(px, py, -400);
+      let best = 1e9, mat = 0, I = 0;
+      for (const zc of [hz, -hz]) {
+        if (Math.abs(d[2]) < 1e-6) continue;
+        const tc = (zc - oo[2]) / d[2];
+        if (tc < 0 || tc > best) continue;
+        const x = oo[0] + tc * d[0], y = oo[1] + tc * d[1], r = Math.hypot(x, y);
+        if (r > R) continue;
+        best = tc;
+        const rn = r / R, ang = Math.atan2(y, x);
+        const sector = Math.floor(((ang / (2 * Math.PI)) + 1) * sectors + 0.5) % 2;
+        mat = (rn > 0.8 && sector) || (rn > 0.5 && rn < 0.58) ? 2 : 1;
+        const n = toWorld(0, 0, zc > 0 ? 1 : -1);
+        const nl = n[0] * L[0] + n[1] * L[1] + n[2] * L[2];
+        const hl = Math.pow(nl * 0.5 + 0.5, 2), lam = Math.max(0, nl);
+        I = 0.12 + 0.62 * hl + 0.35 * Math.pow(lam, 16);
+        if (rn > 0.96) I += 0.15;
+        if (rn > 0.8 && !sector) I *= 0.9;
+      }
+      const a = d[0] * d[0] + d[1] * d[1];
+      if (a > 1e-9) {
+        const b = 2 * (oo[0] * d[0] + oo[1] * d[1]), c = oo[0] * oo[0] + oo[1] * oo[1] - R * R;
+        const disc = b * b - 4 * a * c;
+        if (disc > 0) {
+          const ts = (-b - Math.sqrt(disc)) / (2 * a);
+          if (ts > 0 && ts < best) {
+            const z = oo[2] + ts * d[2];
+            if (Math.abs(z) <= hz) {
+              best = ts;
+              const x = oo[0] + ts * d[0], y = oo[1] + ts * d[1];
+              const sector = Math.floor(((Math.atan2(y, x) / (2 * Math.PI)) + 1) * sectors + 0.5) % 2;
+              mat = sector ? 2 : 1;
+              const n = toWorld(x / R, y / R, 0);
+              const nl = n[0] * L[0] + n[1] * L[1] + n[2] * L[2];
+              I = 0.1 + 0.55 * Math.pow(nl * 0.5 + 0.5, 2) + 0.3 * Math.pow(Math.max(0, nl), 10);
+            }
+          }
+        }
+      }
+      if (mat === 0) continue;
+      const i = cyy * cols + cxx;
+      const col = mat === 1 ? o.colBase : o.colPattern;
+      if (o.dither) {
+        const bay = (BAYER[cyy % 4][cxx % 4] + 0.5) / 16 - 0.5;
+        const lv = clamp(Math.floor(I * 5 + bay * 1.15), 0, 5);
+        if (lv > 0) { g.chb[i] = chars[lv]; g.cob[i] = col; } else { g.chb[i] = chars[1]; g.cob[i] = o.colDim; }
+      } else {
+        g.chb[i] = g.ramp(clamp(I, 0.08, 1)); g.cob[i] = col;
+      }
+    }
+  }
+}
+
+const CHIP_SCENES = [];
+function mountChips(opts) {
+  const mark = (opts && opts.mark) || '#f5f0e6', ink = (opts && opts.ink) || '#12070a';
+  const hexA = (hex, a) => { let h = hex.replace('#', ''); if (h.length === 3) h = h.split('').map((c) => c + c).join(''); const n = parseInt(h, 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  for (const canvas of document.querySelectorAll('canvas[data-chip]')) {
+    const g = new Grid(canvas, ['transparent', mark, ink, hexA(mark, 0.35)], parseFloat(canvas.dataset.font || '4'));
+    CHIP_SCENES.push({ g, canvas, yaw: 0.6, t: 0, speed: parseFloat(canvas.dataset.speed || '0.3'), tilt: parseFloat(canvas.dataset.tilt || '0.8'), drawn: false });
+  }
+  const ro = new ResizeObserver(() => CHIP_SCENES.forEach((s) => { s.g.resize(); s.drawn = false; }));
+  CHIP_SCENES.forEach((s) => ro.observe(s.canvas));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => CHIP_SCENES.forEach((s) => { s.g.resize(); s.drawn = false; }));
+  let last = performance.now();
+  function tick(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!document.hidden) for (const s of CHIP_SCENES) {
+      if (reduced && s.drawn && !s.g.dirty) continue;
+      s.g.dirty = false; s.drawn = true;
+      if (!reduced) { s.t += dt; s.yaw += dt * (s.g.mouse.in ? s.speed * 3.5 : s.speed); }
+      const g = s.g, { W, H } = g; const R = Math.min(W, H) * 0.46;
+      g.clear();
+      rayChip(g, { cx: W / 2, cy: H / 2, R, hz: R * 0.13, M: mul(rotX(s.tilt + 0.12 * Math.sin(s.t * 0.37)), mul(rotY(0.25 * Math.sin(s.t * 0.29)), rotZ(s.yaw))), L: norm3([-0.55, -0.5, -0.67]), colBase: 1, colPattern: 2, colDim: 3, dither: true, sectors: 12 });
+      g.draw();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+window.mountChips = mountChips;
+})();
+</script>
+<script>
+const DATA = {"leduc":{"iterations":2000,"expl":0.01129,"gv":-0.08739,"gvx":-0.08561,"strategy":{"J:":{"c":0.9167,"r":0.0833},"J:c":{"c":0.6989,"r":0.3011},"J:r":{"f":0.8047,"c":0.1407,"r":0.0546},"J:cr":{"f":0.9479,"c":0.035,"r":0.0171},"J:rr":{"f":0.0002,"c":0.9998},"J:crr":{"f":0.0,"c":1.0},"Q:":{"c":0.248,"r":0.752},"Q:c":{"c":0.1551,"r":0.8449},"Q:r":{"f":0.0003,"c":0.649,"r":0.3507},"Q:cr":{"f":0.0001,"c":0.7946,"r":0.2053},"Q:rr":{"f":0.0,"c":1.0},"Q:crr":{"f":0.0,"c":1.0},"K:":{"c":0.2381,"r":0.7619},"K:c":{"c":0.0005,"r":0.9995},"K:r":{"f":0.0,"c":0.4209,"r":0.5791},"K:cr":{"f":0.0,"c":0.2945,"r":0.7055},"K:rr":{"f":0.0001,"c":0.9999},"K:crr":{"f":0.0,"c":1.0},"J:cc|J:":{"c":0.9987,"r":0.0013},"J:cc|J:c":{"c":0.0,"r":1.0},"J:cc|J:r":{"f":0.0,"c":0.0,"r":0.9999},"J:cc|J:cr":{"f":0.0,"c":0.0,"r":1.0},"J:cc|J:rr":{"f":0.013,"c":0.987},"J:cc|J:crr":{"f":0.0,"c":1.0},"J:rc|J:":{"c":0.2603,"r":0.7397},"J:rc|J:c":{"c":0.0,"r":1.0},"J:rc|J:r":{"f":0.0,"c":0.0002,"r":0.9998},"J:rc|J:cr":{"f":0.0,"c":0.0,"r":1.0},"J:rc|J:rr":{"f":0.0,"c":1.0},"J:rc|J:crr":{"f":0.0,"c":1.0},"J:crc|J:":{"c":0.0766,"r":0.9234},"J:crc|J:c":{"c":0.0,"r":1.0},"J:crc|J:r":{"f":0.0,"c":0.0001,"r":0.9999},"J:crc|J:cr":{"f":0.0,"c":0.0,"r":1.0},"J:crc|J:rr":{"f":0.0,"c":1.0},"J:crc|J:crr":{"f":0.0,"c":1.0},"J:rrc|J:":{"c":0.0135,"r":0.9865},"J:rrc|J:c":{"c":0.0006,"r":0.9994},"J:rrc|J:r":{"f":0.0004,"c":0.0013,"r":0.9983},"J:rrc|J:cr":{"f":0.0,"c":0.0,"r":1.0},"J:rrc|J:rr":{"f":0.0,"c":1.0},"J:rrc|J:crr":{"f":0.0003,"c":0.9997},"J:crrc|J:":{"c":0.1218,"r":0.8782},"J:crrc|J:c":{"c":0.0,"r":1.0},"J:crrc|J:r":{"f":0.0,"c":0.0002,"r":0.9998},"J:crrc|J:cr":{"f":0.0054,"c":0.0066,"r":0.988},"J:crrc|J:rr":{"f":0.0011,"c":0.9989},"J:crrc|J:crr":{"f":0.0,"c":1.0},"J:cc|Q:":{"c":0.8195,"r":0.1805},"J:cc|Q:c":{"c":0.9347,"r":0.0653},"J:cc|Q:r":{"f":0.9694,"c":0.0,"r":0.0306},"J:cc|Q:cr":{"f":0.9999,"c":0.0,"r":0.0001},"J:cc|Q:rr":{"f":1.0,"c":0.0},"J:cc|Q:crr":{"f":0.9986,"c":0.0014},"J:rc|Q:":{"c":0.057,"r":0.943},"J:rc|Q:c":{"c":0.0817,"r":0.9183},"J:rc|Q:r":{"f":0.9994,"c":0.0,"r":0.0005},"J:rc|Q:cr":{"f":0.9691,"c":0.0006,"r":0.0303},"J:rc|Q:rr":{"f":1.0,"c":0.0},"J:rc|Q:crr":{"f":1.0,"c":0.0},"J:crc|Q:":{"c":0.0676,"r":0.9324},"J:crc|Q:c":{"c":0.4492,"r":0.5508},"J:crc|Q:r":{"f":0.9965,"c":0.0,"r":0.0035},"J:crc|Q:cr":{"f":0.9649,"c":0.0004,"r":0.0347},"J:crc|Q:rr":{"f":1.0,"c":0.0},"J:crc|Q:crr":{"f":0.9997,"c":0.0003},"J:rrc|Q:":{"c":0.858,"r":0.142},"J:rrc|Q:c":{"c":0.9713,"r":0.0287},"J:rrc|Q:r":{"f":0.579,"c":0.0002,"r":0.4208},"J:rrc|Q:cr":{"f":0.9984,"c":0.0,"r":0.0016},"J:rrc|Q:rr":{"f":0.9945,"c":0.0055},"J:rrc|Q:crr":{"f":0.9269,"c":0.0731},"J:crrc|Q:":{"c":0.8674,"r":0.1326},"J:crrc|Q:c":{"c":0.94,"r":0.06},"J:crrc|Q:r":{"f":0.7448,"c":0.0,"r":0.2552},"J:crrc|Q:cr":{"f":0.8425,"c":0.0001,"r":0.1575},"J:crrc|Q:rr":{"f":0.9815,"c":0.0185},"J:crrc|Q:crr":{"f":0.9243,"c":0.0757},"J:cc|K:":{"c":0.9288,"r":0.0712},"J:cc|K:c":{"c":0.9942,"r":0.0058},"J:cc|K:r":{"f":0.9998,"c":0.0,"r":0.0002},"J:cc|K:cr":{"f":0.9989,"c":0.0,"r":0.0011},"J:cc|K:rr":{"f":0.9998,"c":0.0002},"J:cc|K:crr":{"f":0.9786,"c":0.0214},"J:rc|K:":{"c":0.0171,"r":0.9829},"J:rc|K:c":{"c":0.6562,"r":0.3438},"J:rc|K:r":{"f":0.7193,"c":0.0,"r":0.2807},"J:rc|K:cr":{"f":0.2004,"c":0.0018,"r":0.7977},"J:rc|K:rr":{"f":1.0,"c":0.0},"J:rc|K:crr":{"f":0.9987,"c":0.0013},"J:crc|K:":{"c":0.8326,"r":0.1674},"J:crc|K:c":{"c":0.5411,"r":0.4589},"J:crc|K:r":{"f":0.9232,"c":0.0,"r":0.0768},"J:crc|K:cr":{"f":0.9016,"c":0.0,"r":0.0984},"J:crc|K:rr":{"f":0.9998,"c":0.0002},"J:crc|K:crr":{"f":0.9952,"c":0.0048},"J:rrc|K:":{"c":0.5429,"r":0.4571},"J:rrc|K:c":{"c":0.0093,"r":0.9907},"J:rrc|K:r":{"f":0.7567,"c":0.0003,"r":0.243},"J:rrc|K:cr":{"f":0.3672,"c":0.0,"r":0.6328},"J:rrc|K:rr":{"f":0.9996,"c":0.0004},"J:rrc|K:crr":{"f":0.998,"c":0.002},"J:crrc|K:":{"c":0.0172,"r":0.9828},"J:crrc|K:c":{"c":0.4171,"r":0.5829},"J:crrc|K:r":{"f":0.8436,"c":0.0,"r":0.1564},"J:crrc|K:cr":{"f":0.3028,"c":0.0032,"r":0.694},"J:crrc|K:rr":{"f":0.9974,"c":0.0026},"J:crrc|K:crr":{"f":0.9993,"c":0.0007},"Q:cc|J:":{"c":1.0,"r":0.0},"Q:cc|J:c":{"c":0.9978,"r":0.0022},"Q:cc|J:r":{"f":0.9999,"c":0.0,"r":0.0001},"Q:cc|J:cr":{"f":0.9999,"c":0.0,"r":0.0},"Q:cc|J:rr":{"f":0.5,"c":0.5},"Q:cc|J:crr":{"f":0.9885,"c":0.0115},"Q:rc|J:":{"c":0.9926,"r":0.0074},"Q:rc|J:c":{"c":0.9986,"r":0.0014},"Q:rc|J:r":{"f":0.9897,"c":0.0001,"r":0.0102},"Q:rc|J:cr":{"f":1.0,"c":0.0,"r":0.0},"Q:rc|J:rr":{"f":0.9455,"c":0.0545},"Q:rc|J:crr":{"f":0.5884,"c":0.4116},"Q:crc|J:":{"c":0.9695,"r":0.0305},"Q:crc|J:c":{"c":0.6467,"r":0.3533},"Q:crc|J:r":{"f":0.9993,"c":0.0001,"r":0.0005},"Q:crc|J:cr":{"f":0.9958,"c":0.0,"r":0.0042},"Q:crc|J:rr":{"f":0.9765,"c":0.0235},"Q:crc|J:crr":{"f":0.9868,"c":0.0132},"Q:rrc|J:":{"c":0.9997,"r":0.0003},"Q:rrc|J:c":{"c":0.996,"r":0.004},"Q:rrc|J:r":{"f":0.9992,"c":0.0001,"r":0.0007},"Q:rrc|J:cr":{"f":0.9997,"c":0.0,"r":0.0003},"Q:rrc|J:rr":{"f":0.6103,"c":0.3897},"Q:rrc|J:crr":{"f":0.992,"c":0.008},"Q:crrc|J:":{"c":0.9593,"r":0.0407},"Q:crrc|J:c":{"c":0.9989,"r":0.0011},"Q:crrc|J:r":{"f":0.9929,"c":0.0,"r":0.0071},"Q:crrc|J:cr":{"f":0.9987,"c":0.0003,"r":0.0011},"Q:crrc|J:rr":{"f":0.9981,"c":0.0019},"Q:crrc|J:crr":{"f":0.3562,"c":0.6438},"Q:cc|Q:":{"c":0.4764,"r":0.5236},"Q:cc|Q:c":{"c":0.0001,"r":0.9999},"Q:cc|Q:r":{"f":0.0004,"c":0.0004,"r":0.9992},"Q:cc|Q:cr":{"f":0.0,"c":0.0762,"r":0.9238},"Q:cc|Q:rr":{"f":0.0001,"c":0.9999},"Q:cc|Q:crr":{"f":0.0001,"c":0.9999},"Q:rc|Q:":{"c":0.4777,"r":0.5223},"Q:rc|Q:c":{"c":0.0007,"r":0.9993},"Q:rc|Q:r":{"f":0.0,"c":0.0,"r":0.9999},"Q:rc|Q:cr":{"f":0.0,"c":0.0001,"r":0.9999},"Q:rc|Q:rr":{"f":0.0,"c":1.0},"Q:rc|Q:crr":{"f":0.0,"c":1.0},"Q:crc|Q:":{"c":0.0259,"r":0.9741},"Q:crc|Q:c":{"c":0.0006,"r":0.9994},"Q:crc|Q:r":{"f":0.0001,"c":0.1502,"r":0.8497},"Q:crc|Q:cr":{"f":0.001,"c":0.001,"r":0.998},"Q:crc|Q:rr":{"f":0.0,"c":1.0},"Q:crc|Q:crr":{"f":0.0003,"c":0.9997},"Q:rrc|Q:":{"c":0.0468,"r":0.9532},"Q:rrc|Q:c":{"c":0.0009,"r":0.9991},"Q:rrc|Q:r":{"f":0.0,"c":0.0001,"r":0.9999},"Q:rrc|Q:cr":{"f":0.0001,"c":0.0002,"r":0.9997},"Q:rrc|Q:rr":{"f":0.0,"c":1.0},"Q:rrc|Q:crr":{"f":0.0,"c":1.0},"Q:crrc|Q:":{"c":0.6114,"r":0.3886},"Q:crrc|Q:c":{"c":0.0,"r":1.0},"Q:crrc|Q:r":{"f":0.0,"c":0.0,"r":0.9999},"Q:crrc|Q:cr":{"f":0.0002,"c":0.0004,"r":0.9995},"Q:crrc|Q:rr":{"f":0.0004,"c":0.9996},"Q:crrc|Q:crr":{"f":0.0,"c":1.0},"Q:cc|K:":{"c":0.5488,"r":0.4512},"Q:cc|K:c":{"c":0.9103,"r":0.0897},"Q:cc|K:r":{"f":0.2693,"c":0.7277,"r":0.003},"Q:cc|K:cr":{"f":0.0,"c":0.5497,"r":0.4503},"Q:cc|K:rr":{"f":0.0,"c":1.0},"Q:cc|K:crr":{"f":0.0003,"c":0.9997},"Q:rc|K:":{"c":0.5713,"r":0.4287},"Q:rc|K:c":{"c":0.6558,"r":0.3442},"Q:rc|K:r":{"f":0.6441,"c":0.3551,"r":0.0008},"Q:rc|K:cr":{"f":0.4561,"c":0.494,"r":0.05},"Q:rc|K:rr":{"f":0.8155,"c":0.1845},"Q:rc|K:crr":{"f":0.8532,"c":0.1468},"Q:crc|K:":{"c":0.9851,"r":0.0149},"Q:crc|K:c":{"c":0.5746,"r":0.4254},"Q:crc|K:r":{"f":0.5022,"c":0.4897,"r":0.0081},"Q:crc|K:cr":{"f":0.4173,"c":0.5826,"r":0.0},"Q:crc|K:rr":{"f":0.8419,"c":0.1581},"Q:crc|K:crr":{"f":0.9687,"c":0.0313},"Q:rrc|K:":{"c":0.8809,"r":0.1191},"Q:rrc|K:c":{"c":0.5672,"r":0.4328},"Q:rrc|K:r":{"f":0.4827,"c":0.5138,"r":0.0035},"Q:rrc|K:cr":{"f":0.6871,"c":0.3129,"r":0.0},"Q:rrc|K:rr":{"f":0.9889,"c":0.0111},"Q:rrc|K:crr":{"f":0.9964,"c":0.0036},"Q:crrc|K:":{"c":0.2625,"r":0.7375},"Q:crrc|K:c":{"c":0.9618,"r":0.0382},"Q:crrc|K:r":{"f":0.6858,"c":0.3139,"r":0.0003},"Q:crrc|K:cr":{"f":0.4785,"c":0.518,"r":0.0035},"Q:crrc|K:rr":{"f":0.9976,"c":0.0024},"Q:crrc|K:crr":{"f":0.0001,"c":0.9999},"K:cc|J:":{"c":0.9993,"r":0.0007},"K:cc|J:c":{"c":0.9537,"r":0.0463},"K:cc|J:r":{"f":0.9383,"c":0.0309,"r":0.0309},"K:cc|J:cr":{"f":0.9996,"c":0.0002,"r":0.0002},"K:cc|J:rr":{"f":0.5,"c":0.5},"K:cc|J:crr":{"f":0.5,"c":0.5},"K:rc|J:":{"c":0.9557,"r":0.0443},"K:rc|J:c":{"c":0.5231,"r":0.4769},"K:rc|J:r":{"f":0.2297,"c":0.7148,"r":0.0555},"K:rc|J:cr":{"f":0.061,"c":0.9169,"r":0.022},"K:rc|J:rr":{"f":0.6303,"c":0.3697},"K:rc|J:crr":{"f":0.3392,"c":0.6608},"K:crc|J:":{"c":0.9992,"r":0.0008},"K:crc|J:c":{"c":0.8555,"r":0.1445},"K:crc|J:r":{"f":0.289,"c":0.7108,"r":0.0002},"K:crc|J:cr":{"f":0.0,"c":0.9963,"r":0.0037},"K:crc|J:rr":{"f":0.0242,"c":0.9758},"K:crc|J:crr":{"f":0.0006,"c":0.9994},"K:rrc|J:":{"c":0.9136,"r":0.0864},"K:rrc|J:c":{"c":0.7558,"r":0.2442},"K:rrc|J:r":{"f":0.0757,"c":0.8856,"r":0.0387},"K:rrc|J:cr":{"f":0.0007,"c":0.9993,"r":0.0},"K:rrc|J:rr":{"f":0.2135,"c":0.7865},"K:rrc|J:crr":{"f":0.0245,"c":0.9755},"K:crrc|J:":{"c":0.9799,"r":0.0201},"K:crrc|J:c":{"c":0.6497,"r":0.3503},"K:crrc|J:r":{"f":0.0958,"c":0.8604,"r":0.0438},"K:crrc|J:cr":{"f":0.0282,"c":0.9427,"r":0.0291},"K:crrc|J:rr":{"f":0.3404,"c":0.6596},"K:crrc|J:crr":{"f":0.0997,"c":0.9003},"K:cc|Q:":{"c":0.9962,"r":0.0038},"K:cc|Q:c":{"c":0.8999,"r":0.1001},"K:cc|Q:r":{"f":0.0667,"c":0.8665,"r":0.0667},"K:cc|Q:cr":{"f":0.5677,"c":0.4322,"r":0.0001},"K:cc|Q:rr":{"f":0.0596,"c":0.9404},"K:cc|Q:crr":{"f":0.5,"c":0.5},"K:rc|Q:":{"c":0.9948,"r":0.0052},"K:rc|Q:c":{"c":0.9866,"r":0.0134},"K:rc|Q:r":{"f":0.6774,"c":0.3226,"r":0.0001},"K:rc|Q:cr":{"f":0.5074,"c":0.4925,"r":0.0},"K:rc|Q:rr":{"f":0.9374,"c":0.0626},"K:rc|Q:crr":{"f":0.9041,"c":0.0959},"K:crc|Q:":{"c":0.2347,"r":0.7653},"K:crc|Q:c":{"c":0.9422,"r":0.0578},"K:crc|Q:r":{"f":0.5512,"c":0.4486,"r":0.0001},"K:crc|Q:cr":{"f":0.2709,"c":0.7288,"r":0.0003},"K:crc|Q:rr":{"f":0.9982,"c":0.0018},"K:crc|Q:crr":{"f":0.7869,"c":0.2131},"K:rrc|Q:":{"c":0.3085,"r":0.6915},"K:rrc|Q:c":{"c":0.4755,"r":0.5245},"K:rrc|Q:r":{"f":0.3691,"c":0.5425,"r":0.0884},"K:rrc|Q:cr":{"f":0.2111,"c":0.7291,"r":0.0599},"K:rrc|Q:rr":{"f":0.605,"c":0.395},"K:rrc|Q:crr":{"f":0.493,"c":0.507},"K:crrc|Q:":{"c":0.9535,"r":0.0465},"K:crrc|Q:c":{"c":0.4135,"r":0.5865},"K:crrc|Q:r":{"f":0.3368,"c":0.6574,"r":0.0058},"K:crrc|Q:cr":{"f":0.3083,"c":0.6534,"r":0.0382},"K:crrc|Q:rr":{"f":0.4469,"c":0.5531},"K:crrc|Q:crr":{"f":0.6135,"c":0.3865},"K:cc|K:":{"c":0.0302,"r":0.9698},"K:cc|K:c":{"c":0.087,"r":0.913},"K:cc|K:r":{"f":0.058,"c":0.058,"r":0.8839},"K:cc|K:cr":{"f":0.0069,"c":0.0087,"r":0.9844},"K:cc|K:rr":{"f":0.0003,"c":0.9997},"K:cc|K:crr":{"f":0.0477,"c":0.9523},"K:rc|K:":{"c":0.1352,"r":0.8648},"K:rc|K:c":{"c":0.0001,"r":0.9999},"K:rc|K:r":{"f":0.0,"c":0.0003,"r":0.9996},"K:rc|K:cr":{"f":0.0001,"c":0.0002,"r":0.9997},"K:rc|K:rr":{"f":0.0,"c":1.0},"K:rc|K:crr":{"f":0.0,"c":1.0},"K:crc|K:":{"c":0.6434,"r":0.3566},"K:crc|K:c":{"c":0.0002,"r":0.9998},"K:crc|K:r":{"f":0.0001,"c":0.0001,"r":0.9998},"K:crc|K:cr":{"f":0.0,"c":0.0,"r":0.9999},"K:crc|K:rr":{"f":0.0001,"c":0.9999},"K:crc|K:crr":{"f":0.0,"c":1.0},"K:rrc|K:":{"c":0.4955,"r":0.5045},"K:rrc|K:c":{"c":0.0005,"r":0.9995},"K:rrc|K:r":{"f":0.0001,"c":0.0002,"r":0.9997},"K:rrc|K:cr":{"f":0.0,"c":0.0,"r":0.9999},"K:rrc|K:rr":{"f":0.0,"c":1.0},"K:rrc|K:crr":{"f":0.0,"c":1.0},"K:crrc|K:":{"c":0.0441,"r":0.9559},"K:crrc|K:c":{"c":0.0006,"r":0.9994},"K:crrc|K:r":{"f":0.0001,"c":0.0001,"r":0.9999},"K:crrc|K:cr":{"f":0.0007,"c":0.0007,"r":0.9986},"K:crrc|K:rr":{"f":0.0,"c":1.0},"K:crrc|K:crr":{"f":0.0001,"c":0.9999}}},"kuhn":{"it":[1,2,3,4,5,7,8,10,12,15,18,22,27,33,40,49,60,73,88,108,131,159,194,235,286,348,423,515,626,760,924,1124,1366,1660,2018,2453,2982,3625,4406,5355,6509,7912,9617,11689,14208,17269,20991,25514,31011,37693,45815,55688,67687,82272,100000],"expl":[0.333333,0.348958,0.27662,0.195595,0.151467,0.108191,0.094022,0.091144,0.07629,0.055651,0.052787,0.056658,0.05145,0.05016,0.041857,0.027586,0.026604,0.02932,0.026976,0.019966,0.016858,0.021197,0.011487,0.016193,0.012688,0.014535,0.007684,0.010781,0.008207,0.005576,0.005304,0.00586,0.004821,0.00391,0.005264,0.004378,0.003681,0.002336,0.003195,0.002427,0.002213,0.002474,0.002742,0.002395,0.00149,0.001763,0.001486,0.001188,0.001076,0.001119,0.000995,0.001105,0.000818,0.000545,0.000633],"J":[0.75,0.875,0.6667,0.5,0.4,0.2857,0.25,0.2,0.1667,0.1333,0.1111,0.1234,0.2583,0.2963,0.2445,0.1996,0.163,0.2309,0.2362,0.1925,0.2109,0.2394,0.1962,0.2328,0.2107,0.238,0.202,0.2294,0.2169,0.2045,0.2098,0.2144,0.2122,0.2085,0.2242,0.2205,0.2199,0.2147,0.2178,0.2165,0.217,0.2207,0.2241,0.223,0.2184,0.2217,0.2207,0.2195,0.2193,0.2207,0.2204,0.2223,0.2202,0.2197,0.22],"K":[0.75,0.6875,0.5278,0.5383,0.6199,0.7285,0.7624,0.8099,0.8416,0.8733,0.8836,0.7617,0.6206,0.5983,0.6686,0.7294,0.7506,0.6211,0.6228,0.6927,0.6772,0.6372,0.7027,0.633,0.6743,0.6321,0.6836,0.6483,0.6558,0.6836,0.675,0.6697,0.6704,0.6783,0.6546,0.6608,0.6607,0.6696,0.665,0.6664,0.6656,0.6604,0.6556,0.6574,0.6648,0.6596,0.6615,0.6628,0.6632,0.6616,0.6623,0.6595,0.6626,0.6635,0.663],"cfJ":0.22,"cfK":0.66,"gv":-0.055554}};
+</script>
+<script>
+/* ============================================================================
+   THE OBJECT — the ship's raymarched stack, re-lit for a black field.
+   ============================================================================ */
+(function () {
+'use strict';
+const KERNEL = function () {
+  const N = 11, R = 1.0, H = 0.2, RB = 0.036;
+  const OFX = new Float64Array(N), OFZ = new Float64Array(N), ROT = new Float64Array(N);
+  for (let i = 0; i < N; i++) {
+    const s = Math.sin(i * 12.9898 + 78.233) * 43758.5453, f = s - Math.floor(s);
+    const s2 = Math.sin(i * 39.34 + 11.1) * 24634.6, f2 = s2 - Math.floor(s2);
+    OFX[i] = (f - 0.5) * 0.07; OFZ[i] = (f2 - 0.5) * 0.07; ROT[i] = (f - 0.5) * 0.34;
+  }
+  const TOP = N * H;
+  /* the leaning chip: disc plane at TH to the ground, leaning toward the stack from azimuth AL */
+  const TH = 66 * Math.PI / 180, AL = -0.32;
+  const nx = Math.cos(AL) * Math.sin(TH), ny = Math.cos(TH), nz = Math.sin(AL) * Math.sin(TH);
+  const ux = -Math.sin(AL), uy = 0, uz = Math.cos(AL);
+  const wx = uy * nz - uz * ny, wy = uz * nx - ux * nz, wz = ux * ny - uy * nx;
+  const LD = R + R * Math.cos(TH) + (H / 2) / Math.sin(TH) + 0.02;
+  const CX = LD * Math.cos(AL), CY = R * Math.sin(TH) + (H / 2) * Math.cos(TH) + 0.004, CZ = LD * Math.sin(AL);
+  const LROT = 0.4;
+  /* the cards: half extents, lying on the ground, fanned */
+  const CW = 0.72, CL = 1.0, CT = 0.012, CR = 0.075;
+  const CARD = [
+    { x: -0.32, y: CT, z: 1.80, a: 1.22 },
+    { x: 0.14, y: 3 * CT + 0.002, z: 1.94, a: 1.02 },
+  ];
+  for (const c of CARD) { c.ca = Math.cos(c.a); c.sa = Math.sin(c.a); }
+
+  let mat = 0, hitI = 0;
+  function chipSD(x, y, z) {
+    const r = Math.sqrt(x * x + z * z);
+    const dx = r - R + RB, dy = (y < 0 ? -y : y) - H / 2 + RB;
+    const mx = dx > 0 ? dx : 0, my = dy > 0 ? dy : 0;
+    const inner = dx > dy ? dx : dy;
+    return (inner < 0 ? inner : 0) + Math.sqrt(mx * mx + my * my) - RB;
+  }
+  function map(x, y, z) {
+    let i = Math.floor(y / H); if (i < 0) i = 0; else if (i >= N) i = N - 1;
+    let d = chipSD(x - OFX[i], y - (i + 0.5) * H, z - OFZ[i]); let m = 1; let hi = i;
+    /* leaning chip */
+    const px = x - CX, py = y - CY, pz = z - CZ;
+    const lx = px * ux + py * uy + pz * uz, ly = px * nx + py * ny + pz * nz, lz = px * wx + py * wy + pz * wz;
+    const d2 = chipSD(lx, ly, lz); if (d2 < d) { d = d2; m = 2; }
+    /* cards */
+    for (let k = 0; k < 2; k++) {
+      const c = CARD[k];
+      const qx0 = x - c.x, qz0 = z - c.z, qy = y - c.y;
+      const qx = qx0 * c.ca + qz0 * c.sa, qz = -qx0 * c.sa + qz0 * c.ca;
+      const ax = (qx < 0 ? -qx : qx) - (CW - CR), az = (qz < 0 ? -qz : qz) - (CL - CR);
+      const mx = ax > 0 ? ax : 0, mz = az > 0 ? az : 0;
+      const in2 = ax > az ? ax : az;
+      const d2d = (in2 < 0 ? in2 : 0) + Math.sqrt(mx * mx + mz * mz) - CR;
+      const wy = (qy < 0 ? -qy : qy) - CT;
+      const m1 = d2d > 0 ? d2d : 0, m2 = wy > 0 ? wy : 0;
+      const in3 = d2d > wy ? d2d : wy;
+      const dc = (in3 < 0 ? in3 : 0) + Math.sqrt(m1 * m1 + m2 * m2);
+      if (dc < d) { d = dc; m = 3 + k; }
+    }
+    mat = m; hitI = hi;
+    return d;
+  }
+  /* the pattern on a chip face or edge, in the chip's own frame: 0 base, 1 ink */
+  function chipPattern(x, y, z, rot) {
+    const r = Math.sqrt(x * x + z * z), rn = r / R;
+    const ang = Math.atan2(z, x) + rot;
+    /* eight edge spots, each a third of its period wide, running over the rim onto the face */
+    const ph = (ang / 6.2832 + 2) * 8; const fr = ph - Math.floor(ph);
+    const spot = fr < 0.36;
+    const onEdge = rn > 0.93;
+    if (spot && (onEdge || rn > 0.84)) return 1;
+    if (!onEdge && rn > 0.60 && rn < 0.635) return 1;
+    if (!onEdge && ((x < 0 ? -x : x) + (z < 0 ? -z : z) * 0.85 < 0.2)) return 1;
+    return 0;
+  }
+  function cardPattern(x, y, z, c) {
+    const qx0 = x - c.x, qz0 = z - c.z;
+    const qx = qx0 * c.ca + qz0 * c.sa, qz = -qx0 * c.sa + qz0 * c.ca;
+    const ax = qx < 0 ? -qx : qx, az = qz < 0 ? -qz : qz;
+    /* inset border */
+    const bx = ax - (CW - 0.085), bz = az - (CL - 0.085);
+    const bo = bx > bz ? bx : bz;
+    if (bo > -0.016 && bo < 0.016) return 1;
+    /* centre pip: a diamond */
+    if (ax * 1.15 + az * 0.9 < 0.19) return 1;
+    /* index pips in two corners */
+    const ix = ax - (CW - 0.19), iz = az - (CL - 0.24);
+    if (qx * qz > 0 && ((ix < 0 ? -ix : ix) * 1.15 + (iz < 0 ? -iz : iz) * 0.9 < 0.07)) return 1;
+    return 0;
+  }
+  function softShadow(ox, oy, oz, dx, dy, dz, maxT) {
+    let res = 1.0, t = 0.03;
+    for (let i = 0; i < 40 && t < maxT; i++) {
+      const h = map(ox + dx * t, oy + dy * t, oz + dz * t);
+      if (h < 0.0008) return 0;
+      const s = 12 * h / t; if (s < res) res = s;
+      t += h < 0.02 ? 0.02 : (h > 0.25 ? 0.25 : h);
+    }
+    return res < 0 ? 0 : res;
+  }
+  function ao(px, py, pz, nx, ny, nz) {
+    let occ = 0, sca = 1;
+    for (let i = 1; i <= 5; i++) {
+      const h = 0.012 + 0.11 * i;
+      const d = map(px + nx * h, py + ny * h, pz + nz * h);
+      occ += (h - d) * sca; sca *= 0.72;
+    }
+    const a = 1 - 1.7 * occ;
+    return a < 0 ? 0 : a > 1 ? 1 : a;
+  }
+
+  /* render rows rowStart, rowStart+rowStep, ... into out (2 bytes per cell: luminance, colour class) */
+  function render(P, out) {
+    const cols = P[0] | 0, rows = P[1] | 0, cw = P[2], ch = P[3], yaw = P[4], pitch = P[5];
+    const rowStart = P[6] | 0, rowStep = P[7] | 0;
+    const Wpx = cols * cw, Hpx = rows * ch;
+    /* camera */
+    const TX = 0.3, TY = 1.0, TZ = 0.85, dist = 10.0, focal = 1 / Math.tan(26 * Math.PI / 360);
+    const cp = Math.cos(pitch), sp = Math.sin(pitch), cy_ = Math.cos(yaw), sy_ = Math.sin(yaw);
+    const ex = TX + dist * cp * sy_, ey = TY + dist * sp, ez = TZ + dist * cp * cy_;
+    let fx = TX - ex, fy = TY - ey, fz = TZ - ez; let fl = Math.sqrt(fx * fx + fy * fy + fz * fz); fx /= fl; fy /= fl; fz /= fl;
+    let rx = -fz, ry = 0, rz = fx; let rl = Math.sqrt(rx * rx + rz * rz); rx /= rl; rz /= rl;
+    const upx = ry * fz - rz * fy, upy = rz * fx - rx * fz, upz = rx * fy - ry * fx;
+    /* lights in the camera's frame: key from the camera's upper left and slightly in front of it; rim from behind, right and above */
+    const kx = -0.5, ky = 0.85, kz = 0.45; // in (right, up, toward camera)
+    let L1x = rx * kx + upx * ky - fx * kz, L1y = ry * kx + upy * ky - fy * kz, L1z = rz * kx + upz * ky - fz * kz;
+    let l = Math.sqrt(L1x * L1x + L1y * L1y + L1z * L1z); L1x /= l; L1y /= l; L1z /= l;
+    /* the key is a lamp at a finite distance, so flat faces take a gradient */
+    const KD = 5.2, PLx = TX + L1x * KD, PLy = TY + L1y * KD, PLz = TZ + L1z * KD;
+    const qx = 0.55, qy = 0.42, qz = -0.72;
+    let L2x = rx * qx + upx * qy - fx * qz, L2y = ry * qx + upy * qy - fy * qz, L2z = rz * qx + upz * qy - fz * qz;
+    l = Math.sqrt(L2x * L2x + L2y * L2y + L2z * L2z); L2x /= l; L2y /= l; L2z /= l;
+    /* bounding sphere of the object */
+    const BX = 0.3, BY = 1.0, BZ = 0.85, BR = 2.6;
+    const EPS = 0.0012;
+    let o = 0;
+    for (let cy = rowStart; cy < rows; cy += rowStep) {
+      for (let cx = 0; cx < cols; cx++, o += 2) {
+        let lumSum = 0, clsA = 0, clsB = 0, clsC = 0;
+        for (let ss = 0; ss < 4; ss++) {
+        const u = (((cx + 0.25 + 0.5 * (ss & 1)) * cw) - Wpx / 2) / (Hpx / 2);
+        const v = -(((cy + 0.25 + 0.5 * (ss >> 1)) * ch) - Hpx / 2) / (Hpx / 2);
+        let dx = fx * focal + rx * u + upx * v, dy = fy * focal + ry * u + upy * v, dz = fz * focal + rz * u + upz * v;
+        const dl = Math.sqrt(dx * dx + dy * dy + dz * dz); dx /= dl; dy /= dl; dz /= dl;
+        /* ground */
+        const tg = dy < -1e-6 ? -ey / dy : 1e9;
+        /* bounding sphere */
+        const ocx = ex - BX, ocy = ey - BY, ocz = ez - BZ;
+        const b = ocx * dx + ocy * dy + ocz * dz, c = ocx * ocx + ocy * ocy + ocz * ocz - BR * BR;
+        const disc = b * b - c;
+        let lum = 0, cls = 0;
+        let hit = false, t = 0;
+        if (disc > 0) {
+          const sq = Math.sqrt(disc);
+          t = -b - sq; const tmax = -b + sq;
+          if (t < 0) t = 0;
+          for (let i = 0; i < 110 && t < tmax && t < tg; i++) {
+            const d = map(ex + dx * t, ey + dy * t, ez + dz * t);
+            if (d < EPS * (1 + t * 0.35)) { hit = true; break; }
+            t += d * 0.9;
+          }
+        }
+        if (hit) {
+          const m = mat, hi = hitI;
+          const px = ex + dx * t, py = ey + dy * t, pz = ez + dz * t;
+          /* normal by the tetrahedron trick */
+          const e = 0.0012;
+          const d1 = map(px + e, py - e, pz - e), d2 = map(px - e, py - e, pz + e), d3 = map(px - e, py + e, pz - e), d4 = map(px + e, py + e, pz + e);
+          let nX = d1 - d2 - d3 + d4, nY = -d1 - d2 + d3 + d4, nZ = -d1 + d2 - d3 + d4;
+          const nl = Math.sqrt(nX * nX + nY * nY + nZ * nZ) || 1; nX /= nl; nY /= nl; nZ /= nl;
+          /* material */
+          let ink = 0, albedo = 1.0;
+          let groove = 0;
+          if (m === 1) {
+            const sx = px - OFX[hi], sy = py - (hi + 0.5) * H, sz = pz - OFZ[hi];
+            ink = chipPattern(sx, sy, sz, ROT[hi]);
+            /* the seam between two chips: a dark line every chip, so the stack reads as a stack */
+            const ay = sy < 0 ? -sy : sy, sr = Math.sqrt(sx * sx + sz * sz);
+            if (sr > R - 0.1 && ay > H / 2 - 0.06 && !(hi === N - 1 && sy > 0) && !(hi === 0 && sy < 0)) groove = (ay - (H / 2 - 0.06)) / 0.06;
+          }
+          else if (m === 2) {
+            const qx0 = px - CX, qy0 = py - CY, qz0 = pz - CZ;
+            ink = chipPattern(qx0 * ux + qy0 * uy + qz0 * uz, qx0 * nx + qy0 * ny + qz0 * nz, qx0 * wx + qy0 * wy + qz0 * wz, LROT);
+          } else { albedo = 0.98; ink = cardPattern(px, py, pz, CARD[m - 3]); }
+          let lx = PLx - px, ly = PLy - py, lz = PLz - pz; const ld = Math.sqrt(lx * lx + ly * ly + lz * lz); lx /= ld; ly /= ld; lz /= ld;
+          const attn = 1.25 / (1 + 0.011 * ld * ld);
+          const ndl = nX * lx + nY * ly + nZ * lz;
+          const diff = (ndl > 0 ? ndl : 0) * attn;
+          const sh = diff > 0 ? softShadow(px + nX * 0.012, py + nY * 0.012, pz + nZ * 0.012, lx, ly, lz, ld) : 0;
+          const occ = ao(px, py, pz, nX, nY, nZ);
+          /* blinn-phong on the key */
+          let hx = lx - dx, hy = ly - dy, hz = lz - dz; const hl = Math.sqrt(hx * hx + hy * hy + hz * hz); hx /= hl; hy /= hl; hz /= hl;
+          const ndh = nX * hx + nY * hy + nZ * hz;
+          const spec = ndh > 0 ? Math.pow(ndh, m >= 3 ? 90 : 34) : 0;
+          /* rim */
+          const ndv = -(nX * dx + nY * dy + nZ * dz);
+          const fres = Math.pow(1 - (ndv > 0 ? ndv : 0), 3);
+          const ndl2 = nX * L2x + nY * L2y + nZ * L2z;
+          const rim = fres * (ndl2 > 0 ? ndl2 : 0);
+          const sky = nY > 0 ? nY : 0;
+          const fill = ndv > 0 ? ndv : 0;
+          let I = albedo * (0.17 * occ + 0.06 * sky * occ + 0.22 * fill * occ + 0.80 * diff * sh + 0.32 * spec * sh) + 0.65 * rim * occ;
+          I *= 1 - 0.7 * groove;
+          /* a filmic shoulder so the lit side keeps its gradient instead of clipping to the densest glyph */
+          I = 1 - Math.exp(-1.55 * I);
+          if (I > 1) I = 1;
+          lum = I; cls = ink ? 2 : 1;
+        } else if (tg < 1e8) {
+          /* the pool of light on the felt, with the object's shadow cut out of it */
+          const gx = ex + dx * tg, gz = ez + dz * tg;
+          const rdx = gx - 0.3, rdz = gz - 0.85;
+          const rr = Math.sqrt(rdx * rdx + rdz * rdz);
+          if (rr < 2.5) {
+            const fall = 1 - rr / 2.5; const pool = fall * fall * (3 - 2 * fall);
+            let lx = PLx - gx, ly = PLy, lz = PLz - gz; const ld = Math.sqrt(lx * lx + ly * ly + lz * lz); lx /= ld; ly /= ld; lz /= ld;
+            const sh = softShadow(gx, 0.012, gz, lx, ly, lz, ld);
+            const occ = ao(gx, 0, gz, 0, 1, 0);
+            let I = 0.30 * pool * (0.1 + 0.9 * sh) * occ;
+            lum = I; cls = 3;
+          }
+        }
+        lumSum += lum; if (cls === 1) clsA++; else if (cls === 2) clsB++; else if (cls === 3) clsC++;
+        }
+        const cls = (clsA + clsB + clsC) === 0 ? 0 : (clsB > clsA && clsB >= clsC ? 2 : (clsC > clsA ? 3 : 1));
+        out[o] = lumSum * 63.75 + 0.5 | 0; out[o + 1] = cls;
+      }
+    }
+  }
+  return { render };
+};
+
+const FONT = "'IBM Plex Mono', ui-monospace, Menlo, monospace";
+const CANDIDATES = " .·:;-~=+*%#@";
+let RAMP = " .:-=+*x%#@";
+const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+const canvas = document.getElementById('object');
+if (!canvas) return;
+const ctx = canvas.getContext('2d');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fontPx = parseFloat(canvas.dataset.font || '6');
+/* ivory body, oxblood pattern (edge spots, rings, pips), a dim ivory pool of light under it */
+const COLORS = ['transparent', '#f5f0e6', '#c23553', 'rgba(245,240,230,0.42)'];
+const kernel = KERNEL();
+const G = { cols: 0, rows: 0, cw: 0, ch: 0, dpr: 1, atlas: null, buf: null, ox: 0, oy: 0 };
+
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  if (r.width < 4 || r.height < 4) return false;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  G.dpr = dpr;
+  canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.font = `${fontPx}px ${FONT}`;
+  G.cw = ctx.measureText('M').width; G.ch = fontPx * 1.0;
+  G.cols = Math.floor(r.width / G.cw); G.rows = Math.floor(r.height / G.ch);
+  G.ox = (r.width - G.cols * G.cw) / 2; G.oy = (r.height - G.rows * G.ch) / 2;
+  G.buf = new Uint8Array(G.cols * G.rows * 2);
+  const gw = Math.ceil(G.cw * dpr), gh = Math.ceil(G.ch * dpr);
+  G.gw = gw; G.gh = gh;
+  RAMP = measureRamp(gw, gh, dpr);
+  G.atlas = COLORS.map((col) => {
+    const c = document.createElement('canvas');
+    c.width = gw * RAMP.length; c.height = gh;
+    const x = c.getContext('2d');
+    x.font = `${fontPx * dpr}px ${FONT}`; x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillStyle = col;
+    for (let i = 1; i < RAMP.length; i++) x.fillText(RAMP[i], i * gw + gw / 2, gh / 2 + 0.5);
+    return c;
+  });
+  return true;
+}
+/* the glyph ramp is measured from the font's real ink coverage, so equal steps of light are equal steps of ink */
+function measureRamp(gw, gh, dpr) {
+  const c = document.createElement('canvas'); c.width = gw; c.height = gh;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.font = `${fontPx * dpr}px ${FONT}`; x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillStyle = '#fff';
+  const cov = [];
+  for (const ch of CANDIDATES) {
+    if (ch === ' ') continue;
+    x.clearRect(0, 0, gw, gh); x.fillText(ch, gw / 2, gh / 2 + 0.5);
+    const d = x.getImageData(0, 0, gw, gh).data; let sum = 0;
+    for (let i = 3; i < d.length; i += 4) sum += d[i];
+    cov.push([sum / (255 * gw * gh), ch]);
+  }
+  cov.sort((a, b) => a[0] - b[0]);
+  if (!cov.length || cov[cov.length - 1][0] < 0.05) return " .:-=+*x%#@";
+  return ' ' + cov.map((e) => e[1]).join('');
+}
+function blit() {
+  const { cols, rows, buf, atlas, gw, gh, dpr } = G;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const ox = G.ox * dpr, oy = G.oy * dpr, pw = G.cw * dpr, ph = G.ch * dpr;
+  const n = RAMP.length - 1;
+  let i = 0;
+  for (let y = 0; y < rows; y++) {
+    const by = BAYER[y & 3];
+    for (let x = 0; x < cols; x++, i += 2) {
+      const cls = buf[i + 1]; if (!cls) continue;
+      const lum = buf[i] / 255;
+      const bay = (by[x & 3] + 0.5) / 16 - 0.5;
+      let g = Math.floor(lum * n + bay * 0.35 + 0.5);
+      /* on black, every hit cell keeps at least the faintest glyph so the shadow side stays a solid silhouette */
+      if (g < 1) { if (cls !== 3) g = 1; else if (lum > 0.04) g = 1; else continue; }
+      if (cls === 2 && g < 3) g = 3;
+      if (g > n) g = n;
+      ctx.drawImage(atlas[cls], g * gw, 0, gw, gh, ox + x * pw, oy + y * ph, gw, gh);
+    }
+  }
+}
+const cam = { tx: 0, ty: 0, mx: 0, my: 0 };
+const T0 = performance.now();
+function camera(now) {
+  const t = (now - T0) / 1000;
+  cam.tx += (cam.mx - cam.tx) * 0.04; cam.ty += (cam.my - cam.ty) * 0.04;
+  const turn = reduced ? 0 : t * (2 * Math.PI / 62);
+  return [0.55 + turn + cam.tx * 0.10, 16 * Math.PI / 180 + cam.ty * 0.07];
+}
+window.addEventListener('pointermove', (e) => {
+  cam.mx = (e.clientX / window.innerWidth) * 2 - 1;
+  cam.my = (e.clientY / window.innerHeight) * 2 - 1;
+}, { passive: true });
+function params(yaw, pitch, rowStart, rowStep) { return new Float64Array([G.cols, G.rows, G.cw, G.ch, yaw, pitch, rowStart, rowStep]); }
+const stats = { syncMs: 0, frames: 0, frameMs: 0, avgMs: 0, cells: 0, workers: 0 };
+window.__object = stats;
+function renderSync(now) {
+  const [yaw, pitch] = camera(now);
+  const t0 = performance.now();
+  kernel.render(params(yaw, pitch, 0, 1), G.buf);
+  blit();
+  stats.syncMs = performance.now() - t0; stats.cells = G.cols * G.rows;
+}
+let workers = null, pending = 0, generation = 0, visible = true;
+function makeWorkers() {
+  if (typeof Worker === 'undefined' || typeof Blob === 'undefined') return null;
+  const K = Math.max(2, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
+  const src = `const kernel = (${KERNEL.toString()})();
+    onmessage = (e) => { const P = e.data.P; const rows = P[1] | 0, cols = P[0] | 0, rs = P[6] | 0, step = P[7] | 0;
+      const mine = Math.ceil((rows - rs) / step); const out = new Uint8Array(Math.max(0, mine) * cols * 2);
+      kernel.render(P, out); postMessage({ out, gen: e.data.gen, rs, step }, [out.buffer]); };`;
+  let url;
+  try { url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })); } catch (e) { return null; }
+  const pool = [];
+  try { for (let k = 0; k < K; k++) pool.push(new Worker(url)); } catch (e) { return null; }
+  for (const w of pool) w.onmessage = (e) => {
+    const { out, gen, rs, step } = e.data;
+    if (gen !== generation) return;
+    const cols = G.cols, buf = G.buf; let src = 0;
+    for (let y = rs; y < G.rows; y += step, src += cols * 2) buf.set(out.subarray(src, src + cols * 2), y * cols * 2);
+    if (--pending === 0) { blit(); stats.frames++; stats.frameMs = performance.now() - frameT0; stats.avgMs += (stats.frameMs - stats.avgMs) * 0.1; scheduleFrame(); }
+  };
+  for (const w of pool) w.onerror = () => { workers = null; };
+  return pool;
+}
+let frameQueued = false;
+function scheduleFrame() {
+  if (frameQueued) return; frameQueued = true;
+  requestAnimationFrame((now) => { frameQueued = false; if (!document.hidden && visible) dispatch(now); else setTimeout(scheduleFrame, 250); });
+}
+let frameT0 = 0;
+function dispatch(now) {
+  if (!workers) return;
+  frameT0 = performance.now();
+  const [yaw, pitch] = camera(now);
+  generation++; pending = workers.length;
+  workers.forEach((w, k) => w.postMessage({ P: params(yaw, pitch, k, workers.length), gen: generation }));
+}
+function start() {
+  if (!resize()) { setTimeout(start, 120); return; }
+  renderSync(performance.now());
+  if (reduced) return;
+  workers = makeWorkers();
+  stats.workers = workers ? workers.length : 0;
+  /* the pool only runs while the object is on screen */
+  if ('IntersectionObserver' in window) new IntersectionObserver((es) => { visible = es[0].isIntersecting; }, { threshold: 0.02 }).observe(canvas);
+  if (workers) scheduleFrame();
+}
+let resizeTimer = 0;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (resize()) { generation++; pending = 0; renderSync(performance.now()); if (workers) scheduleFrame(); } }, 120);
+});
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(start, start); else start();
+})();
+</script>
+<script>
+(function(){
+'use strict';
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (s, el) => (el || document).querySelector(s);
+const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const BAYER = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+const RAMP = " .:-=+*#%@";
+const MONO = "'IBM Plex Mono', ui-monospace, Menlo, monospace";
+const C = { ivory: '#f5f0e6', iv60: 'rgba(245,240,230,.6)', iv45: 'rgba(245,240,230,.45)', iv30: 'rgba(245,240,230,.3)', iv10: 'rgba(245,240,230,.1)', iv06: 'rgba(245,240,230,.06)', yellow: '#e9b862', pink: '#d8566f', ox: '#8e2038', oxlit: '#b52a4c' };
+const dprOf = () => Math.min(2, window.devicePixelRatio || 1);
+
+/* =====================================================================
+   0. THE CONSOLE STRIP: regret matching, the update rule of /rung0
+   ===================================================================== */
+const PAYOFF = [[0, -1, 1], [1, 0, -1], [-1, 1, 0]];
+function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const newLedger = () => ({ R: [0, 0, 0], S: [0, 0, 0], n: 0 });
+const sigmaOf = (L) => { const p = [Math.max(L.R[0], 0), Math.max(L.R[1], 0), Math.max(L.R[2], 0)]; const s = p[0] + p[1] + p[2]; return s > 0 ? [p[0] / s, p[1] / s, p[2] / s] : [1/3, 1/3, 1/3]; };
+const avgOf = (L) => L.n ? [L.S[0] / L.n, L.S[1] / L.n, L.S[2] / L.n] : [1/3, 1/3, 1/3];
+function update(L, u) { const s = sigmaOf(L); const e = s[0] * u[0] + s[1] * u[1] + s[2] * u[2]; L.R[0] += u[0] - e; L.R[1] += u[1] - e; L.R[2] += u[2] - e; L.S[0] += s[0]; L.S[1] += s[1]; L.S[2] += s[2]; L.n++; }
+function exploit(sig) { let best = -1e9; for (let b = 0; b < 3; b++) { let ev = 0; for (let a = 0; a < 3; a++) ev += sig[a] * PAYOFF[b][a]; if (ev > best) best = ev; } return best; }
+const sample = (p, r) => r < p[0] ? 0 : r < p[0] + p[1] ? 1 : 2;
+const ITERS = 100000;
+class Run {
+  constructor(seed) { this.seed = seed; this.rng = mulberry32(seed); this.L = [newLedger(), newLedger()]; this.t = 0; this.hist = []; this.nextTick = 1; this.done = false; }
+  step(n) {
+    for (let i = 0; i < n && this.t < ITERS; i++) {
+      const s0 = sigmaOf(this.L[0]), s1 = sigmaOf(this.L[1]);
+      const a = sample(s0, this.rng()), b = sample(s1, this.rng());
+      update(this.L[0], [PAYOFF[0][b], PAYOFF[1][b], PAYOFF[2][b]]); update(this.L[1], [PAYOFF[0][a], PAYOFF[1][a], PAYOFF[2][a]]);
+      this.t++;
+      if (this.t === this.nextTick || this.t === ITERS) {
+        this.hist.push([this.t, exploit(avgOf(this.L[0]))]);
+        const d = Math.pow(10, Math.floor(Math.log10(this.nextTick))); const m = this.nextTick / d;
+        this.nextTick = m === 1 ? 2 * d : m === 2 ? 5 * d : 10 * d;
+      }
+    }
+    if (this.t >= ITERS) this.done = true;
+  }
+}
+let run = new Run(22), holdUntil = 0;
+const cIt = $('#cIt'), cBar = $('#cBar'), cPct = $('#cPct'), cEx = $('#cEx'), cMix = $('#cMix'), cSpark = $('#cSpark'), cst = $('#cst'), cstTxt = $('#cstTxt');
+const NAMES = ['rock', 'paper', 'scissors'];
+cMix.innerHTML = NAMES.map((n, i) => `<span>${n}</span><span class="b"><i id="cm${i}"></i></span><span class="v" id="cv${i}">0.333</span>`).join('');
+function renderConsole() {
+  const avg = avgOf(run.L[0]), ex = exploit(avg), prog = run.t / ITERS;
+  cIt.textContent = `${run.t.toLocaleString('en-US')} / 100,000`;
+  cBar.style.width = (prog * 100) + '%'; cPct.textContent = Math.round(prog * 100) + '%';
+  cEx.innerHTML = `${ex.toFixed(5)}<small>chips / round</small>`;
+  for (let i = 0; i < 3; i++) { $('#cm' + i).style.width = (avg[i] * 100) + '%'; $('#cv' + i).textContent = avg[i].toFixed(3); }
+  cstTxt.textContent = run.done ? 'converged' : 'running'; cst.classList.toggle('done', run.done);
+  drawSpark();
+}
+function drawSpark() {
+  const dpr = dprOf(), r = cSpark.getBoundingClientRect(); if (!r.width) return;
+  cSpark.width = r.width * dpr; cSpark.height = r.height * dpr;
+  const x = cSpark.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = r.width, H = r.height, L = 22, R = 4, T = 3, B = 11;
+  const X = (t) => L + (Math.log10(Math.max(1, t)) / 5) * (W - L - R);
+  const Y = (e) => T + (1 - (Math.log10(Math.max(1e-4, e)) + 4) / 4) * (H - T - B);
+  x.clearRect(0, 0, W, H);
+  x.font = `8px ${MONO}`; x.fillStyle = C.iv45; x.strokeStyle = C.iv10; x.lineWidth = 1;
+  for (const e of [1, 0.01, 0.0001]) { const yy = Math.round(Y(e)) + 0.5; x.beginPath(); x.moveTo(L, yy); x.lineTo(W - R, yy); x.stroke(); x.textAlign = 'right'; x.fillText(e >= 1 ? '1' : e === 0.01 ? '.01' : '1e-4', L - 4, yy + 3); }
+  x.textAlign = 'center';
+  for (const t of [1, 100, 10000]) { const xx = Math.round(X(t)) + 0.5; x.beginPath(); x.moveTo(xx, T); x.lineTo(xx, H - B); x.stroke(); x.fillText(t >= 1000 ? (t / 1000) + 'k' : String(t), xx, H - 2); }
+  if (run.hist.length < 2) return;
+  x.strokeStyle = C.yellow; x.lineWidth = 1.4; x.lineJoin = 'round'; x.beginPath();
+  run.hist.forEach(([t, e], i) => { const px = X(t), py = Y(e); i ? x.lineTo(px, py) : x.moveTo(px, py); }); x.stroke();
+  const [t, e] = run.hist[run.hist.length - 1];
+  x.fillStyle = C.pink; x.beginPath(); x.arc(X(t), Y(e), 2.4, 0, 7); x.fill();
+}
+function restart(seed) { run = new Run(seed); $('#seed').textContent = seed; holdUntil = 0; if (REDUCED) { run.step(ITERS); renderConsole(); } }
+$('#cRestart').addEventListener('click', () => restart(Math.floor(Math.random() * 9000) + 100));
+function consoleLoop() {
+  if (REDUCED) { run.step(ITERS); renderConsole(); return; }
+  let lastT = performance.now();
+  (function tick(now) {
+    const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+    if (!document.hidden) {
+      if (!run.done) { run.step(Math.max(1, Math.floor(run.t * dt * 0.95))); renderConsole(); }
+      else if (!holdUntil) { holdUntil = now + 7000; renderConsole(); }
+      else if (now > holdUntil) restart(run.seed + 1);
+    }
+    requestAnimationFrame(tick);
+  })(lastT);
+}
+
+/* =====================================================================
+   1. THE STRATEGY EXPLORER
+   ===================================================================== */
+const S = DATA.leduc.strategy;
+const NODES = [
+  { l: '',    name: 'open',           sub: 'first to act' },
+  { l: 'c',   name: 'vs check',       sub: 'they checked' },
+  { l: 'r',   name: 'vs bet',         sub: 'they bet' },
+  { l: 'cr',  name: 'check → vs bet', sub: 'you checked, they bet' },
+  { l: 'rr',  name: 'bet → vs raise', sub: 'you bet, they raised' },
+  { l: 'crr', name: 'check-raised',   sub: 'you bet after a check, they raised' },
+];
+const seatOf = (l) => (l.length % 2 === 0 ? 1 : 2);
+const RANKS = ['J', 'Q', 'K'];
+const legal = (l) => { const n = (l.match(/r/g) || []).length; return n === 0 ? ['c','r'] : n < 2 ? ['f','c','r'] : ['f','c']; };
+const keyFor = (rank, st) => st.street === 'pre' ? `${rank}:${st.node}` : `${rank}:${st.line}|${st.board}:${st.node}`;
+const word = (a, l) => a === 'f' ? 'fold' : a === 'c' ? (l.endsWith('r') ? 'call' : 'check') : (l.endsWith('r') ? 'raise' : 'bet');
+const st = { street: 'pre', line: 'cc', board: 'J', action: 'r', pinned: null, hover: null };
+function cellText(freq, cols, rows, off) {
+  const n = RAMP.length - 1; let out = '';
+  for (let r = 0; r < rows; r++) {
+    let line = '';
+    for (let c = 0; c < cols; c++) {
+      const b = (BAYER[(r + off) % 4][(c + off) % 4] + 0.5) / 16 - 0.5;
+      line += RAMP[clamp(Math.round(freq * n + b * 1.6), 0, n)];
+    }
+    out += line + (r < rows - 1 ? '\n' : '');
+  }
+  return out;
+}
+const gridEl = $('#grid'), colheadEl = $('#colhead');
+let cellEls = [];
+function buildGrid() {
+  colheadEl.innerHTML = NODES.map((n) => `<div><b>${n.name}</b>${n.sub} · seat ${seatOf(n.l)}</div>`).join('');
+  gridEl.innerHTML = ''; cellEls = [];
+  RANKS.forEach((rank) => NODES.forEach((node) => {
+    const b = document.createElement('button');
+    b.className = 'cell'; b.setAttribute('role', 'gridcell');
+    b.dataset.rank = rank; b.dataset.node = node.l;
+    b.innerHTML = `<pre aria-hidden="true"></pre><span class="pct"></span>`;
+    b.addEventListener('mouseenter', () => { st.hover = { rank, node: node.l }; renderSpot(); });
+    b.addEventListener('mouseleave', () => { st.hover = null; renderSpot(); });
+    b.addEventListener('focus', () => { st.hover = { rank, node: node.l }; renderSpot(); });
+    b.addEventListener('click', () => { st.pinned = (st.pinned && st.pinned.rank === rank && st.pinned.node === node.l) ? null : { rank, node: node.l }; renderCells(false); renderSpot(); });
+    gridEl.appendChild(b); cellEls.push(b);
+  }));
+}
+function mix(rank, node) { return S[keyFor(rank, { ...st, node })] || {}; }
+let cellDims = { cols: 24, rows: 6 };
+function measureCell() {
+  const pre = cellEls[0] && cellEls[0].querySelector('pre');
+  if (!pre) return;
+  const r = pre.getBoundingClientRect(); if (r.width === 0) return;
+  const fs = parseFloat(getComputedStyle(pre).fontSize), lh = parseFloat(getComputedStyle(pre).lineHeight);
+  const cw = fs * 0.6 + fs * 0.06;
+  cellDims = { cols: Math.max(4, Math.floor(r.width / cw)), rows: Math.max(2, Math.floor(r.height / lh)) };
+}
+function renderCells(animate) {
+  measureCell();
+  const a = st.action;
+  gridEl.className = 'grid a-' + a;
+  let sum = { f: 0, c: 0, r: 0 }, cnt = { f: 0, c: 0, r: 0 };
+  cellEls.forEach((el, i) => {
+    const rank = el.dataset.rank, node = el.dataset.node, m = mix(rank, node), ok = legal(node).includes(a);
+    const f = ok ? (m[a] || 0) : 0;
+    el.classList.toggle('na', !ok);
+    el.classList.toggle('pin', !!(st.pinned && st.pinned.rank === rank && st.pinned.node === node));
+    el.dataset.f = f;
+    el.setAttribute('aria-label', `${rank} ${NODES.find((n) => n.l === node).name}: ${word(a, node)} ${ok ? Math.round(f * 100) + '%' : 'not available'}`);
+    el.querySelector('.pct').textContent = ok ? (f * 100 < 0.5 && f > 0 ? '<1%' : Math.round(f * 100) + '%') : '—';
+    for (const k of Object.keys(m)) { sum[k] += m[k]; cnt[k]++; }
+    if (!animate) el.querySelector('pre').textContent = cellText(f, cellDims.cols, cellDims.rows, i);
+  });
+  for (const k of ['f', 'c', 'r']) {
+    const v = cnt[k] ? sum[k] / cnt[k] : 0;
+    $('#avg' + k.toUpperCase()).textContent = Math.round(v * 100) + '%';
+    $('#bar' + k.toUpperCase()).style.width = (v * 100) + '%';
+  }
+  $$('.act').forEach((b) => b.classList.toggle('on', b.dataset.a === a));
+  if (animate && !REDUCED) {
+    const t0 = performance.now();
+    const step = (now) => {
+      const t = (now - t0) / 700; let done = true;
+      cellEls.forEach((el, i) => {
+        const col = i % 6, local = clamp((t - col * 0.09) / 0.45, 0, 1);
+        if (local < 1) done = false;
+        el.querySelector('pre').textContent = cellText(parseFloat(el.dataset.f) * local, cellDims.cols, cellDims.rows, i + (local < 1 ? Math.floor(now / 60) : 0));
+      });
+      if (!done) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  } else if (animate) renderCells(false);
+}
+function describe(rank, node) {
+  const n = NODES.find((x) => x.l === node), seat = seatOf(node);
+  const street = st.street === 'pre' ? 'Preflop' : `Flop, board ${st.board}, after ${st.line} preflop`;
+  const hand = st.street === 'flop' && st.board === rank ? `a pair of ${rank}s` : `a ${rank}`;
+  return `${street}. Seat ${seat} holds ${hand}, ${n.sub}.`;
+}
+function renderSpot() {
+  const cur = st.hover || st.pinned || { rank: 'K', node: '' };
+  const m = mix(cur.rank, cur.node), node = cur.node, seat = seatOf(node);
+  $('#spotKey').textContent = keyFor(cur.rank, { ...st, node });
+  $('#spotSeat').textContent = `seat ${seat} to act`;
+  $('#spotDesc').textContent = describe(cur.rank, node);
+  $('#tagSeat').textContent = `seat ${seat}`;
+  $('#seatTag1').classList.toggle('on', seat === 1); $('#seatTag2').classList.toggle('on', seat === 2);
+  for (const [k, id] of [['f', 'F'], ['c', 'C'], ['r', 'R']]) {
+    const ok = legal(node).includes(k), v = ok ? (m[k] || 0) : 0;
+    $('#b' + id).querySelector('i').style.width = (v * 100) + '%';
+    $('#p' + id).textContent = ok ? (v * 100).toFixed(1) + '%' : '—';
+    $('#p' + id).previousElementSibling.previousElementSibling.textContent = ok ? word(k, node) : k === 'f' ? 'fold' : k === 'c' ? 'check' : 'bet';
+  }
+  table.seat = seat; table.dirty = true;
+}
+function bindSeg(id, key, after) {
+  $$('button', $(id)).forEach((b) => b.addEventListener('click', () => {
+    if (b.disabled) return;
+    $$('button', $(id)).forEach((x) => x.classList.toggle('on', x === b));
+    st[key] = b.dataset.v; if (after) after(); st.pinned = null; renderCells(false); renderSpot();
+  }));
+}
+bindSeg('#segStreet', 'street', () => { const flop = st.street === 'flop'; $$('#segLine button, #segBoard button').forEach((b) => (b.disabled = !flop)); });
+bindSeg('#segLine', 'line'); bindSeg('#segBoard', 'board');
+$$('.act').forEach((b) => b.addEventListener('click', () => { st.action = b.dataset.a; renderCells(false); renderSpot(); }));
+$('#rampLegend').textContent = '0% ' + RAMP.slice(1) + ' 100%';
+buildGrid();
+
+/* =====================================================================
+   2. CHARACTER GRIDS: the table and the rung objects share one blitter
+   ===================================================================== */
+function makeGrid(canvas, fontPx, palette) {
+  const ctx = canvas.getContext('2d');
+  const g = { canvas, ctx, fontPx, palette, cols: 0, rows: 0 };
+  let CH = ''; for (let c = 32; c < 127; c++) CH += String.fromCharCode(c);
+  g.CH = CH; g.CIDX = {}; for (let i = 0; i < CH.length; i++) g.CIDX[CH[i]] = i;
+  g.resize = () => {
+    const dpr = dprOf(), r = canvas.getBoundingClientRect();
+    if (!r.width) return false;
+    g.dpr = dpr; canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.font = `${fontPx}px ${MONO}`;
+    g.cw = ctx.measureText('M').width; g.ch = fontPx * 1.05;
+    g.cols = Math.floor(r.width / g.cw); g.rows = Math.floor(r.height / g.ch);
+    g.ox = (r.width - g.cols * g.cw) / 2; g.oy = (r.height - g.rows * g.ch) / 2;
+    g.chb = new Uint8Array(g.cols * g.rows); g.cob = new Uint8Array(g.cols * g.rows);
+    const gw = Math.ceil(g.cw * dpr), gh = Math.ceil(g.ch * dpr); g.gw = gw; g.gh = gh;
+    g.atlas = palette.map((col) => {
+      const c = document.createElement('canvas'); c.width = gw * CH.length; c.height = gh;
+      const x = c.getContext('2d'); x.font = `${fontPx * dpr}px ${MONO}`; x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillStyle = col;
+      for (let i = 0; i < CH.length; i++) x.fillText(CH[i], i * gw + gw / 2, gh / 2 + 0.5);
+      return c;
+    });
+    return true;
+  };
+  g.draw = () => {
+    const { gw, gh, cols, rows, dpr } = g;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const ox = g.ox * dpr, oy = g.oy * dpr, pw = g.cw * dpr, ph = g.ch * dpr;
+    let i = 0;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++, i++) {
+      const c = g.chb[i]; if (!c) continue;
+      ctx.drawImage(g.atlas[g.cob[i]], c * gw, 0, gw, gh, ox + x * pw, oy + y * ph, gw, gh);
+    }
+  };
+  return g;
+}
+const TRAMP = " .':-=+*x%#@";
+
+/* ---- the oval table: raymarched, the seat to act lit ---- */
+const table = { seat: 1, dirty: true, t: 0 };
+const SEATS = [null, { x: 0, y: -0.36 }, { x: 0, y: 0.36 }];
+function ellD(x, y, rx, ry) { const k1 = Math.hypot(x / rx, y / ry), k2 = Math.hypot(x / (rx * rx), y / (ry * ry)); return k2 > 1e-9 ? k1 * (k1 - 1) / k2 : -Math.min(rx, ry); }
+const slab = (z, a, b) => Math.max(a - z, z - b);
+function sdBox(px, py, pz, cx, cy, cz, ang, hx, hy, hz) {
+  const c = Math.cos(ang), s = Math.sin(ang), dx = px - cx, dy = py - cy;
+  const lx = Math.abs(c * dx + s * dy) - hx, ly = Math.abs(-s * dx + c * dy) - hy, lz = Math.abs(pz - cz) - hz;
+  const ox = Math.max(lx, 0), oy = Math.max(ly, 0), oz = Math.max(lz, 0);
+  return Math.hypot(ox, oy, oz) + Math.min(Math.max(lx, ly, lz), 0);
+}
+const CHIPS = [
+  { x: 0.36, y: -0.33, n: 7, s: 1 }, { x: 0.52, y: -0.26, n: 4, s: 1 },
+  { x: -0.36, y: 0.33, n: 7, s: 2 }, { x: -0.52, y: 0.26, n: 4, s: 2 },
+  { x: 0.07, y: -0.02, n: 3, s: 0 }, { x: -0.04, y: 0.06, n: 2, s: 0 },
+];
+const CARDS = [
+  { x: -0.24, y: -0.33, a: 0.2, s: 1 }, { x: -0.03, y: -0.35, a: -0.04, s: 1 },
+  { x: 0.24, y: 0.33, a: 0.2, s: 2 }, { x: 0.03, y: 0.35, a: -0.04, s: 2 },
+  { x: -0.26, y: 0.03, a: 0.0, s: 0 },
+];
+let hitMat = 0, hitSeat = 0;
+function sdf(x, y, z) {
+  let d = Math.max(ellD(x, y, 0.94, 0.58), slab(z, -0.05, 0)); let m = 1, s = 0;
+  const r = Math.hypot(ellD(x, y, 1.0, 0.64), z - 0.0) - 0.095; if (r < d) { d = r; m = 2; }
+  const k = Math.max(ellD(x, y, 0.98, 0.62), slab(z, -0.34, -0.05)); if (k < d) { d = k; m = 3; }
+  for (const c of CHIPS) { const q = Math.max(Math.hypot(x - c.x, y - c.y) - 0.085, slab(z, 0, c.n * 0.024)); if (q < d) { d = q; m = 4; s = c.s; } }
+  for (const c of CARDS) { const q = sdBox(x, y, z, c.x, c.y, 0.006, c.a, 0.105, 0.075, 0.006); if (q < d) { d = q; m = 5; s = c.s; } }
+  hitMat = m; hitSeat = s; return d;
+}
+function renderTable(g, t, seat) {
+  const { cols, rows } = g; if (!cols) return;
+  g.chb.fill(0); g.cob.fill(0);
+  const orbit = 0.10 * Math.sin(t * 0.25);
+  const cam = [Math.sin(orbit) * 1.5, -Math.cos(orbit) * 1.5, 1.45], look = [0, 0.03, -0.02];
+  let fw = [look[0] - cam[0], look[1] - cam[1], look[2] - cam[2]]; let fl = Math.hypot(...fw); fw = fw.map((v) => v / fl);
+  let rt = [fw[1], -fw[0], 0]; const rl = Math.hypot(...rt); rt = rt.map((v) => v / rl);
+  const up = [rt[1] * fw[2] - rt[2] * fw[1], rt[2] * fw[0] - rt[0] * fw[2], rt[0] * fw[1] - rt[1] * fw[0]];
+  const cellAsp = g.ch / g.cw, aspect = (cols) / (rows * cellAsp), tanH = 0.50;
+  const L = [-0.45, -0.5, 0.74]; const Ll = Math.hypot(...L); L[0] /= Ll; L[1] /= Ll; L[2] /= Ll;
+  const spot = SEATS[seat];
+  for (let cy = 0; cy < rows; cy++) for (let cx = 0; cx < cols; cx++) {
+    const u = ((cx + 0.5) / cols * 2 - 1) * tanH * aspect, v = (1 - (cy + 0.5) / rows * 2) * tanH;
+    let dx = fw[0] + rt[0] * u + up[0] * v, dy = fw[1] + rt[1] * u + up[1] * v, dz = fw[2] + rt[2] * u + up[2] * v;
+    const dl = Math.hypot(dx, dy, dz); dx /= dl; dy /= dl; dz /= dl;
+    let tt = 0.8, hit = false, px = 0, py = 0, pz = 0;
+    for (let i = 0; i < 56; i++) {
+      px = cam[0] + dx * tt; py = cam[1] + dy * tt; pz = cam[2] + dz * tt;
+      const d = sdf(px, py, pz);
+      if (d < 0.0025) { hit = true; break; }
+      tt += d * 0.9; if (tt > 5) break;
+    }
+    if (!hit) continue;
+    const m = hitMat, s = hitSeat, e = 0.004;
+    const nx = sdf(px + e, py, pz) - sdf(px - e, py, pz), ny = sdf(px, py + e, pz) - sdf(px, py - e, pz), nz = sdf(px, py, pz + e) - sdf(px, py, pz - e);
+    const nl = Math.hypot(nx, ny, nz) || 1; const n = [nx / nl, ny / nl, nz / nl];
+    const ao = clamp(sdf(px + n[0] * 0.05, py + n[1] * 0.05, pz + n[2] * 0.05) / 0.05, 0.35, 1);
+    const diff = Math.max(0, n[0] * L[0] + n[1] * L[1] + n[2] * L[2]);
+    let hx = L[0] - dx, hy = L[1] - dy, hz = L[2] - dz; const hl = Math.hypot(hx, hy, hz); hx /= hl; hy /= hl; hz /= hl;
+    const spec = Math.pow(Math.max(0, n[0] * hx + n[1] * hy + n[2] * hz), m === 2 ? 40 : 18);
+    const rim = Math.pow(1 - Math.max(0, -(n[0] * dx + n[1] * dy + n[2] * dz)), 3);
+    let alb = 0.5, sp = 0.15, pool = 0, shadow = 1;
+    if (m === 1) {
+      alb = 0.30 + 0.03 * ((Math.floor(px * 48) + Math.floor(py * 48)) % 2);
+      pool = Math.exp(-((px - spot.x) ** 2 + (py - spot.y) ** 2) / 0.045);
+      alb += 0.62 * pool; sp = 0.04;
+      for (let k = 1; k <= 7; k++) { const q = 0.03 * k; let dmin = 1; for (const c of CHIPS) dmin = Math.min(dmin, Math.max(Math.hypot(px + L[0] * q - c.x, py + L[1] * q - c.y) - 0.085, slab(pz + L[2] * q, 0, c.n * 0.024))); for (const c of CARDS) dmin = Math.min(dmin, sdBox(px + L[0] * q, py + L[1] * q, pz + L[2] * q, c.x, c.y, 0.006, c.a, 0.105, 0.075, 0.006)); if (dmin < 0.004) { shadow = 0.45; break; } }
+    } else if (m === 2) { alb = 0.5; sp = 1.0; }
+    else if (m === 3) { alb = 0.22; sp = 0.1; }
+    else if (m === 4) { const a = Math.atan2(py, px); alb = (Math.floor((a / Math.PI) * 6 + 12) % 2) ? 0.55 : 0.85; sp = 0.35; }
+    else if (m === 5) { alb = 1.0; sp = 0.35; }
+    let I = 1.25 * alb * (0.14 + 0.86 * diff) * ao * shadow + spec * sp + rim * (m === 2 ? 0.3 : 0.1);
+    if (s === seat && m >= 4) I = Math.min(1, I * 1.15 + 0.1);
+    const bay = (BAYER[cy % 4][cx % 4] + 0.5) / 16 - 0.5;
+    const lv = clamp(Math.round(I * (TRAMP.length - 1) + bay * 1.4), 0, TRAMP.length - 1);
+    if (lv === 0) continue;
+    g.chb[cy * cols + cx] = g.CIDX[TRAMP[lv]];
+    g.cob[cy * cols + cx] = (m >= 4 && s === seat) || (m === 1 && pool > 0.3) ? 1 : (m === 3 ? 2 : 0);
+  }
+  g.draw();
+}
+const tableG = makeGrid($('#tableCv'), 3.2, [C.ivory, C.yellow, 'rgba(245,240,230,.5)']);
+let tableVisible = true;
+function tableLoop(now) {
+  if (!tableG.cols) tableG.resize();
+  if (tableG.cols && tableVisible && (!REDUCED || table.dirty)) {
+    table.t = now / 1000; table.dirty = false;
+    renderTable(tableG, REDUCED ? 0 : table.t, table.seat);
+  }
+  if (REDUCED) { if (table.dirty) requestAnimationFrame(tableLoop); else setTimeout(() => requestAnimationFrame(tableLoop), 120); }
+  else setTimeout(() => requestAnimationFrame(tableLoop), 70);
+}
+
+/* ---- the rung objects: chip, cards, table, deck, stack; one small raymarcher ---- */
+const chipSD = (x, y, z, R, H, RB = 0.05) => { const r = Math.hypot(x, z); const dx = r - R + RB, dy = Math.abs(y) - H / 2 + RB; return Math.min(Math.max(dx, dy), 0) + Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) - RB; };
+const rbox = (x, y, z, hx, hy, hz, rr) => { const ax = Math.abs(x) - hx + rr, ay = Math.abs(y) - hy + rr, az = Math.abs(z) - hz + rr; return Math.min(Math.max(ax, ay, az), 0) + Math.hypot(Math.max(ax, 0), Math.max(ay, 0), Math.max(az, 0)) - rr; };
+const rot2 = (x, z, a) => { const c = Math.cos(a), s = Math.sin(a); return [c * x + s * z, -s * x + c * z]; };
+const chipPat = (x, z, R) => { const rn = Math.hypot(x, z) / R, a = Math.atan2(z, x); const ph = (a / 6.2832 + 2) * 8, fr = ph - Math.floor(ph); return (fr < 0.36 && rn > 0.8) || (rn > 0.5 && rn < 0.56) ? 1 : 0; };
+const cardPat = (lx, lz, hx, hz) => { const ax = Math.abs(lx), az = Math.abs(lz); const bo = Math.max(ax - (hx - 0.09), az - (hz - 0.09)); if (bo > -0.02 && bo < 0.02) return 1; if (ax * 1.15 + az * 0.9 < 0.16) return 1; return 0; };
+let im = 0;
+const ICONS = {
+  chip: { elev: 0.6, dist: 3.3, look: [0.15, 0.1, -0.2], yaw0: 0.3, sdf(x, y, z) {
+    /* one chip lying on the felt, a second leaning on it */
+    let d = chipSD(x, y - 0.1, z, 1, 0.2); im = chipPat(x, z, 1) ? 2 : 1;
+    const [lx, lz] = rot2(x - 0.55, z + 0.95, 0.5); const ly = y - 0.55;
+    const th = 1.15; const ry = Math.cos(th) * ly - Math.sin(th) * lz, rz = Math.sin(th) * ly + Math.cos(th) * lz;
+    const d2 = chipSD(lx, ry, rz, 1, 0.2); if (d2 < d) { d = d2; im = chipPat(lx, rz, 1) ? 2 : 1; }
+    return d; } },
+  cards: { elev: 1.05, dist: 4.3, look: [0, 0, 0], yaw0: 0.25, sdf(x, y, z) {
+    let d = 1e9;
+    for (let k = 0; k < 3; k++) {
+      const a = -0.62 + k * 0.62; const [lx, lz] = rot2(x - (k - 1) * 0.85, z + Math.abs(k - 1) * 0.22, a); const ly = y - 0.03 - k * 0.06;
+      const dk = rbox(lx, ly, lz, 0.72, 0.03, 1.0, 0.08);
+      if (dk < d) { d = dk; im = ly > 0.02 && cardPat(lx, lz, 0.72, 1.0) ? 2 : 1; }
+    }
+    return d; } },
+  table: { elev: 0.78, dist: 3.35, look: [0, 0.1, 0], yaw0: 0.05, sdf(x, y, z) {
+    /* the proof page's oval, lit for this field: a stadium of felt sunk inside a raised, rounded rail, a pink
+       betting line inset from the edge, and one chip resting on the felt at each of four seats (proof's
+       TABLE = { a 1.05, r 0.95, h 0.05, rail 0.24, rh 0.16 } and its seat list, scaled to the box) */
+    const S = 0.72, A = 1.05 * S, R = 0.95 * S, H = 0.05 * S, RR = 0.02 * S, RW = 0.12 * S, RH = 0.16 * S;
+    const ly = y - RH;                                    /* the rail rests on the felt-coloured ground */
+    const qx = Math.max(Math.abs(x) - A, 0);
+    const de = Math.hypot(qx, z) - R;                     /* signed in-plane distance to the felt's edge */
+    const wz = Math.abs(ly) - H;
+    let d = ((de > 0 && wz > 0) ? Math.hypot(de, wz) : Math.max(de, wz)) - RR;
+    im = (ly > 0 && Math.abs(de + 0.30 * S) < 0.022 * S) ? 2 : 3;
+    const dr = Math.abs(de - RW) - RW, wr = Math.abs(ly) - RH;
+    const rail = ((dr > 0 && wr > 0) ? Math.hypot(dr, wr) : Math.max(dr, wr)) - 0.03 * S;
+    if (rail < d) { d = rail; im = 1; }
+    const CR = 0.19 * S, CH = 0.028 * S, cy = RH + H + RR + CH + 0.003;
+    for (const s of [[-0.95, 0.15], [-0.4, -0.55], [0.55, 0.5], [0.95, -0.2]]) {
+      const cx = s[0] * S, cz = s[1] * S;
+      const q = chipSD(x - cx, y - cy, z - cz, CR, 2 * CH, 0.006);
+      if (q < d) { d = q; im = chipPat(x - cx, z - cz, CR) ? 2 : 1; }
+    }
+    return d; } },
+  deck: { elev: 0.5, dist: 4.1, look: [0.1, 0.5, 0], yaw0: 0.35, sdf(x, y, z) {
+    /* the deck as a block of cards, one card lifted through the gate */
+    const [lx, lz] = rot2(x, z, 0.3);
+    let d = rbox(lx, y - 0.4, lz, 0.72, 0.4, 1.0, 0.06); im = Math.abs(y - 0.4) < 0.39 && (Math.abs(Math.abs(lx) - 0.72) < 0.03 || Math.abs(Math.abs(lz) - 1.0) < 0.03) ? 5 : 1;
+    const th = 0.55; const cx = x - 0.35, cy = y - 1.35, cz = z + 0.2;
+    const ry = Math.cos(th) * cy - Math.sin(th) * cz, rz = Math.sin(th) * cy + Math.cos(th) * cz; const [ex, ez] = rot2(cx, rz, 0.15);
+    const d2 = rbox(ex, ry, ez, 0.72, 0.03, 1.0, 0.08); if (d2 < d) { d = d2; im = ry > 0.02 && cardPat(ex, ez, 0.72, 1.0) ? 2 : 1; }
+    return d; } },
+  stack: { elev: 0.36, dist: 4.9, look: [0.5, 0.85, 0.3], yaw0: 0.2, sdf(x, y, z) {
+    let d = 1e9;
+    for (let i = 0; i < 8; i++) { const ox = Math.sin(i * 12.9) * 0.05, oz = Math.cos(i * 7.1) * 0.05; const q = chipSD(x - ox, y - (i + 0.5) * 0.2, z - oz, 1, 0.2); if (q < d) { d = q; im = 1; if (Math.abs(y - (i + 0.5) * 0.2) > 0.085 && Math.hypot(x - ox, z - oz) < 0.99) im = chipPat(x - ox, z - oz, 1) ? 2 : 1; else if (Math.hypot(x - ox, z - oz) > 0.9) { const a = Math.atan2(z - oz, x - ox) + i * 0.4; const ph = (a / 6.2832 + 2) * 8, fr = ph - Math.floor(ph); im = fr < 0.36 ? 2 : 1; } } }
+    for (let i = 0; i < 3; i++) { const q = chipSD(x - 1.9, y - (i + 0.5) * 0.2, z - 0.9, 1, 0.2); if (q < d) { d = q; im = 1; if (Math.hypot(x - 1.9, z - 0.9) > 0.9) { const a = Math.atan2(z - 0.9, x - 1.9) + i; const ph = (a / 6.2832 + 2) * 8, fr = ph - Math.floor(ph); im = fr < 0.36 ? 2 : 1; } else if (Math.abs(y - (i + 0.5) * 0.2) > 0.085) im = chipPat(x - 1.9, z - 0.9, 1) ? 2 : 1; } }
+    return d; } },
+};
+const IRAMP = " .:-+*%@";
+function renderIcon(g, sc, yaw) {
+  const { cols, rows } = g; if (!cols) return;
+  g.chb.fill(0); g.cob.fill(0);
+  const ce = Math.cos(sc.elev), se = Math.sin(sc.elev);
+  const eye = [sc.look[0] + sc.dist * ce * Math.sin(yaw), sc.look[1] + sc.dist * se, sc.look[2] + sc.dist * ce * Math.cos(yaw)];
+  let f = [sc.look[0] - eye[0], sc.look[1] - eye[1], sc.look[2] - eye[2]]; const fl = Math.hypot(...f); f = f.map((v) => v / fl);
+  let r = [-f[2], 0, f[0]]; const rl = Math.hypot(r[0], r[2]); r = [r[0] / rl, 0, r[2] / rl];
+  const u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+  const cellAsp = g.ch / g.cw, aspect = cols / (rows * cellAsp), focal = 2.6;
+  /* key light from the camera's upper left, rim from behind right */
+  const kx = -0.55, ky = 0.8, kz = 0.5;
+  let L = [r[0] * kx + u[0] * ky - f[0] * kz, r[1] * kx + u[1] * ky - f[1] * kz, r[2] * kx + u[2] * ky - f[2] * kz]; const Ll = Math.hypot(...L); L = L.map((v) => v / Ll);
+  let L2 = [r[0] * 0.6 + u[0] * 0.4 + f[0] * 0.7, r[1] * 0.6 + u[1] * 0.4 + f[1] * 0.7, r[2] * 0.6 + u[2] * 0.4 + f[2] * 0.7]; const L2l = Math.hypot(...L2); L2 = L2.map((v) => v / L2l);
+  for (let cy = 0; cy < rows; cy++) for (let cx = 0; cx < cols; cx++) {
+    const px0 = ((cx + 0.5) / cols * 2 - 1) * aspect, py0 = 1 - (cy + 0.5) / rows * 2;
+    let dx = f[0] * focal + r[0] * px0 + u[0] * py0, dy = f[1] * focal + r[1] * px0 + u[1] * py0, dz = f[2] * focal + r[2] * px0 + u[2] * py0;
+    const dl = Math.hypot(dx, dy, dz); dx /= dl; dy /= dl; dz /= dl;
+    let t = 0.5, hit = false, px = 0, py = 0, pz = 0;
+    const tg = dy < -1e-6 ? -eye[1] / dy : 1e9;
+    for (let i = 0; i < 64; i++) {
+      px = eye[0] + dx * t; py = eye[1] + dy * t; pz = eye[2] + dz * t;
+      const d = sc.sdf(px, py, pz);
+      if (d < 0.004) { hit = true; break; }
+      t += d * 0.9; if (t > 12 || t > tg + 0.05) break;
+    }
+    let I = 0, cls = 0;
+    if (hit) {
+      const m = im, e = 0.006;
+      const nx = sc.sdf(px + e, py, pz) - sc.sdf(px - e, py, pz), ny = sc.sdf(px, py + e, pz) - sc.sdf(px, py - e, pz), nz = sc.sdf(px, py, pz + e) - sc.sdf(px, py, pz - e);
+      const nl = Math.hypot(nx, ny, nz) || 1; const n = [nx / nl, ny / nl, nz / nl];
+      const ao = clamp(sc.sdf(px + n[0] * 0.12, py + n[1] * 0.12, pz + n[2] * 0.12) / 0.12, 0.3, 1);
+      const diff = Math.max(0, n[0] * L[0] + n[1] * L[1] + n[2] * L[2]);
+      let sh = 1; { let tt = 0.04; for (let k = 0; k < 18; k++) { const d = sc.sdf(px + L[0] * tt, py + L[1] * tt, pz + L[2] * tt); if (d < 0.003) { sh = 0.25; break; } tt += Math.max(0.03, d); if (tt > 3) break; } }
+      let hx = L[0] - dx, hy = L[1] - dy, hz = L[2] - dz; const hl = Math.hypot(hx, hy, hz); hx /= hl; hy /= hl; hz /= hl;
+      const spec = Math.pow(Math.max(0, n[0] * hx + n[1] * hy + n[2] * hz), 26);
+      const ndv = -(n[0] * dx + n[1] * dy + n[2] * dz);
+      const rim = Math.pow(1 - Math.max(0, ndv), 3) * Math.max(0, n[0] * L2[0] + n[1] * L2[1] + n[2] * L2[2]);
+      let alb = 1.0;
+      if (m === 3) alb = 0.42; else if (m === 4) alb = 0.22; else if (m === 5) alb = 0.7;
+      I = alb * (0.07 * ao + 0.10 * Math.max(0, ndv) * ao + 1.0 * diff * sh + 0.35 * spec * sh) + 0.5 * rim * ao;
+      I = 1 - Math.exp(-2.1 * I);
+      cls = m === 2 ? 2 : 1;
+    } else if (tg < 1e8) {
+      const gx = eye[0] + dx * tg, gz = eye[2] + dz * tg;
+      const rr = Math.hypot(gx - sc.look[0], gz - sc.look[2]) / 2.4;
+      if (rr < 1) {
+        let sh = 1; { let tt = 0.05; for (let k = 0; k < 18; k++) { const d = sc.sdf(gx + L[0] * tt, L[1] * tt, gz + L[2] * tt); if (d < 0.003) { sh = 0.1; break; } tt += Math.max(0.03, d); if (tt > 4) break; } }
+        const fall = 1 - rr; I = 0.11 * fall * fall * sh; cls = 3;
+      }
+    }
+    if (!cls) continue;
+    const bay = (BAYER[cy % 4][cx % 4] + 0.5) / 16 - 0.5;
+    let lv = clamp(Math.round(I * (IRAMP.length - 1) + bay * 1.15), 0, IRAMP.length - 1);
+    if (lv === 0) { if (cls === 3) continue; lv = 1; }
+    if (cls === 2 && lv < 2) lv = 2;
+    g.chb[cy * cols + cx] = g.CIDX[IRAMP[lv]];
+    g.cob[cy * cols + cx] = cls === 2 ? 1 : cls === 3 ? 2 : 0;
+  }
+  g.draw();
+}
+const icons = [];
+$$('canvas[data-icon]').forEach((cv) => {
+  const sc = ICONS[cv.dataset.icon]; if (!sc) return;
+  const g = makeGrid(cv, 4, [C.ivory, '#c23553', 'rgba(245,240,230,.42)']);
+  const ic = { g, sc, cv, yaw: sc.yaw0, hover: false, raf: 0, last: 0 };
+  icons.push(ic);
+  const row = cv.closest('.rung');
+  const loop = (now) => { if (!ic.hover) { ic.raf = 0; return; } const dt = Math.min(0.05, (now - ic.last) / 1000); ic.last = now; ic.yaw += dt * 0.9; renderIcon(g, sc, ic.yaw); ic.raf = requestAnimationFrame(loop); };
+  if (!REDUCED && row) {
+    row.addEventListener('mouseenter', () => { ic.hover = true; ic.last = performance.now(); if (!ic.raf) ic.raf = requestAnimationFrame(loop); });
+    row.addEventListener('mouseleave', () => { ic.hover = false; });
+  }
+});
+function drawIcons() { for (const ic of icons) { if (ic.g.resize()) renderIcon(ic.g, ic.sc, ic.yaw); } }
+
+/* =====================================================================
+   3. SOLVE: the settling, stylised. A designed spiral into the centre of the
+      simplex, not the raw 100,000-step trace (that lives in the console).
+   ===================================================================== */
+const rpsCv = $('#rpsCv');
+/* The walk: the path is parametrised by arc length and the arc-length parameter advances with an exponential
+   ease-out, u(t) = (1 − e^(−k·t/T)) / (1 − e^(−k)), so the dot's speed is ∝ e^(−k·t/T): fast out of the corner,
+   then only ever slower, until it has converged. The trail fades behind the dot down to a faint floor. */
+const expEase = (t, T, k) => (1 - Math.exp(-k * clamp(t / T, 0, 1))) / (1 - Math.exp(-k));
+function arcTable(pts) { const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); return { pts, cum, total: cum[cum.length - 1] }; }
+function arcPoint(tab, u) {
+  const { pts, cum } = tab, L = clamp(u, 0, 1) * tab.total;
+  let lo = 1, hi = cum.length - 1; while (lo < hi) { const mid = (lo + hi) >> 1; if (cum[mid] < L) lo = mid + 1; else hi = mid; }
+  const seg = cum[lo] - cum[lo - 1], f = seg > 0 ? (L - cum[lo - 1]) / seg : 0;
+  return [pts[lo - 1][0] + (pts[lo][0] - pts[lo - 1][0]) * f, pts[lo - 1][1] + (pts[lo][1] - pts[lo - 1][1]) * f, lo];
+}
+function drawTrail(x, tab, u, rgb, win, floor, wmax) {
+  const { pts, cum } = tab, L = clamp(u, 0, 1) * tab.total, Wn = Math.max(1e-6, win * tab.total);
+  const [hx, hy, hi] = arcPoint(tab, u);
+  let px = pts[0][0], py = pts[0][1];
+  x.lineCap = 'round'; x.lineJoin = 'round';
+  for (let i = 1; i <= hi; i++) {
+    const ex = i === hi ? hx : pts[i][0], ey = i === hi ? hy : pts[i][1];
+    const k = Math.max(0, 1 - (L - Math.min(L, cum[i])) / Wn), a = floor + (1 - floor) * k * k;
+    x.strokeStyle = 'rgba(' + rgb + ',' + a.toFixed(3) + ')'; x.lineWidth = 0.8 + (wmax - 0.8) * k;
+    x.beginPath(); x.moveTo(px, py); x.lineTo(ex, ey); x.stroke();
+    px = ex; py = ey;
+  }
+  return [hx, hy];
+}
+const SPIRAL = { T: 8, k: 4.6, hold: 2.4, acc: 0, last: 0, phase: 0, tab: null };
+{ const q = new URLSearchParams(location.search).get('spiral'); if (q) SPIRAL.acc = parseFloat(q) * SPIRAL.T; }
+/* the path: a smooth inward spiral, 4.2 turns from a corner, its radius shaped by a soft (p-norm) reach to the
+   triangle's edges so the winding is triangular but has no kinks; sampled densely, then walked by arc length */
+function spiralPath(c, reach, phase) {
+  const pts = [], N = 1400, turns = 4.2, th0 = 2.62 + phase * 2 * Math.PI / 3;
+  for (let i = 0; i <= N; i++) {
+    const e = i / N, th = th0 + e * turns * 2 * Math.PI, rad = 0.92 * Math.pow(1 - e, 1.15) * reach(th) * 0.94;
+    pts.push([c[0] + rad * Math.cos(th), c[1] + rad * Math.sin(th)]);
+  }
+  return arcTable(pts);
+}
+function drawRps(now) {
+  const dpr = dprOf(), W = rpsCv.clientWidth, H = 270;
+  if (!W) return;
+  rpsCv.width = W * dpr; rpsCv.height = H * dpr;
+  const x = rpsCv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+  const cx = W / 2, top = 24, bot = H - 30, side = (bot - top) / 0.866;
+  const V = [[cx - side / 2, bot], [cx, top], [cx + side / 2, bot]];
+  const c = [(V[0][0] + V[1][0] + V[2][0]) / 3, (V[0][1] + V[1][1] + V[2][1]) / 3];
+  /* the reach from the centroid to the triangle's edge in direction th, softened so the spiral has no corners */
+  const rIn = bot - c[1], PHI = [Math.PI / 2, Math.PI * 7 / 6, -Math.PI / 6];
+  const reach = (th) => { let acc = 0; for (const p of PHI) { const cc = Math.max(0, Math.cos(th - p)); acc += Math.pow(cc, 9); } return rIn / Math.pow(acc, 1 / 9); };
+  const R0 = rIn;
+  /* the field: faint character dots that brighten toward the centre, the shape of the exploitability landscape */
+  x.font = `9px ${MONO}`; x.textAlign = 'center';
+  for (let gy = top + 8; gy < bot; gy += 11) for (let gx = V[0][0] + 8; gx < V[2][0]; gx += 8) {
+    const a = (gy - top) / (bot - top); const hw = a * side / 2; if (Math.abs(gx - cx) > hw - 4) continue;
+    const dd = Math.hypot(gx - c[0], gy - c[1]) / R0; const k = clamp(1 - dd, 0, 1);
+    x.fillStyle = `rgba(245,240,230,${0.05 + 0.18 * k * k})`; x.fillText(k > 0.7 ? ':' : '·', gx, gy + 3);
+  }
+  x.strokeStyle = C.iv30; x.lineWidth = 1;
+  x.beginPath(); x.moveTo(...V[0]); x.lineTo(...V[1]); x.lineTo(...V[2]); x.closePath(); x.stroke();
+  x.font = `11px ${MONO}`; x.fillStyle = C.iv60;
+  x.fillText('rock', V[0][0], V[0][1] + 16); x.fillText('paper', V[1][0], V[1][1] - 9); x.fillText('scissors', V[2][0], V[2][1] + 16);
+  x.strokeStyle = C.iv45; x.beginPath(); x.arc(c[0], c[1], 5, 0, Math.PI * 2); x.stroke();
+  x.fillStyle = C.iv45; x.textAlign = 'left'; x.fillText('nash (⅓, ⅓, ⅓)', c[0] + 12, c[1] - 8);
+  if (!SPIRAL.tab || SPIRAL.tab.W !== W || SPIRAL.tab.phase !== SPIRAL.phase) { SPIRAL.tab = spiralPath(c, reach, SPIRAL.phase); SPIRAL.tab.W = W; SPIRAL.tab.phase = SPIRAL.phase; }
+  const elapsed = REDUCED ? SPIRAL.T : SPIRAL.acc;
+  const u = REDUCED ? 1 : expEase(elapsed, SPIRAL.T, SPIRAL.k);
+  /* the trail, brightest at the head and fading over the last 45 % of the arc behind it */
+  const head = drawTrail(x, SPIRAL.tab, u, '233,184,98', 0.45, 0.1, 2.4);
+  window.__rpsHead = [head[0], head[1], u];
+  const glow = x.createRadialGradient(head[0], head[1], 0, head[0], head[1], 16);
+  glow.addColorStop(0, 'rgba(216,86,111,.55)'); glow.addColorStop(1, 'rgba(216,86,111,0)');
+  x.fillStyle = glow; x.beginPath(); x.arc(head[0], head[1], 16, 0, Math.PI * 2); x.fill();
+  x.fillStyle = C.pink; x.beginPath(); x.arc(head[0], head[1], 3.6, 0, Math.PI * 2); x.fill();
+  if (elapsed >= SPIRAL.T) { const pulse = REDUCED ? 0 : (elapsed - SPIRAL.T) % 1.3; x.strokeStyle = `rgba(216,86,111,${0.6 * (1 - pulse / 1.3)})`; x.lineWidth = 1.2; x.beginPath(); x.arc(c[0], c[1], 6 + pulse * 14, 0, Math.PI * 2); x.stroke(); }
+  /* readouts derived from the plot itself: the head's barycentric coordinates, and a log-paced counter */
+  const bary = (p) => { const [a, b, d] = V; const det = (b[1] - d[1]) * (a[0] - d[0]) + (d[0] - b[0]) * (a[1] - d[1]); const l0 = ((b[1] - d[1]) * (p[0] - d[0]) + (d[0] - b[0]) * (p[1] - d[1])) / det; const l1 = ((d[1] - a[1]) * (p[0] - d[0]) + (a[0] - d[0]) * (p[1] - d[1])) / det; return [l0, l1, 1 - l0 - l1]; };
+  const m = bary(head).map((v) => clamp(v, 0, 1));
+  $('#rpsIt').textContent = Math.round(Math.pow(10, 5 * u)).toLocaleString('en-US');
+  $('#rpsMix').textContent = `(${m.map((v) => v.toFixed(3)).join(', ')})`;
+}
+let rpsVisible = false;
+function rpsRestart() { SPIRAL.acc = 0; SPIRAL.phase = (SPIRAL.phase + 1) % 3; if (REDUCED) drawRps(performance.now()); }
+rpsCv.style.cursor = 'pointer'; rpsCv.title = 'Click to start the walk again';
+rpsCv.addEventListener('click', rpsRestart);
+function rpsLoop(now) {
+  const dt = Math.min(0.05, (now - SPIRAL.last) / 1000); SPIRAL.last = now;
+  if (rpsVisible && !document.hidden) {
+    SPIRAL.acc += dt;
+    if (SPIRAL.acc > SPIRAL.T + SPIRAL.hold) rpsRestart();   /* loop: a pause at Nash, then again from the next corner */
+    drawRps(now);
+  }
+  requestAnimationFrame(rpsLoop);
+}
+
+/* =====================================================================
+   4. VERIFY: Kuhn's bet frequencies vs iteration, the real export
+   ===================================================================== */
+const kuhnCv = $('#kuhnCv'), kuhnTip = $('#kuhnTip');
+let kuhnProg = REDUCED ? 1 : 0, kuhnHover = -1;
+const KGEO = { L: 40, R: 16, T: 16, B: 30 };
+function kX(it, W) { return KGEO.L + (Math.log10(it) / 5) * (W - KGEO.R - KGEO.L); }
+function kY(v, H) { return (H - KGEO.B) - v * ((H - KGEO.B) - KGEO.T); }
+const smooth3 = (arr) => arr.map((v, i) => i === 0 || i === arr.length - 1 ? v : (arr[i - 1] + 2 * v + arr[i + 1]) / 4);
+function drawKuhn() {
+  const K = DATA.kuhn, dpr = dprOf(), W = kuhnCv.clientWidth, H = 260;
+  if (!W) return;
+  kuhnCv.width = W * dpr; kuhnCv.height = H * dpr;
+  const x = kuhnCv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+  const L = KGEO.L, R = W - KGEO.R, T = KGEO.T, B = H - KGEO.B;
+  const X = (it) => kX(it, W), Y = (v) => kY(v, H);
+  x.font = `10px ${MONO}`; x.fillStyle = C.iv45; x.textAlign = 'center'; x.strokeStyle = C.iv06; x.lineWidth = 1;
+  for (let e = 0; e <= 5; e++) { x.beginPath(); x.moveTo(X(10 ** e), T); x.lineTo(X(10 ** e), B); x.stroke(); x.fillText(e === 0 ? '1' : '10' + '⁰¹²³⁴⁵'[e], X(10 ** e), B + 14); }
+  x.textAlign = 'right';
+  for (let v = 0; v <= 1; v += 0.25) { x.beginPath(); x.moveTo(L, Y(v)); x.lineTo(R, Y(v)); x.stroke(); x.fillText(v.toFixed(2), L - 6, Y(v) + 3); }
+  x.textAlign = 'center'; x.fillText('iterations (log)', (L + R) / 2, H - 4);
+  x.setLineDash([3, 4]); x.strokeStyle = C.iv45; x.lineWidth = 1;
+  for (const v of [K.cfJ, K.cfK]) { x.beginPath(); x.moveTo(L, Y(v)); x.lineTo(R, Y(v)); x.stroke(); }
+  x.setLineDash([]);
+  x.fillStyle = C.iv60; x.textAlign = 'right'; x.fillText('closed form α = 0.220', R - 2, Y(K.cfJ) + 13); x.fillText('closed form 3α = 0.660', R - 2, Y(K.cfK) + 13);
+  /* the head sits a fraction of the way to the next sample, so the line grows continuously as the ease-out slows,
+     rather than popping one sample at a time */
+  const last = K.it.length - 1, pos = kuhnProg * last, i0 = Math.min(last - 1, Math.floor(pos)), fr = kuhnProg >= 1 ? 1 : pos - i0;
+  const curve = (arr, col, fillCol) => {
+    const sm = smooth3(arr); const pts = []; for (let i = 0; i <= i0; i++) pts.push([X(K.it[i]), Y(sm[i])]);
+    const hv = sm[i0] + (sm[i0 + 1] - sm[i0]) * fr;
+    if (fr > 0) pts.push([X(K.it[i0]) + (X(K.it[i0 + 1]) - X(K.it[i0])) * fr, Y(hv)]);
+    /* a soft band under the line: the settling reads as a shape, not a wire */
+    x.beginPath(); x.moveTo(pts[0][0], B); pts.forEach((p) => x.lineTo(p[0], p[1])); x.lineTo(pts[pts.length - 1][0], B); x.closePath();
+    const gr = x.createLinearGradient(0, T, 0, B); gr.addColorStop(0, fillCol); gr.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = gr; x.fill();
+    x.strokeStyle = col; x.lineWidth = 2; x.lineJoin = 'round'; x.beginPath();
+    for (let i = 0; i < pts.length; i++) { const p = pts[i]; if (i === 0) x.moveTo(...p); else { const q = pts[i - 1]; const mx = (q[0] + p[0]) / 2; x.bezierCurveTo(mx, q[1], mx, p[1], p[0], p[1]); } }
+    x.stroke();
+    const last = pts[pts.length - 1]; x.fillStyle = col; x.beginPath(); x.arc(last[0], last[1], 3, 0, 7); x.fill();
+    x.fillStyle = '#0c0a0b'; x.beginPath(); x.arc(last[0], last[1], 1.4, 0, 7); x.fill();
+    return hv;
+  };
+  const vK = curve(K.K, C.yellow, 'rgba(233,184,98,.14)'), vJ = curve(K.J, C.pink, 'rgba(216,86,111,.14)');
+  /* the value labels count in with the line and land on 0.663 and 0.220 */
+  x.fillStyle = 'rgba(245,240,230,.9)'; x.textAlign = 'right';
+  x.fillText('king value-bets ' + vK.toFixed(3), R - 2, Y(vK) - 9); x.fillText('jack bluffs ' + vJ.toFixed(3), R - 2, Y(vJ) - 9);
+  $('#kNumK').textContent = vK.toFixed(3); $('#kNumJ').textContent = vJ.toFixed(3);
+  if (kuhnHover >= 0 && kuhnProg >= 1) {
+    const i = kuhnHover, xx = X(K.it[i]);
+    x.strokeStyle = C.iv30; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(xx, T); x.lineTo(xx, B); x.stroke(); x.setLineDash([]);
+    for (const [arr, col] of [[K.K, C.yellow], [K.J, C.pink]]) { x.fillStyle = '#0c0a0b'; x.beginPath(); x.arc(xx, Y(arr[i]), 5, 0, 7); x.fill(); x.fillStyle = col; x.beginPath(); x.arc(xx, Y(arr[i]), 3.2, 0, 7); x.fill(); }
+  }
+}
+kuhnCv.addEventListener('mousemove', (e) => {
+  const K = DATA.kuhn, r = kuhnCv.getBoundingClientRect(), W = r.width; let best = -1, bd = 1e9;
+  for (let i = 0; i < K.it.length; i++) { const d = Math.abs(kX(K.it[i], W) - (e.clientX - r.left)); if (d < bd) { bd = d; best = i; } }
+  kuhnHover = best; drawKuhn();
+  const i = best; kuhnTip.style.display = 'block';
+  kuhnTip.innerHTML = `<b>iteration ${K.it[i].toLocaleString('en-US')}</b><br>king value-bets <b>${K.K[i].toFixed(3)}</b><br>jack bluffs <b>${K.J[i].toFixed(3)}</b><br>exploitable <b>${K.expl[i].toFixed(5)}</b>`;
+  const tx = kX(K.it[i], W); kuhnTip.style.left = (tx > W * 0.6 ? tx - kuhnTip.offsetWidth - 12 : tx + 12) + 'px'; kuhnTip.style.top = '12px';
+});
+kuhnCv.addEventListener('mouseleave', () => { kuhnHover = -1; kuhnTip.style.display = 'none'; drawKuhn(); });
+let kuhnStarted = false, kuhnT0 = 0;
+/* 2.8 s, quartic ease-out: the line covers most of the axis in the first second, then decelerates over the last
+   two thirds so the settling onto α and 3α is legible. Progress is in sample index, i.e. linear in log-iterations. */
+const KUHN_T = 2.8, easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
+function kuhnAnim(now) {
+  if (REDUCED) { kuhnProg = 1; drawKuhn(); return; }   /* reduced motion: the curves are pre-drawn, settled */
+  if (!kuhnT0) kuhnT0 = now;
+  const t = Math.min(1, (now - kuhnT0) / 1000 / KUHN_T);
+  kuhnProg = t >= 1 ? 1 : easeOutQuart(t);
+  drawKuhn();
+  if (t < 1) requestAnimationFrame(kuhnAnim);
+}
+
+/* =====================================================================
+   5. PLAY: one hand of Leduc against the solved strategy
+   ===================================================================== */
+const P = { hand: 0, bank: 0, humanSeat: 0, deck: [], cards: [], board: null, l1: '', l2: '', round: 1, over: false, busy: false };
+const ANTE = 1, BETS = [2, 4];
+function closed(l) { if (!l) return false; if (l.endsWith('f')) return true; const n = (l.match(/r/g) || []).length; return n === 0 ? l.length >= 2 : l.endsWith('c') && l.length >= 2; }
+function contrib(l, bet) { const put = [0, 0]; let level = 0; for (let i = 0; i < l.length; i++) { const s = i % 2, a = l[i]; if (a === 'r') { level += bet; put[s] = level; } else if (a === 'c') put[s] = level; } return put; }
+function potNow() { const a = contrib(P.l1, BETS[0]), b = contrib(P.l2, BETS[1]); return ANTE * 2 + a[0] + a[1] + b[0] + b[1]; }
+const logEl = $('#log');
+function say(msg, cls) { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = msg; logEl.appendChild(d); while (logEl.children.length > 9) logEl.removeChild(logEl.firstChild); }
+function dealHand() {
+  P.hand++; P.humanSeat = (P.hand + 1) % 2; P.deck = ['J', 'J', 'Q', 'Q', 'K', 'K'];
+  for (let i = P.deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [P.deck[i], P.deck[j]] = [P.deck[j], P.deck[i]]; }
+  P.cards = [P.deck.pop(), P.deck.pop()]; P.board = null; P.l1 = ''; P.l2 = ''; P.round = 1; P.over = false;
+  $('#handNo').textContent = P.hand; $('#youSeat').textContent = `seat ${P.humanSeat + 1}`;
+  say(`— hand ${P.hand}: you are seat ${P.humanSeat + 1}, you hold ${P.cards[P.humanSeat]}`, 'dim');
+  renderPlay(); maybeBot();
+}
+const curLine = () => (P.round === 1 ? P.l1 : P.l2);
+const toAct = () => curLine().length % 2;
+function act(a) {
+  if (P.round === 1) P.l1 += a; else P.l2 += a;
+  const who = toAct() === 1 ? 0 : 1; const l = curLine();
+  say(`${who === P.humanSeat ? 'you' : 'bot'}: ${word(a, l.slice(0, -1))}`, who === P.humanSeat ? '' : 'bot');
+  if (l.endsWith('f')) return finish(who === 0 ? 1 : 0, 'fold');
+  if (closed(l)) { if (P.round === 1) { P.round = 2; P.board = P.deck.pop(); say(`board: ${P.board}`, 'dim'); } else return finish(null, 'showdown'); }
+  renderPlay(); maybeBot();
+}
+function finish(winner, how) {
+  P.over = true;
+  const pot = potNow(), me = P.humanSeat, bot = 1 - me;
+  if (how === 'showdown') { const rank = (c) => (c === P.board ? 10 : 0) + 'JQK'.indexOf(c); const a = rank(P.cards[0]), b = rank(P.cards[1]); winner = a > b ? 0 : b > a ? 1 : null; say(`showdown: bot shows ${P.cards[bot]}, board ${P.board}`, 'bot'); }
+  const put = (s) => ANTE + contrib(P.l1, BETS[0])[s] + contrib(P.l2, BETS[1])[s];
+  const delta = winner === null ? 0 : winner === me ? pot - put(me) : -put(me);
+  P.bank += delta;
+  say(winner === null ? `split pot (${pot})` : `${winner === me ? 'you win' : 'bot wins'} ${pot} (${delta >= 0 ? '+' : ''}${delta})`, winner === me ? '' : 'dim');
+  $('#bank').textContent = (P.bank >= 0 ? '+' : '') + P.bank;
+  renderPlay();
+}
+function maybeBot() {
+  if (P.over || toAct() === P.humanSeat) return;
+  P.busy = true; renderPlay();
+  setTimeout(() => {
+    const key = P.round === 1 ? `${P.cards[1 - P.humanSeat]}:${P.l1}` : `${P.cards[1 - P.humanSeat]}:${P.l1}|${P.board}:${P.l2}`;
+    const m = S[key] || { c: 1 }; let r = Math.random(), pick = 'c';
+    for (const k of Object.keys(m)) { r -= m[k]; if (r <= 0) { pick = k; break; } }
+    P.busy = false; act(pick);
+  }, REDUCED ? 0 : 650);
+}
+function renderPlay() {
+  const me = P.humanSeat, bot = 1 - me, l = curLine();
+  const card = (v, cls, who) => `<div class="pcard ${cls}">${v}<span class="who">${who}</span></div>`;
+  $('#cardrow').innerHTML = card(P.cards[me], '', 'you') + card(P.board || '·', P.board ? 'board' : 'empty', 'board') + card(P.over ? P.cards[bot] : '?', P.over ? '' : 'back', 'bot');
+  $('#pot').textContent = potNow();
+  const btns = $('#playbtns'); btns.innerHTML = '';
+  if (P.over) { const b = document.createElement('button'); b.className = 'next'; b.textContent = 'Deal the next hand'; b.addEventListener('click', dealHand); btns.appendChild(b); return; }
+  const mine = toAct() === me && !P.busy;
+  for (const a of legal(l)) { const b = document.createElement('button'); b.textContent = word(a, l); b.disabled = !mine; b.addEventListener('click', () => mine && act(a)); btns.appendChild(b); }
+  if (!mine) { const s = document.createElement('span'); s.className = 'wait'; s.textContent = 'bot is thinking…'; btns.appendChild(s); }
+}
+
+/* =====================================================================
+   6. THE LADDER'S GRAPHS, from the room page: yellow is the thing that converges, pink is the answer it
+      has to reach. Rung 0 is a self-play run made here; rungs 1 and 2 read rung 1's real export
+      (DATA.kuhn) and rung 2's (DATA.leduc); rung 3 is the size of each game; rung 4 is a sketch.
+   ===================================================================== */
+const NS = 'http://www.w3.org/2000/svg';
+const svgEl = (n, attrs, parent) => { const e = document.createElementNS(NS, n); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const svgTxt = (parent, x, y, s, cls, anchor) => { const t = svgEl('text', { x, y, class: cls || '', 'text-anchor': anchor || 'start' }, parent); t.textContent = s; return t; };
+const sup = (n) => '⁰¹²³⁴⁵⁶⁷'[n];
+const pathD = (xs, ys) => xs.map((x, i) => (i ? 'L' : 'M') + x.toFixed(1) + ' ' + ys[i].toFixed(1)).join('');
+function drawable(p, late) { const L = p.getTotalLength(); p.style.setProperty('--len', L); p.classList.add('draw'); if (late) p.classList.add('late'); }
+const RUNG1 = { it: DATA.kuhn.it, avg: DATA.kuhn.expl, J: DATA.kuhn.J, K: DATA.kuhn.K, alpha: DATA.kuhn.cfJ, closedK: DATA.kuhn.cfK };
+const RUNG2 = { it: DATA.leduc.iterations, avg: DATA.leduc.expl };
+const RUNG0 = { it: 100000, avg: 0.0009 };
+
+/* rung 0: regret matching in self-play, run here at load; the average strategy at log-spaced checkpoints, smoothed,
+   over a faint field of how exploitable each mix is */
+const rpsFig = (function () {
+  const c = $('#fig-rps'); if (!c) return { canvas: null, layout() {}, start() {}, see() {} };
+  const A = PAYOFF;
+  const reg = [[6, 0, 0], [0, 0, 6]], sum = [[0, 0, 0], [0, 0, 0]];   /* a seeded start away from the centre so the walk is visible */
+  const strat = (r) => { const p = r.map((v) => Math.max(0, v)); const s = p[0] + p[1] + p[2]; return s > 0 ? p.map((v) => v / s) : [1 / 3, 1 / 3, 1 / 3]; };
+  const raw = []; let next = 1;
+  for (let it = 1; it <= 40000; it++) {
+    const s0 = strat(reg[0]), s1 = strat(reg[1]);
+    for (let k = 0; k < 2; k++) { const me = k ? s1 : s0, op = k ? s0 : s1; const u = [0, 1, 2].map((a) => A[a][0] * op[0] + A[a][1] * op[1] + A[a][2] * op[2]); const eu = u[0] * me[0] + u[1] * me[1] + u[2] * me[2]; for (let a = 0; a < 3; a++) { reg[k][a] += u[a] - eu; sum[k][a] += me[a]; } }
+    if (it === next) { const s = sum[0][0] + sum[0][1] + sum[0][2]; raw.push([sum[0][0] / s, sum[0][1] / s, sum[0][2] / s]); next = Math.max(next + 1, Math.ceil(next * 1.06)); }
+  }
+  const sm = (arr) => arr.map((p, i) => { if (i === 0 || i === arr.length - 1) return p; const a = arr[i - 1], b = arr[i + 1]; return [0, 1, 2].map((k) => (a[k] + 2 * p[k] + b[k]) / 4); });
+  const path = sm(sm(raw));
+  /* the walk is by arc length with the same exponential ease-out as the Solve widget: 7 s, then a 3 s pause, then again */
+  const T = 7, K = 4.6, HOLD = 3;
+  let geo, tab, started = false, vis = false, acc = 0, last = 0;
+  const ctx = c.getContext('2d');
+  function layout() {
+    const r = c.getBoundingClientRect(); if (!r.width) return; const d = dprOf();
+    c.width = Math.round(r.width * d); c.height = Math.round(r.height * d);
+    const W = r.width, H = r.height, pad = 26;
+    const h = H - 2 * pad - 6, side = Math.min(W - 2 * pad, h / (Math.sqrt(3) / 2));
+    const hh = side * Math.sqrt(3) / 2, cx = W / 2, top = (H - hh) / 2 + 8;
+    geo = { W, H, d, P0: [cx - side / 2, top + hh], P1: [cx + side / 2, top + hh], P2: [cx, top] };
+    tab = arcTable(path.map(bary));
+    draw(REDUCED ? 1 : started ? expEase(acc, T, K) : 0);
+  }
+  const bary = (p) => { const { P0, P1, P2 } = geo; return [p[0] * P0[0] + p[1] * P1[0] + p[2] * P2[0], p[0] * P0[1] + p[1] * P1[1] + p[2] * P2[1]]; };
+  function draw(frac) {
+    if (!geo) return;
+    const { W, H, d, P0, P1, P2 } = geo; ctx.setTransform(d, 0, 0, d, 0, 0); ctx.clearRect(0, 0, W, H);
+    const cell = 9; ctx.font = `${cell * 1.05}px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const ramp = ' .·:;-=+*x%#';
+    const det = (P1[1] - P2[1]) * (P0[0] - P2[0]) + (P2[0] - P1[0]) * (P0[1] - P2[1]);
+    for (let y = cell; y < H; y += cell * 1.15) for (let x = cell; x < W; x += cell) {
+      const l0 = ((P1[1] - P2[1]) * (x - P2[0]) + (P2[0] - P1[0]) * (y - P2[1])) / det, l1 = ((P2[1] - P0[1]) * (x - P2[0]) + (P0[0] - P2[0]) * (y - P2[1])) / det, l2 = 1 - l0 - l1;
+      if (l0 < 0 || l1 < 0 || l2 < 0) continue;
+      const v = Math.pow(1 - exploit([l0, l1, l2]), 2.2); const ch = ramp[Math.min(ramp.length - 1, Math.floor(v * ramp.length))];
+      if (ch === ' ') continue;
+      ctx.fillStyle = `rgba(245,240,230,${(0.06 + 0.28 * v * v).toFixed(3)})`; ctx.fillText(ch, x, y);
+    }
+    ctx.strokeStyle = C.iv30; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P0[0], P0[1]); ctx.lineTo(P1[0], P1[1]); ctx.lineTo(P2[0], P2[1]); ctx.closePath(); ctx.stroke();
+    ctx.fillStyle = C.iv60; ctx.font = `11px ${MONO}`;
+    ctx.textAlign = 'right'; ctx.fillText('rock', P0[0] - 6, P0[1] + 4); ctx.textAlign = 'left'; ctx.fillText('paper', P1[0] + 6, P1[1] + 4); ctx.textAlign = 'center'; ctx.fillText('scissors', P2[0], P2[1] - 12);
+    const m = bary([1 / 3, 1 / 3, 1 / 3]);
+    ctx.strokeStyle = C.pink; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(m[0], m[1], 7, 0, Math.PI * 2); ctx.stroke();
+    if (frac <= 0) return;
+    const head = drawTrail(ctx, tab, frac, '233,184,98', 0.45, 0.12, 2.2);
+    ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.arc(head[0], head[1], 4, 0, Math.PI * 2); ctx.fill();
+    if (frac >= 0.995) { ctx.fillStyle = C.pink; ctx.textAlign = 'left'; ctx.fillText('Nash (⅓, ⅓, ⅓)', m[0] + 14, m[1] - 14); ctx.fillStyle = C.ivory; ctx.fillText('σ̄ (0.334, 0.333, 0.333)', m[0] + 14, m[1] + 4); }
+    const s0 = bary(path[0]); ctx.fillStyle = C.iv60; ctx.textAlign = 'left'; ctx.fillText('start', s0[0] + 8, s0[1] + 4);
+  }
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (vis && !document.hidden) { acc += dt; if (acc > T + HOLD) acc = 0; draw(expEase(acc, T, K)); }
+    requestAnimationFrame(loop);
+  }
+  function start() { if (started || REDUCED) return; started = true; last = performance.now(); requestAnimationFrame(loop); }
+  c.style.cursor = 'pointer'; c.title = 'Click to start the walk again';
+  c.addEventListener('click', () => { acc = 0; if (REDUCED) draw(1); });
+  return { canvas: c, layout, start, see(v) { vis = v; } };
+})();
+
+function ladderFigs() {
+  rpsFig.layout();
+  /* rung 1: the jack and the king over iterations */
+  (function kuhnFig() {
+    const svg = $('#fig-kuhn'); if (!svg) return;
+    const W = 560, H = 300, m = { l: 44, r: 128, t: 16, b: 40 };
+    const X = (t) => m.l + (Math.log10(t) / 5) * (W - m.l - m.r), Y = (v) => m.t + (1 - v) * (H - m.t - m.b);
+    const g = svgEl('g', {}, svg);
+    for (let v = 0; v <= 1; v += 0.25) { const y = Y(v); svgEl('line', { class: 'grid', x1: m.l, x2: W - m.r, y1: y, y2: y }, g); svgTxt(g, m.l - 8, y + 4, v.toFixed(2), '', 'end'); }
+    for (let p = 0; p <= 5; p++) { const x = X(Math.pow(10, p)); svgEl('line', { class: 'grid', x1: x, x2: x, y1: m.t, y2: H - m.b }, g); svgTxt(g, x, H - m.b + 18, '10' + sup(p), '', 'middle'); }
+    svgEl('line', { class: 'base', x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b }, g);
+    svgTxt(g, W - m.r, H - m.b + 34, 'iterations', '', 'end');
+    for (const [v, name] of [[RUNG1.alpha, 'α = 0.220'], [RUNG1.closedK, '3α = 0.660']]) { svgEl('line', { class: 'ref', x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v) }, g); svgTxt(g, m.l + 4, Y(v) - 6, name + '  closed form', '', 'start'); }
+    /* two lines, two colours: the king in yellow, the jack in pink; the closed form stays dashed and dim */
+    const K = svgEl('path', { class: 'ser', d: pathD(RUNG1.it.map(X), RUNG1.K.map(Y)), stroke: C.yellow }, g); drawable(K, false);
+    const J = svgEl('path', { class: 'ser', d: pathD(RUNG1.it.map(X), RUNG1.J.map(Y)), stroke: C.pink }, g); drawable(J, true);
+    const lab = svgEl('g', { class: 'fade' }, g); const ex = X(100000), n = RUNG1.it.length - 1;
+    svgEl('circle', { cx: ex, cy: Y(RUNG1.K[n]), r: 4, fill: C.yellow }, lab); svgEl('circle', { cx: ex, cy: Y(RUNG1.J[n]), r: 4, fill: C.pink }, lab);
+    svgTxt(lab, ex + 10, Y(RUNG1.K[n]) + 4, 'king bets 0.663', 'y', 'start');
+    svgTxt(lab, ex + 10, Y(RUNG1.J[n]) + 4, 'jack bluffs 0.220', 'r', 'start');
+    svgTxt(lab, ex + 10, Y(RUNG1.J[n]) + 18, 'ratio 3.01 : 1', '', 'start');
+  })();
+  /* rung 2: exploitability, log-log; rung 1's curve and every climbed rung's end point */
+  (function expFig() {
+    const svg = $('#fig-exp'); if (!svg) return;
+    const W = 560, H = 300, m = { l: 48, r: 128, t: 16, b: 40 };
+    const X = (t) => m.l + (Math.log10(t) / 5) * (W - m.l - m.r), Y = (v) => m.t + ((0 - Math.log10(v)) / 4) * (H - m.t - m.b);
+    const g = svgEl('g', {}, svg);
+    for (let p = 0; p <= 4; p++) { const y = Y(Math.pow(10, -p)); svgEl('line', { class: 'grid', x1: m.l, x2: W - m.r, y1: y, y2: y }, g); svgTxt(g, m.l - 8, y + 4, p === 0 ? '1' : p === 1 ? '0.1' : '10⁻' + sup(p), '', 'end'); }
+    for (let p = 0; p <= 5; p++) { const x = X(Math.pow(10, p)); svgEl('line', { class: 'grid', x1: x, x2: x, y1: m.t, y2: H - m.b }, g); svgTxt(g, x, H - m.b + 18, '10' + sup(p), '', 'middle'); }
+    svgEl('line', { class: 'base', x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b }, g);
+    svgTxt(g, W - m.r, H - m.b + 34, 'iterations', '', 'end'); svgTxt(g, m.l, m.t - 4, 'exploitability, chips per hand', '', 'start');
+    const rx = [10, 100000], ry = rx.map((t) => 0.03 * Math.pow(t / 100, -0.5));
+    svgEl('line', { class: 'ref', x1: X(rx[0]), y1: Y(ry[0]), x2: X(rx[1]), y2: Y(ry[1]) }, g); svgTxt(g, X(3000) + 6, Y(0.03 * Math.pow(30, -0.5)) - 8, '∝ 1/√T', '', 'start');
+    const avg = svgEl('path', { class: 'ser', d: pathD(RUNG1.it.map(X), RUNG1.avg.map(Y)), stroke: C.yellow }, g); drawable(avg, false);
+    const lab = svgEl('g', { class: 'fade' }, g);
+    const pts = [[RUNG2.it, RUNG2.avg, 'rung 2 · Leduc · 0.0113', true], [RUNG0.it, RUNG0.avg, 'rung 0 · RPS · 0.0009', false], [100000, RUNG1.avg[RUNG1.avg.length - 1], 'rung 1 · Kuhn · 0.00063', false]];
+    for (const [t, v, name, big] of pts) {
+      const x = X(t), y = Y(v);
+      svgEl('circle', { cx: x, cy: y, r: big ? 6 : 4, fill: big ? C.pink : C.yellow }, lab);
+      if (big) { svgEl('circle', { cx: x, cy: y, r: 12, fill: 'none', stroke: C.pink, 'stroke-width': 1 }, lab); svgTxt(lab, x, y - 20, name, 'r', 'middle'); }
+      else svgTxt(lab, x + 10, y + 4, name, 'd', 'start');
+    }
+  })();
+  /* rung 3: how big each game is, log scale */
+  (function sizeFig() {
+    const svg = $('#fig-size'); if (!svg) return;
+    const W = 560, H = 300, m = { l: 150, r: 120, t: 26, b: 34 };
+    const rows = [['Kuhn', 12, '12'], ['Leduc', 288, '288'], ['mini-Drawmaha', 1570000, '1.57M'], ['full Drawmaha', 0, 'does not fit']];
+    const X = (v) => m.l + (Math.log10(v) / 7) * (W - m.l - m.r);
+    const g = svgEl('g', {}, svg); const rh = (H - m.t - m.b) / rows.length;
+    for (let p = 0; p <= 7; p++) { const x = X(Math.pow(10, p)); svgEl('line', { class: 'grid', x1: x, x2: x, y1: m.t, y2: H - m.b }, g); svgTxt(g, x, H - m.b + 18, '10' + sup(p), '', 'middle'); }
+    svgTxt(g, W - m.r, H - m.b + 34, 'information sets per player', '', 'end');
+    const host = svg.closest('.rung');
+    rows.forEach((r, i) => {
+      const y = m.t + rh * i + rh / 2;
+      svgTxt(g, m.l - 12, y + 4, r[0], i === 2 ? 'd' : '', 'end');
+      if (r[1] > 0) {
+        const bar = svgEl('rect', { class: 'bar', x: m.l, y: y - 9, width: 0, height: 18, fill: i === 2 ? C.yellow : 'rgba(233,184,98,.45)' }, g);
+        bar.style.transitionDelay = (0.2 + i * 0.25) + 's';
+        const grow = () => bar.setAttribute('width', X(r[1]) - m.l);
+        if (REDUCED) grow();
+        else new IntersectionObserver((es, o) => { if (es[0].isIntersecting) { requestAnimationFrame(grow); o.disconnect(); } }, { threshold: 0.2 }).observe(host || svg);
+        svgTxt(g, X(r[1]) + 10, y + 4, r[2], i === 2 ? 'y' : '', 'start');
+      } else {
+        svgEl('line', { class: 'ref', x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: C.pink }, g);
+        svgTxt(g, W - m.r + 10, y + 4, r[2], 'r', 'start');
+      }
+    });
+  })();
+  /* rung 4: a sketch: a regret table on the left, a net on the right */
+  (function netFig() {
+    const svg = $('#fig-net'); if (!svg) return;
+    const g = svgEl('g', {}, svg);
+    const tx = 40, ty = 44, rows = 9, cols = 4, cw = 40, rhh = 22;
+    svgTxt(g, tx, ty - 16, 'regret table · one number per spot', '', 'start');
+    for (let r = 0; r < rows; r++) {
+      svgEl('line', { class: 'grid', x1: tx, x2: tx + cols * cw, y1: ty + r * rhh, y2: ty + r * rhh }, g);
+      for (let c = 0; c < cols; c++) {
+        const v = ((r * 7 + c * 13) % 19) - 9;
+        svgTxt(g, tx + c * cw + cw - 6, ty + r * rhh + 15, (v >= 0 ? '+' : '−') + Math.abs(v) + '.' + ((r * 3 + c) % 10), r > 6 ? '' : 'd', 'end');
+      }
+    }
+    svgEl('line', { class: 'grid', x1: tx, x2: tx + cols * cw, y1: ty + rows * rhh, y2: ty + rows * rhh }, g);
+    svgTxt(g, tx + cols * cw / 2, ty + rows * rhh + 22, '… × 3.1M spots, 1.77 GB', '', 'middle');
+    svgEl('path', { d: `M${tx + cols * cw + 30} 140 H 300`, class: 'base' }, g);
+    svgEl('path', { d: 'M292 134 L300 140 L292 146', class: 'base', fill: 'none' }, g);
+    svgTxt(g, 250, 128, 'rung 4', 'r', 'middle');
+    const layers = [[330, 5], [420, 7], [510, 3]];
+    const ny = (n, k) => 140 + (k - (n - 1) / 2) * 26;
+    for (let l = 0; l < layers.length - 1; l++) {
+      const [x0, n0] = layers[l], [x1, n1] = layers[l + 1];
+      for (let a = 0; a < n0; a++) for (let b = 0; b < n1; b++) svgEl('line', { x1: x0, y1: ny(n0, a), x2: x1, y2: ny(n1, b), stroke: 'rgba(233,184,98,.22)', 'stroke-width': 1 }, g);
+    }
+    layers.forEach(([x, n], l) => { for (let k = 0; k < n; k++) svgEl('circle', { cx: x, cy: ny(n, k), r: 5, fill: l === 2 ? C.pink : C.yellow }, g); });
+    svgTxt(g, 330, 258, 'spot in', '', 'middle'); svgTxt(g, 510, 258, 'regret out', 'r', 'middle');
+    svgTxt(g, 420, 280, 'weights that estimate the number for any spot', '', 'middle');
+  })();
+}
+
+/* =====================================================================
+   7. boot, reveals, resize
+   ===================================================================== */
+function boot() {
+  renderCells(true); renderSpot();
+  tableG.resize(); requestAnimationFrame(tableLoop);
+  requestAnimationFrame(() => { $('#meterFill').style.width = '48.7%'; });
+  dealHand();
+  consoleLoop();
+  drawIcons();
+  const io = new IntersectionObserver((es) => es.forEach((e) => {
+    if (e.target.classList.contains('reveal') && e.isIntersecting) e.target.classList.add('in');
+    if (e.target === rpsCv) rpsVisible = e.isIntersecting;
+    if (e.target === kuhnCv && e.isIntersecting && !kuhnStarted) { kuhnStarted = true; requestAnimationFrame(kuhnAnim); }
+    if (e.target === rpsFig.canvas) { rpsFig.see(e.isIntersecting); if (e.isIntersecting) rpsFig.start(); }
+    if (e.target === tableG.canvas) tableVisible = e.isIntersecting;
+  }), { threshold: 0.15 });
+  $$('.reveal').forEach((el) => io.observe(el)); io.observe(rpsCv); io.observe(kuhnCv); io.observe(tableG.canvas);
+  if (rpsFig.canvas) io.observe(rpsFig.canvas);
+  SPIRAL.last = performance.now();
+  if (REDUCED) drawRps(performance.now()); else requestAnimationFrame(rpsLoop);
+  drawKuhn();
+  ladderFigs();
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { renderCells(false); tableG.resize(); table.dirty = true; drawRps(performance.now()); drawKuhn(); drawIcons(); drawSpark(); rpsFig.layout(); }, 120); });
+}
+if (window.mountChips) mountChips({ mark: '#f5f0e6', ink: '#8e2038' });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(boot); else boot();
+})();
+</script>
+</body>
+</html>

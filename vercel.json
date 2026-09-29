@@ -4,8 +4,8 @@
   "outputDirectory": "public",
   "rewrites": [
     {
-      "source": "/",
-      "destination": "/api/index"
+      "source": "/rules",
+      "destination": "/rules.html"
     },
     {
       "source": "/rung0",

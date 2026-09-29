@@ -13,10 +13,10 @@ VERCEL_JSON = REPO_ROOT / "vercel.json"
 # Vercel auto-detects a framework preset when vercel.json does not pin one, and
 # the pyproject.toml at the repo root makes it detect "python". A backend
 # framework preset appends a `/(.*) -> /python` catch-all to the route table,
-# which swallows every path below the three explicit rewrites and hands it to
-# api/index.py — so /rung0, /rung1, their /assets/* bundles and /fonts/* all
-# build correctly into public/ and then serve the cover page instead. Nothing
-# fails: the build is green, the deploy is green, and the visualizers are gone.
+# which swallows every path below the explicit rewrites and hands it to a
+# serverless function — so /, /rules, /rung0, /rung1, their /assets/* bundles
+# and /fonts/* all build correctly into public/ and then never get served.
+# Nothing fails: the build is green, the deploy is green, and the site is gone.
 #
 # `"framework": null` is what turns that off, and it is a single line in a JSON
 # file that no other code references. Dropping it during a merge or a config
@@ -31,9 +31,20 @@ def test_framework_detection_is_pinned_off():
     # and `config.get("framework") is None` would pass for it.
     assert "framework" in config, (
         'vercel.json must pin "framework": null; without it Vercel detects the '
-        '"python" preset from pyproject.toml and routes every path to api/index.py'
+        '"python" preset from pyproject.toml and routes every path to a function'
     )
     assert config["framework"] is None
+
+
+def test_the_cover_page_is_served_from_the_filesystem():
+    # The cover page used to be a python function behind a "/" -> "/api/index"
+    # rewrite. It is public/index.html now and the function is gone, so a "/"
+    # rewrite coming back (say, from a merge) would point the root at nothing.
+    # The Rules tab is the other half: a bare file is not an extensionless
+    # URL, so /rules needs its rewrite spelled out the way each rung's is.
+    rewrites = {r["source"]: r["destination"] for r in _vercel_config()["rewrites"]}
+    assert "/" not in rewrites, 'a "/" rewrite would point the root at a function that no longer exists'
+    assert rewrites.get("/rules") == "/rules.html"
 
 def test_static_output_is_served_from_public():
     # The other half of the same contract: the catch-all only mattered because
