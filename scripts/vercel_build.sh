@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # Vercel buildCommand entrypoint (vercel.json) — kept in a script because
 # Vercel caps buildCommand at 256 characters.
-# Builds each rung's visualizer into public/<rung> and copies the IBM Plex
-# woff2 files the cover page (api/index.py) self-hosts at /fonts.
+# Builds each rung's visualizer into public/<rung>, copies the woff2 files the
+# site self-hosts at /fonts, and lays the static cover page (web/cover) at the
+# root of public/.
 #
 # None of that output is reachable unless vercel.json also pins
 # `"framework": null`. The repo root has a pyproject.toml, so Vercel otherwise
 # auto-detects the "python" preset, and a backend-framework project appends a
-# `/(.*) -> /python` catch-all that hands every path to api/index.py — the
-# visualizers and the fonts build fine and then never get served.
+# `/(.*) -> /python` catch-all that hands every path to a serverless function
+# that no longer exists — the visualizers, the fonts and the cover page build
+# fine and then never get served.
 set -euo pipefail
 
 rungs=(rung0 rung1 rung2)
@@ -27,7 +29,7 @@ done
 cp -r web/hero-studies public/hero
 
 # Both visualizers bundle the same @fontsource files, so either copy serves the
-# cover page; rung 0's is the one that has always been here.
+# site; rung 0's is the one that has always been here.
 #
 # Three voices, three families, and the weights differ by role: the serif is
 # display only and ships at one weight, mono is the body text AND the UI so it
@@ -39,3 +41,16 @@ copy_font() {
 copy_font instrument-serif 400
 for weight in 400 500 600; do copy_font ibm-plex-mono "$weight"; done
 copy_font kalam 400
+
+# The cover page and its Rules tab are two self-contained HTML files, designed
+# outside the repo and exported (see web/cover/README.md), so there is nothing
+# to build: they are copied as-is to the root of public/, where Vercel serves
+# index.html at / with no rewrite and /rules is rewritten to rules.html.
+#
+# They add a fourth voice, Instrument Sans for prose, and the serif's italic.
+# Neither visualizer bundles those, so copy_font above cannot reach them; the
+# page checks in the four files it needs and they land beside the rest. Their
+# names follow the @fontsource pattern so one /fonts/ directory stays uniform.
+cp web/cover/index.html public/index.html
+cp web/cover/rules.html public/rules.html
+cp web/cover/fonts/*.woff2 public/fonts/

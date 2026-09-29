@@ -239,15 +239,15 @@ Lock any rank's row with ◇ in a seat panel, drag its frequencies off Nash, and
 
 ## The site
 
-Four surfaces, one design system: the cover page at `/` (`api/index.py`, stdlib only so the deploy can never break on a numeric dependency) and the three visualizers at `/rung0`, `/rung1` and `/rung2`.
+Five surfaces: the cover page at `/` and its Rules tab at `/rules` (two self-contained static pages in `web/cover/`, designed outside the repo and exported — see `web/cover/README.md`) and the three visualizers at `/rung0`, `/rung1` and `/rung2`.
 
-The system is a duotone — one hue (oxblood) and one paper (bone), which swap for the light colour scheme rather than being redefined. The **validation ladder is the nav**: a line with a station per rung, filled where the rung is done and solid only as far as the climb has actually got, so "three of five complete" is the picture instead of a caption under it. A persistent identity rail runs down the left. Figures are rounded paper panels floating on the field, numbered; anything tabular is hairline rows.
+The visualizers share one design system, a duotone — one hue (oxblood) and one paper (bone), which swap for the light colour scheme rather than being redefined. The **validation ladder is the nav**: a line with a station per rung, filled where the rung is done and solid only as far as the climb has actually got, so "three of five complete" is the picture instead of a caption under it. A persistent identity rail runs down the left. Figures are rounded paper panels floating on the field, numbered; anything tabular is hairline rows.
 
 Three type voices with no overlap: **Instrument Serif** for display, **IBM Plex Mono for body copy as well as UI** — which is what makes the pages read as typed rather than set — and **Kalam** for the handful of handwritten annotations. Illustration is monoline at a single stroke weight.
 
 The one chromatic colour on the site lives *inside* a figure, where it carries an action's or a card's identity (rock/paper/scissors at rung 0, jack/queen/king at rungs 1 and 2 — where the action mix itself also splits across the duotone, bet from the ink side, check from the paper side). The chrome never uses it.
 
-`npm run dev` in a visualizer serves that app alone, without the nav or the cover page. To see all four wired the way Vercel wires them:
+`npm run dev` in a visualizer serves that app alone, without the nav or the cover page. To see all five wired the way Vercel wires them:
 
 ```bash
 bash scripts/vercel_build.sh          # builds public/

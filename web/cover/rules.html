@@ -1,0 +1,1400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The rules of Drawmaha — Drawmaha Solver</title>
+<meta name="description" content="What Drawmaha is and how a hand is played: five cards, five streets, one draw, and a pot split between the best Omaha hand and the best five-card draw hand.">
+<style>
+@font-face{font-family:'Instrument Serif';font-style:normal;font-weight:400;src:url('/fonts/instrument-serif-latin-400-normal.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Instrument Serif';font-style:italic;font-weight:400;src:url('/fonts/instrument-serif-latin-400-italic.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;src:url('/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');font-display:block}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;src:url('/fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2');font-display:block}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;src:url('/fonts/ibm-plex-mono-latin-600-normal.woff2') format('woff2');font-display:block}
+@font-face{font-family:'Instrument Sans';font-style:normal;font-weight:400;src:url('/fonts/instrument-sans-latin-400-normal.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Instrument Sans';font-style:normal;font-weight:500;src:url('/fonts/instrument-sans-latin-500-normal.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Instrument Sans';font-style:normal;font-weight:600;src:url('/fonts/instrument-sans-latin-600-normal.woff2') format('woff2');font-display:swap}
+
+:root{
+  --field:#0c0a0b;
+  --panel:#131011;
+  --well:#0a0809;
+  --ivory:#f5f0e6;
+  --iv-80:rgba(245,240,230,.8);
+  --iv-60:rgba(245,240,230,.6);
+  --iv-45:rgba(245,240,230,.45);
+  --iv-30:rgba(245,240,230,.3);
+  --iv-16:rgba(245,240,230,.16);
+  --iv-10:rgba(245,240,230,.1);
+  --iv-06:rgba(245,240,230,.06);
+  --iv-03:rgba(245,240,230,.035);
+  --ox:#8e2038;
+  --ox-lit:#b52a4c;
+  --yellow:#e9b862;
+  --yellow-20:rgba(233,184,98,.2);
+  --pink:#d8566f;
+  --pink-20:rgba(216,86,111,.2);
+  --serif:'Instrument Serif',Georgia,serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --sans:'Instrument Sans',system-ui,-apple-system,sans-serif;
+  --max:1312px;
+  --gutter:clamp(18px,3.6vw,48px);
+  --topbar:64px;
+}
+*{box-sizing:border-box}
+html{background:var(--field);color:var(--ivory);scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;font-family:var(--sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+::selection{background:var(--yellow);color:var(--field)}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 var(--gutter)}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--iv-60);display:flex;align-items:center;gap:10px}
+.eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--pink);box-shadow:0 0 0 3px var(--pink-20)}
+h1,h2,h3{font-weight:400;margin:0}
+h1{font-family:var(--serif);font-size:clamp(44px,4.9vw,72px);line-height:.98;letter-spacing:-.015em;text-wrap:balance}
+h1 em,h2 em{font-style:italic;color:var(--yellow)}
+h2{font-family:var(--serif);font-size:clamp(34px,3.2vw,46px);line-height:1.04;letter-spacing:-.01em;text-wrap:balance}
+h3{font-family:var(--serif);font-size:30px;line-height:1.1}
+p{margin:0}
+.lede{font-size:18px;line-height:1.5;color:var(--iv-80);max-width:52ch}
+.lede b{color:var(--ivory);font-weight:500}
+.squig{display:block;height:12px;width:190px;margin-top:12px}
+.squig path{fill:none;stroke:var(--ox-lit);stroke-width:2.2;stroke-linecap:round}
+.btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:500;letter-spacing:.02em;padding:11px 16px;border-radius:4px;text-decoration:none;border:1px solid var(--iv-30);white-space:nowrap;transition:border-color .15s,background .15s,color .15s}
+.btn:hover{border-color:var(--ivory);background:var(--iv-06)}
+.btn .k{color:var(--iv-45);font-weight:400}
+.btn.primary{background:var(--ivory);color:var(--field);border-color:var(--ivory)}
+.btn.primary:hover{background:var(--yellow);border-color:var(--yellow)}
+.btn.pink{background:var(--pink);color:var(--field);border-color:var(--pink)}
+.btn.pink:hover{background:var(--yellow);border-color:var(--yellow)}
+.suit-r{color:var(--pink)}
+
+/* ---------- top bar (the product's) ---------- */
+.top{position:sticky;top:0;z-index:10;background:linear-gradient(var(--field) 72%,rgba(12,10,11,0));backdrop-filter:blur(6px)}
+.top .wrap{display:flex;align-items:center;gap:20px;height:var(--topbar)}
+.chip-home{display:flex;align-items:center;gap:12px;text-decoration:none}
+.chip-home canvas{width:56px;height:56px;display:block}
+.chip-home .word{font-family:var(--serif);font-size:24px;line-height:1}
+.chip-home .word small{display:block;white-space:nowrap;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--iv-45);margin-top:3px}
+/*@NAVCSS@*/
+.nav{margin-left:auto;display:flex;align-items:center;gap:2px;font-family:var(--mono);font-size:13px}
+.navbtn{display:inline-flex;align-items:center;height:34px;padding:0 12px;border-radius:4px;text-decoration:none;color:var(--iv-60);font:inherit;background:none;border:0;cursor:pointer;transition:background .15s,color .15s}
+.navbtn:hover{background:var(--iv-06);color:var(--ivory)}
+.navbtn.on,.navbtn.on:hover{background:var(--iv-10);color:var(--ivory)}
+/* the rungs: a rope ladder pulled open from the button. The menu sits before the button in the row (order:-1) so it
+   spills leftward and pushes Rules aside; the rope is threaded through the gaps between the rung cells. */
+.rungs{display:flex;align-items:center}
+.rungs.open .rungs-btn{background:var(--iv-10);color:var(--ivory)}
+.rungs-menu{order:-1;position:relative;display:flex;align-items:center;justify-content:flex-end;gap:14px;height:64px;width:0;padding-right:10px;overflow-x:clip;overflow-y:visible;visibility:hidden;transition:width .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .16s}
+.rungs.open .rungs-menu{visibility:visible;transition:width .5s cubic-bezier(.2,.8,.2,1),visibility 0s}
+.rungs-menu::before{content:'';position:absolute;left:8px;right:0;top:50%;height:2px;margin-top:-1px;background:repeating-linear-gradient(90deg,var(--iv-45) 0 3px,var(--iv-10) 3px 6px);transform:scaleX(0);transform-origin:right center;transition:transform .55s cubic-bezier(.2,.8,.2,1)}
+.rungs.open .rungs-menu::before{transform:scaleX(1)}
+.rcell{position:relative;flex:0 0 auto;background:var(--field);opacity:0;transform:translateX(26px);transition:opacity .26s ease,transform .34s cubic-bezier(.2,.8,.2,1);transition-delay:calc(var(--i)*75ms)}
+.rungs.open .rcell{opacity:1;transform:none}
+.rungs:not(.open) .rcell{transition-delay:0s;transition-duration:.14s}
+.rcell::after{content:'';position:absolute;left:0;right:0;top:100%;height:14px}
+.rmain{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border:1px solid var(--iv-30);border-radius:4px;text-decoration:none;color:var(--ivory);white-space:nowrap;transition:background .15s,border-color .15s}
+.rmain b{font-family:var(--serif);font-weight:400;font-size:21px;line-height:1;min-width:11px;text-align:center}
+.rmain span{font-size:11px;letter-spacing:.02em;color:var(--iv-60)}
+.rmain:hover,.rcell:focus-within .rmain{background:var(--iv-06);border-color:var(--iv-60)}
+.rcell.now .rmain{border-color:rgba(216,86,111,.35)} .rcell.now .rmain b{color:var(--pink)} .rcell.now .rmain span{color:var(--iv-45)}
+.rcell.todo .rmain{border-color:var(--iv-16)} .rcell.todo .rmain b{color:var(--iv-45)} .rcell.todo .rmain span{color:var(--iv-30)}
+.racts{position:absolute;left:0;top:100%;margin-top:8px;display:flex;gap:2px;padding:4px;background:var(--panel);border:1px solid var(--iv-16);border-radius:4px;box-shadow:0 12px 30px rgba(0,0,0,.55);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .15s,transform .15s,visibility 0s linear .15s}
+.rcell:hover .racts,.rcell:focus-within .racts{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+.racts a{font-size:11px;letter-spacing:.04em;padding:5px 9px;border-radius:3px;text-decoration:none;color:var(--iv-60);white-space:nowrap}
+.racts a:hover,.racts a:focus-visible{background:var(--iv-06);color:var(--ivory)}
+@media (prefers-reduced-motion:reduce){.rungs-menu,.rungs-menu::before,.rcell,.racts,.rungs:not(.open) .rcell{transition:none}}
+/*@/NAVCSS@*/
+
+/* ---------- the rules hero: one line on the left, the order of a hand as a ledger on the right ---------- */
+.rh{padding:40px 0 0}
+.rh-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:64px;align-items:center}
+.rh .eyebrow{margin-bottom:18px}
+.rh h1{max-width:15ch}
+.rh .lede{margin-top:22px}
+.rh .cta{display:flex;gap:10px;margin-top:28px;flex-wrap:wrap}
+.order-list{border:1px solid var(--iv-10);border-radius:6px;background:var(--panel);font-family:var(--mono);overflow:hidden}
+.order-list .t{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--iv-10);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45)}
+.order-list .t b{color:var(--iv-80);font-weight:500;letter-spacing:.04em;text-transform:none}
+.order-list .row{display:grid;grid-template-columns:34px 92px 1fr;gap:12px;align-items:baseline;padding:9px 16px;border-bottom:1px solid var(--iv-06)}
+.order-list .row:last-child{border-bottom:0}
+.order-list .row .n{font-family:var(--serif);font-size:18px;color:var(--iv-45);line-height:1}
+.order-list .row .s{font-size:12.5px;font-weight:500;color:var(--ivory)}
+.order-list .row .d{font-size:11px;color:var(--iv-60);line-height:1.4}
+.order-list .row.b{background:var(--iv-03);padding:6px 16px}
+.order-list .row.b .n{font-size:0}
+.order-list .row.b .n::before{content:'';display:inline-block;width:14px;height:1px;background:var(--pink);vertical-align:middle}
+.order-list .row.b .s{color:var(--pink);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase}
+.order-list .row.b .d{color:var(--iv-30)}
+.order-list .row.sd{background:var(--yellow-20)}
+.order-list .row.sd .s{color:var(--yellow)}
+.order-list .row.sd .d{color:var(--iv-80)}
+
+/* ---------- sections ---------- */
+section{padding:112px 0 0}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+.head{max-width:680px}
+.head .lede{margin-top:16px;font-size:17px}
+.head h2{margin-top:10px}
+
+/* ---------- the hand in order: beats on the left, the felt on the right ---------- */
+.scrolly{display:grid;grid-template-columns:minmax(0,38fr) minmax(0,62fr);gap:56px;align-items:start;margin-top:36px}
+.beats{padding-top:6vh}
+.beat{min-height:76vh;padding:0 0 8vh;max-width:440px;opacity:.36;transition:opacity .45s ease}
+.beat.on{opacity:1}
+.beat .street{display:flex;align-items:baseline;gap:14px;margin-bottom:12px}
+.beat .street .n{font-family:var(--serif);font-size:46px;line-height:1;letter-spacing:-.02em;color:var(--ivory)}
+.beat .street .k{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--pink)}
+.beat h3{font-size:31px;line-height:1.12;margin:0 0 14px;text-wrap:balance}
+.beat p{font-size:16.5px;line-height:1.55;color:var(--iv-80);margin:0 0 12px}
+.beat p b{font-weight:500;color:var(--ivory)}
+.beat .rule{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:16px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--iv-60)}
+.beat .rule span{padding:3px 8px;border:1px solid var(--iv-16);border-radius:3px;white-space:nowrap}
+.beat .rule span.bet{color:var(--pink);border-color:var(--pink-20)}
+.beat .rule span.sd{color:var(--yellow);border-color:var(--yellow-20)}
+.stage{position:sticky;top:var(--topbar);height:calc(100vh - var(--topbar));display:flex;align-items:center;justify-content:flex-end;min-width:0}
+.stage .win{width:min(100%,calc((100vh - var(--topbar) - 150px) * 4 / 3));background:var(--panel);border:1px solid var(--iv-16);border-radius:8px;box-shadow:0 40px 100px rgba(0,0,0,.6),0 1px 0 var(--iv-06) inset;overflow:hidden}
+.titlebar{display:flex;align-items:center;gap:16px;height:40px;padding:0 14px;border-bottom:1px solid var(--iv-10);font-family:var(--mono);font-size:12px;color:var(--iv-60);overflow:hidden}
+.titlebar .dots{display:flex;gap:6px}
+.titlebar .dots i{width:10px;height:10px;border-radius:50%;border:1px solid var(--iv-30)}
+.titlebar .path{color:var(--iv-80);white-space:nowrap}
+.titlebar .path b{font-weight:500;color:var(--ivory)}
+.titlebar .meta{margin-left:auto;display:flex;gap:18px;white-space:nowrap}
+.titlebar .meta b{font-weight:500;color:var(--ivory)}
+.titlebar .live{display:inline-flex;align-items:center;gap:6px;color:var(--yellow)}
+.titlebar .live i{width:6px;height:6px;border-radius:50%;background:var(--yellow);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.feltbox{position:relative;aspect-ratio:4/3;background:var(--well)}
+.feltbox canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.feltbox .nogl{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--iv-60)}
+.feltbox.off .nogl{display:flex}
+.statusbar{display:flex;gap:0;height:30px;align-items:center;padding:0 14px;border-top:1px solid var(--iv-10);font-family:var(--mono);font-size:10.5px;color:var(--iv-45);white-space:nowrap;overflow:hidden}
+.statusbar .ribbon{display:flex;letter-spacing:.14em;text-transform:uppercase}
+.statusbar .ribbon span::after{content:'·';margin:0 7px;color:var(--iv-16)}
+.statusbar .ribbon span:last-child::after{content:none}
+.statusbar .ribbon .on{color:var(--iv-80)}
+.statusbar .ribbon .hot{color:var(--pink)}
+.statusbar .r{margin-left:auto;color:var(--iv-60);font-variant-numeric:tabular-nums}
+.statusbar .r b{color:var(--ivory);font-weight:500;margin-right:10px}
+
+/* ---------- two ways to win: the readings ---------- */
+.two{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:56px;align-items:start;margin-top:40px}
+.two .copy p{color:var(--iv-80);max-width:46ch}
+.two .copy p+p{margin-top:14px}
+.two .copy p b{color:var(--ivory);font-weight:500}
+.two .copy .law{margin-top:26px;border-top:1px solid var(--iv-16);padding-top:18px;display:grid;grid-template-columns:auto 1fr;gap:10px 16px;font-size:15px;color:var(--iv-80)}
+.two .copy .law dt{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding-top:3px;white-space:nowrap}
+.two .copy .law dt.y{color:var(--yellow)} .two .copy .law dt.p{color:var(--pink)} .two .copy .law dt.g{color:var(--iv-45)}
+.two .copy .law dd{margin:0}
+.readings{background:var(--panel);border:1px solid var(--iv-16);border-radius:8px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.5);font-family:var(--mono);font-size:12px}
+.readings .titlebar{height:36px}
+.readings .pane{padding:16px 18px 18px;display:grid;gap:16px}
+.readings .lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45);margin-bottom:8px;display:flex;justify-content:space-between;gap:12px}
+.readings .lbl b{color:var(--iv-80);font-weight:500;letter-spacing:.04em;text-transform:none}
+.cards{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.card{width:50px;height:70px;border-radius:5px;background:var(--ivory);color:#1a1214;display:flex;flex-direction:column;justify-content:space-between;padding:5px 6px;font-family:var(--serif);font-size:22px;line-height:.9;position:relative;box-shadow:0 3px 0 rgba(0,0,0,.6);transition:box-shadow .2s,transform .2s}
+.card.r{color:var(--ox)}
+.card .s{font-size:16px;align-self:flex-end}
+.card.dim{opacity:.32}
+.card.out{background:transparent;border:1px dashed var(--iv-30);color:var(--iv-45);box-shadow:none}
+.card.out::after{content:'';position:absolute;left:8px;right:8px;top:50%;border-top:1px solid var(--iv-45);transform:rotate(-32deg)}
+.card.y{box-shadow:0 0 0 2px var(--yellow),0 3px 0 rgba(0,0,0,.6)}
+.card.p{box-shadow:0 0 0 2px var(--pink),0 3px 0 rgba(0,0,0,.6)}
+.cards .arrow{color:var(--iv-45);font-size:18px;padding:0 4px 26px}
+.cards .gap{width:10px}
+.read{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.read>div{border:1px solid var(--iv-10);border-radius:5px;padding:12px 14px;background:var(--well)}
+.read .who{font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.read .who::before{content:'';width:8px;height:8px;border-radius:2px;background:currentColor}
+.read .who.y{color:var(--yellow)} .read .who.p{color:var(--pink)}
+.read .hand{font-size:13px;color:var(--ivory);font-weight:500;line-height:1.5}
+.read .hand small{display:block;font-weight:400;color:var(--iv-60);font-size:11px;margin-top:2px}
+.read .res{margin-top:10px;font-family:var(--serif);font-size:22px;line-height:1.1;color:var(--ivory)}
+.read .res small{display:block;font-family:var(--mono);font-size:11px;color:var(--iv-60);margin-top:6px;line-height:1.5}
+.readings .split{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:11px;color:var(--iv-60)}
+.readings .split>div{display:flex;align-items:center;gap:10px}
+.readings .split .bar{flex:1;height:8px;border-radius:2px;background:var(--iv-06);overflow:hidden}
+.readings .split .bar i{display:block;height:100%;width:100%}
+.readings .split .y .bar i{background:var(--yellow)} .readings .split .p .bar i{background:var(--pink)}
+.readings .split b{color:var(--ivory);font-weight:500;white-space:nowrap}
+
+/* ---------- who we are ---------- */
+.who{display:grid;grid-template-columns:1.05fr 1fr;gap:72px;align-items:start;margin-top:8px}
+.who p{color:var(--iv-80);max-width:52ch}
+.who p+p{margin-top:14px}
+.who p b{color:var(--ivory);font-weight:500}
+.who .stand{border-left:1px solid var(--iv-16);padding-left:40px}
+.who .stand h3{font-size:34px;margin:8px 0 16px}
+.figures{display:grid;grid-template-columns:repeat(3,auto);gap:32px;margin-top:34px;justify-content:start}
+.figures div{border-top:1px solid var(--iv-16);padding-top:12px;min-width:120px}
+.figures .n{font-family:var(--serif);font-size:32px;line-height:1;margin-bottom:8px;color:var(--yellow)}
+.figures .n small{font-family:var(--mono);font-size:11px;color:var(--iv-45);margin-left:4px}
+.figures .k{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45)}
+
+/* ---------- why nobody has solved it: the numbers ---------- */
+.why{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:40px}
+.why>div{border-top:1px solid var(--iv-16);padding-top:16px}
+.why .n{font-family:var(--serif);font-size:40px;line-height:1;color:var(--ivory);font-variant-numeric:tabular-nums}
+.why .n small{font-family:var(--mono);font-size:11px;color:var(--iv-45);margin-left:6px;letter-spacing:.04em}
+.why .k{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--yellow);margin:10px 0 8px}
+.why p{font-size:15px;color:var(--iv-80);max-width:36ch}
+.why p b{color:var(--ivory);font-weight:500}
+.sizes{margin-top:44px;border:1px solid var(--iv-10);border-radius:6px;background:var(--panel);font-family:var(--mono);font-size:12px;overflow:hidden}
+.sizes .row{display:grid;grid-template-columns:150px 1fr 200px;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--iv-10)}
+.sizes .row:last-child{border-bottom:0}
+.sizes .row.h{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45);padding:10px 16px}
+.sizes .g{color:var(--ivory);font-weight:500}
+.sizes .g small{display:block;font-weight:400;color:var(--iv-45);font-size:10.5px;margin-top:2px}
+.sizes .bar{height:10px;background:var(--iv-06);border-radius:2px;overflow:hidden}
+.sizes .bar i{display:block;height:100%;background:var(--iv-45);width:0;transition:width 1.1s cubic-bezier(.2,.7,.2,1)}
+.sizes .bar.y i{background:var(--yellow)} .sizes .bar.p i{background:var(--pink)}
+.sizes .v{text-align:right;color:var(--iv-80);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sizes .v b{color:var(--ivory);font-weight:500}
+.sizes .note{padding:10px 16px;font-size:11px;color:var(--iv-45);border-top:1px solid var(--iv-10)}
+.sizes .note b{color:var(--iv-60);font-weight:500}
+
+/* ---------- cta + footer (the product's) ---------- */
+.ctaband{margin-top:112px;padding:64px 0;border-top:1px solid var(--iv-16)}
+.ctaband .wrap{display:grid;grid-template-columns:1fr auto;gap:32px;align-items:center}
+.ctaband .btns{display:flex;gap:10px;flex-wrap:wrap}
+footer{padding:64px 0 56px;font-family:var(--mono);font-size:12px;color:var(--iv-60);text-align:center}
+footer .chip-end{display:inline-block;width:132px;height:132px}
+footer .chip-end canvas{width:132px;height:132px;display:block}
+footer .tag{display:block;margin-top:14px;font-family:var(--serif);font-style:italic;font-size:19px;color:var(--iv-80)}
+footer .links{margin-top:18px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap}
+footer a{text-decoration:none}
+footer a:hover{color:var(--ivory)}
+
+/* ---------- responsive ---------- */
+/*@NAVNARROW@*/
+@media (max-width:1240px){
+  /* narrow: the rungs open as a list under the button, each rung's actions under it */
+  .rungs{position:relative}
+  .rungs-menu{position:absolute;top:calc(100% + 8px);right:0;width:auto!important;height:auto;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:4px;padding:8px;background:var(--panel);border:1px solid var(--iv-16);border-radius:6px;box-shadow:0 18px 44px rgba(0,0,0,.6);overflow:visible;transition:visibility 0s linear .3s}
+  .rungs-menu::before{display:none}
+  .rcell{display:block;background:none;transform:translateY(-8px);transition-delay:calc(var(--j)*55ms)}
+  .rcell::after{display:none}
+  .rmain{padding:0 12px}
+  .racts{position:static;margin:0;padding:2px 0 6px 12px;opacity:1;visibility:visible;transform:none;background:none;border:0;box-shadow:none}
+  .racts a{padding:4px 8px 4px 0;color:var(--iv-45)}
+  .rcell.todo .racts a{color:var(--iv-30)}
+}
+/*@/NAVNARROW@*/
+@media (max-width:1100px){
+  .rh-grid{gap:40px}
+  .scrolly{grid-template-columns:minmax(0,42fr) minmax(0,58fr);gap:32px}
+  .who{gap:44px}
+  .why{grid-template-columns:1fr 1fr}
+}
+@media (max-width:820px){
+  .rh{padding-top:36px}
+  .rh-grid{grid-template-columns:1fr;gap:36px}
+  .scrolly{display:flex;flex-direction:column;align-items:stretch}
+  .stage{order:-1;position:sticky;top:var(--topbar);height:auto;background:var(--field);z-index:2;padding-bottom:10px;justify-content:center}
+  .stage .win{width:100%}
+  .feltbox{aspect-ratio:auto;height:min(40vh,320px)}
+  .titlebar .meta{display:none}
+  .beats{padding-top:28px}
+  .beat{min-height:0;padding:0 0 64px;opacity:1;max-width:none}
+  .beat h3{font-size:27px}
+  .two{grid-template-columns:1fr;gap:32px}
+  .who{grid-template-columns:1fr;gap:40px}
+  .who .stand{border-left:0;padding-left:0;border-top:1px solid var(--iv-16);padding-top:36px}
+  .ctaband .wrap{grid-template-columns:1fr}
+  .sizes .row{grid-template-columns:120px 1fr 150px}
+}
+@media (max-width:640px){
+  .chip-home .word{display:none}
+}
+@media (max-width:480px){
+  .wrap{padding:0 16px}
+  .top .btn{padding:8px 10px;font-size:12px}
+  .chip-home canvas{width:44px;height:44px}
+  .chip-home .word{font-size:20px}
+  h3{font-size:26px}
+  .order-list .row{grid-template-columns:28px 76px 1fr;gap:8px}
+  .statusbar .ribbon{display:none}
+  .statusbar .r{margin-left:0}
+  .figures{grid-template-columns:1fr 1fr}
+  .why{grid-template-columns:1fr}
+  .read{grid-template-columns:1fr}
+  .readings .split{grid-template-columns:1fr}
+  .sizes .row{grid-template-columns:1fr;gap:6px}
+  .sizes .v{text-align:left}
+  .card{width:42px;height:60px;font-size:19px}
+  footer .chip-end,footer .chip-end canvas{width:96px;height:96px}
+}
+@media (prefers-reduced-motion:reduce){
+  .beat{opacity:1;transition:none}
+  .titlebar .live i{animation:none}
+  .sizes .bar i{transition:none}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="chip-home" href="https://drawmaha.app" aria-label="Drawmaha home">
+      <canvas data-chip data-font="3"></canvas>
+      <span class="word">Drawmaha<small>Solver · Deep CFR</small></span>
+    </a>
+    <nav class="nav" aria-label="Site">
+      <a class="navbtn on" href="rules.html" aria-current="page">Rules</a>
+      <div class="rungs" id="rungs">
+        <button class="navbtn rungs-btn" type="button" aria-expanded="false" aria-controls="rungsMenu" aria-haspopup="true">Rungs</button>
+        <div class="rungs-menu" id="rungsMenu" role="group" aria-label="The five rungs">
+          <div class="rcell done" style="--i:4;--j:0">
+            <a class="rmain" href="https://drawmaha.app/rung0"><b>0</b><span>Rock-paper-scissors</span></a>
+            <div class="racts"><a href="https://drawmaha.app/rung0">Analysis</a></div>
+          </div>
+          <div class="rcell done" style="--i:3;--j:1">
+            <a class="rmain" href="https://drawmaha.app/rung1"><b>1</b><span>Kuhn</span></a>
+            <div class="racts"><a href="https://drawmaha.app/rung1">Analysis</a></div>
+          </div>
+          <div class="rcell done" style="--i:2;--j:2">
+            <a class="rmain" href="https://drawmaha.app/rung2"><b>2</b><span>Leduc</span></a>
+            <div class="racts"><a href="https://drawmaha.app/rung2">Analysis</a><a href="https://drawmaha.app/rung2#walk">Solver</a><a href="https://drawmaha.app/rung2#play">Trainer</a></div>
+          </div>
+          <div class="rcell now" style="--i:1;--j:3">
+            <a class="rmain" href="index.html#rung3"><b>3</b><span>Mini-Drawmaha</span></a>
+            <div class="racts"><a href="index.html#rung3">Analysis</a></div>
+          </div>
+          <div class="rcell todo" style="--i:0;--j:4">
+            <a class="rmain" href="index.html#rung4"><b>4</b><span>Full Drawmaha</span></a>
+            <div class="racts"><a href="index.html#rung4">Analysis</a></div>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <a class="btn primary" href="https://drawmaha.app/rung2">Open the solver →</a>
+  </div>
+</header>
+
+<main>
+<section class="rh" id="rules" style="padding-top:0">
+  <div class="wrap">
+    <div class="rh-grid">
+      <div>
+        <p class="eyebrow"><span class="dot"></span>The rules · one hand, in order</p>
+        <h1>Omaha's board, a draw in the middle, <em>one pot paid twice.</em></h1>
+        <svg class="squig" viewBox="0 0 190 12" aria-hidden="true"><path d="M2 7 C 12 1, 20 12, 30 7 S 48 1, 58 7 S 76 12, 86 7 S 104 1, 114 7 S 132 12, 142 7 S 160 1, 170 7 S 184 12, 188 7"/></svg>
+        <p class="lede">Drawmaha is a split-pot draw/Omaha hybrid. <b>Five cards each</b>, a shared board, <b>one draw</b> between the flop and the turn, and at showdown the same five cards are read twice: half the pot to the best <b>Omaha hand</b>, half to the best <b>five-card draw hand</b>. Nobody has solved it. That is what this site is for.</p>
+        <div class="cta">
+          <a class="btn primary" href="#order">Play one hand, street by street ↓</a>
+          <a class="btn" href="#two">The two ways to win</a>
+        </div>
+      </div>
+      <div class="order-list" aria-label="The order of a hand">
+        <div class="t"><span>The order of a hand</span><b>5 streets · 5 betting rounds</b></div>
+        <div class="row"><span class="n">1</span><span class="s">Deal</span><span class="d">five cards each, face down</span></div>
+        <div class="row b"><span class="n">bet</span><span class="s">bet</span><span class="d">round 1</span></div>
+        <div class="row"><span class="n">2</span><span class="s">Flop</span><span class="d">three cards to the board, face up</span></div>
+        <div class="row b"><span class="n">bet</span><span class="s">bet</span><span class="d">round 2</span></div>
+        <div class="row"><span class="n">3</span><span class="s">Draw</span><span class="d">discard 0 to 5, take as many back</span></div>
+        <div class="row b"><span class="n">bet</span><span class="s">bet</span><span class="d">round 3</span></div>
+        <div class="row"><span class="n">4</span><span class="s">Turn</span><span class="d">a fourth card to the board</span></div>
+        <div class="row b"><span class="n">bet</span><span class="s">bet</span><span class="d">round 4</span></div>
+        <div class="row"><span class="n">5</span><span class="s">River</span><span class="d">a fifth and last</span></div>
+        <div class="row b"><span class="n">bet</span><span class="s">bet</span><span class="d">round 5</span></div>
+        <div class="row sd"><span class="n">6</span><span class="s">Showdown</span><span class="d">½ pot to the best Omaha hand · ½ to the best draw hand</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="order">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow">One hand, in order</p>
+      <h2>Five cards, five streets, <em>one draw</em>, two ways to win.</h2>
+      <svg class="squig" viewBox="0 0 190 12" aria-hidden="true"><path d="M2 7 C 12 1, 20 12, 30 7 S 48 1, 58 7 S 76 12, 86 7 S 104 1, 114 7 S 132 12, 142 7 S 160 1, 170 7 S 184 12, 188 7"/></svg>
+      <p class="lede">Scroll, and the felt plays a hand along with you: the one this page follows, <b>A♠ K♠ 7<span class="suit-r">♥</span> 7<span class="suit-r">♦</span> 3♣</b>. Every street is followed by a betting round; the draw sits between the flop and the turn.</p>
+    </div>
+    <div class="scrolly">
+      <div class="beats" id="beats">
+        <article class="beat" data-beat="0">
+          <div class="street"><span class="n">1</span><span class="k">Deal</span></div>
+          <h3>Five cards, face down, to everyone.</h3>
+          <p>You pick yours up; nobody else sees them. Five, not Omaha's four, because these five will be read <b>twice</b> at the end: you are already holding two hands. Ours is <b>A♠ K♠ 7<span class="suit-r">♥</span> 7<span class="suit-r">♦</span> 3♣</b>, two big spades, a pair of sevens, and a three along for the ride.</p>
+          <p>Then the first betting round, as one follows every street.</p>
+          <div class="rule"><span>deal 5 each</span><span class="bet">bet</span></div>
+        </article>
+        <article class="beat" data-beat="1">
+          <div class="street"><span class="n">2</span><span class="k">Flop</span></div>
+          <h3>Three cards to the board.</h3>
+          <p>Face up, shared by everyone, like Omaha's flop. Your Omaha hand will use <b>exactly two</b> from your hand and <b>exactly three</b> from the board. Ours comes <b>Q♠ J♠ 7♣</b>: two more spades, a third seven, and two broadway cards that could turn into a straight.</p>
+          <div class="rule"><span>flop 3 to the board</span><span class="bet">bet</span></div>
+        </article>
+        <article class="beat" data-beat="2">
+          <div class="street"><span class="n">3</span><span class="k">Draw</span></div>
+          <h3>Discard up to five, take as many back.</h3>
+          <p>The one street Omaha never gives you. Throw away any number of your five, from none to all, and take that many fresh off the deck, already knowing three fifths of the board. It is the only moment your hand changes, and it is where the game's size explodes: <b>thirty-two ways</b> to discard, each with its own future.</p>
+          <p>We give up the <b>3♣</b>, the one card doing nothing, and draw the <b>10♠</b>.</p>
+          <div class="rule"><span>discard 0 to 5</span><span>replace from the deck</span><span class="bet">bet</span></div>
+        </article>
+        <article class="beat" data-beat="3">
+          <div class="street"><span class="n">4</span><span class="k">Turn</span></div>
+          <h3>A fourth card to the board.</h3>
+          <p>From here the hand runs as Omaha does. The board is four, your Omaha hand still uses exactly three of them, so the combinations multiply. Ours is the <b>4<span class="suit-r">♦</span></b>, a blank.</p>
+          <div class="rule"><span>turn 1 to the board</span><span class="bet">bet</span></div>
+        </article>
+        <article class="beat" data-beat="4">
+          <div class="street"><span class="n">5</span><span class="k">River</span></div>
+          <h3>The fifth and last.</h3>
+          <p>Five on the board, five in your hand, one betting round left. The river is the <b>9♠</b>, and the board reads Q♠ J♠ 7♣ 4<span class="suit-r">♦</span> 9♠.</p>
+          <div class="rule"><span>river 1 to the board</span><span class="bet">bet</span></div>
+        </article>
+        <article class="beat" data-beat="5">
+          <div class="street"><span class="n">6</span><span class="k">Showdown</span></div>
+          <h3>The same five cards, read twice. The pot, cut in two.</h3>
+          <p>Half goes to the best <b>Omaha hand</b>: exactly two from the hand plus three from the board. Half goes to the best <b>five-card draw hand</b>: your five as they stand, no board. One holding can take both halves, or one, or neither.</p>
+          <p>If two hands tie for a half, that half is split again between them, so a pot can be quartered. A full board or a full hand is never required to tie: the same five cards, read the same way, tie.</p>
+          <div class="rule"><span class="sd">½ pot · best Omaha hand</span><span class="sd">½ pot · best draw hand</span></div>
+        </article>
+      </div>
+      <div class="stage" id="stage">
+        <div class="win">
+          <div class="titlebar">
+            <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+            <span class="path">drawmaha.app / rules / <b>one hand</b></span>
+            <div class="meta"><span>top-down · raymarched</span><span class="live"><i></i>follows your scroll</span></div>
+          </div>
+          <div class="feltbox" id="feltbox">
+            <canvas id="felt" aria-label="A top-down view of the felt, drawn in characters: five cards are dealt from the deck, the flop lands, one card goes to the muck and one is drawn, the turn and river fall, and at the showdown the pot splits into two stacks."></canvas>
+            <div class="nogl">The felt needs WebGL2 to draw. The beats on the left carry the rules on their own.</div>
+          </div>
+          <div class="statusbar">
+            <div class="ribbon" id="ribbon"><span>Deal</span><span>Bet</span><span>Flop</span><span>Bet</span><span>Draw</span><span>Bet</span><span>Turn</span><span>Bet</span><span>River</span><span>Bet</span><span>Showdown</span></div>
+            <span class="r"><b id="cap-text">the deal</b><span id="cap-p">0.00</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="two">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow">Two ways to win</p>
+      <h2>The same five cards: a straight flush one way, <em>a pair of sevens</em> the other.</h2>
+      <svg class="squig" viewBox="0 0 190 12" aria-hidden="true"><path d="M2 7 C 12 1, 20 12, 30 7 S 48 1, 58 7 S 76 12, 86 7 S 104 1, 114 7 S 132 12, 142 7 S 160 1, 170 7 S 184 12, 188 7"/></svg>
+    </div>
+    <div class="two reveal">
+      <div class="copy">
+        <p>At showdown nothing is added to your hand: the five you hold after the draw are the five that get read. They are read by two rules at once, and the two rules can disagree wildly about how good they are.</p>
+        <p>The <b>Omaha hand</b> takes exactly two of your five and exactly three of the board's five, whichever pair-plus-three makes the best poker hand. The <b>draw hand</b> is your five as they lie, with no help from the board at all.</p>
+        <p>Every bet on every street was made with both readings in mind. A holding that is right for one half and wrong for the other is the ordinary case, and it is why the game has never been solved.</p>
+        <dl class="law">
+          <dt class="y">Omaha half</dt><dd>exactly 2 from the hand + exactly 3 from the board; the best such five at the table wins it.</dd>
+          <dt class="p">Draw half</dt><dd>the 5 in the hand, as they stand; the best such five at the table wins it.</dd>
+          <dt class="g">Scoop</dt><dd>one hand best both ways takes the whole pot.</dd>
+          <dt class="g">Tie</dt><dd>two hands equal for a half split that half again; the other half is unaffected.</dd>
+        </dl>
+      </div>
+      <div class="readings">
+        <div class="titlebar"><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div><span class="path">rules / <b>showdown</b> / the worked hand</span><div class="meta"><span>board <b>Q♠ J♠ 7♣ 4♦ 9♠</b></span></div></div>
+        <div class="pane">
+          <div>
+            <div class="lbl"><span>Your five, after the draw</span><b>3♣ out, 10♠ in</b></div>
+            <div class="cards">
+              <div class="card y">A<span class="s">♠</span></div>
+              <div class="card y">K<span class="s">♠</span></div>
+              <div class="card y">10<span class="s">♠</span></div>
+              <div class="card r p">7<span class="s">♥</span></div>
+              <div class="card r p">7<span class="s">♦</span></div>
+              <span class="gap"></span>
+              <div class="card out">3<span class="s">♣</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="lbl"><span>The board</span><b>the Omaha hand takes three of these</b></div>
+            <div class="cards">
+              <div class="card y">Q<span class="s">♠</span></div>
+              <div class="card y">J<span class="s">♠</span></div>
+              <div class="card dim">7<span class="s">♣</span></div>
+              <div class="card r dim">4<span class="s">♦</span></div>
+              <div class="card y">9<span class="s">♠</span></div>
+            </div>
+          </div>
+          <div class="read">
+            <div>
+              <div class="who y">Reading 1 · Omaha</div>
+              <div class="hand">K♠ 10♠ <small>from the hand</small>+ Q♠ J♠ 9♠ <small>from the board</small></div>
+              <div class="res">King-high straight flush<small>best Omaha hand at the table; the A♠ cannot join, only two from the hand may play.</small></div>
+            </div>
+            <div>
+              <div class="who p">Reading 2 · Draw</div>
+              <div class="hand">A♠ K♠ 10♠ 7<span class="suit-r">♥</span> 7<span class="suit-r">♦</span> <small>the five as they stand, no board</small></div>
+              <div class="res">Pair of sevens<small>loses to the opponent's 9<span class="suit-r">♦</span> 8<span class="suit-r">♥</span> 7♠ 6♣ 5<span class="suit-r">♦</span>, a nine-high straight.</small></div>
+            </div>
+          </div>
+          <div class="split">
+            <div class="y"><b>½ pot → us</b><span class="bar"><i></i></span><span>Omaha half</span></div>
+            <div class="p"><b>½ pot → them</b><span class="bar"><i></i></span><span>draw half</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="who">
+  <div class="wrap">
+    <div class="who">
+      <div class="reveal">
+        <p class="eyebrow">Who we are</p>
+        <h2 style="margin-top:10px">A solver library for a game <em>with no solver.</em></h2>
+        <svg class="squig" viewBox="0 0 190 12" aria-hidden="true"><path d="M2 7 C 12 1, 20 12, 30 7 S 48 1, 58 7 S 76 12, 86 7 S 104 1, 114 7 S 132 12, 142 7 S 160 1, 170 7 S 184 12, 188 7"/></svg>
+        <p style="margin-top:22px">Drawmaha Solver is the solver for Drawmaha, written from the ground up because none existed. The method is <b>Deep CFR</b>: counterfactual regret minimisation, with neural nets standing in for the regret tables once the tables no longer fit in memory.</p>
+        <p>Three rungs are climbed and live on this site. The fourth, mini-Drawmaha, is being built. The fifth is the full game.</p>
+        <div class="figures">
+          <div><div class="n">3<small>of 5</small></div><div class="k">rungs climbed</div></div>
+          <div><div class="n">0.00063<small>chips</small></div><div class="k">exploitability, rung 1</div></div>
+          <div><div class="n">1.77<small>GB</small></div><div class="k">ledger table, rung 3</div></div>
+        </div>
+      </div>
+      <div class="stand reveal">
+        <p class="eyebrow">What we stand for</p>
+        <h3>Nothing climbs unchecked.</h3>
+        <p>A solver that has never been checked against an answer is a guess with a progress bar. So each rung is a smaller game with a closed form or a published solution, and we publish the gap: <b>exploitability in chips</b>, and the game value beside the exact value.</p>
+        <p>When the gap closes, we climb. When it does not, we do not, and <a href="index.html#ladder" style="color:var(--yellow)">the ladder</a> says so.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="why">
+  <div class="wrap">
+    <div class="head reveal">
+      <p class="eyebrow">Why nobody has solved it</p>
+      <h2>2.6 million holdings, 32 draws from each, <em>two rankings</em> on one pot.</h2>
+      <svg class="squig" viewBox="0 0 190 12" aria-hidden="true"><path d="M2 7 C 12 1, 20 12, 30 7 S 48 1, 58 7 S 76 12, 86 7 S 104 1, 114 7 S 132 12, 142 7 S 160 1, 170 7 S 184 12, 188 7"/></svg>
+      <p class="lede">Hold'em solvers exist because the game is small enough to enumerate and the answer is one number per spot. Drawmaha is bigger on every axis at once.</p>
+    </div>
+    <div class="why reveal">
+      <div>
+        <div class="n">2,598,960<small>C(52,5)</small></div>
+        <div class="k">five-card holdings</div>
+        <p>Every hand starts from one of <b>2,598,960</b> five-card holdings, against 1,326 in hold'em and 270,725 in Omaha. The deal alone is bigger than the whole of a smaller game.</p>
+      </div>
+      <div>
+        <div class="n">32<small>2⁵</small></div>
+        <div class="k">discard patterns per holding</div>
+        <p>At the draw each of the five cards stays or goes: <b>thirty-two</b> patterns, each opening onto a fresh set of cards off the deck, all decided with the flop already showing.</p>
+      </div>
+      <div>
+        <div class="n">2<small>rankings</small></div>
+        <div class="k">hands to hold at once</div>
+        <p>The pot pays two different readings of the same five cards, so a spot has no single strength. A strategy is right for one half and wrong for the other, and the solver has to weigh both.</p>
+      </div>
+    </div>
+    <div class="sizes reveal" id="sizes">
+      <div class="row h"><span>Game</span><span>Information sets per player, log scale</span><span style="text-align:right">count</span></div>
+      <div class="row"><span class="g">Kuhn poker<small>rung 1 · passed</small></span><span class="bar"><i data-w="0.17"></i></span><span class="v"><b>12</b></span></div>
+      <div class="row"><span class="g">Leduc poker<small>rung 2 · passed</small></span><span class="bar"><i data-w="0.40"></i></span><span class="v"><b>288</b></span></div>
+      <div class="row"><span class="g">Mini-Drawmaha<small>rung 3 · in progress</small></span><span class="bar y"><i data-w="1"></i></span><span class="v"><b>1.57M</b> · the deck gate</span></div>
+      <div class="row"><span class="g">The ledger table<small>rung 3 · every spot, written out</small></span><span class="bar p"><i data-w="1"></i></span><span class="v"><b>3.1M spots</b> · 1.77 GB</span></div>
+      <div class="note">Mini-Drawmaha is the last rung whose regret tables fit on disk. Full Drawmaha does not enumerate: <b>Deep CFR</b> replaces the tables with nets, and rung 3 is where the sampled learner (external-sampling MCCFR, graded on Leduc first) earns the right to try.</div>
+    </div>
+  </div>
+</section>
+</main>
+
+<div class="ctaband">
+  <div class="wrap">
+    <div>
+      <h2>Now watch it <em>get solved.</em></h2>
+      <p class="lede" style="margin-top:12px">Three rungs are live today. Open the explorer to read the rung 2 ledger spot by spot, or go back to the ladder to see how far up the climb has got.</p>
+    </div>
+    <div class="btns">
+      <a class="btn pink" href="https://drawmaha.app/rung2">Open the solver</a>
+      <a class="btn" href="index.html#ladder">The ladder</a>
+      <a class="btn" href="index.html#explorer">The explorer</a>
+    </div>
+  </div>
+</div>
+<footer>
+  <div class="wrap">
+    <a class="chip-end" href="https://drawmaha.app" aria-label="Drawmaha home"><canvas data-chip data-font="4" data-speed="0.32"></canvas></a>
+    <div class="links"><a href="index.html">Home</a><a href="https://drawmaha.app/rung0">/rung0</a><a href="https://drawmaha.app/rung1">/rung1</a><a href="https://drawmaha.app/rung2">/rung2</a><a href="https://drawmaha.app">drawmaha.app</a></div>
+  </div>
+</footer>
+
+<script>/*@NAVJS@*/
+/* the Rungs menu: opens on hover (250 ms), click, tap or keyboard focus; Escape and a click outside close it */
+(function () {
+  const root = document.getElementById('rungs'); if (!root) return;
+  const btn = root.querySelector('.rungs-btn'), menu = root.querySelector('.rungs-menu'), cells = Array.from(menu.querySelectorAll('.rcell'));
+  const narrow = () => matchMedia('(max-width:1240px)').matches;
+  let open = false, pinned = false, hoverT = 0, leaveT = 0;
+  const fit = () => { if (narrow()) { menu.style.width = ''; return; } const a = cells[0], z = cells[cells.length - 1]; menu.style.width = open ? (z.offsetLeft + z.offsetWidth - a.offsetLeft + 10) + 'px' : '0px'; };
+  function setOpen(v, pin) { open = v; pinned = v && !!pin; root.classList.toggle('open', v); btn.setAttribute('aria-expanded', String(v)); fit(); }
+  root.addEventListener('mouseenter', () => { clearTimeout(leaveT); if (!open) hoverT = setTimeout(() => { if (!open) setOpen(true, false); }, 250); });
+  root.addEventListener('mouseleave', () => { clearTimeout(hoverT); if (open && !pinned) leaveT = setTimeout(() => setOpen(false), 280); });
+  btn.addEventListener('click', () => { clearTimeout(hoverT); if (open && pinned) setOpen(false); else setOpen(true, true); });
+  btn.addEventListener('focus', () => { if (btn.matches(':focus-visible') && !open) setOpen(true, true); });
+  root.addEventListener('focusout', (e) => { if (open && e.relatedTarget && !root.contains(e.relatedTarget)) setOpen(false); });
+  document.addEventListener('click', (e) => { if (open && !root.contains(e.target)) setOpen(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && open) { setOpen(false); btn.focus(); } });
+  addEventListener('resize', () => { if (open) fit(); });
+  window.__rungs = { open: (v) => setOpen(v, true) };
+})();
+/*@/NAVJS@*/</script>
+<script>
+/* chip.js — the Drawmaha chip: a dithered, tilted poker chip turning on its axis, drawn as ASCII on a canvas.
+   Drop-in: include this script, add <a href="https://drawmaha.app"><canvas data-chip></canvas></a> sized by CSS
+   (square, e.g. 92x92), and call mountChips({ mark: '#f5f0e6', ink: '#12070a' }) with the glyph colour. Transparent field.
+   Options per canvas via data attributes: data-font="4" (cell px), data-speed="0.3" (rad/s), data-tilt="0.8". */
+(function () {
+const FONT = "'IBM Plex Mono', ui-monospace, Menlo, monospace";
+const RAMP = " .'`,:;~-=+*x%#@";
+let CHARSET = '';
+for (let c = 32; c < 127; c++) CHARSET += String.fromCharCode(c);
+CHARSET += '♠♥♦♣·';
+const CIDX = {}; for (let i = 0; i < CHARSET.length; i++) CIDX[CHARSET[i]] = i;
+const RAMPIDX = [...RAMP].map((c) => CIDX[c]);
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+class Grid {
+  constructor(canvas, palette, fontPx) {
+    this.canvas = canvas; this.ctx = canvas.getContext('2d');
+    this.palette = palette; this.fontPx = fontPx || 11;
+    this.mouse = { x: -1e6, y: -1e6, in: false };
+    this.c = 1;
+    this.resize();
+    const move = (cx, cy) => {
+      const r = canvas.getBoundingClientRect();
+      this.mouse.x = ((cx - r.left) - this.ox) / this.cw;
+      this.mouse.y = (((cy - r.top) - this.oy) / this.ch) * this.ar;
+      this.mouse.in = true;
+      this.dirty = true;
+    };
+    canvas.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
+    canvas.addEventListener('mouseleave', () => { this.mouse.in = false; this.dirty = true; });
+    canvas.addEventListener('touchmove', (e) => { const t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: true });
+  }
+  resize() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const r = this.canvas.getBoundingClientRect();
+    if (r.width === 0) return;
+    this.dpr = dpr;
+    this.canvas.width = Math.round(r.width * dpr); this.canvas.height = Math.round(r.height * dpr);
+    const ctx = this.ctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.font = `${this.fontPx}px ${FONT}`;
+    this.cw = ctx.measureText('M').width;
+    this.ch = this.fontPx * 1.02;
+    this.cols = Math.floor(r.width / this.cw); this.rows = Math.floor(r.height / this.ch);
+    this.ar = this.ch / this.cw;
+    this.W = this.cols; this.H = this.rows * this.ar;
+    this.ox = (r.width - this.cols * this.cw) / 2; this.oy = (r.height - this.rows * this.ch) / 2;
+    this.n = this.cols * this.rows;
+    this.chb = new Uint8Array(this.n); this.cob = new Uint8Array(this.n);
+    this.buildAtlas();
+    this.dirty = true;
+  }
+  buildAtlas() {
+    const dpr = this.dpr, gw = Math.ceil(this.cw * dpr), gh = Math.ceil(this.ch * dpr);
+    this.gw = gw; this.gh = gh;
+    this.atlas = this.palette.map((col) => {
+      const c = document.createElement('canvas');
+      c.width = gw * CHARSET.length; c.height = gh;
+      const x = c.getContext('2d');
+      x.font = `${this.fontPx * dpr}px ${FONT}`; x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillStyle = col;
+      for (let i = 0; i < CHARSET.length; i++) x.fillText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5);
+      return c;
+    });
+  }
+  clear() { this.chb.fill(0); this.cob.fill(0); }
+  draw() {
+    const ctx = this.ctx, { gw, gh, cols, rows, dpr } = this;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (this.palette[0] === 'transparent') ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    else { ctx.fillStyle = this.palette[0]; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
+    const ox = this.ox * dpr, oy = this.oy * dpr, pw = this.cw * dpr, ph = this.ch * dpr;
+    let i = 0;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++, i++) {
+      const c = this.chb[i]; if (!c) continue;
+      ctx.drawImage(this.atlas[this.cob[i]], c * gw, 0, gw, gh, ox + x * pw, oy + y * ph, gw, gh);
+    }
+  }
+  /* set a cell by cell coordinates */
+  set(cx, cy, ci, col) {
+    if (cx < 0 || cy < 0 || cx >= this.cols || cy >= this.rows) return;
+    const i = cy * this.cols + cx; this.chb[i] = ci; this.cob[i] = col;
+  }
+  ramp(v) { return RAMPIDX[clamp(Math.round(v * (RAMP.length - 1)), 0, RAMP.length - 1)]; }
+  /* fill a bbox (scene units) with fn(px,py) -> brightness; fn may reassign g.c for colour */
+  fill(x0, y0, x1, y1, col, fn) {
+    const cx0 = Math.max(0, Math.floor(x0)), cx1 = Math.min(this.cols - 1, Math.ceil(x1));
+    const cy0 = Math.max(0, Math.floor(y0 / this.ar)), cy1 = Math.min(this.rows - 1, Math.ceil(y1 / this.ar));
+    for (let cy = cy0; cy <= cy1; cy++) {
+      const py = (cy + 0.5) * this.ar;
+      for (let cx = cx0; cx <= cx1; cx++) {
+        this.c = col;
+        const v = fn(cx + 0.5, py);
+        if (v > 0) { const i = cy * this.cols + cx; this.chb[i] = this.ramp(v); this.cob[i] = this.c; }
+        else if (v < -1) { const i = cy * this.cols + cx; this.chb[i] = 0; }
+      }
+    }
+  }
+  /* a stroke between two scene points; the glyph follows the slope unless given */
+  line(x0, y0, x1, y1, col, ch) {
+    const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy / this.ar);
+    const n = Math.max(1, Math.ceil(len * 2));
+    const ci = CIDX[ch || slopeChar(Math.atan2(dy, dx))];
+    for (let k = 0; k <= n; k++) {
+      const s = k / n;
+      this.set(Math.floor(x0 + dx * s), Math.floor((y0 + dy * s) / this.ar), ci, col);
+    }
+  }
+  text(cx, cy, str, col) {
+    for (let i = 0; i < str.length; i++) { const ci = CIDX[str[i]]; if (ci) this.set(cx + i, cy, ci, col); }
+  }
+  /* where a scene point lands, in cells */
+  cellOf(x, y) { return [Math.floor(x), Math.floor(y / this.ar)]; }
+}
+const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+/* ================================================================
+   SHARED PIECES FOR THE SECOND ROUND
+   ================================================================ */
+const rotX = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[1, 0, 0], [0, c, -s], [0, s, c]]; };
+const rotY = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, 0, s], [0, 1, 0], [-s, 0, c]]; };
+const rotZ = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, -s, 0], [s, c, 0], [0, 0, 1]]; };
+const mul = (A, B) => A.map((r, i) => [0, 1, 2].map((j) => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j]));
+const norm3 = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+/* a ray-traced chip. o.M = 3x3, columns are the chip's local axes in screen space (x right, y down, z away) */
+function rayChip(g, o) {
+  const { cols, rows, ar } = g, m = o.M;
+  const toLocal = (x, y, z) => [m[0][0] * x + m[1][0] * y + m[2][0] * z, m[0][1] * x + m[1][1] * y + m[2][1] * z, m[0][2] * x + m[1][2] * y + m[2][2] * z];
+  const toWorld = (x, y, z) => [m[0][0] * x + m[0][1] * y + m[0][2] * z, m[1][0] * x + m[1][1] * y + m[1][2] * z, m[2][0] * x + m[2][1] * y + m[2][2] * z];
+  const R = o.R, hz = o.hz, L = o.L, sectors = o.sectors || 12;
+  const d = toLocal(0, 0, 1);
+  const chars = [0, CIDX['.'], CIDX[':'], CIDX['+'], CIDX['%'], CIDX['@']];
+  const ext = R * 1.05 + hz;
+  const cx0 = Math.max(0, Math.floor(o.cx - ext)), cx1 = Math.min(cols - 1, Math.ceil(o.cx + ext));
+  const cy0 = Math.max(0, Math.floor((o.cy - ext) / ar)), cy1 = Math.min(rows - 1, Math.ceil((o.cy + ext) / ar));
+  for (let cyy = cy0; cyy <= cy1; cyy++) {
+    const py = (cyy + 0.5) * ar - o.cy;
+    for (let cxx = cx0; cxx <= cx1; cxx++) {
+      const px = cxx + 0.5 - o.cx;
+      if (px * px + py * py > ext * ext) continue;
+      const oo = toLocal(px, py, -400);
+      let best = 1e9, mat = 0, I = 0;
+      for (const zc of [hz, -hz]) {
+        if (Math.abs(d[2]) < 1e-6) continue;
+        const tc = (zc - oo[2]) / d[2];
+        if (tc < 0 || tc > best) continue;
+        const x = oo[0] + tc * d[0], y = oo[1] + tc * d[1], r = Math.hypot(x, y);
+        if (r > R) continue;
+        best = tc;
+        const rn = r / R, ang = Math.atan2(y, x);
+        const sector = Math.floor(((ang / (2 * Math.PI)) + 1) * sectors + 0.5) % 2;
+        mat = (rn > 0.8 && sector) || (rn > 0.5 && rn < 0.58) ? 2 : 1;
+        const n = toWorld(0, 0, zc > 0 ? 1 : -1);
+        const nl = n[0] * L[0] + n[1] * L[1] + n[2] * L[2];
+        const hl = Math.pow(nl * 0.5 + 0.5, 2), lam = Math.max(0, nl);
+        I = 0.12 + 0.62 * hl + 0.35 * Math.pow(lam, 16);
+        if (rn > 0.96) I += 0.15;
+        if (rn > 0.8 && !sector) I *= 0.9;
+      }
+      const a = d[0] * d[0] + d[1] * d[1];
+      if (a > 1e-9) {
+        const b = 2 * (oo[0] * d[0] + oo[1] * d[1]), c = oo[0] * oo[0] + oo[1] * oo[1] - R * R;
+        const disc = b * b - 4 * a * c;
+        if (disc > 0) {
+          const ts = (-b - Math.sqrt(disc)) / (2 * a);
+          if (ts > 0 && ts < best) {
+            const z = oo[2] + ts * d[2];
+            if (Math.abs(z) <= hz) {
+              best = ts;
+              const x = oo[0] + ts * d[0], y = oo[1] + ts * d[1];
+              const sector = Math.floor(((Math.atan2(y, x) / (2 * Math.PI)) + 1) * sectors + 0.5) % 2;
+              mat = sector ? 2 : 1;
+              const n = toWorld(x / R, y / R, 0);
+              const nl = n[0] * L[0] + n[1] * L[1] + n[2] * L[2];
+              I = 0.1 + 0.55 * Math.pow(nl * 0.5 + 0.5, 2) + 0.3 * Math.pow(Math.max(0, nl), 10);
+            }
+          }
+        }
+      }
+      if (mat === 0) continue;
+      const i = cyy * cols + cxx;
+      const col = mat === 1 ? o.colBase : o.colPattern;
+      if (o.dither) {
+        const bay = (BAYER[cyy % 4][cxx % 4] + 0.5) / 16 - 0.5;
+        const lv = clamp(Math.floor(I * 5 + bay * 1.15), 0, 5);
+        if (lv > 0) { g.chb[i] = chars[lv]; g.cob[i] = col; } else { g.chb[i] = chars[1]; g.cob[i] = o.colDim; }
+      } else {
+        g.chb[i] = g.ramp(clamp(I, 0.08, 1)); g.cob[i] = col;
+      }
+    }
+  }
+}
+
+const CHIP_SCENES = [];
+function mountChips(opts) {
+  const mark = (opts && opts.mark) || '#f5f0e6', ink = (opts && opts.ink) || '#12070a';
+  const hexA = (hex, a) => { let h = hex.replace('#', ''); if (h.length === 3) h = h.split('').map((c) => c + c).join(''); const n = parseInt(h, 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  for (const canvas of document.querySelectorAll('canvas[data-chip]')) {
+    const g = new Grid(canvas, ['transparent', mark, ink, hexA(mark, 0.35)], parseFloat(canvas.dataset.font || '4'));
+    CHIP_SCENES.push({ g, canvas, yaw: 0.6, t: 0, speed: parseFloat(canvas.dataset.speed || '0.3'), tilt: parseFloat(canvas.dataset.tilt || '0.8'), drawn: false });
+  }
+  const ro = new ResizeObserver(() => CHIP_SCENES.forEach((s) => { s.g.resize(); s.drawn = false; }));
+  CHIP_SCENES.forEach((s) => ro.observe(s.canvas));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => CHIP_SCENES.forEach((s) => { s.g.resize(); s.drawn = false; }));
+  let last = performance.now();
+  function tick(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!document.hidden) for (const s of CHIP_SCENES) {
+      if (reduced && s.drawn && !s.g.dirty) continue;
+      s.g.dirty = false; s.drawn = true;
+      if (!reduced) { s.t += dt; s.yaw += dt * (s.g.mouse.in ? s.speed * 3.5 : s.speed); }
+      const g = s.g, { W, H } = g; const R = Math.min(W, H) * 0.46;
+      g.clear();
+      rayChip(g, { cx: W / 2, cy: H / 2, R, hz: R * 0.13, M: mul(rotX(s.tilt + 0.12 * Math.sin(s.t * 0.37)), mul(rotY(0.25 * Math.sin(s.t * 0.29)), rotZ(s.yaw))), L: norm3([-0.55, -0.5, -0.67]), colBase: 1, colPattern: 2, colDim: 3, dither: true, sectors: 12 });
+      g.draw();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+window.mountChips = mountChips;
+})();
+</script>
+<script>
+/* ============================================================================
+   THE FELT — the room's scroll-driven hand, ported: a raymarched top-down table rendered to a character grid
+   (WebGL2: scene pass writes luminance + colour class + depth per cell; glyph pass picks a ramp glyph by measured ink,
+   an outline glyph on depth edges). The hand it plays is the worked example: A♠ K♠ 7♥ 7♦ 3♣, flop Q♠ J♠ 7♣,
+   3♣ to the muck and 10♠ drawn, turn 4♦, river 9♠. Cards never pass through one another: a moving card is lifted
+   first, the deck and the muck are stacks, chips arc and land on top of the pile.
+   ============================================================================ */
+(function () {
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FIELD = [10, 8, 9];
+const CELL_W = 3.5, CELL_H = 6, FONT_PX = 6.6;
+const CANDIDATES = " .`':,;~=+*?xoXOZ0Q8#MW&%B@$";
+const OUTLINE = '|-/\\';
+/* colour classes: 1 ivory, 2 oxblood, 3 yellow, 4 pink, 5 grey; each has a bright and a dim row; the last row is the outline */
+const CLASS_COLS = [
+  ['#f5f0e6', 'rgba(245,240,230,0.55)'],
+  ['#b32b48', 'rgba(142,32,56,0.75)'],
+  ['#e9b862', 'rgba(233,184,98,0.55)'],
+  ['#d8566f', 'rgba(216,86,111,0.6)'],
+  ['#c9c2b6', 'rgba(201,194,182,0.5)'],
+];
+function buildAtlas(dpr) {
+  const gw = Math.round(CELL_W * dpr), gh = Math.round(CELL_H * dpr);
+  const font = `${FONT_PX * dpr}px 'IBM Plex Mono', ui-monospace, Menlo, monospace`;
+  const m = document.createElement('canvas'); m.width = gw * CANDIDATES.length; m.height = gh;
+  const mx = m.getContext('2d', { willReadFrequently: true });
+  mx.font = font; mx.textBaseline = 'middle'; mx.textAlign = 'center'; mx.fillStyle = '#fff';
+  for (let i = 0; i < CANDIDATES.length; i++) mx.fillText(CANDIDATES[i], i * gw + gw / 2, gh / 2 + 0.5 * dpr);
+  const data = mx.getImageData(0, 0, m.width, gh).data;
+  const ink = [];
+  for (let i = 0; i < CANDIDATES.length; i++) {
+    let s = 0;
+    for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) s += data[((y * m.width) + i * gw + x) * 4 + 3];
+    ink.push({ c: CANDIDATES[i], w: s / (255 * gw * gh) });
+  }
+  ink.sort((a, b) => a.w - b.w);
+  const max = ink[ink.length - 1].w, N = 22, ramp = [];
+  for (let k = 0; k < N; k++) {
+    const target = (k / (N - 1)) * max;
+    let best = ink[0];
+    for (const g of ink) if (Math.abs(g.w - target) < Math.abs(best.w - target)) best = g;
+    ramp.push(best.c);
+  }
+  ramp[0] = ' ';
+  const glyphs = ramp.concat(OUTLINE.split(''));
+  const rows = [];
+  for (const [b, d] of CLASS_COLS) { rows.push(b); rows.push(d); }
+  rows.push('#f3ecdc');
+  const a = document.createElement('canvas'); a.width = gw * glyphs.length; a.height = gh * rows.length;
+  const ax = a.getContext('2d');
+  ax.font = font; ax.textBaseline = 'middle'; ax.textAlign = 'center';
+  rows.forEach((col, r) => { ax.fillStyle = col; for (let i = 0; i < glyphs.length; i++) ax.fillText(glyphs[i], i * gw + gw / 2, r * gh + gh / 2 + 0.5 * dpr); });
+  return { canvas: a, gw, gh, N, G: glyphs.length, rows: rows.length, ramp };
+}
+
+/* ---- the scene shader: primitives, the card faces (real ranks: pips 1..10, court cards as a framed pip), materials ---- */
+const FELT_FS = `#version 300 es
+precision highp float;
+uniform vec2 uGrid; uniform float uAr, uTime;
+uniform vec4 uCA[12], uCB[12], uCh[10]; uniform float uMuck;
+out vec4 O;
+int gMat = 0, gObj = 0; bool gB = false;
+float gU = 0.0, gV = 0.0, gN = 0.0; int gCard = 0;
+float sdRBox(vec3 p, vec3 b, float r){ vec3 q = abs(p) - b; return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r; }
+float sdCyl(vec3 p, float h, float r){ vec2 d = vec2(length(p.xz) - r, abs(p.y) - h); return min(max(d.x, d.y), 0.0) + length(max(d, 0.0)); }
+float hash3(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7)))*43758.5453); }
+float noise3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f*f*(3.0-2.0*f);
+  return mix(mix(mix(hash3(i), hash3(i+vec3(1,0,0)), f.x), mix(hash3(i+vec3(0,1,0)), hash3(i+vec3(1,1,0)), f.x), f.y),
+             mix(mix(hash3(i+vec3(0,0,1)), hash3(i+vec3(1,0,1)), f.x), mix(hash3(i+vec3(0,1,1)), hash3(i+vec3(1,1,1)), f.x), f.y), f.z); }
+/* the twelve card slots: 0-4 the hand (A♠ K♠ 7♥ 7♦ 3♣), 5-9 the board (Q♠ J♠ 7♣ 4♦ 9♠), 10 the drawn 10♠, 11 spare */
+const int SUIT[12] = int[12](0, 0, 1, 2, 3, 0, 0, 3, 2, 0, 0, 0);
+const int RANK[12] = int[12](1, 13, 7, 7, 3, 12, 11, 7, 4, 9, 10, 10);
+float sdCardL(vec3 q, float sc){ return sdRBox(q, vec3(0.045*sc - 0.004*sc, 0.063*sc - 0.004*sc, 0.0006*sc), 0.0024*sc); }
+float sdHeart2(vec2 p){ p.x = abs(p.x); if (p.y + p.x > 1.0) return length(p - vec2(0.25, 0.75)) - 0.35355;
+  vec2 a = p - vec2(0.0, 1.0); vec2 b = p - 0.5*max(p.x + p.y, 0.0); return sqrt(min(dot(a, a), dot(b, b)))*sign(p.x - p.y); }
+float sdPip(vec2 p, int suit, float s){
+  p /= s;
+  if (suit == 2) return abs(p.x)*1.45 + abs(p.y) - 0.62;
+  if (suit == 1) return sdHeart2(vec2(p.x, p.y + 0.55));
+  if (suit == 0) { float h = sdHeart2(vec2(p.x, 0.62 - p.y)); float st = max(abs(p.x) - 0.09 - 0.2*max(0.0, -0.3 - p.y), abs(p.y + 0.55) - 0.13); return min(h, st); }
+  float c = min(length(p - vec2(0.0, 0.24)) - 0.3, min(length(p - vec2(0.29, -0.12)) - 0.3, length(p - vec2(-0.29, -0.12)) - 0.3));
+  float st = max(abs(p.x) - 0.07 - 0.15*max(0.0, -0.4 - p.y), abs(p.y + 0.45) - 0.22); return min(c, st);
+}
+/* pip k of cnt, in [-1, 1] over the pip field: the standard layouts for 1 to 10 */
+vec2 pipPos(int cnt, int k){
+  if (cnt == 1) return vec2(0.0);
+  if (cnt == 2) return vec2(0.0, k == 0 ? -1.0 : 1.0);
+  if (cnt == 3) return vec2(0.0, float(k) - 1.0);
+  if (cnt <= 5) { if (k == 4) return vec2(0.0); return vec2(k % 2 == 0 ? -1.0 : 1.0, k < 2 ? -1.0 : 1.0); }
+  if (cnt <= 8) { if (k >= 6) return vec2(0.0, (cnt == 7 || k == 6) ? -0.5 : 0.5); return vec2(k % 2 == 0 ? -1.0 : 1.0, float(k / 2) - 1.0); }
+  if (k >= 8) return vec2(0.0, cnt == 9 ? 0.0 : (k == 8 ? -0.5 : 0.5));
+  return vec2(k % 2 == 0 ? -1.0 : 1.0, float(k / 2)*0.6667 - 1.0);
+}
+/* u, v in [-1, 1] over the card; n the signed normal coordinate; returns the material */
+int cardMat(float u, float v, float n, int id, float sc){
+  if (abs(n) < 0.0026*sc) return 15;
+  if (n < 0.0) { return (abs(u) > 0.84 || abs(v) > 0.885) ? 15 : 14; }
+  int suit = SUIT[id], cnt = RANK[id];
+  int ink = (suit == 0 || suit == 3) ? 13 : 12;
+  vec2 P = vec2(u*0.045*sc, v*0.063*sc);
+  float d = 1e9;
+  if (cnt > 10) {
+    /* a court card: an inner frame and one large pip, the way a court's box reads at this size */
+    float fu = abs(u), fv = abs(v);
+    bool frame = (fu > 0.58 && fu < 0.66 && fv < 0.74) || (fv > 0.66 && fv < 0.74 && fu < 0.66);
+    d = sdPip(P, suit, 0.026*sc);
+    if (frame) return ink;
+  } else {
+    float s = (cnt == 1 ? 0.034 : cnt >= 9 ? 0.0135 : 0.016)*sc;
+    for (int k = 0; k < 10; k++) { if (k >= cnt) break; vec2 c = pipPos(cnt, k)*vec2(0.024, 0.036)*sc; d = min(d, sdPip(P - c, suit, s)); }
+  }
+  d = min(d, sdPip(P - vec2(-0.033, 0.049)*sc, suit, 0.0058*sc));
+  d = min(d, sdPip(P - vec2(0.033, -0.049)*sc, suit, 0.0058*sc));
+  if (d < 0.0) return ink;
+  return 11;
+}
+/* diffuse, spec, shininess, colour class */
+vec4 matOf(int m) {
+  if (m == 2) return vec4(0.34, 0.02, 6.0, 2.0);     /* felt */
+  if (m == 9) return vec4(0.82, 0.25, 30.0, 1.0);    /* chip face */
+  if (m == 10) return vec4(0.75, 0.25, 30.0, 3.0);   /* chip stripe */
+  if (m == 11) return vec4(0.92, 0.18, 24.0, 1.0);   /* card face */
+  if (m == 12) return vec4(0.80, 0.10, 24.0, 4.0);   /* pip, red */
+  if (m == 13) return vec4(0.10, 0.10, 24.0, 5.0);   /* pip, black */
+  if (m == 14) return vec4(0.50, 0.15, 24.0, 2.0);   /* card back */
+  if (m == 15) return vec4(0.90, 0.16, 24.0, 1.0);   /* card edge and border */
+  return vec4(0.5, 0.0, 8.0, 1.0);
+}
+vec4 encode(float L, int cls, int obj, float t, float far){
+  float d = clamp(t/far, 0.0, 1.0); float hi = floor(d*255.0)/255.0; float lo = fract(d*255.0);
+  return vec4(L, float(cls + 8*obj)/255.0, hi, lo);
+}
+const float FAR = 4.0, SC = 1.0;
+const vec3 KEY = vec3(0.15, 1.35, 0.35);
+const vec3 RIMD = normalize(vec3(-0.5, 0.4, -1.0));
+const vec3 DECK = vec3(-0.44, 0.0, -0.30), MUCK = vec3(0.44, 0.0, -0.30);
+const float CHIP_R = 0.046, CHIP_H = 0.0058;
+bool mb = false;
+float sdCardW(vec3 p, vec4 A, vec4 B, int id) {
+  /* A: x, y, z, yaw. B: flip (0 face up .. pi face down), lift, visible, unused */
+  if (B.z < 0.5) return 1e9;
+  vec3 q = p - vec3(A.x, A.y, A.z);
+  float bd = length(q) - 0.09; if (bd > 0.01) { mb = true; return bd; }
+  mb = false;
+  float c = cos(A.w), s = sin(A.w);
+  q = vec3(c*q.x - s*q.z, q.y, s*q.x + c*q.z);
+  float cf = cos(B.x), sf = sin(B.x);
+  q = vec3(cf*q.x - sf*q.y, sf*q.x + cf*q.y, q.z);
+  vec3 l = vec3(q.x, q.z, q.y);
+  float d = sdCardL(l, SC);
+  gU = l.x/0.045; gV = l.y/0.063; gN = l.z; gCard = id;
+  return d;
+}
+float map(vec3 p) {
+  float d = p.y; gMat = 2; gObj = 1; gB = false;
+  float dk = sdRBox(p - DECK - vec3(0.0, 0.028, 0.0), vec3(0.041, 0.027, 0.059), 0.004);
+  if (dk < d) { d = dk; gMat = (p.y > DECK.y + 0.052) ? 14 : 15; gObj = 2; }
+  if (uMuck > 0.5) { float mk = sdRBox(p - MUCK - vec3(0.0, 0.0035*uMuck, 0.0), vec3(0.041, 0.0035*uMuck, 0.059), 0.004); if (mk < d) { d = mk; gMat = (p.y > MUCK.y + 0.0068*uMuck) ? 14 : 15; gObj = 3; } }
+  for (int i = 0; i < 12; i++) {
+    int o = gObj; float u0 = gU, v0 = gV, n0 = gN; int c0 = gCard;
+    float dc = sdCardW(p, uCA[i], uCB[i], i);
+    if (dc < d) { d = dc; gMat = 11; gObj = 4 + i; gB = mb; } else { gObj = o; gU = u0; gV = v0; gN = n0; gCard = c0; }
+  }
+  for (int i = 0; i < 10; i++) {
+    vec4 c = uCh[i];
+    float dc = sdCyl(p - c.xyz, CHIP_H, CHIP_R) - 0.0015;
+    if (dc < d) { d = dc; gMat = 9; gObj = 16 + (i < 5 ? 0 : 1); gB = false; }
+  }
+  return d;
+}
+vec3 normalAt(vec3 p, float t) {
+  float e = 0.0008 + 0.0006*t; vec2 k = vec2(1.0, -1.0);
+  return normalize(k.xyy*map(p + k.xyy*e) + k.yyx*map(p + k.yyx*e) + k.yxy*map(p + k.yxy*e) + k.xxx*map(p + k.xxx*e));
+}
+float shadow(vec3 ro, vec3 rd, float dist) {
+  float res = 1.0, t = 0.008, ph = 1e10;
+  for (int i = 0; i < 32; i++) {
+    if (t >= dist) break;
+    float h = map(ro + rd*t);
+    if (h < 0.0008) return 0.0;
+    if (!gB) { float y = h*h/(2.0*ph); float dd = sqrt(max(0.0, h*h - y*y)); res = min(res, 16.0*dd/max(1e-4, t - y)); ph = h; }
+    else ph = 1e10;
+    t += clamp(h, 0.006, 0.08);
+  }
+  return clamp(res, 0.0, 1.0);
+}
+float ao(vec3 p, vec3 n) {
+  float occ = 0.0, sca = 1.0;
+  for (int i = 1; i <= 4; i++) { float h = 0.006 + 0.02*float(i); float d = map(p + n*h); if (!gB) occ += (h - d)*sca; sca *= 0.7; }
+  return clamp(1.0 - 2.4*occ, 0.0, 1.0);
+}
+void main() {
+  vec2 cell = floor(gl_FragCoord.xy);
+  float aspect = uGrid.x/(uGrid.y*uAr);
+  float sx = (2.0*(cell.x + 0.5)/uGrid.x - 1.0)*aspect;
+  float sy = 2.0*(cell.y + 0.5)/uGrid.y - 1.0;
+  vec3 ro = vec3(0.0, 0.80, 0.64), ta = vec3(0.0, 0.0, -0.01);
+  vec3 f = normalize(ta - ro); vec3 r = normalize(vec3(-f.z, 0.0, f.x)); vec3 u = cross(r, f);
+  float focal = 2.0*min(1.0, aspect/1.3);   /* a narrow box widens the lens so the muck stays in frame */
+  vec3 rd = normalize(r*sx + u*sy + f*focal);
+  float t = 0.3, hit = -1.0; int mat = 0, obj = 0; float cu = 0.0, cv = 0.0, cn = 0.0; int cid = 0;
+  for (int i = 0; i < 72; i++) {
+    vec3 p = ro + rd*t; float d = map(p);
+    if (d < 0.0012*t) { hit = t; mat = gMat; obj = gObj; cu = gU; cv = gV; cn = gN; cid = gCard; break; }
+    t += d*0.9; if (t > FAR) break;
+  }
+  if (hit < 0.0) { O = encode(0.0, 0, 0, FAR, FAR); return; }
+  vec3 p = ro + rd*hit; vec3 n = normalAt(p, hit);
+  if (mat == 11) mat = cardMat(cu, cv, cn, cid, SC);
+  if (mat == 9) {
+    int best = 0; float bd = 1e9;
+    for (int i = 0; i < 10; i++) { float dd = length(p.xz - uCh[i].xz); if (dd < bd) { bd = dd; best = i; } }
+    vec2 c0 = uCh[best].xz; float ang = atan(p.z - c0.y, p.x - c0.x) + uCh[best].w; float sec = mod(floor((ang/6.2831853 + 1.0)*12.0 + 0.5), 2.0);
+    float rr = bd/CHIP_R;
+    if ((n.y > 0.8 && rr > 0.58 && rr < 0.70) || (n.y <= 0.8 && sec > 0.5)) mat = 10;
+  }
+  vec4 m = matOf(mat);
+  int cls = int(m.w);
+  vec3 lv = KEY - p; float dist = length(lv); vec3 l = lv/dist;
+  float ndl = max(0.0, dot(n, l));
+  float spot = smoothstep(0.55, 0.95, l.y);
+  float I = 0.0;
+  if (ndl > 0.0) {
+    float sh = shadow(p + n*0.004, l, dist);
+    float att = 2.6/(1.0 + 0.5*dist*dist);
+    vec3 hv = normalize(l - rd); float ndh = max(0.0, dot(n, hv));
+    I += sh*(0.35 + 0.65*spot)*att*(m.x*ndl + m.y*pow(ndh, m.z));
+  }
+  float ndr = max(0.0, dot(n, RIMD));
+  float fres = pow(1.0 - max(0.0, dot(n, -rd)), 1.3);
+  float occ = ao(p, n);
+  I += pow(ndr, 0.6)*fres*0.6*(mat == 2 ? 0.0 : 1.0);
+  I += (0.04 + 0.05*max(0.0, n.y))*occ*(m.x + 0.3);
+  if (mat == 2) I *= 0.42*(0.75 + 0.25*noise3(p*40.0));
+  if (mat == 13) I *= 0.12;
+  if (mat == 12) I = 3.0;
+  if (mat == 11 || mat == 15) I = I*1.2 + 0.14;
+  float L = clamp(pow(1.0 - exp(-1.35*I), 0.72), 0.0, 1.0);
+  O = encode(L, cls, obj, hit, FAR);
+}`;
+
+/* ---- the glyph pass: luminance -> a ramp glyph with an ordered dither; a depth or object edge -> an outline glyph ---- */
+const VS = `#version 300 es
+in vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
+const GLYPH_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uLum, uAtlas; uniform vec2 uCellPx, uGrid; uniform float uN, uG, uRows, uEdge; uniform vec3 uField;
+out vec4 O;
+const float B[64] = float[64](0.,32.,8.,40.,2.,34.,10.,42.,48.,16.,56.,24.,50.,18.,58.,26.,12.,44.,4.,36.,14.,46.,6.,38.,60.,28.,52.,20.,62.,30.,54.,22.,3.,35.,11.,43.,1.,33.,9.,41.,51.,19.,59.,27.,49.,17.,57.,25.,15.,47.,7.,39.,13.,45.,5.,37.,63.,31.,55.,23.,61.,29.,53.,21.);
+vec4 at(ivec2 c){ c = clamp(c, ivec2(0), ivec2(uGrid) - 1); return texelFetch(uLum, c, 0); }
+float depthOf(vec4 s){ return s.b + s.a/255.0; }
+void main() {
+  vec2 px = gl_FragCoord.xy; px.y = uGrid.y*uCellPx.y - px.y;
+  vec2 cell = floor(px/uCellPx); vec2 within = px - cell*uCellPx;
+  ivec2 ic = ivec2(int(cell.x), int(uGrid.y) - 1 - int(cell.y));
+  vec4 s = at(ic);
+  float g = floor(s.g*255.0 + 0.5);
+  if (g < 0.5) { O = vec4(uField, 1.0); return; }
+  float cls = mod(g, 8.0), obj = floor(g/8.0);
+  float L = s.r, d = depthOf(s);
+  float thr = 0.010 + 0.008*d;
+  vec4 nL = at(ic + ivec2(-1, 0)), nR = at(ic + ivec2(1, 0)), nU = at(ic + ivec2(0, 1)), nD = at(ic + ivec2(0, -1));
+  float dL = depthOf(nL), dR = depthOf(nR), dU = depthOf(nU), dD = depthOf(nD);
+  float oL = floor(floor(nL.g*255.0 + 0.5)/8.0), oR = floor(floor(nR.g*255.0 + 0.5)/8.0), oU = floor(floor(nU.g*255.0 + 0.5)/8.0), oD = floor(floor(nD.g*255.0 + 0.5)/8.0);
+  bool eL = (dL - d > thr) || (oL != obj && dL >= d - 0.002 && obj > 0.5);
+  bool eR = (dR - d > thr) || (oR != obj && dR >= d - 0.002 && obj > 0.5);
+  bool eU = (dU - d > thr) || (oU != obj && dU >= d - 0.002 && obj > 0.5);
+  bool eD = (dD - d > thr) || (oD != obj && dD >= d - 0.002 && obj > 0.5);
+  float idx; float row;
+  if (uEdge > 0.5 && (eL || eR || eU || eD)) {
+    float gx = (eR ? 1.0 : 0.0) - (eL ? 1.0 : 0.0), gy = (eD ? 1.0 : 0.0) - (eU ? 1.0 : 0.0);
+    bool h = (eL || eR), v = (eU || eD);
+    float k;
+    if (h && !v) k = 0.0; else if (v && !h) k = 1.0; else k = (gx*gy > 0.0) ? 2.0 : 3.0;
+    idx = uN + k; row = uRows - 1.0;
+  } else {
+    float bay = (B[int(mod(cell.y, 8.0))*8 + int(mod(cell.x, 8.0))] + 0.5)/64.0 - 0.5;
+    idx = floor(L*(uN - 1.0) + bay + 0.5);
+    if (idx < 0.5) { O = vec4(uField, 1.0); return; }
+    idx = min(uN - 1.0, idx);
+    row = (cls - 1.0)*2.0 + (L < 0.22 ? 1.0 : 0.0);
+  }
+  vec2 uv = vec2((idx + within.x/uCellPx.x)/uG, (row + within.y/uCellPx.y)/uRows);
+  vec4 t = texture(uAtlas, uv);
+  O = vec4(mix(uField, t.rgb/max(t.a, 1e-4), t.a), 1.0);
+}`;
+
+let GL = null, atlas = null, dpr = 1;
+function initGL() {
+  const c = document.createElement('canvas');
+  const g = c.getContext('webgl2', { antialias: false, alpha: false, preserveDrawingBuffer: false });
+  if (!g) return null;
+  const prog = (vs, fs) => {
+    const P = g.createProgram();
+    for (const [type, src] of [[g.VERTEX_SHADER, vs], [g.FRAGMENT_SHADER, fs]]) {
+      const S = g.createShader(type); g.shaderSource(S, src); g.compileShader(S);
+      if (!g.getShaderParameter(S, g.COMPILE_STATUS)) { console.warn('shader', g.getShaderInfoLog(S)); return null; }
+      g.attachShader(P, S);
+    }
+    g.linkProgram(P);
+    if (!g.getProgramParameter(P, g.LINK_STATUS)) { console.warn('link', g.getProgramInfoLog(P)); return null; }
+    return P;
+  };
+  const pGlyph = prog(VS, GLYPH_FS);
+  if (!pGlyph) return null;
+  const buf = g.createBuffer(); g.bindBuffer(g.ARRAY_BUFFER, buf);
+  g.bufferData(g.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), g.STATIC_DRAW);
+  const vao = g.createVertexArray(); g.bindVertexArray(vao);
+  const atlasTex = g.createTexture();
+  const U = (P, n) => g.getUniformLocation(P, n);
+  return { c, g, prog, pGlyph, vao, atlasTex, atlasKey: null, u: { gLum: U(pGlyph, 'uLum'), gAtlas: U(pGlyph, 'uAtlas'), gCell: U(pGlyph, 'uCellPx'), gGrid: U(pGlyph, 'uGrid'), gN: U(pGlyph, 'uN'), gG: U(pGlyph, 'uG'), gRows: U(pGlyph, 'uRows'), gField: U(pGlyph, 'uField'), gEdge: U(pGlyph, 'uEdge') } };
+}
+function bindAttr(P) { const g = GL.g; const loc = g.getAttribLocation(P, 'p'); g.enableVertexAttribArray(loc); g.vertexAttribPointer(loc, 2, g.FLOAT, false, 0, 0); }
+
+class View {
+  constructor(canvas, fsSrc, setUniforms) {
+    this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.setUniforms = setUniforms;
+    const g = GL.g;
+    this.P = GL.prog(VS, fsSrc); if (!this.P) throw new Error('scene shader failed');
+    bindAttr(this.P); bindAttr(GL.pGlyph);
+    this.u = { grid: g.getUniformLocation(this.P, 'uGrid'), ar: g.getUniformLocation(this.P, 'uAr'), time: g.getUniformLocation(this.P, 'uTime') };
+    this.lumTex = g.createTexture(); this.fbo = g.createFramebuffer();
+    this.cols = 0; this.rows = 0; this.w = 0; this.h = 0;
+    this.edge = 1;
+  }
+  loc(n) { return GL.g.getUniformLocation(this.P, n); }
+  resize() {
+    const r = this.canvas.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return false;
+    this.cols = Math.ceil(r.width / CELL_W); this.rows = Math.ceil(r.height / CELL_H);
+    this.w = Math.round(this.cols * CELL_W * dpr); this.h = Math.round(this.rows * CELL_H * dpr);
+    this.canvas.width = this.w; this.canvas.height = this.h;
+    const g = GL.g;
+    g.bindTexture(g.TEXTURE_2D, this.lumTex);
+    g.texImage2D(g.TEXTURE_2D, 0, g.RGBA8, this.cols, this.rows, 0, g.RGBA, g.UNSIGNED_BYTE, null);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.NEAREST); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.NEAREST);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+    g.bindFramebuffer(g.FRAMEBUFFER, this.fbo);
+    g.framebufferTexture2D(g.FRAMEBUFFER, g.COLOR_ATTACHMENT0, g.TEXTURE_2D, this.lumTex, 0);
+    return true;
+  }
+  frame(time) {
+    const g = GL.g, S = GL;
+    if (S.c.width < this.w || S.c.height < this.h) { S.c.width = Math.max(S.c.width, this.w); S.c.height = Math.max(S.c.height, this.h); }
+    if (S.atlasKey !== atlas) {
+      g.bindTexture(g.TEXTURE_2D, S.atlasTex);
+      g.pixelStorei(g.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+      g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, g.RGBA, g.UNSIGNED_BYTE, atlas.canvas);
+      g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.LINEAR); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR);
+      g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+      S.atlasKey = atlas;
+    }
+    g.bindFramebuffer(g.FRAMEBUFFER, this.fbo); g.viewport(0, 0, this.cols, this.rows);
+    g.useProgram(this.P);
+    g.uniform2f(this.u.grid, this.cols, this.rows); g.uniform1f(this.u.ar, CELL_H / CELL_W); g.uniform1f(this.u.time, time);
+    this.setUniforms(g, this);
+    g.drawArrays(g.TRIANGLES, 0, 3);
+    g.bindFramebuffer(g.FRAMEBUFFER, null); g.viewport(0, 0, this.w, this.h);
+    g.useProgram(S.pGlyph);
+    g.activeTexture(g.TEXTURE0); g.bindTexture(g.TEXTURE_2D, this.lumTex); g.uniform1i(S.u.gLum, 0);
+    g.activeTexture(g.TEXTURE1); g.bindTexture(g.TEXTURE_2D, S.atlasTex); g.uniform1i(S.u.gAtlas, 1);
+    g.uniform2f(S.u.gCell, atlas.gw, atlas.gh); g.uniform2f(S.u.gGrid, this.cols, this.rows);
+    g.uniform1f(S.u.gN, atlas.N); g.uniform1f(S.u.gG, atlas.G); g.uniform1f(S.u.gRows, atlas.rows); g.uniform1f(S.u.gEdge, this.edge);
+    g.uniform3f(S.u.gField, FIELD[0] / 255, FIELD[1] / 255, FIELD[2] / 255);
+    g.drawArrays(g.TRIANGLES, 0, 3);
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.drawImage(S.c, 0, S.c.height - this.h, this.w, this.h, 0, 0, this.w, this.h);
+  }
+}
+
+/* ---- the choreography: p runs 0..5 across the six beats, to 5.6 for the split ---- */
+const HP = new URLSearchParams(location.search).get('hp');
+const feltCanvas = document.getElementById('felt');
+let feltView = null, feltP = 0, feltWant = 0, feltDirty = true;
+const ease = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const clamp01 = (t) => t < 0 ? 0 : t > 1 ? 1 : t;
+const lerp = (a, b, t) => a + (b - a) * t;
+const DECK = [-0.44, 0, -0.30], MUCK = [0.44, 0, -0.30];
+const HAND = (i) => [-0.24 + i * 0.12, 0.003, 0.34, (i - 2) * 0.05];
+const BOARD = (k) => [-0.26 + k * 0.13, 0.003, -0.06, 0];
+const CT = 0.0068;
+function fly(a, b, u, lift, fa, fb, ya, yb) {
+  const e = ease(u), arc = Math.sin(Math.PI * u) * lift;
+  return [lerp(a[0], b[0], e), lerp(a[1], b[1], e) + arc, lerp(a[2], b[2], e), lerp(ya, yb, e), lerp(fa, fb, e)];
+}
+function feltState(p) {
+  const CA = new Float32Array(48), CB = new Float32Array(48), CH = new Float32Array(40);
+  const put = (i, x, y, z, yaw, flip, vis) => { CA.set([x, y, z, yaw], i * 4); CB.set([flip, 0, vis ? 1 : 0, 0], i * 4); };
+  const deckTop = [DECK[0], DECK[1] + 0.056, DECK[2]];
+  const bt = (b, span, off) => clamp01((p - b - (off || 0)) / span);
+  let muck = 0;
+  /* beat 0: five cards dealt one after another, face down off the deck, turning face up as they land */
+  for (let i = 0; i < 5; i++) {
+    const u = bt(0, 0.22, i * 0.09);
+    const H = HAND(i);
+    if (u <= 0) put(i, deckTop[0], deckTop[1], deckTop[2], 0.3, Math.PI, false);
+    else { const pos = fly(deckTop, H, u, 0.16, Math.PI, 0, 0.3, H[3]); put(i, pos[0], pos[1], pos[2], pos[3], pos[4], true); }
+  }
+  /* beat 2, the draw: the 3♣ (slot 4) lifts and goes to the muck face down; the 10♠ comes off the deck into its place */
+  {
+    const u = bt(2, 0.34, 0.05);
+    const H = HAND(4);
+    const mk = [MUCK[0], MUCK[1] + CT * 0.5, MUCK[2]];
+    if (u > 0) { const pos = fly(H, mk, u, 0.14, 0, Math.PI, H[3], 0.15); put(4, pos[0], pos[1], pos[2], pos[3], pos[4], true); }
+    if (u >= 1) muck = 1;
+    const u2 = bt(2, 0.3, 0.42);
+    if (u2 > 0) { const pos = fly(deckTop, H, u2, 0.16, Math.PI, 0, 0.3, H[3]); put(10, pos[0], pos[1], pos[2], pos[3], pos[4], true); }
+    else put(10, deckTop[0], deckTop[1], deckTop[2], 0.3, Math.PI, false);
+    put(11, deckTop[0], deckTop[1], deckTop[2], 0.3, Math.PI, false);
+  }
+  /* the board: flop in beat 1 (three, staggered), turn in beat 3, river in beat 4 */
+  const boardBeat = [1, 1, 1, 3, 4], boardOff = [0, 0.1, 0.2, 0, 0];
+  for (let k = 0; k < 5; k++) {
+    const u = bt(boardBeat[k], 0.3, boardOff[k]);
+    const B = BOARD(k);
+    if (u <= 0) put(5 + k, deckTop[0], deckTop[1], deckTop[2], 0.3, Math.PI, false);
+    else { const pos = fly(deckTop, B, u, 0.16, Math.PI, 0, 0.3, 0); put(5 + k, pos[0], pos[1], pos[2], pos[3], pos[4], true); }
+  }
+  /* chips: ten in your stack; two go to the pot after each of the five streets; at the showdown the pot splits in two */
+  const stack = [0.31, 0.25], pot = [0.02, -0.34];
+  const potAt = (j) => [pot[0] + 0.004 * Math.sin(j * 2.1), 0.0058 * (2 * j + 1), pot[1] + 0.004 * Math.cos(j * 1.7)];
+  const L = [-0.20, -0.36], Rr = [0.24, -0.36];
+  for (let i = 0; i < 10; i++) {
+    const street = Math.floor(i / 2);
+    const k = 9 - i;
+    const j = i;
+    const from = [stack[0], 0.0058 * (2 * k + 1), stack[1]];
+    const to = potAt(j);
+    const u = bt(street, 0.16, 0.66 + (i % 2) * 0.1);
+    let x = from[0], y = from[1], z = from[2];
+    if (u > 0) { const e = ease(u); x = lerp(from[0], to[0], e); y = lerp(from[1], to[1], e) + Math.sin(Math.PI * u) * 0.12; z = lerp(from[2], to[2], e); }
+    const s = bt(5, 0.42, 0.1);
+    if (s > 0) {
+      const half = i >= 5 ? 0 : 1;
+      const dest = half === 0 ? [L[0], 0.0058 * (2 * (i - 5) + 1), L[1]] : [Rr[0], 0.0058 * (2 * i + 1), Rr[1]];
+      const e = ease(s);
+      const lift = half === 0 ? Math.sin(Math.PI * s) * 0.10 : 0;
+      x = lerp(to[0], dest[0], e); y = lerp(to[1], dest[1], e) + lift; z = lerp(to[2], dest[2], e);
+    }
+    CH.set([x, y, z, i * 0.53], i * 4);
+  }
+  return { CA, CB, CH, muck };
+}
+const capT = document.getElementById('cap-text'), capP = document.getElementById('cap-p');
+const ribbon = [...document.getElementById('ribbon').children];
+const beats = [...document.querySelectorAll('.beat')];
+const names = ['the deal', 'the flop', 'the draw', 'the turn', 'the river', 'the showdown'];
+function readout() {
+  const b = Math.min(5, Math.max(0, Math.round(feltP - 0.35)));
+  capT.textContent = names[b]; capP.textContent = feltP.toFixed(2);
+  const frac = feltP - Math.floor(feltP), bi = Math.floor(feltP);
+  ribbon.forEach((el) => { el.className = ''; });
+  const streetIdx = Math.min(10, bi * 2);
+  for (let i = 0; i <= streetIdx; i++) ribbon[i].className = 'on';
+  if (bi < 5 && frac > 0.6) ribbon[streetIdx + 1].className = 'hot'; else ribbon[streetIdx].className = 'hot';
+  beats.forEach((el, i) => el.classList.toggle('on', i === b));
+}
+function mountFelt() {
+  feltView = new View(feltCanvas, FELT_FS, (g, v) => {
+    if (!v.ul) v.ul = { ca: v.loc('uCA[0]'), cb: v.loc('uCB[0]'), ch: v.loc('uCh[0]'), muck: v.loc('uMuck') };
+    const s = feltState(feltP);
+    g.uniform4fv(v.ul.ca, s.CA); g.uniform4fv(v.ul.cb, s.CB); g.uniform4fv(v.ul.ch, s.CH); g.uniform1f(v.ul.muck, s.muck);
+  });
+  feltView.resize();
+  let raf = 0, visible = false;
+  function render() {
+    raf = 0;
+    if (Math.abs(feltWant - feltP) < 0.0015 && !feltDirty) return;
+    const k = reduced ? 1 : 0.16;
+    feltP += (feltWant - feltP) * k; if (Math.abs(feltWant - feltP) < 0.0015) feltP = feltWant;
+    feltDirty = false;
+    feltView.frame(0);
+    readout();
+    if (feltP !== feltWant) raf = requestAnimationFrame(render);
+  }
+  function onScroll() {
+    if (HP !== null) feltWant = parseFloat(HP);
+    else if (reduced) feltWant = 5.6;
+    else {
+      const mid = innerHeight * 0.5;
+      const cs = beats.map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height * 0.45; });
+      let p;
+      if (mid <= cs[0]) p = 0;
+      else if (mid >= cs[5]) p = Math.min(5.6, 5 + (mid - cs[5]) / (cs[5] - cs[4]) * 1.6);
+      else { let i = 0; while (i < 4 && mid > cs[i + 1]) i++; p = i + (mid - cs[i]) / (cs[i + 1] - cs[i]); }
+      feltWant = Math.round(p * 80) / 80;
+    }
+    if (!raf) raf = requestAnimationFrame(render);
+  }
+  window.__seekHand = (p) => { feltWant = p; feltP = p; feltDirty = true; render(); };
+  const section = document.getElementById('order');
+  new IntersectionObserver((es) => { visible = es[0].isIntersecting; if (visible) onScroll(); }, { rootMargin: '10% 0px' }).observe(section);
+  addEventListener('scroll', () => { if (visible) onScroll(); }, { passive: true });
+  onScroll(); feltDirty = true; render();
+}
+function resizeAll() {
+  dpr = Math.min(2, devicePixelRatio || 1);
+  if (!atlas || atlas.gw !== Math.round(CELL_W * dpr)) atlas = buildAtlas(dpr);
+  if (feltView) { feltView.resize(); feltDirty = true; }
+}
+function start() {
+  GL = initGL();
+  if (!GL) { document.getElementById('feltbox').classList.add('off'); beats.forEach((el) => el.classList.add('on')); readout(); return; }
+  resizeAll();
+  try { mountFelt(); } catch (e) { console.warn('felt', e); document.getElementById('feltbox').classList.add('off'); beats.forEach((el) => el.classList.add('on')); }
+}
+let rt = 0;
+addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { resizeAll(); if (feltView) window.__seekHand(feltP); }, 150); });
+const ready = document.fonts && document.fonts.load ? document.fonts.load("6px 'IBM Plex Mono'").catch(() => 0) : Promise.resolve();
+ready.then(start);
+
+/* ---- the chip, twice; reveals; the size bars ---- */
+if (window.mountChips) mountChips({ mark: '#f5f0e6', ink: '#8e2038' });
+(function reveals() {
+  const els = [...document.querySelectorAll('.reveal')];
+  const bars = [...document.querySelectorAll('.sizes .bar i')];
+  const fill = () => bars.forEach((b) => { b.style.width = (parseFloat(b.dataset.w) * 100) + '%'; });
+  if (!('IntersectionObserver' in window) || reduced) { els.forEach((el) => el.classList.add('in')); fill(); return; }
+  const io = new IntersectionObserver((es) => es.forEach((e) => {
+    if (!e.isIntersecting) return;
+    e.target.classList.add('in'); if (e.target.id === 'sizes') fill(); io.unobserve(e.target);
+  }), { threshold: 0.12 });
+  els.forEach((el) => io.observe(el));
+})();
+})();
+</script>
+</body>
+</html>

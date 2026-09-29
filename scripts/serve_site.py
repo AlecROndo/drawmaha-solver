@@ -1,18 +1,18 @@
 """Serve the whole site locally, the way vercel.json wires it in production.
 
-`vercel.json` rewrites `/` to the stdlib handler in `api/index.py` and serves
-`public/` for everything else. There is no single command that reproduces that
-locally, so reviewing a change to the cover page and the two visualizers
+`vercel.json` serves `public/` filesystem-first (the cover page is its
+`index.html`) and rewrites the extensionless routes — `/rules`, `/rung0` and
+the rest — onto files inside it. There is no single command that reproduces
+that locally, so reviewing a change to the cover page and the visualizers
 together meant three terminals and a guess. This is that one command:
 
     bash scripts/vercel_build.sh          # build public/
     uv run python scripts/serve_site.py   # http://localhost:4321
 
-Stdlib only, same as the page it serves.
+Stdlib only, so it can never break on the solver's numeric stack.
 """
 
 import argparse
-import importlib.util
 import json
 import sys
 from functools import partial
@@ -24,39 +24,17 @@ PUBLIC = ROOT / "public"
 
 # Read from vercel.json rather than mirrored by hand: a hand copy silently
 # missed each new rung's rewrite, which is the one thing this server exists
-# to reproduce. "/" is handled specially below, the way Vercel hands it to
-# the api entrypoint.
+# to reproduce. "/" needs no rule: SimpleHTTPRequestHandler serves a
+# directory's index.html, the same filesystem-first default Vercel applies.
 REWRITES = {
     rule["source"]: rule["destination"]
     for rule in json.loads((ROOT / "vercel.json").read_text())["rewrites"]
-    if rule["source"] != "/"
 }
-
-
-def cover_page() -> bytes:
-    """The cover page's HTML, read from the real Vercel entrypoint."""
-    spec = importlib.util.spec_from_file_location("api_index", ROOT / "api" / "index.py")
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.PAGE.encode("utf-8")
 
 
 class Handler(SimpleHTTPRequestHandler):
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0].split("#", 1)[0]
-        if path == "/":
-            body = cover_page()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            # Re-read on every request so an edit to api/index.py shows up on
-            # reload; a cached cover page is the one thing that would make this
-            # server misleading.
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(body)
-            return
         if path in REWRITES:
             self.path = REWRITES[path]
         super().do_GET()
