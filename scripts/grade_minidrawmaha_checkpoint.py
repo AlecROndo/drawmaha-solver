@@ -6,6 +6,8 @@ Prints both seats' best-response values, the exploitability, the expected
 value, and how long the table, the compiled game and each measurement took.
 Units are chips per hand with the ante as 1. Each public call snapshots the
 profile itself, so the per-call times include a read of the whole table.
+Budget about 3.5 GB of memory: the table is 1.77 GB and the grader holds
+1.5 GB of showdown tables for the life of the process.
 """
 
 from __future__ import annotations
@@ -51,6 +53,8 @@ def main() -> None:
         t = clock()
         values[responder] = best_response_value(strategies, responder=responder)
         print(f"BR_{responder} = {values[responder]:+.6f}   ({clock() - t:.1f} s)", flush=True)
+    # The mean of the two best responses IS `exploitability(strategies)`;
+    # calling it would re-read the table and redo both walks for the same number.
     print(f"exploitability = {(values[0] + values[1]) / 2:.6f} chips/hand", flush=True)
 
     t = clock()
