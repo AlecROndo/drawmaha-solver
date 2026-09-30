@@ -65,6 +65,7 @@ from drawmaha_solver.minidrawmaha.mccfr import (
 from drawmaha_solver.minidrawmaha.regret_rules import (
     Average,
     RegretRule,
+    bank_cfr_plus,
     bank_discounted,
     bank_vanilla,
     extra_weights,
@@ -302,6 +303,16 @@ def test_a_row_reached_twice_in_one_traversal_banks_both_regrets():
     assert tables[bank_vanilla]["K"].cumulative_regret.tolist() == [11.0, 1.0]
     assert tables[bank_discounted]["K"].cumulative_regret.tolist() == [11.0, 1.0]
     assert tables[bank_discounted]["K"].stamp[0] == 1
+
+def test_cfr_plus_floors_a_row_reached_twice_after_each_bank():
+    # The known approximation, pinned so it cannot change unnoticed: CFR+
+    # floors after every bank, so K's −1 through "a" is floored to 0 before
+    # "b"'s 12 arrives — (12, 1), where flooring the iteration's total once
+    # would give (11, 1). About one mini-drawmaha traversal in a thousand;
+    # never in Leduc.
+    table = {"M": RegretMatcher(2), "K": RegretMatcher(2)}
+    traverse(ScriptedState("S"), table, 0, np.random.default_rng(0), 1, bank=bank_cfr_plus)
+    assert table["K"].cumulative_regret.tolist() == [12.0, 1.0]
 
 def test_the_extra_columns_bank_the_same_mix_at_their_own_weights():
     table = scripted_table(extra_averages=2)
@@ -569,10 +580,12 @@ def trajectories_side_by_side(seed: int, marks: tuple[int, ...]) -> dict[RegretR
 #
 # The finding in the second row: under sampling, vanilla's UNIFORM average
 # beats the linear one it has always reported at every length — 1.5-2.7x at
-# 10k, about 3x at 50k and 200k, about 4x at a million. The linear weight
-# leans on recent iterates, and vanilla's recent iterates are no better than
-# its old ones, only fewer. The three other rules
-# fix exactly that, which is why their primary (linear) column is the good one.
+# 10k, about 3x at 50k and 200k, about 4x at a million. Measured, not yet
+# explained. It is consistent with vanilla CFR's regret bound, which is a
+# bound on the UNIFORM average — linear averaging carries a guarantee only
+# with regrets weighted to match, as in LCFR and CFR+ — and with a
+# t-weighted average's smaller effective sample, hence more sampling noise.
+# The three other rules are the ones whose linear column is the good one.
 #
 # Each bound sits 1.3-1.5x above the worst seed, and every new rule's bound
 # sits below vanilla-linear's seed-1 0.257: a rule that silently fell back to
@@ -709,20 +722,27 @@ def test_every_rule_trains_on_mini_drawmaha(rule):
 
 @pytest.mark.skipif(
     not FULL_CALIBRATION,
-    reason="6,000 mini-drawmaha iterations is ~30 s; set MINIDRAWMAHA_FULL_CALIBRATION=1",
+    reason="3,000 mini-drawmaha iterations is ~15 s; set MINIDRAWMAHA_FULL_CALIBRATION=1",
 )
-def test_dcfr_trains_through_the_rows_mini_drawmaha_reaches_twice(spy):
-    # Seed 0 reaches a row twice in one traversal a few times in 3,000
-    # iterations (the first near iteration 1,000). The spy stands in for vanilla
-    # only to count the repeats; DCFR runs for real, and before the discount
-    # was deferred to the next visit it raised at the first repeat.
-    train(new_solve(0, table=LazyTable(), deal=random_deal), 3_000)
+def test_dcfr_trains_through_the_rows_mini_drawmaha_reaches_twice(monkeypatch):
+    # Seed 0 reaches a row twice in one traversal a few times in 3,000 DCFR
+    # iterations. Before the discount was deferred to the next visit, DCFR
+    # raised at the first repeat; now the run must meet repeats, survive them,
+    # and leave every regret finite once settled.
+    banked = []
+
+    def recording(ledger, regret, t):
+        banked.append((ledger, t))
+        bank_discounted(ledger, regret, t)
+
+    monkeypatch.setitem(regret_rules.RULES, RegretRule.DCFR, recording)
+    solve = train(new_solve(0, table=LazyTable(), deal=random_deal, rule="dcfr"), 3_000)
     # A row belongs to one seat and is banked only in that seat's traversal,
     # so a (row, iteration) pair seen twice is a repeat within one traversal.
-    banks = [(id(ledger), t) for ledger, _, t in spy.banked]
-    assert len(banks) > len(set(banks))
-    dcfr = train(new_solve(0, table=LazyTable(), deal=random_deal, rule="dcfr"), 3_000)
-    assert dcfr.iteration == 3_000
+    pairs = [(id(ledger), t) for ledger, t in banked]
+    assert len(pairs) > len(set(pairs))
+    for ledger, _ in banked:
+        assert np.all(np.isfinite(regret_rules.settled_regret(ledger, solve.iteration)))
 
 def test_mini_drawmahas_root_is_dealt_by_the_deck_first():
     # `random_deal` hands back a state with no board card: the walk's first act

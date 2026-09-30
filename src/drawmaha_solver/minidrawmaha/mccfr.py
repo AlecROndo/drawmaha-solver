@@ -51,10 +51,13 @@ chosen. The weight `t` makes the AVERAGE linear: later iterates count more in
 the answer, on the premise that they are better. Extra averaging columns —
 uniform, quadratic — bank the same σ at their own weights beside it, free,
 because nothing reads an average while training. Under vanilla regret that
-premise is measured wrong: on Leduc the UNIFORM column beats the linear one at
+premise does not hold up: on Leduc the UNIFORM column beats the linear one at
 every length, 1.5-2.7x at 10k iterations and about 4x by a million (0.012
-against 0.050), because vanilla's recent iterates are no better than its old
-ones, only fewer. The other rules make them better, and their linear column wins.
+against 0.050). That is a measurement, not yet an explanation; it is consistent
+with vanilla CFR's regret bound being a bound on the uniform average (linear
+averaging is backed only when the regrets are weighted to match, as in LCFR and
+CFR+) and with a t-weighted average's smaller effective sample. Under the other
+three rules the linear column is the good one.
 
 What happens to the regret once measured is the run's REGRET RULE
 (`regret_rules`): vanilla adds it at weight 1, which makes the default a vanilla

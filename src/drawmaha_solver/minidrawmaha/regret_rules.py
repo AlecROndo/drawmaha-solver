@@ -87,9 +87,10 @@ chose. Which columns a run banks is its own choice, recorded in its checkpoint.
 A rule writes only `cumulative_regret` and `stamp`. The averages —
 `strategy_sum` and the `extra_sums` rows — are banked by the walk at the
 opponent's spots, with weights from `extra_weights`, because they do not depend
-on the rule; `regret_matching`'s contract says "only a regret rule writes"
-`extra_sums`, and in that sentence the walk is acting for the run's rule. Every
-write is in place: a ledger may be a view into a packed table's buffer.
+on the rule. That departs from `regret_matching`'s contract, which says only a
+regret rule writes `extra_sums`; the sentence is out of date, and correcting it
+belongs to a change that owns that file. Every write is in place: a ledger may
+be a view into a packed table's buffer.
 """
 
 from __future__ import annotations
