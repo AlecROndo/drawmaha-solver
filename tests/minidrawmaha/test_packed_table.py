@@ -142,6 +142,17 @@ def test_a_key_of_a_position_the_game_does_not_have_raises_key_error():
         table[impossible]
     assert impossible not in table
 
+def test_a_key_of_another_game_is_a_miss_not_a_crash():
+    # A Leduc key handed to this table misses the way it would in a dict: a
+    # `KeyError` from every lookup, not an `AttributeError` from the index.
+    table = PackedTable.whole_game()
+    for foreign in ("J", ("K", "Q"), 7):
+        with pytest.raises(KeyError):
+            table[foreign]
+        with pytest.raises(KeyError):
+            table.row_of(foreign)
+        assert foreign not in table
+
 def test_a_key_whose_player_or_discards_contradict_its_public_half_never_exists():
     # The index names a point by board size, draws and betting alone, leaving
     # `player` and `discards` out. That is safe only if no key can disagree
