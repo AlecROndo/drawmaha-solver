@@ -40,8 +40,8 @@ packed table — reads and writes exactly these slots, and nothing else:
   `average_strategy()` reads.
 - `extra_sums` — float64, `(k, n_actions)`: k further averages of the same
   strategies under other weightings, banked beside the primary one. `k = 0`
-  unless asked for. Only a regret rule writes them; which weighting row j
-  holds is the run's business, not the ledger's.
+  unless asked for. The walk banks them at whatever weights the run asks
+  for; which weighting row j holds is the run's business, not the ledger's.
 - `stamp` — int64, `(1,)`: the last iteration a lazily applied discount has
   been brought up to. 0 until a rule that discounts sets it.
 

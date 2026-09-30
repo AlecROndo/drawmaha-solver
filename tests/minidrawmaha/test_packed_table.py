@@ -348,10 +348,9 @@ def test_a_listed_slice_of_the_visited_keys_banks_the_same_numbers_too():
         assert np.array_equal(sliced[key].strategy_sum, ledger.strategy_sum)
 
 def test_a_checkpoint_round_trips_through_a_listed_packed_table(tmp_path):
-    # `save_solve` and `load_solve` walk `table.values()` and write through
-    # each ledger; on a packed table the ledgers are windows, so the numbers
-    # land in the flat arrays. Thirty iterations, a save, a load into a fresh
-    # slice, thirty more: equal to sixty straight, bit for bit.
+    # `save_solve` writes a packed table's arrays as they stand and
+    # `load_solve` pours them straight back. Thirty iterations, a save, a load
+    # into a fresh slice, thirty more: equal to sixty straight, bit for bit.
     keys = list(train(new_solve(11, table=ObjectTable()), 60).table)
     solve = train(new_solve(11, table=PackedTable.listed(keys)), 30)
     path = tmp_path / "solve.npz"
@@ -364,6 +363,48 @@ def test_a_checkpoint_round_trips_through_a_listed_packed_table(tmp_path):
     resumed = train(loaded, 30).table
     assert np.array_equal(resumed.cumulative_regret, straight.cumulative_regret)
     assert np.array_equal(resumed.strategy_sum, straight.strategy_sum)
+
+def test_a_packed_table_with_the_wrong_number_of_columns_is_refused():
+    # `mccfr` asks the store's one `extra_sums` array rather than every window,
+    # which is right because every window's rows ARE the store's rows. A
+    # table a column short or a column over is refused before training.
+    keys = keys_at(public_decision_points()[0], 5)
+    for carried in (1, 3):
+        with pytest.raises(ValueError, match="extra averaging row"):
+            new_solve(
+                0,
+                table=PackedTable.listed(keys, extra_averages=carried),
+                averages=("uniform", "quadratic"),
+            )
+
+def test_a_rule_run_checkpoints_straight_from_the_packed_arrays(tmp_path):
+    # A rule's checkpoint carries all four slots, and a packed table writes
+    # them from its arrays without building a window. The same DCFR run with
+    # both extra columns, on a dict of ledgers and on a packed table over the
+    # same keys, writes the same checkpoint array for array; the packed one
+    # resumes to equal an uninterrupted run in all four slots.
+    run = {"rule": "dcfr", "averages": ("uniform", "quadratic")}
+    # The columns never change the play, so a run without them meets the keys.
+    keys = list(train(new_solve(11, table=ObjectTable(), rule="dcfr"), 60).table)
+
+    def packed() -> PackedTable:
+        return PackedTable.listed(keys, extra_averages=2)
+
+    objects = {
+        key: RegretMatcher(len(key.legal_actions()), extra_averages=2) for key in keys
+    }
+    save_solve(train(new_solve(11, table=objects, **run), 30), tmp_path / "objects.npz")
+    save_solve(train(new_solve(11, table=packed(), **run), 30), tmp_path / "packed.npz")
+    with np.load(tmp_path / "objects.npz") as a, np.load(tmp_path / "packed.npz") as b:
+        assert a.files == b.files
+        for name in a.files:
+            assert np.array_equal(a[name], b[name]), name
+        assert b["stamps"].any() and b["extra_sums"].any()
+
+    resumed = train(load_solve(tmp_path / "packed.npz", table=packed(), **run), 30).table
+    straight = train(new_solve(11, table=packed(), **run), 60).table
+    for slot in ("cumulative_regret", "strategy_sum", "extra_sums", "stamp"):
+        assert np.array_equal(getattr(resumed, slot), getattr(straight, slot)), slot
 
 @pytest.mark.skipif(
     not FULL_RUN,
