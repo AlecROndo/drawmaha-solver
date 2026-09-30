@@ -45,11 +45,11 @@ back into play.
   (W traversals in sequence, then apply). This is the reference the processes must
   match bit for bit.
 - **`minidrawmaha/parallel.py`** — W processes (`spawn`), four shared-memory arrays,
-  scratch buffers per worker, two barriers per phase; worker streams from
-  `SeedSequence(seed).spawn(W)`. `ParallelSolve` exposes `train(iterations)`,
+  scratch buffers per worker, two barriers per phase; worker w's traversal for seat s
+  at iteration t draws from `default_rng([seed, t, s, w])`. `ParallelSolve` exposes `train(iterations)`,
   `save(path)`, `load(path)`; clean shutdown on error or signal (shared memory
   unlinked).
-- **Checkpoint**: the #41 format plus `workers` and the W RNG states. Resume refuses
+- **Checkpoint**: the #41 format plus `workers` (no RNG state: streams are counter-based). Resume refuses
   another worker count. A serial checkpoint cannot be resumed in parallel and vice versa.
 - **`scripts/modal_rung3.py`** — Modal app: image from `uv.lock`, Volume
   `drawmaha-rung3`, one function per rule (`cpu=11`, ~6 GB, `timeout=24h`). Each call
@@ -57,7 +57,22 @@ back into play.
   survives the 24 h cap with nobody watching (`modal run --detach`). Kept checkpoints
   on a 1-2-5 grid to 1M, then every 1M: 10k, 20k, 50k, 100k, 200k, 500k, 1M, 2M, …,
   10M — 16 per rule (~530 MB each, ~34 GB total), plus a rolling
-  resume checkpoint every ~30 min. Progress lines (iteration, it/s, ETA) in the logs.
+  resume checkpoint every 10 min. Progress lines (iteration, it/s, ETA) in the logs.
+
+## Nothing trained is lost (Alec: the Modal limit may hit)
+
+A checkpoint holds every iteration up to its t (the sums are cumulative), so the
+only exposure is the time since the last durable save:
+
+- Rolling resume checkpoint every **10 minutes**; each grid checkpoint as it is
+  reached. Every save is written to a temp file, renamed into place, then
+  `volume.commit()`ed at once — an uncommitted Volume write does not survive a
+  killed container, a committed one does.
+- SIGTERM/SIGINT (Modal's graceful stop): finish the iteration, save, commit, exit.
+- Worker randomness is counter-based — `default_rng([seed, t, seat, worker])` — so
+  no RNG state is saved and a resume from any checkpoint equals an uninterrupted run
+  bit for bit, whenever it happens.
+- `progress.jsonl` on the Volume: iteration, it/s, last save, per rule.
 
 ## Tests (TDD)
 
