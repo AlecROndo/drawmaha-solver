@@ -3,7 +3,7 @@
 The object table could only be tested in slices, because 6.2 million
 `RegretMatcher`s cost gigabytes and half a minute. The packed table costs a few
 hundred megabytes of zeros the kernel hands out lazily, and its index is built
-from the 141 public points and the four cached private-key shapes, so the WHOLE
+from the 141 public points and the three cached private-key shapes, so the WHOLE
 table is allocatable in a fraction of a second and most of this file uses it.
 What stays gated behind `MINIDRAWMAHA_FULL_TABLE=1` is walking all 6.2 million
 keys through `all_infosets()`, which is the slow half: the keys, not the table.
@@ -30,8 +30,8 @@ from drawmaha_solver.minidrawmaha.enumeration import (
     private_keys,
     public_decision_points,
 )
-from drawmaha_solver.minidrawmaha.game import Action, InfoSet, random_deal
-from drawmaha_solver.minidrawmaha.mccfr import new_solve, train
+from drawmaha_solver.minidrawmaha.game import Action, DrawSignal, InfoSet, random_deal
+from drawmaha_solver.minidrawmaha.mccfr import load_solve, new_solve, save_solve, train
 from drawmaha_solver.minidrawmaha.packed_table import PackedTable
 from drawmaha_solver.regret_matching import RegretMatcher
 
@@ -104,14 +104,25 @@ def test_the_last_key_of_the_game_sits_in_the_last_row():
 def test_rows_are_public_point_offset_plus_private_key_position():
     # The index in the open: a key's row is the number of ledgers standing on
     # earlier points, plus its position in its shape's sorted private keys.
+    # Every 13th position at each point, the phase advancing with each point
+    # of the same shape: the position dict is shared by every point of a
+    # shape and each shape has at least 13 points (29, 56 and 56), so every
+    # position of every shape is checked at some point, and both ends of
+    # every point are checked at all of them. Half a million keys, under a
+    # second.
     table = PackedTable.whole_game()
     offset = 0
+    seen: dict[tuple[int, int], int] = {}
     for point in public_decision_points():
-        shape = private_keys(board_cards=point.board_cards, discards=point.discards)
-        for index in (0, 17, len(shape) - 1):
+        shape = (point.board_cards, point.discards)
+        held = len(private_keys(board_cards=shape[0], discards=shape[1]))
+        phase = seen.get(shape, 0)
+        seen[shape] = phase + 1
+        for index in {0, held - 1, *range(phase % 13, held, 13)}:
             assert table.row_of(key_at(point, index)) == offset + index
-        offset += len(shape)
+        offset += held
     assert offset == TOTAL_LEDGERS
+    assert min(seen.values()) >= 13
 
 def test_a_key_of_a_position_the_game_does_not_have_raises_key_error():
     # A betting line no rule produces: `InfoSet` accepts it (it validates the
@@ -130,6 +141,67 @@ def test_a_key_of_a_position_the_game_does_not_have_raises_key_error():
     with pytest.raises(KeyError):
         table[impossible]
     assert impossible not in table
+
+def test_a_key_whose_player_or_discards_contradict_its_public_half_never_exists():
+    # The index names a point by board size, draws and betting alone, leaving
+    # `player` and `discards` out. That is safe only if no key can disagree
+    # with its point on either — and `InfoSet` refuses both before a key
+    # exists: a seat the betting says does not act, and a discard count the
+    # player's own draw signal does not match.
+    point = public_decision_points()[0]
+    real = key_at(point, 0)
+    with pytest.raises(ValueError, match="acts"):
+        InfoSet(
+            player=1 - real.player,
+            hole=real.hole,
+            discarded=real.discarded,
+            board=real.board,
+            draws=real.draws,
+            betting=real.betting,
+        )
+    # The cards stay as they are (so the joint canonical form still holds)
+    # and only this player's own public signal changes, from "threw nothing"
+    # to "threw one" — the count the empty `discarded` cannot match.
+    drawn = next(
+        p for p in public_decision_points() if p.discards == 0 and len(p.draws) > p.player
+    )
+    kept = key_at(drawn, 0)
+    signals = list(kept.draws)
+    signals[kept.player] = DrawSignal(count=1)
+    with pytest.raises(ValueError, match="threw"):
+        InfoSet(
+            player=kept.player,
+            hole=kept.hole,
+            discarded=kept.discarded,
+            board=kept.board,
+            draws=tuple(signals),
+            betting=kept.betting,
+        )
+
+def test_membership_asks_the_index_and_a_table_equals_only_itself():
+    # `Mapping` would answer `in` by building a ledger and catching the miss,
+    # and `==` by materialising every window on both sides; neither is what
+    # a caller means. The table's numbers are compared by array, by name.
+    points = public_decision_points()
+    keys = keys_at(points[0], 3)
+    table = PackedTable.listed(keys)
+    assert keys[1] in table
+    assert key_at(points[1], 0) not in table
+    assert "not a key" not in table
+    assert table == table
+    assert table != PackedTable.listed(keys)
+    assert table != dict.fromkeys(keys)
+
+def test_widths_is_one_read_only_array():
+    # The fingerprint the checkpoint compares against: built once with the
+    # index, handed out unchanged, and refusing a write.
+    sliced = PackedTable.listed(keys_at(public_decision_points()[0], 4))
+    for table in (PackedTable.whole_game(), sliced):
+        widths = table.widths()
+        assert widths is table.widths()
+        assert widths.dtype == np.int64
+        with pytest.raises(ValueError, match="read-only"):
+            widths[0] = 9
 
 def test_iteration_is_the_enumerator_in_its_own_order():
     table = PackedTable.whole_game()
@@ -263,6 +335,24 @@ def test_a_listed_slice_of_the_visited_keys_banks_the_same_numbers_too():
     for key, ledger in objects.items():
         assert np.array_equal(sliced[key].cumulative_regret, ledger.cumulative_regret)
         assert np.array_equal(sliced[key].strategy_sum, ledger.strategy_sum)
+
+def test_a_checkpoint_round_trips_through_a_listed_packed_table(tmp_path):
+    # `save_solve` and `load_solve` walk `table.values()` and write through
+    # each ledger; on a packed table the ledgers are windows, so the numbers
+    # land in the flat arrays. Thirty iterations, a save, a load into a fresh
+    # slice, thirty more: equal to sixty straight, bit for bit.
+    keys = list(train(new_solve(11, table=ObjectTable()), 60).table)
+    solve = train(new_solve(11, table=PackedTable.listed(keys)), 30)
+    path = tmp_path / "solve.npz"
+    save_solve(solve, path)
+    loaded = load_solve(path, table=PackedTable.listed(keys))
+    assert loaded.iteration == 30
+    assert np.array_equal(loaded.table.cumulative_regret, solve.table.cumulative_regret)
+    assert np.array_equal(loaded.table.strategy_sum, solve.table.strategy_sum)
+    straight = train(new_solve(11, table=PackedTable.listed(keys)), 60).table
+    resumed = train(loaded, 30).table
+    assert np.array_equal(resumed.cumulative_regret, straight.cumulative_regret)
+    assert np.array_equal(resumed.strategy_sum, straight.strategy_sum)
 
 @pytest.mark.skipif(
     not FULL_RUN,

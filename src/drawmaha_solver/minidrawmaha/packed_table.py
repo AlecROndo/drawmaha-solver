@@ -1,11 +1,12 @@
 """The packed table: every mini-drawmaha ledger as a window into four flat arrays.
 
 Rung 3's first table was a `dict[InfoSet, RegretMatcher]` — 6,220,050 keys,
-6,220,050 ledger objects, four small NumPy arrays each. The numbers in it are
-228 MB; the objects around them were 3.4 GB before the ledger contract added
-its two slots and 5.2 GB after, and the dict took half a minute to build. Ten
-such tables cannot share a Modal machine, and a solve cannot hand one to a
-worker. This module keeps the numbers and drops the objects.
+6,220,050 ledger objects, four small NumPy arrays each. The trained numbers in
+it are 228 MB (the two float64 accumulators; 278 MB once the contract's int64
+stamp sits beside them); the objects around them were 3.4 GB before the ledger
+contract added its two slots and 5.4 GB after, and the dict took half a minute
+to build. Ten such tables cannot share a Modal machine, and a solve cannot
+hand one to a worker. This module keeps the numbers and drops the objects.
 
 **The layout.** Four arrays, all of them public attributes because the next
 step — shared memory, a flat checkpoint — needs to reach them by name:
@@ -14,7 +15,12 @@ step — shared memory, a flat checkpoint — needs to reach them by name:
   to end in `all_infosets()` order — ledger 0's two or three or four entries,
   then ledger 1's, and so on. That is the checkpoint's format already
   (`mccfr.save_solve` concatenates the object table's ledgers in the same
-  order), so a checkpoint's arrays ARE this table's arrays.
+  order), so a checkpoint's two arrays ARE these two, and a checkpoint of
+  this key loads unchanged. Only these two: `save_solve` does not yet write
+  `extra_sums` or `stamp` and `load_solve` does not restore them, so a run
+  that banks extra averages resumes with those slots at zero — growing the
+  format is `mccfr.py`'s change, alongside the flat fast path that reads
+  these arrays directly instead of walking 6.2 million windows.
 - `extra_sums`: float64, `(k, total width)`: the k further averages of the
   contract, one row per weighting, columns aligned with the two above.
 - `stamp`: int64, one per LEDGER, not per column: the discount stamp.
@@ -34,9 +40,10 @@ builds it from: its public half (`draws`, `betting` and how many board cards
 are out) names one of the 141 public points, and its private half is a
 position in that point's shape of `private_keys`, which is already cached and
 sorted. So the row is a point's offset plus a position, and the index is one
-141-entry dict plus one dict per private-key shape, ~120k entries that borrow
-their tuples from the cache. Two lookups, the same cost as hashing the whole
-`InfoSet` once. A key whose public half no point has, or whose private half
+141-entry dict plus one dict per private-key shape — three shapes, 111,540
+entries in all, borrowing their tuples from the cache. Two lookups, measured
+at 0.12 µs a key against the 0.10 µs of the object table's one dict lookup.
+A key whose public half no point has, or whose private half
 its shape does not hold, raises `KeyError` — a walk that reached a position
 the census says does not exist.
 
@@ -106,7 +113,7 @@ class PackedTable(Mapping[InfoSet, RegretMatcher]):
         """Every infoset in mini-drawmaha, rows in `all_infosets()` order.
 
         Cheap: the arrays are zeros the kernel hands out lazily, and the index
-        is built from the 141 public points and the four cached private-key
+        is built from the 141 public points and the three cached private-key
         shapes without producing a single `InfoSet`. About 280 MB once every
         row has been touched, a fraction of a second to allocate.
         """
@@ -131,12 +138,39 @@ class PackedTable(Mapping[InfoSet, RegretMatcher]):
     def __len__(self) -> int:
         return len(self._index)
 
+    def __contains__(self, key: object) -> bool:
+        # `Mapping` answers this by building `self[key]` and catching the miss,
+        # which here is a four-view ledger built to be thrown away. The index
+        # alone knows.
+        if not isinstance(key, InfoSet):
+            return False
+        try:
+            self._index.locate(key)
+        except KeyError:
+            return False
+        return True
+
+    def __eq__(self, other: object) -> bool:
+        # `Mapping.__eq__` materialises `dict(self.items())` on both sides —
+        # 6.2 million windows each for the whole game — and then compares
+        # `RegretMatcher`s, which compare by identity, so two walks of the
+        # same table never came out equal anyway. A table is equal to itself
+        # and to nothing else; compare the arrays by name to compare numbers.
+        return self is other
+
+    __hash__ = None  # a Mapping is unhashable; saying so keeps it that way
+
     def row_of(self, key: InfoSet) -> int:
         """Which row `key` occupies: its position in the table's iteration order."""
         return self._index.locate(key)[0]
 
     def widths(self) -> np.ndarray:
-        """Every ledger's width, int64, one per row — the checkpoint's fingerprint."""
+        """Every ledger's width, int64, one per row — the checkpoint's fingerprint.
+
+        The same read-only array on every call, built once with the index: for
+        the whole game it is 50 MB, and a fingerprint a caller could write into
+        would not be one.
+        """
         return self._index.widths()
 
     def items(self) -> ItemsView[InfoSet, RegretMatcher]:
@@ -227,7 +261,8 @@ class _WholeGameIndex:
             [size * width for size, width in zip(sizes, self._width, strict=True)]
         )
         self._rows = sum(sizes)
-        self._sizes = sizes
+        self._widths = np.repeat(np.asarray(self._width, dtype=np.int64), sizes)
+        self._widths.setflags(write=False)
 
     def __len__(self) -> int:
         return self._rows
@@ -253,7 +288,7 @@ class _WholeGameIndex:
         return all_infosets()
 
     def widths(self) -> np.ndarray:
-        return np.repeat(np.asarray(self._width, dtype=np.int64), self._sizes)
+        return self._widths
 
 class _ListedIndex:
     """Rows for an explicit sequence of keys, in the order given.
@@ -268,15 +303,16 @@ class _ListedIndex:
         self._row: dict[InfoSet, int] = {}
         widths: list[int] = []
         for key in keys:
-            # Counted rather than checked with `in`: the same one-integer guard
-            # the object table used, and it catches the duplicate at the key
-            # that repeats rather than at the end of the list.
+            # The object table counted its keys instead, to avoid holding a set
+            # of 6.2 million; this index holds the dict regardless, so the
+            # plain check is free and names the key at the moment it repeats.
+            if key in self._row:
+                raise ValueError(f"{key} was handed to the table twice")
             self._row[key] = len(self._keys)
             self._keys.append(key)
-            if len(self._row) != len(self._keys):
-                raise ValueError(f"{key} was handed to the table twice")
             widths.append(len(key.legal_actions()))
-        self._widths = widths
+        self._widths = np.asarray(widths, dtype=np.int64)
+        self._widths.setflags(write=False)
         self._starts = _offsets(widths)
 
     def __len__(self) -> int:
@@ -284,13 +320,13 @@ class _ListedIndex:
 
     def locate(self, key: InfoSet) -> Slot:
         row = self._row[key]
-        return row, self._starts[row], self._widths[row]
+        return row, self._starts[row], int(self._widths[row])
 
     def keys(self) -> Iterator[InfoSet]:
         return iter(self._keys)
 
     def widths(self) -> np.ndarray:
-        return np.asarray(self._widths, dtype=np.int64)
+        return self._widths
 
 def _offsets(sizes: list[int]) -> list[int]:
     """Where each block starts when blocks of these sizes are laid end to end."""
