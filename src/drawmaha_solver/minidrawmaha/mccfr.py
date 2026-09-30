@@ -99,6 +99,7 @@ import numpy as np
 
 from drawmaha_solver.minidrawmaha.game import random_deal
 from drawmaha_solver.minidrawmaha.infoset_table import new_infoset_table
+from drawmaha_solver.minidrawmaha.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.regret_rules import (
     RULES,
     Average,
@@ -185,11 +186,11 @@ def new_solve(
 ) -> Solve:
     """A fresh run at iteration 0, seeded so that it can be reproduced.
 
-    `table=None` allocates the whole mini-drawmaha table — 3.4 GB and about
-    half a minute — with one `extra_sums` row per averaging column. Pass a
-    table to train a slice or another game; it must hold every key the walk can
-    reach from `deal`'s roots, since a miss raises, and every ledger must carry
-    exactly one extra row per column.
+    `table=None` allocates the whole mini-drawmaha table — a `PackedTable`,
+    about 280 MB and a second — with one `extra_sums` row per averaging
+    column. Pass a table to train a slice or another game; it must hold every
+    key the walk can reach from `deal`'s roots, since a miss raises, and every
+    ledger must carry exactly one extra row per column.
 
     `rule` and `averages` are accepted by name ("dcfr", ("uniform",
     "quadratic")). The defaults — vanilla, no extra columns — are the learner
@@ -253,7 +254,12 @@ def _require_extra_rows(table: Table, averages: tuple[Average, ...]) -> None:
     weights broadcast across two rows and bank the same numbers into both.
     """
     rows = len(averages)
-    carried = (ledger.extra_sums.shape[0] for ledger in table.values())
+    if isinstance(table, PackedTable):
+        # Every window's rows are the store's rows, so one shape answers for
+        # all 6.2 million ledgers without building a window.
+        carried = iter([table.extra_sums.shape[0]])
+    else:
+        carried = (ledger.extra_sums.shape[0] for ledger in table.values())
     mismatched = next((count for count in carried if count != rows), None)
     if mismatched is not None:
         plural = "" if mismatched == 1 else "s"
@@ -395,32 +401,33 @@ _RULE_KEY = "rule"
 def save_solve(solve: Solve, path: Path) -> None:
     """Write a run to one `.npz`: every ledger slot flat, plus t, the RNG, the rule and the columns.
 
-    Flat arrays rather than a pickle because the full table is 3.4 GB of
-    Python objects but only 228 MB of numbers; pickling six million ledgers
-    is slower than rebuilding them. Every ledger's regret, and separately every
-    ledger's strategy sum, are laid end to end in the table's own order, with
-    each ledger's width alongside so `load_solve` can slice them back apart and
-    refuse a table they do not fit. The extra columns are laid out the same
-    way, one row per column (k × Σ widths), and the stamps one per ledger —
-    zeros under every rule but DCFR, which cannot resume without them.
+    Flat arrays rather than a pickle: every ledger's regret, and separately
+    every ledger's strategy sum, are laid end to end in the table's own order,
+    with each ledger's width alongside so `load_solve` can slice them back
+    apart and refuse a table they do not fit. The extra columns are laid out
+    the same way, one row per column (k × Σ widths), and the stamps one per
+    ledger — zeros under every rule but DCFR, which cannot resume without them.
+
+    That layout IS a `PackedTable`'s store, so the whole game's checkpoint is
+    its four arrays written as they stand — no window is built. Any other
+    table (Leduc's dict, a hand-built one) is concatenated ledger by ledger
+    into the same format.
 
     Raises on an empty table, which has nothing to restore, and on a generator
     other than the PCG64 `new_solve` and `load_solve` build, whose state could
     not be restored.
     """
-    ledgers = list(solve.table.values())
-    if not ledgers:
+    if not solve.table:
         raise ValueError("the table is empty; there is nothing to checkpoint")
     _require_restorable(solve.rng.bit_generator.state)
+    regret, strategy_sum, extra_sums, stamps = _flat_slots(solve.table)
     with Path(path).open("wb") as file:
         np.savez(
             file,
-            regret=np.concatenate([ledger.cumulative_regret for ledger in ledgers]),
-            strategy_sum=np.concatenate([ledger.strategy_sum for ledger in ledgers]),
-            extra_sums=np.concatenate([ledger.extra_sums for ledger in ledgers], axis=1),
-            stamps=np.fromiter(
-                (ledger.stamp[0] for ledger in ledgers), dtype=np.int64, count=len(ledgers)
-            ),
+            regret=regret,
+            strategy_sum=strategy_sum,
+            extra_sums=extra_sums,
+            stamps=stamps,
             widths=_widths(solve.table),
             iteration=np.int64(solve.iteration),
             seed=np.int64(solve.seed),
@@ -481,13 +488,7 @@ def load_solve(
             extra_sums = np.zeros((0, int(widths.sum())))
             stamps = np.zeros(len(widths), dtype=np.int64)
         _validate_columns(extra_sums, stamps, widths, len(averages))
-        ends = np.cumsum(widths)
-        rows = zip(table.values(), ends, widths, stamps, strict=True)
-        for ledger, end, width, stamp in rows:
-            ledger.cumulative_regret[:] = regret[end - width : end]
-            ledger.strategy_sum[:] = strategy_sum[end - width : end]
-            ledger.extra_sums[:] = extra_sums[:, end - width : end]
-            ledger.stamp[0] = stamp
+        _pour_slots(table, widths, regret, strategy_sum, extra_sums, stamps)
         return Solve(
             table=table,
             rng=rng,
@@ -546,9 +547,59 @@ def _require_restorable(rng_state: Mapping[str, Any]) -> None:
         )
 
 def _widths(table: Table) -> np.ndarray:
+    if isinstance(table, PackedTable):
+        return table.widths()
     return np.fromiter(
         (ledger.n_actions for ledger in table.values()), dtype=np.int64, count=len(table)
     )
+
+def _flat_slots(table: Table) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """The four ledger slots of every row, end to end: the checkpoint's arrays.
+
+    A `PackedTable` already stores them this way and hands them over as they
+    stand. Any other table is concatenated, which is fine at Leduc's 936
+    ledgers and is what the packed table exists to spare the whole game:
+    listing 6.2 million windows first cost 50 s and a transient of gigabytes.
+    """
+    if isinstance(table, PackedTable):
+        return table.cumulative_regret, table.strategy_sum, table.extra_sums, table.stamp
+    ledgers = list(table.values())
+    return (
+        np.concatenate([ledger.cumulative_regret for ledger in ledgers]),
+        np.concatenate([ledger.strategy_sum for ledger in ledgers]),
+        np.concatenate([ledger.extra_sums for ledger in ledgers], axis=1),
+        np.fromiter(
+            (ledger.stamp[0] for ledger in ledgers), dtype=np.int64, count=len(ledgers)
+        ),
+    )
+
+def _pour_slots(
+    table: Table,
+    widths: np.ndarray,
+    regret: np.ndarray,
+    strategy_sum: np.ndarray,
+    extra_sums: np.ndarray,
+    stamps: np.ndarray,
+) -> None:
+    """Write a checkpoint's four arrays into `table`'s ledgers, in place.
+
+    The inverse of `_flat_slots`: a `PackedTable` takes each array in one
+    copy, any other table ledger by ledger. The caller has already checked
+    every shape, so nothing here can fail halfway through.
+    """
+    if isinstance(table, PackedTable):
+        table.cumulative_regret[:] = regret
+        table.strategy_sum[:] = strategy_sum
+        table.extra_sums[:] = extra_sums
+        table.stamp[:] = stamps
+        return
+    ends = np.cumsum(widths)
+    rows = zip(table.values(), ends, widths, stamps, strict=True)
+    for ledger, end, width, stamp in rows:
+        ledger.cumulative_regret[:] = regret[end - width : end]
+        ledger.strategy_sum[:] = strategy_sum[end - width : end]
+        ledger.extra_sums[:] = extra_sums[:, end - width : end]
+        ledger.stamp[0] = stamp
 
 def _validate_columns(
     extra_sums: np.ndarray, stamps: np.ndarray, widths: np.ndarray, rows: int
@@ -574,11 +625,12 @@ def _validate_shape(widths: np.ndarray, table: Table) -> None:
         raise ValueError(
             f"the checkpoint holds {len(widths)} ledgers, the table {len(table)}"
         )
-    mismatched = np.flatnonzero(widths != _widths(table))
+    table_widths = _widths(table)
+    mismatched = np.flatnonzero(widths != table_widths)
     if mismatched.size:
         first = int(mismatched[0])
         raise ValueError(
             f"ledger {first} is {widths[first]} wide in the checkpoint and "
-            f"{list(table.values())[first].n_actions} wide in the table "
+            f"{table_widths[first]} wide in the table "
             f"({mismatched.size} width mismatches in all)"
         )

@@ -14,13 +14,10 @@ step — shared memory, a flat checkpoint — needs to reach them by name:
 - `cumulative_regret`, `strategy_sum`: float64, every ledger's columns laid end
   to end in `all_infosets()` order — ledger 0's two or three or four entries,
   then ledger 1's, and so on. That is the checkpoint's format already
-  (`mccfr.save_solve` concatenates the object table's ledgers in the same
-  order), so a checkpoint's two arrays ARE these two, and a checkpoint of
-  this key loads unchanged. Only these two: `save_solve` does not yet write
-  `extra_sums` or `stamp` and `load_solve` does not restore them, so a run
-  that banks extra averages resumes with those slots at zero — growing the
-  format is `mccfr.py`'s change, alongside the flat fast path that reads
-  these arrays directly instead of walking 6.2 million windows.
+  (`mccfr.save_solve` concatenates any other table's ledgers in the same
+  order), so a checkpoint's arrays ARE this table's arrays: `save_solve`
+  writes all four as they stand and `load_solve` pours them straight back,
+  without building a window.
 - `extra_sums`: float64, `(k, total width)`: the k further averages of the
   contract, one row per weighting, columns aligned with the two above.
 - `stamp`: int64, one per LEDGER, not per column: the discount stamp.

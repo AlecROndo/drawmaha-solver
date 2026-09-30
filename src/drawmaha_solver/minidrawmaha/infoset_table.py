@@ -8,7 +8,7 @@ derived at read time and never stored. What changes from rung 2 is the size,
 `PackedTable` (`packed_table.py`) keeps them in four flat arrays, about 280 MB
 for the whole game, and `table[key]` is a ledger *window* into them rather
 than an object of its own. The first version of this rung held a
-`RegretMatcher` per key instead — 3.4 GB and half a minute to build, 5.2 GB
+`RegretMatcher` per key instead — 3.4 GB and half a minute to build, 5.4 GB
 once the ledger contract added its two slots — which no parallel run could
 afford ten of.
 

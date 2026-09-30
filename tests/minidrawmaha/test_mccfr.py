@@ -20,9 +20,8 @@ file:
   finding that short runs cannot tell a double-weighted walk from a correct
   one, which is why the weights are pinned directly.
 * **Mini-drawmaha** is smoke-tested for the things only it has: a four-wide
-  draw ledger and a root that is a chance node. On a lazy table by default,
-  and for one iteration on the real 3.4 GB table behind
-  `MINIDRAWMAHA_FULL_TABLE=1`.
+  draw ledger and a root that is a chance node. On a lazy table, and for one
+  iteration on the real packed table, which allocates in about a second.
 
 The million-iteration Leduc run — the only convergence test long enough to
 separate a double-weighted walk from a correct one — sits behind
@@ -77,7 +76,6 @@ REFEREE = json.loads(
 )
 LP_VALUE = REFEREE["lp_value_to_p0"]
 
-FULL_TABLE = os.environ.get("MINIDRAWMAHA_FULL_TABLE") == "1"
 FULL_CALIBRATION = os.environ.get("MINIDRAWMAHA_FULL_CALIBRATION") == "1"
 
 def leduc_deal(rng: np.random.Generator) -> LeducState:
@@ -680,8 +678,8 @@ class LazyTable(dict):
     """A ledger table that allocates on first touch — a test double only.
 
     The real table refuses unknown keys on purpose; this one exists so the
-    walk can run on mini-drawmaha without paying 3.4 GB for keys it will
-    mostly never reach.
+    walk can run on mini-drawmaha on a dict of ledgers, the kind of table
+    Leduc uses, without allocating keys it will mostly never reach.
     """
 
     def __init__(self, extra_averages: int = 0):
@@ -776,17 +774,14 @@ def test_mini_drawmahas_deck_deals_one_probability_per_public_point():
     assert len(lines) == 1
     assert len(next(iter(lines))) >= 4
 
-@pytest.mark.skipif(
-    not FULL_TABLE,
-    reason="the whole 6.2M-ledger table is 3.4 GB; set MINIDRAWMAHA_FULL_TABLE=1",
-)
 def test_one_iteration_on_the_real_table():
-    solve = train(new_solve(0), 1)
-    changed = sum(
-        1
-        for ledger in solve.table.values()
-        if ledger.strategy_sum.any() or ledger.cumulative_regret.any()
-    )
+    # The whole packed table, read row by row from its arrays: walking 6.2
+    # million windows to count the touched ledgers would cost more than the
+    # iteration.
+    table = train(new_solve(0), 1).table
+    starts = np.cumsum(table.widths()) - table.widths()
+    touched = np.abs(table.strategy_sum) + np.abs(table.cumulative_regret)
+    changed = np.count_nonzero(np.add.reduceat(touched, starts))
     assert 0 < changed <= 200
 
 # ---------------------------------------------------------------------------
