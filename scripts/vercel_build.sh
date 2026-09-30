@@ -31,26 +31,29 @@ cp -r web/hero-studies public/hero
 # Both visualizers bundle the same @fontsource files, so either copy serves the
 # site; rung 0's is the one that has always been here.
 #
-# Three voices, three families, and the weights differ by role: the serif is
-# display only and ships at one weight, mono is the body text AND the UI so it
-# needs three, and the script is annotation only.
+# Two of the site's three voices come from here: the serif is display only
+# and ships at one upright weight, mono is the UI and every number so it needs
+# three. (The visualizers bundle their own copies of these plus Instrument
+# Sans, so /fonts/ serves only the static pages.)
 fontsource=web/rung0-viz/node_modules/@fontsource
 copy_font() {
   cp "$fontsource/$1/files/$1-latin-$2-normal.woff2" public/fonts/
 }
 copy_font instrument-serif 400
 for weight in 400 500 600; do copy_font ibm-plex-mono "$weight"; done
-copy_font kalam 400
 
-# The cover page and its Rules tab are two self-contained HTML files, designed
-# outside the repo and exported (see web/cover/README.md), so there is nothing
-# to build: they are copied as-is to the root of public/, where Vercel serves
-# index.html at / with no rewrite and /rules is rewritten to rules.html.
+# The homepage, its Rules tab and the Cover are three self-contained HTML
+# files (see web/cover/README.md: the first two are exported from the studies
+# workflow, the cover is authored here), so there is nothing to build: they
+# are copied as-is to the root of public/, where Vercel serves index.html at /
+# with no rewrite and /rules and /cover are rewritten to their files.
 #
 # They add a fourth voice, Instrument Sans for prose, and the serif's italic.
-# Neither visualizer bundles those, so copy_font above cannot reach them; the
-# page checks in the four files it needs and they land beside the rest. Their
-# names follow the @fontsource pattern so one /fonts/ directory stays uniform.
+# copy_font above cannot reach those (the visualizers bundle them into their
+# own assets rather than /fonts/), so the four files are checked in beside the
+# pages and land next to the rest. Their names follow the @fontsource pattern
+# so one /fonts/ directory stays uniform.
 cp web/cover/index.html public/index.html
 cp web/cover/rules.html public/rules.html
+cp web/cover/cover.html public/cover.html
 cp web/cover/fonts/*.woff2 public/fonts/

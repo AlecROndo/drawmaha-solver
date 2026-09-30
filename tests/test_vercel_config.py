@@ -45,6 +45,8 @@ def test_the_cover_page_is_served_from_the_filesystem():
     rewrites = {r["source"]: r["destination"] for r in _vercel_config()["rewrites"]}
     assert "/" not in rewrites, 'a "/" rewrite would point the root at a function that no longer exists'
     assert rewrites.get("/rules") == "/rules.html"
+    # The Cover — the site's original front page, kept — is the third file.
+    assert rewrites.get("/cover") == "/cover.html"
 
 def test_static_output_is_served_from_public():
     # The other half of the same contract: the catch-all only mattered because

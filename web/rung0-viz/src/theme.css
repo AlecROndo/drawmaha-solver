@@ -1,0 +1,1225 @@
+/*
+ * THE COVER'S THEME, on a rung page. The system the homepage and the Rules
+ * tab set, carried into the visualizers:
+ *
+ *   1. A near-black field, ivory ink, and two data colours: yellow is the
+ *      thing you are pointing at (the average, the call), pink is the
+ *      aggressive act (the bet, the current iterate, the head of a trail).
+ *      Oxblood is the brand: the chip's pattern and the squiggle, never ink.
+ *   2. Three type voices — Instrument Serif for headlines, Instrument Sans
+ *      for prose, IBM Plex Mono for the UI and every number.
+ *   3. The chip is the mark: an ASCII chip turning in the top bar and again
+ *      at the foot of the page, and each rung opens on its own ASCII object,
+ *      the same one that stands for it in the cover's ladder.
+ *   4. Figures sit in windows — a title bar with the figure's number and
+ *      field, then the pane — the way the cover's product frame does.
+ *   5. Anything tabular is hairline rows, never cards.
+ *
+ * The figure sections below still speak the old duotone's names (--mark,
+ * --panel-mark, --panel-dim, --panel-hair): they are aliased onto the theme
+ * here so a chart's rule resolves without being rewritten, and so the names
+ * keep meaning "ink on the field" and "ink on a panel".
+ */
+
+:root {
+  color-scheme: dark;
+
+  --field: #0c0a0b; /* the page */
+  --panel: #131011; /* windows and widgets */
+  --well: #0a0809; /* inside a window: the cells, the table */
+  --ivory: #f5f0e6;
+  --iv-80: rgba(245, 240, 230, 0.8);
+  --iv-60: rgba(245, 240, 230, 0.6);
+  --iv-45: rgba(245, 240, 230, 0.45);
+  --iv-30: rgba(245, 240, 230, 0.3);
+  --iv-16: rgba(245, 240, 230, 0.16);
+  --iv-10: rgba(245, 240, 230, 0.1);
+  --iv-06: rgba(245, 240, 230, 0.06);
+  --iv-03: rgba(245, 240, 230, 0.035);
+  --ox: #8e2038; /* brand: the chip's pattern, fills, the squiggle */
+  --ox-lit: #b52a4c; /* oxblood lifted one step so a stroke reads on black */
+  --yellow: #e9b862; /* data: the thing you are pointing at */
+  --yellow-20: rgba(233, 184, 98, 0.2);
+  --pink: #d8566f; /* action: bet / raise, the head of a trail */
+  --pink-20: rgba(216, 86, 111, 0.2);
+
+  /* the old duotone's names, aliased: ink on the field, ink on a panel */
+  --mark: var(--ivory);
+  --mark-dim: var(--iv-60);
+  --hair: var(--iv-10);
+  --hair-strong: var(--iv-30);
+  --panel-mark: var(--ivory);
+  --panel-dim: var(--iv-60);
+  --panel-hair: var(--iv-10);
+  --panel-border: var(--iv-16);
+
+  --serif: 'Instrument Serif', Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --sans: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+
+  --max: 1312px;
+  --gutter: clamp(18px, 3.6vw, 48px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--field);
+  color: var(--ivory);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+::selection {
+  background: var(--yellow);
+  color: var(--field);
+}
+
+.wrap {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* ---------- the top bar ------------------------------------------------- */
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(var(--field) 72%, rgba(12, 10, 11, 0));
+  backdrop-filter: blur(6px);
+}
+
+.top .wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: 64px;
+}
+
+.chip-home {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.chip-home canvas {
+  width: 56px;
+  height: 56px;
+  display: block;
+}
+
+.chip-home .word {
+  font-family: var(--serif);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.chip-home .word small {
+  display: block;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  margin-top: 3px;
+}
+
+.nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.navbtn {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 4px;
+  text-decoration: none;
+  color: var(--iv-60);
+  font: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.navbtn:hover {
+  background: var(--iv-06);
+  color: var(--ivory);
+}
+
+.navbtn.on,
+.navbtn.on:hover {
+  background: var(--iv-10);
+  color: var(--ivory);
+}
+
+/* the rungs: a rope ladder pulled open from the button. The menu sits before
+   the button in the row (order:-1) so it spills leftward and pushes Rules
+   aside; the rope is threaded through the gaps between the rung cells. */
+.rungs {
+  display: flex;
+  align-items: center;
+}
+
+.rungs.open .rungs-btn {
+  background: var(--iv-10);
+  color: var(--ivory);
+}
+
+.rungs-menu {
+  order: -1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  height: 64px;
+  width: 0;
+  padding-right: 10px;
+  overflow-x: clip;
+  overflow-y: visible;
+  visibility: hidden;
+  transition:
+    width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 0.16s;
+}
+
+.rungs.open .rungs-menu {
+  visibility: visible;
+  transition:
+    width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s;
+}
+
+.rungs-menu::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  background: repeating-linear-gradient(90deg, var(--iv-45) 0 3px, var(--iv-10) 3px 6px);
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.rungs.open .rungs-menu::before {
+  transform: scaleX(1);
+}
+
+.rcell {
+  position: relative;
+  flex: 0 0 auto;
+  background: var(--field);
+  opacity: 0;
+  transform: translateX(26px);
+  transition:
+    opacity 0.26s ease,
+    transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: calc(var(--i) * 75ms);
+}
+
+.rungs.open .rcell {
+  opacity: 1;
+  transform: none;
+}
+
+.rungs:not(.open) .rcell {
+  transition-delay: 0s;
+  transition-duration: 0.14s;
+}
+
+.rcell::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 14px;
+}
+
+.rmain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--iv-30);
+  border-radius: 4px;
+  text-decoration: none;
+  color: var(--ivory);
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.rmain b {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1;
+  min-width: 11px;
+  text-align: center;
+}
+
+.rmain span {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--iv-60);
+}
+
+.rmain:hover,
+.rcell:focus-within .rmain {
+  background: var(--iv-06);
+  border-color: var(--iv-60);
+}
+
+/* the rung you are on: its cell is lit the way a pressed nav button is */
+.rcell.here .rmain {
+  background: var(--iv-10);
+  border-color: var(--iv-60);
+}
+
+.rcell.here .rmain b {
+  color: var(--yellow);
+}
+
+.rcell.now .rmain {
+  border-color: rgba(216, 86, 111, 0.35);
+}
+
+.rcell.now .rmain b {
+  color: var(--pink);
+}
+
+.rcell.now .rmain span {
+  color: var(--iv-45);
+}
+
+.rcell.todo .rmain {
+  border-color: var(--iv-16);
+}
+
+.rcell.todo .rmain b {
+  color: var(--iv-45);
+}
+
+.rcell.todo .rmain span {
+  color: var(--iv-30);
+}
+
+.racts {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 8px;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--iv-16);
+  border-radius: 4px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.15s,
+    transform 0.15s,
+    visibility 0s linear 0.15s;
+}
+
+.rcell:hover .racts,
+.rcell:focus-within .racts {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-delay: 0s;
+}
+
+.racts a {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 5px 9px;
+  border-radius: 3px;
+  text-decoration: none;
+  color: var(--iv-60);
+  white-space: nowrap;
+}
+
+.racts a:hover,
+.racts a:focus-visible {
+  background: var(--iv-06);
+  color: var(--ivory);
+}
+
+/* ---------- buttons ------------------------------------------------------ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 10px 14px;
+  border-radius: 4px;
+  text-decoration: none;
+  border: 1px solid var(--iv-30);
+  background: transparent;
+  color: var(--ivory);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ivory);
+  background: var(--iv-06);
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.btn .k {
+  color: var(--iv-45);
+  font-weight: 400;
+}
+
+.btn.primary {
+  background: var(--ivory);
+  color: var(--field);
+  border-color: var(--ivory);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--yellow);
+  border-color: var(--yellow);
+}
+
+.btn.pink {
+  background: var(--pink);
+  color: var(--field);
+  border-color: var(--pink);
+}
+
+.btn.pink:hover:not(:disabled) {
+  background: var(--yellow);
+  border-color: var(--yellow);
+}
+
+/* the filled button inside a window: the one move the figure asks you to make */
+.btn.solid {
+  background: var(--ivory);
+  color: var(--field);
+  border-color: var(--ivory);
+}
+
+.btn.solid:hover:not(:disabled) {
+  background: var(--yellow);
+  border-color: var(--yellow);
+}
+
+/* the secondary half of a button row: the box turned down, never the ink */
+.btn.ghost {
+  border-color: var(--iv-16);
+}
+
+.btn.ghost:hover:not(:disabled) {
+  border-color: var(--iv-60);
+  background: var(--iv-06);
+}
+
+.top .btn {
+  padding: 9px 14px;
+}
+
+/* ---------- the hero ----------------------------------------------------- */
+
+main {
+  padding-bottom: 40px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
+  gap: 32px;
+  align-items: center;
+  padding: 26px 0 8px;
+  min-height: 380px;
+}
+
+.hero-copy {
+  padding: 8px 0 16px;
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--iv-60);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.eyebrow .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pink);
+  box-shadow: 0 0 0 3px var(--pink-20);
+}
+
+.eyebrow .dot.done {
+  background: var(--yellow);
+  box-shadow: 0 0 0 3px var(--yellow-20);
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 400;
+  margin: 0;
+}
+
+h1 {
+  font-family: var(--serif);
+  font-size: clamp(40px, 4.4vw, 64px);
+  line-height: 0.98;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  margin-top: 18px;
+  max-width: 16ch;
+}
+
+h1 em,
+h2 em {
+  font-style: italic;
+  color: var(--yellow);
+}
+
+h2 {
+  font-family: var(--serif);
+  font-size: clamp(32px, 3.1vw, 44px);
+  line-height: 1.04;
+  letter-spacing: -0.01em;
+  max-width: 22ch;
+}
+
+.squig {
+  display: block;
+  height: 12px;
+  width: 190px;
+  margin-top: 12px;
+}
+
+.squig path {
+  fill: none;
+  stroke: var(--ox-lit);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.lede {
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--iv-80);
+  max-width: 52ch;
+  margin: 22px 0 0;
+}
+
+.lede b,
+.lede strong {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+.hero-copy .cta {
+  display: flex;
+  gap: 10px;
+  margin-top: 26px;
+  flex-wrap: wrap;
+}
+
+/* the note under the lede: what run the page draws from, mono like a caption */
+.note {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--iv-60);
+  max-width: 68ch;
+  margin: 16px 0 0;
+}
+
+.note b {
+  color: var(--iv-80);
+  font-weight: 500;
+}
+
+.hero-obj {
+  position: relative;
+  min-width: 0;
+  height: 360px;
+}
+
+.hero-obj .object {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---------- sections ----------------------------------------------------- */
+
+section.stop {
+  padding: 96px 0 0;
+}
+
+.stop-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 40px;
+  align-items: end;
+}
+
+.stop-head p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--iv-60);
+  max-width: 44ch;
+}
+
+.stop-head .eyebrow {
+  margin-bottom: 14px;
+}
+
+/* the mono eyebrow above a section, without the dot */
+.kicker {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  margin: 0 0 14px;
+}
+
+/* ---------- windows: the figures ----------------------------------------- */
+
+.panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.panel {
+  position: relative;
+  background: var(--panel);
+  color: var(--ivory);
+  border: 1px solid var(--iv-16);
+  border-radius: 8px;
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.5),
+    0 1px 0 var(--iv-06) inset;
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel.wide {
+  grid-column: 1 / -1;
+}
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 34px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--iv-10);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--iv-60);
+  overflow: hidden;
+  flex: none;
+}
+
+.titlebar .dots {
+  display: flex;
+  gap: 6px;
+}
+
+.titlebar .dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--iv-30);
+}
+
+.titlebar .k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--iv-60);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.titlebar .live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--yellow);
+  letter-spacing: 0.04em;
+}
+
+.titlebar .live i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--yellow);
+  animation: blink 2s infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.titlebar .no {
+  margin-left: auto;
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--iv-45);
+  line-height: 1;
+}
+
+.pane {
+  padding: 18px 20px 20px;
+  flex: 1;
+  min-width: 0;
+}
+
+.panel h3 {
+  font-family: var(--serif);
+  font-size: 26px;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  margin: 0;
+  max-width: 34ch;
+  text-wrap: balance;
+}
+
+.panel .say {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--iv-60);
+  margin: 8px 0 0;
+  max-width: 68ch;
+}
+
+.panel .say b {
+  color: var(--iv-80);
+  font-weight: 500;
+}
+
+.panel svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.panel svg text {
+  font-family: var(--mono);
+}
+
+/* readouts under a figure */
+.panel .stat {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin: 16px 0 0;
+}
+
+.panel .stat div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.panel .stat dt {
+  font: 400 10px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+}
+
+.panel .stat dd {
+  margin: 0;
+  font: 500 18px/1.1 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* field/value rows inside a window */
+.fields {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.fields li {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 0;
+  border-top: 1px solid var(--iv-10);
+  font: 400 12px/1.35 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.fields li span:first-child {
+  color: var(--iv-60);
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font: 400 11px/1.3 var(--mono);
+  color: var(--iv-60);
+  margin: 14px 0 10px;
+}
+
+.legend .item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend .swatch {
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+}
+
+/* Ink is inherited, never named: a chip appears both inside a window (the
+   trace, the scoreboard, a chart legend) and on the field (the play-a-hand
+   buttons), and reads the ink of wherever it sits. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+
+/* ---------- hairline rows ------------------------------------------------ */
+
+.rows {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 26px 0 0;
+}
+
+.rows td {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--iv-10);
+  vertical-align: baseline;
+}
+
+.rows tr:first-child td {
+  border-top: 1px solid var(--iv-16);
+}
+
+.rows .g {
+  font-family: var(--serif);
+  font-size: 22px;
+  line-height: 1.2;
+  width: 300px;
+  padding-right: 24px;
+}
+
+.rows .n {
+  width: 34px;
+  font: 400 12px/1.3 var(--mono);
+  color: var(--iv-45);
+}
+
+.rows .p {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--iv-80);
+  padding-left: 26px;
+}
+
+.rows .s {
+  text-align: right;
+  font: 400 12px/1.3 var(--mono);
+  color: var(--iv-60);
+  white-space: nowrap;
+  padding-left: 20px;
+}
+
+.rows .s a {
+  color: var(--ivory);
+  text-decoration: none;
+  border-bottom: 1px solid var(--iv-30);
+}
+
+.rows .s a:hover {
+  color: var(--yellow);
+  border-color: var(--yellow);
+}
+
+.rows tr.pending .g,
+.rows tr.pending .n {
+  color: var(--iv-45);
+}
+
+/* ---------- the two views, as tabs in the bar under the hero ------------- */
+
+.views {
+  display: flex;
+  gap: 4px;
+  border-top: 1px solid var(--iv-10);
+  border-bottom: 1px solid var(--iv-10);
+  padding: 12px 0;
+  margin-top: 26px;
+  flex-wrap: wrap;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 4px;
+  color: inherit;
+  transition: background 0.15s;
+}
+
+.view:hover {
+  background: var(--iv-06);
+}
+
+.view b {
+  font: 500 12px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--iv-60);
+}
+
+.view.current {
+  background: var(--iv-10);
+}
+
+.view.current b,
+.view:hover b {
+  color: var(--ivory);
+}
+
+.view span {
+  font: 400 12px/1.4 var(--mono);
+  color: var(--iv-45);
+}
+
+/* the footnote under a view */
+.foot {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--iv-45);
+  max-width: 100ch;
+  margin: 28px 0 0;
+}
+
+/* ---------- the footer --------------------------------------------------- */
+
+footer {
+  padding: 72px 0 56px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--iv-60);
+  text-align: center;
+  border-top: 1px solid var(--iv-10);
+  margin-top: 64px;
+}
+
+footer .chip-end {
+  display: inline-block;
+  width: 132px;
+  height: 132px;
+}
+
+footer .chip-end canvas {
+  width: 132px;
+  height: 132px;
+  display: block;
+}
+
+footer .tag {
+  display: block;
+  margin-top: 14px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 19px;
+  color: var(--iv-80);
+}
+
+footer .links {
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+footer a {
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--ivory);
+}
+
+/* ---------- narrow -------------------------------------------------------- */
+
+@media (max-width: 1240px) {
+  /* narrow: the rungs open as a list under the button, each rung's actions under it */
+  .rungs {
+    position: relative;
+  }
+
+  .rungs-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: auto !important;
+    height: auto;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 8px;
+    background: var(--panel);
+    border: 1px solid var(--iv-16);
+    border-radius: 6px;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+    overflow: visible;
+    transition: visibility 0s linear 0.3s;
+  }
+
+  .rungs-menu::before {
+    display: none;
+  }
+
+  .rcell {
+    display: block;
+    background: none;
+    transform: translateY(-8px);
+    transition-delay: calc(var(--j) * 55ms);
+  }
+
+  .rcell::after {
+    display: none;
+  }
+
+  .rmain {
+    padding: 0 12px;
+  }
+
+  .racts {
+    position: static;
+    margin: 0;
+    padding: 2px 0 6px 12px;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    background: none;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .racts a {
+    padding: 4px 8px 4px 0;
+    color: var(--iv-45);
+  }
+
+  .rcell.todo .racts a {
+    color: var(--iv-30);
+  }
+}
+
+@media (max-width: 1080px) {
+  .panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stop-head {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 820px) {
+  .hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    gap: 8px;
+  }
+
+  .hero-obj {
+    order: -1;
+    height: min(70vw, 300px);
+  }
+
+  .top .btn {
+    display: none;
+  }
+
+  .rows .g {
+    width: auto;
+    font-size: 19px;
+  }
+
+  .rows .p {
+    padding-left: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .chip-home .word {
+    display: none;
+  }
+
+  .rows,
+  .rows tbody,
+  .rows tr {
+    display: block;
+  }
+
+  .rows td {
+    display: block;
+    padding: 4px 0;
+    border: 0;
+  }
+
+  .rows tr {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--iv-10);
+  }
+
+  .rows tr:first-child {
+    border-top: 1px solid var(--iv-16);
+  }
+
+  .rows tr:first-child td {
+    border-top: 0;
+  }
+
+  .rows .s {
+    text-align: left;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .wrap {
+    padding: 0 16px;
+  }
+
+  .chip-home canvas {
+    width: 44px;
+    height: 44px;
+  }
+
+  footer .chip-end,
+  footer .chip-end canvas {
+    width: 96px;
+    height: 96px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

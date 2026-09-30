@@ -212,8 +212,10 @@ export function PlayPanel({
 
   return (
     <Panel
+      n="02"
       className="playpanel"
       k={`Fig. 2 · hand ${hands + 1} — you are P${hand.humanSeat}`}
+      live={!over}
       title="Play the solver."
       say={`The bot samples the committed ${SOLVE.iterations.toLocaleString()}-iteration average strategy — exploitability ${SOLVE.exploitabilityAverage.toFixed(4)} chips/hand. It never adapts.`}
       label="Play a hand against the solver"
@@ -237,7 +239,7 @@ export function PlayPanel({
             <Chips n={pile} quiet /> pot {pot}
           </span>
         </div>
-        <div className="seat-spot hero">
+        <div className="seat-spot you">
           <Chips n={liveInFor[hand.humanSeat]} />
           <span className="did">{lastActionOf(hand.rows, hand.humanSeat) ?? '\u00A0'}</span>
           <CardGlyph rank={hand.cards[hand.humanSeat].rank} />
@@ -249,7 +251,7 @@ export function PlayPanel({
           </span>
         )}
         {sweep && sweep.amounts[hand.humanSeat] > 0 && (
-          <span key={`h${sweep.id}`} className="sweep from-hero" onAnimationEnd={() => setSweep(null)}>
+          <span key={`h${sweep.id}`} className="sweep from-you" onAnimationEnd={() => setSweep(null)}>
             <Chips n={sweep.amounts[hand.humanSeat]} />
           </span>
         )}

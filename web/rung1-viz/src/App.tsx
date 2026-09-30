@@ -3,7 +3,7 @@ import { ExploitChart } from './ui/ExploitChart'
 import { ExploitTab } from './ui/ExploitTab'
 import { GameTree, TreeLegend } from './ui/GameTree'
 import { PlayPanel } from './ui/PlayPanel'
-import { IdentityRail, LadderLine, Panel, Squiggle } from './ui/site'
+import { Footer, Hero, Panel, TopBar } from './ui/site'
 import { SOLVE, useSolve } from './ui/useSolve'
 
 const TABS = [
@@ -17,8 +17,8 @@ const isTabId = (value: string): value is TabId => TABS.some((t) => t.id === val
 
 /**
  * The tab named in the URL hash, so a view can be linked to and reloaded into.
- * Anything else — `#play`, which the identity rail's button points at — falls
- * back to the solve tab, because that is the view the target lives on.
+ * Anything else — `#play`, which the site's menu can point at — falls back to
+ * the solve tab, because that is the view the target lives on.
  */
 const tabFromHash = (): TabId => {
   const hash = typeof location === 'object' ? location.hash.replace('#', '') : ''
@@ -41,6 +41,7 @@ function SolveTab() {
           title="The game, with the strategy drawn on it"
           say="Four decision nodes × three possible cards = the twelve information sets. Each bar is what CFR's average strategy does there; each tick is the closed form."
           label="Game tree and strategy"
+          live={playing}
         >
           <div className="transport" role="group" aria-label="Playback">
             <button className="btn" onClick={toggle} aria-label={playing ? 'Pause' : 'Play'}>
@@ -66,9 +67,17 @@ function SolveTab() {
         <PlayPanel />
       </div>
 
-      <section aria-label="Reading guide">
-        <p className="stop">Stop 03 · what to look for</p>
-        <h2 className="big">Three things a table cannot show.</h2>
+      <section className="stop" aria-label="Reading guide">
+        <div className="stop-head">
+          <div>
+            <p className="kicker">What to look for</p>
+            <h2>Three things a table cannot show.</h2>
+          </div>
+          <p>
+            The figures above are one solve of one small game. Each row here names a thing the
+            run does that its strategy table could not show, and the figure it shows in.
+          </p>
+        </div>
         <table className="rows">
           <tbody>
             <tr>
@@ -111,9 +120,9 @@ function SolveTab() {
 export default function App() {
   const [tab, setTab] = useState<TabId>(tabFromHash)
 
-  // The identity rail offers "Play the solver" at /rung1#play. That is not a
-  // tab id, so the page opens on the solve tab and then has to take the
-  // visitor to the panel they asked for, rather than dropping them at the top.
+  // A link to /rung1#play asks for the play panel. That is not a tab id, so
+  // the page opens on the solve tab and then has to take the visitor to the
+  // panel they asked for, rather than dropping them at the top.
   useEffect(() => {
     if (location.hash !== '#play') return
     document.getElementById('play')?.scrollIntoView({ block: 'center' })
@@ -129,51 +138,56 @@ export default function App() {
 
   return (
     <>
-      <LadderLine here={1} />
+      <TopBar here={1} />
 
-      <div className="shell">
-        <IdentityRail now="Rung 1, complete" next="Rung 2 · Leduc poker" />
+      <main className="wrap">
+        <Hero
+          eyebrow="Rung 1 of 4 · complete · vanilla CFR"
+          done
+          title={
+            <>
+              CFR solves Kuhn poker, and discovers <em>how often to bluff.</em>
+            </>
+          }
+          icon="cards"
+          iconLabel="Three cards fanned on the felt, drawn in ASCII"
+        >
+          <p className="lede">
+            Three cards, one bet, twelve information sets: the smallest poker with hidden
+            information, and one of the few with a known exact answer. Nobody tells the solver to
+            bluff. <b>It works out that a jack should bluff one third as often as a king value-bets.</b>
+          </p>
+        </Hero>
 
-        <main>
-          <section>
-            <p className="stop">Stop 02 · rung 1</p>
-            <h2 className="big">CFR solves Kuhn poker, and discovers how often to bluff.</h2>
-            <Squiggle />
-            <p className="lede">
-              Three cards, one bet, twelve information sets: the smallest poker with hidden
-              information, and one of the few with a known exact answer. Nobody tells the solver to
-              bluff. It works out that a jack should bluff one third as often as a king value-bets.
-            </p>
+        <div className="views" role="tablist" aria-label="Views">
+          {TABS.map((entry) => (
+            <button
+              key={entry.id}
+              role="tab"
+              aria-selected={tab === entry.id}
+              className={tab === entry.id ? 'view current' : 'view'}
+              onClick={() => show(entry.id)}
+            >
+              <b>{entry.label}</b>
+              <span>{entry.blurb}</span>
+            </button>
+          ))}
+        </div>
 
-            <div className="views" role="tablist" aria-label="Views">
-              {TABS.map((entry) => (
-                <button
-                  key={entry.id}
-                  role="tab"
-                  aria-selected={tab === entry.id}
-                  className={tab === entry.id ? 'view current' : 'view'}
-                  onClick={() => show(entry.id)}
-                >
-                  <b>{entry.label}</b>
-                  <span>{entry.blurb}</span>
-                </button>
-              ))}
-            </div>
+        {tab === 'solve' ? <SolveTab /> : <ExploitTab />}
 
-            {tab === 'solve' ? <SolveTab /> : <ExploitTab />}
+        <p className="foot">
+          {tab === 'solve'
+            ? '100,000 vanilla CFR iterations, solved by '
+            : 'Exploit runs are live: the locked spots are POSTed to a local Python process running '}
+          src/drawmaha_solver/kuhn/
+          {tab === 'solve'
+            ? ' and exported to JSON — this page renders the solver’s own numbers rather than re-implementing it. Vanilla CFR enumerates the whole tree and never samples, so the run is deterministic: no seed, same figures every time.'
+            : ' — the same walk, with your spots held still. No CFR is re-implemented in TypeScript; the browser only draws numbers Python computed, and the ceiling it is graded against comes from a module that has never imported the solver.'}
+        </p>
+      </main>
 
-            <p className="foot">
-              {tab === 'solve'
-                ? '100,000 vanilla CFR iterations, solved by '
-                : 'Exploit runs are live: the locked spots are POSTed to a local Python process running '}
-              src/drawmaha_solver/kuhn/
-              {tab === 'solve'
-                ? ' and exported to JSON — this page renders the solver’s own numbers rather than re-implementing it. Vanilla CFR enumerates the whole tree and never samples, so the run is deterministic: no seed, same figures every time.'
-                : ' — the same walk, with your spots held still. No CFR is re-implemented in TypeScript; the browser only draws numbers Python computed, and the ceiling it is graded against comes from a module that has never imported the solver.'}
-            </p>
-          </section>
-        </main>
-      </div>
+      <Footer />
     </>
   )
 }
