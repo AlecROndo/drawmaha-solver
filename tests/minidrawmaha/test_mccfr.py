@@ -680,3 +680,79 @@ def test_load_refuses_a_table_of_another_size(tmp_path):
     del table[list(table)[-1]]
     with pytest.raises(ValueError, match="ledgers"):
         load_solve(path, table=table, deal=leduc_deal)
+
+def ruled_run(iterations: int, *, rule=RegretRule.DCFR, averages=BOTH_COLUMNS) -> Solve:
+    return train(leduc_solve(9, rule=rule, averages=averages), iterations)
+
+def untouched(table) -> bool:
+    return not any(
+        ledger.cumulative_regret.any()
+        or ledger.strategy_sum.any()
+        or ledger.extra_sums.any()
+        or ledger.stamp.any()
+        for ledger in table.values()
+    )
+
+def test_a_ruled_run_round_trips_exactly(tmp_path):
+    # Every slot: DCFR's stamps and both columns ride along with the sums.
+    solve = ruled_run(100)
+    path = tmp_path / "solve.npz"
+    save_solve(solve, path)
+    loaded = load_solve(
+        path, table=new_leduc_table_with(2), deal=leduc_deal, rule="dcfr", averages=BOTH_COLUMNS
+    )
+    assert ledgers_equal(solve.table, loaded.table)
+    assert (loaded.rule, loaded.averages, loaded.iteration) == (RegretRule.DCFR, BOTH_COLUMNS, 100)
+    assert any(ledger.stamp[0] for ledger in loaded.table.values())
+    assert loaded.rng.bit_generator.state == solve.rng.bit_generator.state
+
+@pytest.mark.parametrize("rule", list(RegretRule))
+def test_a_resumed_ruled_run_matches_an_uninterrupted_one(tmp_path, rule):
+    path = tmp_path / "solve.npz"
+    save_solve(ruled_run(50, rule=rule), path)
+    resumed = train(
+        load_solve(path, table=new_leduc_table_with(2), deal=leduc_deal, rule=rule, averages=BOTH_COLUMNS),
+        50,
+    )
+    assert ledgers_equal(resumed.table, ruled_run(100, rule=rule).table)
+
+def test_load_refuses_another_rule_before_touching_the_table(tmp_path):
+    path = tmp_path / "solve.npz"
+    save_solve(ruled_run(10), path)
+    table = new_leduc_table_with(2)
+    with pytest.raises(ValueError, match="'dcfr'.*'lcfr'"):
+        load_solve(path, table=table, deal=leduc_deal, rule="lcfr", averages=BOTH_COLUMNS)
+    assert untouched(table)
+
+def test_load_refuses_other_columns_before_touching_the_table(tmp_path):
+    # Order counts: the same two names in the other order would pour the
+    # uniform sums into the quadratic row.
+    path = tmp_path / "solve.npz"
+    save_solve(ruled_run(10), path)
+    table = new_leduc_table_with(2)
+    with pytest.raises(ValueError, match="columns"):
+        load_solve(path, table=table, deal=leduc_deal, rule="dcfr", averages=("quadratic", "uniform"))
+    assert untouched(table)
+
+def test_load_refuses_a_table_without_a_row_per_column(tmp_path):
+    path = tmp_path / "solve.npz"
+    save_solve(ruled_run(10), path)
+    table = new_leduc_table_with(1)
+    with pytest.raises(ValueError, match="1 extra averaging row"):
+        load_solve(path, table=table, deal=leduc_deal, rule="dcfr", averages=BOTH_COLUMNS)
+    assert untouched(table)
+
+def test_a_checkpoint_from_before_rules_loads_as_vanilla(tmp_path):
+    # A file saved before this change has no rule, columns, extra sums or
+    # stamps; it was a vanilla run with none of them, and loads as one.
+    path = tmp_path / "solve.npz"
+    solve = train(leduc_solve(9), 100)
+    save_solve(solve, path)
+    with np.load(path) as saved:
+        arrays = {key: saved[key] for key in saved.files if key not in ("rule", "averages", "extra_sums", "stamps")}
+    np.savez(path, **arrays)
+    loaded = load_solve(path, table=new_leduc_table(), deal=leduc_deal)
+    assert ledgers_equal(solve.table, loaded.table)
+    assert (loaded.rule, loaded.averages) == (RegretRule.VANILLA, ())
+    with pytest.raises(ValueError, match="'vanilla'.*'dcfr'"):
+        load_solve(path, table=new_leduc_table(), deal=leduc_deal, rule="dcfr")

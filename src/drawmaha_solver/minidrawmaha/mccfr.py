@@ -378,14 +378,16 @@ def _pick(rng: np.random.Generator, probabilities: Sequence[float]) -> int:
 # ---------------------------------------------------------------------------
 
 def save_solve(solve: Solve, path: Path) -> None:
-    """Write a run to one `.npz`: both accumulators flat, plus t and the RNG.
+    """Write a run to one `.npz`: every ledger slot flat, plus t, the RNG, the rule and the columns.
 
     Flat arrays rather than a pickle because the full table is 3.4 GB of
     Python objects but only 228 MB of numbers; pickling six million ledgers
     is slower than rebuilding them. Every ledger's regret, and separately every
     ledger's strategy sum, are laid end to end in the table's own order, with
     each ledger's width alongside so `load_solve` can slice them back apart and
-    refuse a table they do not fit.
+    refuse a table they do not fit. The extra columns are laid out the same
+    way, one row per column (k × Σ widths), and the stamps one per ledger —
+    zeros under every rule but DCFR, which cannot resume without them.
 
     Raises on an empty table, which has nothing to restore, and on a generator
     other than the PCG64 `new_solve` and `load_solve` build, whose state could
@@ -400,45 +402,102 @@ def save_solve(solve: Solve, path: Path) -> None:
             file,
             regret=np.concatenate([ledger.cumulative_regret for ledger in ledgers]),
             strategy_sum=np.concatenate([ledger.strategy_sum for ledger in ledgers]),
+            extra_sums=np.concatenate([ledger.extra_sums for ledger in ledgers], axis=1),
+            stamps=np.fromiter(
+                (ledger.stamp[0] for ledger in ledgers), dtype=np.int64, count=len(ledgers)
+            ),
             widths=_widths(solve.table),
             iteration=np.int64(solve.iteration),
             seed=np.int64(solve.seed),
             rng_state=np.str_(json.dumps(solve.rng.bit_generator.state)),
+            rule=np.str_(solve.rule.value),
+            averages=np.array([column.value for column in solve.averages], dtype=np.str_),
         )
 
-def load_solve(path: Path, *, table: Table, deal: RootSampler = random_deal) -> Solve:
+def load_solve(
+    path: Path,
+    *,
+    table: Table,
+    deal: RootSampler = random_deal,
+    rule: RegretRule | str = RegretRule.VANILLA,
+    averages: Sequence[Average | str] = (),
+) -> Solve:
     """Pour a checkpoint into `table` and return the run, ready to continue.
 
     The caller allocates `table` — the same game and the same keys, in the
-    same order, as the table that was saved. Its ledgers are overwritten in
-    place. Training the returned solve continues the saved random stream, so a
-    resumed run equals an uninterrupted one bit for bit.
+    same order, as the table that was saved, with one extra row per column.
+    Its ledgers are overwritten in place. Training the returned solve continues
+    the saved random stream, so a resumed run equals an uninterrupted one bit
+    for bit.
+
+    `rule` and `averages` are what the caller means to continue, and must be
+    what the run was trained under: a DCFR run resumed as vanilla would train
+    on without a word, from regrets no vanilla run could have produced, and
+    columns in another order would pour one weighting's sums into another's
+    row. A checkpoint written before rules existed records neither, and was a
+    vanilla run with no columns.
 
     The widths are the fingerprint: a table with another ledger count or any
     ledger of another width raises before anything is written. A table of the
     same shape but different keys cannot be told apart from the numbers alone,
-    which is why the order contract is the caller's. The random stream is
-    restored before any ledger is written too, so a checkpoint whose stream
-    cannot be restored leaves the table untouched.
+    which is why the order contract is the caller's. The rule, the columns and
+    the random stream are all checked before any ledger is written too, so a
+    refused checkpoint leaves the table untouched.
     """
+    rule = RegretRule(rule)
+    averages = validate_averages(averages)
     with np.load(Path(path), allow_pickle=False) as saved:
         widths = saved["widths"]
         _validate_shape(widths, table)
+        _require_same_run(saved, rule, averages)
+        _require_extra_rows(table, averages)
         rng_state = json.loads(str(saved["rng_state"]))
         _require_restorable(rng_state)
         rng = np.random.default_rng()
         rng.bit_generator.state = rng_state
         regret, strategy_sum = saved["regret"], saved["strategy_sum"]
+        if _RULE_KEY in saved.files:
+            extra_sums, stamps = saved["extra_sums"], saved["stamps"]
+        else:
+            extra_sums = np.zeros((0, int(widths.sum())))
+            stamps = np.zeros(len(widths), dtype=np.int64)
         ends = np.cumsum(widths)
-        for ledger, end, width in zip(table.values(), ends, widths, strict=True):
+        for ledger, end, width, stamp in zip(table.values(), ends, widths, stamps, strict=True):
             ledger.cumulative_regret[:] = regret[end - width : end]
             ledger.strategy_sum[:] = strategy_sum[end - width : end]
+            ledger.extra_sums[:] = extra_sums[:, end - width : end]
+            ledger.stamp[0] = stamp
         return Solve(
             table=table,
             rng=rng,
             deal=deal,
             seed=int(saved["seed"]),
             iteration=int(saved["iteration"]),
+            rule=rule,
+            averages=averages,
+        )
+
+# Present in every checkpoint written since regret rules existed, and absent
+# from every one written before; the other three new arrays travel with it.
+_RULE_KEY = "rule"
+
+def _require_same_run(
+    saved: np.lib.npyio.NpzFile, rule: RegretRule, averages: tuple[Average, ...]
+) -> None:
+    """Refuse to resume a checkpoint under another rule or other columns than it was trained with."""
+    if _RULE_KEY in saved.files:
+        saved_rule = str(saved[_RULE_KEY])
+        saved_averages = [str(column) for column in saved["averages"]]
+    else:
+        saved_rule, saved_averages = RegretRule.VANILLA.value, []
+    if saved_rule != rule.value:
+        raise ValueError(
+            f"the checkpoint was trained under {saved_rule!r}, and this run asks for {rule.value!r}"
+        )
+    asked = [column.value for column in averages]
+    if saved_averages != asked:
+        raise ValueError(
+            f"the checkpoint banks the columns {saved_averages}, and this run asks for {asked}"
         )
 
 def _require_restorable(rng_state: Mapping[str, Any]) -> None:
