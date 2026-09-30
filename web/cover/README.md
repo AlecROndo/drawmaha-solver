@@ -1,6 +1,8 @@
-# The cover page
+# The cover pages
 
-Three self-contained HTML files, served as the site's front door:
+Three self-contained HTML files, served as the site's front door. Two are
+exports of a design workflow that lives beside the repo and are never edited
+here; the third is authored in this directory by hand:
 
 - `index.html` — the homepage at `/`. A product fold (the ASCII-rendered chip
   stack beside rung 0's live regret-matching console), the rung-2 Leduc
@@ -11,26 +13,34 @@ Three self-contained HTML files, served as the site's front door:
   played, in the same chrome: a scroll-driven raymarched table that deals,
   flops, draws, turns, rivers and splits the pot, the worked hand read two
   ways, and why nobody has solved the game.
+- `cover.html` — the Cover at `/cover`: the site's original front page, kept
+  and rebuilt in the same theme. The homepage's nav and `chip.js` verbatim,
+  the two ASCII windows from `web/hero-studies` (the hand from the sidelines,
+  five giants at the bar) on an oxblood field, one window of numbers per
+  solved rung, and the ladder as hairline rows. Hand-authored here, not
+  exported.
 
 Each page inlines its own CSS, its data (the committed rung-1 and rung-2
 solves) and its scripts. Nothing here is built; there is no bundler and no
-third-party CDN. The only outside requests either page makes are for the
-fonts under `/fonts/`.
+third-party CDN. The only outside requests any page makes are for the fonts
+under `/fonts/`.
 
-## Designed outside the repo, then exported
+## Two exported, one authored
 
-The homepage and the Rules tab are not authored in this directory. They come out of a studies
-workflow that lives beside the repo: rounds of competing homepage studies,
-one chosen, then tightened with the Rules tab and built from a source file
-plus shared parts (the raymarching kernel, `chip.js`, the inlined solves).
-That workflow exports the finished pages with their font URLs rewritten to
-`/fonts/<file>`, and the export is what gets checked in here, byte for byte.
+The homepage and the Rules tab are not authored in this directory. They come
+out of a studies workflow that lives beside the repo: rounds of competing
+homepage studies, one chosen, then tightened with the Rules tab and built
+from a source file plus shared parts (the raymarching kernel, `chip.js`, the
+inlined solves). That workflow exports the finished pages with their font
+URLs rewritten to `/fonts/<file>`, and the export is what gets checked in
+here, byte for byte.
 
 So: do not hand-edit `index.html` or `rules.html`. A fix goes into the
-studies source, gets re-exported, and replaces both files. The tests in
-`tests/test_cover_page.py` check what the export can get wrong silently —
-a link to a route that does not exist, a font the build never copies, a
-script that does not parse — not the wording.
+studies source, gets re-exported, and replaces both files. `cover.html` is
+the exception: it is written here, so a fix to it is an ordinary edit. The
+tests in `tests/test_cover_page.py` check all three for what a static page
+can get wrong silently — a link to a route that does not exist, a font the
+build never copies, a script that does not parse — not the wording.
 
 ## The font rule
 
@@ -65,16 +75,15 @@ test enforces it. Adding a fifth voice means adding its file here (or a
 | `/fonts/*`     | the woff2 files                    |
 
 The pages link to each other relatively (`rules.html`, `cover.html`,
-`index.html#ladder`),
-which resolves at the root either way, and to the visualizers absolutely
-(`https://drawmaha.app/rung0` and so on); every such link must match a
-rewrite source in `vercel.json` or the test fails.
+`index.html#rung3`), which resolves at the root either way, and to the
+visualizers absolutely (`https://drawmaha.app/rung0` and so on); every such
+link must match a rewrite source in `vercel.json` or the test fails.
 
 ## Checking them locally
 
 The build script is the real thing (`bash scripts/vercel_build.sh`, then
 `uv run python scripts/serve_site.py`), but it runs three `npm ci` builds
-first. To look at just these two pages, mimic `public/` in a temp dir and
+first. To look at just these three pages, mimic `public/` in a temp dir and
 serve it:
 
 ```bash

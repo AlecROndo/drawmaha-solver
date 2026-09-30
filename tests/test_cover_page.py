@@ -2,9 +2,9 @@
 
 The homepage, its Rules tab and the Cover are three self-contained HTML files
 under `web/cover/` — the first two designed outside the repo and exported, the
-cover authored here (see the README there) — so nothing here re-checks their
-wording. What it checks is the set of things a
-static export gets wrong silently, and that no reviewer catches by reading:
+Cover authored here (see the README there) — so nothing here re-checks their
+wording. What it checks is the set of things a static page gets wrong
+silently, and that no reviewer catches by reading:
 
 - an `href` to a route that does not exist — the nav lists rungs that have no
   page yet, and the temptation each round is to link them "for later", which
