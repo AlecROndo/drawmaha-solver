@@ -650,7 +650,7 @@ footer a:hover{color:var(--ivory)}
         <p class="eyebrow">Solve</p>
         <h3>Regret matching, climbing.</h3>
         <p>The same idea at every scale: keep a ledger of how much you regret not having taken each action, and next time play in proportion to the regrets. Rock-paper-scissors needs a three-line ledger. Kuhn needs twelve. Leduc needs 288. Mini-Drawmaha needs 3.1 million spots and 1.77 GB, and full Drawmaha needs a net to hold it.</p>
-        <p>On the right, the shape of that settling: the average strategy spirals from a corner of the triangle into the centre, where rung 0 lands at (0.334, 0.333, 0.333) after 100,000 iterations. The exact run ticks in the console at the top of the page.</p>
+        <p>On the right, the shape of that settling: the average strategy rolls in from a corner of the triangle and circles down into the centre like a ball in a bowl, where rung 0 lands at (0.334, 0.333, 0.333) after 100,000 iterations. The exact run ticks in the console at the top of the page.</p>
         <a class="btn" href="https://drawmaha.app/rung0">Rung 0: the triangle, live →</a>
       </div>
       <div class="widget">
@@ -1971,13 +1971,13 @@ $$('canvas[data-icon]').forEach((cv) => {
 function drawIcons() { for (const ic of icons) { if (ic.g.resize()) renderIcon(ic.g, ic.sc, ic.yaw); } }
 
 /* =====================================================================
-   3. SOLVE: the settling, stylised. A designed spiral into the centre of the
-      simplex, not the raw 100,000-step trace (that lives in the console).
+   3. SOLVE: the settling, stylised. A ball rolling down a bowl into the
+      centre of the simplex, not the raw 100,000-step trace (that lives in the console).
    ===================================================================== */
 const rpsCv = $('#rpsCv');
-/* The walk: the path is parametrised by arc length and the arc-length parameter advances with an exponential
-   ease-out, u(t) = (1 − e^(−k·t/T)) / (1 − e^(−k)), so the dot's speed is ∝ e^(−k·t/T): fast out of the corner,
-   then only ever slower, until it has converged. The trail fades behind the dot down to a faint floor. */
+/* The ease: u(t) = (1 − e^(−k·t/T)) / (1 − e^(−k)) runs from 0 to 1 over T seconds, fastest at the start and only
+   ever slower after. The Solve widget feeds it the ball's own clock; the Rung-0 figure feeds it arc length. The trail
+   fades behind the dot down to a faint floor. */
 const expEase = (t, T, k) => (1 - Math.exp(-k * clamp(t / T, 0, 1))) / (1 - Math.exp(-k));
 function arcTable(pts) { const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); return { pts, cum, total: cum[cum.length - 1] }; }
 function arcPoint(tab, u) {
@@ -2000,17 +2000,30 @@ function drawTrail(x, tab, u, rgb, win, floor, wmax) {
   }
   return [hx, hy];
 }
-const SPIRAL = { T: 8, k: 4.6, hold: 2.4, acc: 0, last: 0, phase: 0, tab: null };
-{ const q = new URLSearchParams(location.search).get('spiral'); if (q) SPIRAL.acc = parseFloat(q) * SPIRAL.T; }
-/* the path: a smooth inward spiral, 4.2 turns from a corner, its radius shaped by a soft (p-norm) reach to the
-   triangle's edges so the winding is triangular but has no kinks; sampled densely, then walked by arc length */
-function spiralPath(c, reach, phase) {
-  const pts = [], N = 1400, turns = 4.2, th0 = 2.62 + phase * 2 * Math.PI / 3;
-  for (let i = 0; i <= N; i++) {
-    const e = i / N, th = th0 + e * turns * 2 * Math.PI, rad = 0.92 * Math.pow(1 - e, 1.15) * reach(th) * 0.94;
-    pts.push([c[0] + rad * Math.cos(th), c[1] + rad * Math.sin(th)]);
+/* The walk: a ball rolling in a bowl whose floor is Nash. The bowl's height is (r/ρ(θ))^1.3 / 1.3, where ρ(θ) leans
+   45 % of the way from a circle toward the triangle's soft (p-norm) outline: round, with a hint of three corners. The
+   ball starts near a corner with a sideways push and loses speed to friction, so it swings wide, precesses in lobes,
+   and settles. The dot follows the ball's own clock, fast through the bottom and slow at the rims, and that clock
+   runs on the exponential ease, so the whole settling is front-loaded. */
+const RPS_NORMALS = [Math.PI / 2, Math.PI * 7 / 6, -Math.PI / 6];   /* the triangle's edge normals from the centroid, canvas y-down */
+const BOWL = { T: 6, k: 1, hold: 2, acc: 0, last: 0, phase: 0, tab: null, path: bowlPath() };
+{ const q = new URLSearchParams(location.search).get('bowl'); if (q) BOWL.acc = parseFloat(q) * BOWL.T; }
+/* the ball, simulated once in inradius units from the rock corner; the bowl is three-fold symmetric, so the other
+   corners' runs are this one rotated. Scaled so the widest swing stays within 92 % of the way to any edge. */
+function bowlPath() {
+  const soft = (th) => { let acc = 0; for (const p of RPS_NORMALS) acc += Math.pow(Math.max(0, Math.cos(th - p)), 5); return 1 / Math.pow(acc, 1 / 5); };
+  const rho = (th) => 1 + 0.45 * (soft(th) - 1), A = 1.3, FRICTION = 0.15, DT = 0.004, h = 1e-4;
+  const V = (px, py) => { const r = Math.hypot(px, py); return r < 1e-9 ? 0 : Math.pow(r / rho(Math.atan2(py, px)), A) / A; };
+  const th0 = 2.62, r0 = 1.35, vt = 0.9 * Math.pow(r0 / rho(th0), A / 2);   /* 90 % of the speed of a circular orbit */
+  let px = r0 * Math.cos(th0), py = r0 * Math.sin(th0), vx = -Math.sin(th0) * vt, vy = Math.cos(th0) * vt;
+  const pts = [[px, py]];
+  for (let n = 1; n <= 12500; n++) {
+    const gx = (V(px + h, py) - V(px - h, py)) / (2 * h), gy = (V(px, py + h) - V(px, py - h)) / (2 * h);
+    vx += (-gx - FRICTION * vx) * DT; vy += (-gy - FRICTION * vy) * DT; px += vx * DT; py += vy * DT;
+    if (n % 8 === 0) pts.push([px, py]);
   }
-  return arcTable(pts);
+  let out = 0; for (const [qx, qy] of pts) for (const p of RPS_NORMALS) out = Math.max(out, qx * Math.cos(p) + qy * Math.sin(p));
+  return pts.map(([qx, qy]) => [qx * 0.92 / out, qy * 0.92 / out]);
 }
 function drawRps(now) {
   const dpr = dprOf(), W = rpsCv.clientWidth, H = 270;
@@ -2020,10 +2033,7 @@ function drawRps(now) {
   const cx = W / 2, top = 24, bot = H - 30, side = (bot - top) / 0.866;
   const V = [[cx - side / 2, bot], [cx, top], [cx + side / 2, bot]];
   const c = [(V[0][0] + V[1][0] + V[2][0]) / 3, (V[0][1] + V[1][1] + V[2][1]) / 3];
-  /* the reach from the centroid to the triangle's edge in direction th, softened so the spiral has no corners */
-  const rIn = bot - c[1], PHI = [Math.PI / 2, Math.PI * 7 / 6, -Math.PI / 6];
-  const reach = (th) => { let acc = 0; for (const p of PHI) { const cc = Math.max(0, Math.cos(th - p)); acc += Math.pow(cc, 9); } return rIn / Math.pow(acc, 1 / 9); };
-  const R0 = rIn;
+  const R0 = bot - c[1];   /* the inradius: Nash to an edge */
   /* the field: faint character dots that brighten toward the centre, the shape of the exploitability landscape */
   x.font = `9px ${MONO}`; x.textAlign = 'center';
   for (let gy = top + 8; gy < bot; gy += 11) for (let gx = V[0][0] + 8; gx < V[2][0]; gx += 8) {
@@ -2037,17 +2047,24 @@ function drawRps(now) {
   x.fillText('rock', V[0][0], V[0][1] + 16); x.fillText('paper', V[1][0], V[1][1] - 9); x.fillText('scissors', V[2][0], V[2][1] + 16);
   x.strokeStyle = C.iv45; x.beginPath(); x.arc(c[0], c[1], 5, 0, Math.PI * 2); x.stroke();
   x.fillStyle = C.iv45; x.textAlign = 'left'; x.fillText('nash (⅓, ⅓, ⅓)', c[0] + 12, c[1] - 8);
-  if (!SPIRAL.tab || SPIRAL.tab.W !== W || SPIRAL.tab.phase !== SPIRAL.phase) { SPIRAL.tab = spiralPath(c, reach, SPIRAL.phase); SPIRAL.tab.W = W; SPIRAL.tab.phase = SPIRAL.phase; }
-  const elapsed = REDUCED ? SPIRAL.T : SPIRAL.acc;
-  const u = REDUCED ? 1 : expEase(elapsed, SPIRAL.T, SPIRAL.k);
+  if (!BOWL.tab || BOWL.tab.W !== W || BOWL.tab.phase !== BOWL.phase) {
+    const rot = BOWL.phase * 2 * Math.PI / 3, cr = Math.cos(rot), sr = Math.sin(rot);
+    BOWL.tab = arcTable(BOWL.path.map(([qx, qy]) => [c[0] + R0 * (qx * cr - qy * sr), c[1] + R0 * (qx * sr + qy * cr)]));
+    BOWL.tab.W = W; BOWL.tab.phase = BOWL.phase;
+  }
+  const elapsed = REDUCED ? BOWL.T : BOWL.acc;
+  const u = REDUCED ? 1 : expEase(elapsed, BOWL.T, BOWL.k);
+  /* u is the ball's clock; the trail is drawn by arc length, so convert: how far along the path the ball has rolled */
+  const { cum, total } = BOWL.tab, fi = u * (cum.length - 1), i0 = Math.min(cum.length - 2, Math.floor(fi));
+  const uArc = (cum[i0] + (cum[i0 + 1] - cum[i0]) * (fi - i0)) / total;
   /* the trail, brightest at the head and fading over the last 45 % of the arc behind it */
-  const head = drawTrail(x, SPIRAL.tab, u, '233,184,98', 0.45, 0.1, 2.4);
+  const head = drawTrail(x, BOWL.tab, uArc, '233,184,98', 0.45, 0.1, 2.4);
   window.__rpsHead = [head[0], head[1], u];
   const glow = x.createRadialGradient(head[0], head[1], 0, head[0], head[1], 16);
   glow.addColorStop(0, 'rgba(216,86,111,.55)'); glow.addColorStop(1, 'rgba(216,86,111,0)');
   x.fillStyle = glow; x.beginPath(); x.arc(head[0], head[1], 16, 0, Math.PI * 2); x.fill();
   x.fillStyle = C.pink; x.beginPath(); x.arc(head[0], head[1], 3.6, 0, Math.PI * 2); x.fill();
-  if (elapsed >= SPIRAL.T) { const pulse = REDUCED ? 0 : (elapsed - SPIRAL.T) % 1.3; x.strokeStyle = `rgba(216,86,111,${0.6 * (1 - pulse / 1.3)})`; x.lineWidth = 1.2; x.beginPath(); x.arc(c[0], c[1], 6 + pulse * 14, 0, Math.PI * 2); x.stroke(); }
+  if (elapsed >= BOWL.T) { const pulse = REDUCED ? 0 : (elapsed - BOWL.T) % 1.3; x.strokeStyle = `rgba(216,86,111,${0.6 * (1 - pulse / 1.3)})`; x.lineWidth = 1.2; x.beginPath(); x.arc(c[0], c[1], 6 + pulse * 14, 0, Math.PI * 2); x.stroke(); }
   /* readouts derived from the plot itself: the head's barycentric coordinates, and a log-paced counter */
   const bary = (p) => { const [a, b, d] = V; const det = (b[1] - d[1]) * (a[0] - d[0]) + (d[0] - b[0]) * (a[1] - d[1]); const l0 = ((b[1] - d[1]) * (p[0] - d[0]) + (d[0] - b[0]) * (p[1] - d[1])) / det; const l1 = ((d[1] - a[1]) * (p[0] - d[0]) + (a[0] - d[0]) * (p[1] - d[1])) / det; return [l0, l1, 1 - l0 - l1]; };
   const m = bary(head).map((v) => clamp(v, 0, 1));
@@ -2055,14 +2072,14 @@ function drawRps(now) {
   $('#rpsMix').textContent = `(${m.map((v) => v.toFixed(3)).join(', ')})`;
 }
 let rpsVisible = false;
-function rpsRestart() { SPIRAL.acc = 0; SPIRAL.phase = (SPIRAL.phase + 1) % 3; if (REDUCED) drawRps(performance.now()); }
+function rpsRestart() { BOWL.acc = 0; BOWL.phase = (BOWL.phase + 1) % 3; if (REDUCED) drawRps(performance.now()); }
 rpsCv.style.cursor = 'pointer'; rpsCv.title = 'Click to start the walk again';
 rpsCv.addEventListener('click', rpsRestart);
 function rpsLoop(now) {
-  const dt = Math.min(0.05, (now - SPIRAL.last) / 1000); SPIRAL.last = now;
+  const dt = Math.min(0.05, (now - BOWL.last) / 1000); BOWL.last = now;
   if (rpsVisible && !document.hidden) {
-    SPIRAL.acc += dt;
-    if (SPIRAL.acc > SPIRAL.T + SPIRAL.hold) rpsRestart();   /* loop: a pause at Nash, then again from the next corner */
+    BOWL.acc += dt;
+    if (BOWL.acc > BOWL.T + BOWL.hold) rpsRestart();   /* loop: a pause at Nash, then again from the next corner */
     drawRps(now);
   }
   requestAnimationFrame(rpsLoop);
@@ -2234,7 +2251,7 @@ const rpsFig = (function () {
   }
   const sm = (arr) => arr.map((p, i) => { if (i === 0 || i === arr.length - 1) return p; const a = arr[i - 1], b = arr[i + 1]; return [0, 1, 2].map((k) => (a[k] + 2 * p[k] + b[k]) / 4); });
   const path = sm(sm(raw));
-  /* the walk is by arc length with the same exponential ease-out as the Solve widget: 7 s, then a 3 s pause, then again */
+  /* the walk is by arc length on the exponential ease-out: 7 s, then a 3 s pause, then again */
   const T = 7, K = 4.6, HOLD = 3;
   let geo, tab, started = false, vis = false, acc = 0, last = 0;
   const ctx = c.getContext('2d');
@@ -2403,7 +2420,7 @@ function boot() {
   }), { threshold: 0.15 });
   $$('.reveal').forEach((el) => io.observe(el)); io.observe(rpsCv); io.observe(kuhnCv); io.observe(tableG.canvas);
   if (rpsFig.canvas) io.observe(rpsFig.canvas);
-  SPIRAL.last = performance.now();
+  BOWL.last = performance.now();
   if (REDUCED) drawRps(performance.now()); else requestAnimationFrame(rpsLoop);
   drawKuhn();
   ladderFigs();
