@@ -731,8 +731,8 @@ footer a:hover{color:var(--ivory)}
           <a class="go" href="https://drawmaha.app/rung0">Play rung 0 <span class="arrow">→</span></a>
         </div>
         <div class="fig">
-          <canvas id="fig-rps" aria-label="The strategy simplex for rock, paper, scissors: the average strategy of a regret-matching self-play run walks from a corner and settles on the centre, the Nash point."></canvas>
-          <p class="cap"><b>The strategy triangle.</b> Each corner is a pure strategy; the <i>yellow path</i> is the average strategy of a self-play run made in this page, settling on the <em>Nash point</em> at the centre. Checkpoints are log-spaced and the path is smoothed: it shows the settling, not every step.</p>
+          <canvas id="fig-rps" aria-label="The strategy simplex for rock, paper, scissors: the average strategy rolls in from a corner and circles down to the centre, the Nash point, like a ball settling in a bowl."></canvas>
+          <p class="cap"><b>The strategy triangle.</b> Each corner is a pure strategy; the <i>yellow path</i> is the average strategy rolling in from a corner and circling down to the <em>Nash point</em> at the centre, like a ball in a bowl. The path is stylised, the same settling as in the Solve section above: the real run's numbers tick in the console at the top of the page.</p>
         </div>
       </article>
       <div class="between">
@@ -2010,6 +2010,17 @@ const BOWL = { T: 6, k: 1, hold: 2, acc: 0, last: 0, phase: 0, tab: null, path: 
 { const q = new URLSearchParams(location.search).get('bowl'); if (q) BOWL.acc = parseFloat(q) * BOWL.T; }
 /* the ball, simulated once in inradius units from the rock corner; the bowl is three-fold symmetric, so the other
    corners' runs are this one rotated. Scaled so the widest swing stays within 92 % of the way to any edge. */
+/* u is the ball's clock; the trail is drawn by arc length, so convert: how far along the path the ball has rolled */
+function bowlArc(tab, u) {
+  const { cum, total } = tab, fi = clamp(u, 0, 1) * (cum.length - 1), i0 = Math.min(cum.length - 2, Math.floor(fi));
+  return (cum[i0] + (cum[i0 + 1] - cum[i0]) * (fi - i0)) / total;
+}
+/* the rung-0 figure's triangle: the same bowl run, in that figure's pixels, rotated to start from the corner for this phase */
+function bowlTable(m, R0, phase) {
+  const rot = phase * 2 * Math.PI / 3, cr = Math.cos(rot), sr = Math.sin(rot);
+  const tab = arcTable(BOWL.path.map(([qx, qy]) => [m[0] + R0 * (qx * cr - qy * sr), m[1] + R0 * (qx * sr + qy * cr)]));
+  tab.phase = phase; return tab;
+}
 function bowlPath() {
   const soft = (th) => { let acc = 0; for (const p of RPS_NORMALS) acc += Math.pow(Math.max(0, Math.cos(th - p)), 5); return 1 / Math.pow(acc, 1 / 5); };
   const rho = (th) => 1 + 0.45 * (soft(th) - 1), A = 1.3, FRICTION = 0.15, DT = 0.004, h = 1e-4;
@@ -2047,18 +2058,11 @@ function drawRps(now) {
   x.fillText('rock', V[0][0], V[0][1] + 16); x.fillText('paper', V[1][0], V[1][1] - 9); x.fillText('scissors', V[2][0], V[2][1] + 16);
   x.strokeStyle = C.iv45; x.beginPath(); x.arc(c[0], c[1], 5, 0, Math.PI * 2); x.stroke();
   x.fillStyle = C.iv45; x.textAlign = 'left'; x.fillText('nash (⅓, ⅓, ⅓)', c[0] + 12, c[1] - 8);
-  if (!BOWL.tab || BOWL.tab.W !== W || BOWL.tab.phase !== BOWL.phase) {
-    const rot = BOWL.phase * 2 * Math.PI / 3, cr = Math.cos(rot), sr = Math.sin(rot);
-    BOWL.tab = arcTable(BOWL.path.map(([qx, qy]) => [c[0] + R0 * (qx * cr - qy * sr), c[1] + R0 * (qx * sr + qy * cr)]));
-    BOWL.tab.W = W; BOWL.tab.phase = BOWL.phase;
-  }
+  if (!BOWL.tab || BOWL.tab.W !== W || BOWL.tab.phase !== BOWL.phase) { BOWL.tab = bowlTable(c, R0, BOWL.phase); BOWL.tab.W = W; }
   const elapsed = REDUCED ? BOWL.T : BOWL.acc;
   const u = REDUCED ? 1 : expEase(elapsed, BOWL.T, BOWL.k);
-  /* u is the ball's clock; the trail is drawn by arc length, so convert: how far along the path the ball has rolled */
-  const { cum, total } = BOWL.tab, fi = u * (cum.length - 1), i0 = Math.min(cum.length - 2, Math.floor(fi));
-  const uArc = (cum[i0] + (cum[i0 + 1] - cum[i0]) * (fi - i0)) / total;
   /* the trail, brightest at the head and fading over the last 45 % of the arc behind it */
-  const head = drawTrail(x, BOWL.tab, uArc, '233,184,98', 0.45, 0.1, 2.4);
+  const head = drawTrail(x, BOWL.tab, bowlArc(BOWL.tab, u), '233,184,98', 0.45, 0.1, 2.4);
   window.__rpsHead = [head[0], head[1], u];
   const glow = x.createRadialGradient(head[0], head[1], 0, head[0], head[1], 16);
   glow.addColorStop(0, 'rgba(216,86,111,.55)'); glow.addColorStop(1, 'rgba(216,86,111,0)');
@@ -2236,24 +2240,12 @@ const RUNG1 = { it: DATA.kuhn.it, avg: DATA.kuhn.expl, J: DATA.kuhn.J, K: DATA.k
 const RUNG2 = { it: DATA.leduc.iterations, avg: DATA.leduc.expl };
 const RUNG0 = { it: 100000, avg: 0.0009 };
 
-/* rung 0: regret matching in self-play, run here at load; the average strategy at log-spaced checkpoints, smoothed,
-   over a faint field of how exploitable each mix is */
+/* rung 0: the same settling as the Solve widget above. The ball in the bowl, in this triangle's pixels, on the ball's
+   own clock, over a faint field of how exploitable each mix is. The real run's numbers tick in the console strip. */
 const rpsFig = (function () {
   const c = $('#fig-rps'); if (!c) return { canvas: null, layout() {}, start() {}, see() {} };
-  const A = PAYOFF;
-  const reg = [[6, 0, 0], [0, 0, 6]], sum = [[0, 0, 0], [0, 0, 0]];   /* a seeded start away from the centre so the walk is visible */
-  const strat = (r) => { const p = r.map((v) => Math.max(0, v)); const s = p[0] + p[1] + p[2]; return s > 0 ? p.map((v) => v / s) : [1 / 3, 1 / 3, 1 / 3]; };
-  const raw = []; let next = 1;
-  for (let it = 1; it <= 40000; it++) {
-    const s0 = strat(reg[0]), s1 = strat(reg[1]);
-    for (let k = 0; k < 2; k++) { const me = k ? s1 : s0, op = k ? s0 : s1; const u = [0, 1, 2].map((a) => A[a][0] * op[0] + A[a][1] * op[1] + A[a][2] * op[2]); const eu = u[0] * me[0] + u[1] * me[1] + u[2] * me[2]; for (let a = 0; a < 3; a++) { reg[k][a] += u[a] - eu; sum[k][a] += me[a]; } }
-    if (it === next) { const s = sum[0][0] + sum[0][1] + sum[0][2]; raw.push([sum[0][0] / s, sum[0][1] / s, sum[0][2] / s]); next = Math.max(next + 1, Math.ceil(next * 1.06)); }
-  }
-  const sm = (arr) => arr.map((p, i) => { if (i === 0 || i === arr.length - 1) return p; const a = arr[i - 1], b = arr[i + 1]; return [0, 1, 2].map((k) => (a[k] + 2 * p[k] + b[k]) / 4); });
-  const path = sm(sm(raw));
-  /* the walk is by arc length on the exponential ease-out: 7 s, then a 3 s pause, then again */
-  const T = 7, K = 4.6, HOLD = 3;
-  let geo, tab, started = false, vis = false, acc = 0, last = 0;
+  const { T, k: K, hold: HOLD } = BOWL;
+  let geo, tab = null, phase = 0, started = false, vis = false, acc = 0, last = 0;
   const ctx = c.getContext('2d');
   function layout() {
     const r = c.getBoundingClientRect(); if (!r.width) return; const d = dprOf();
@@ -2262,11 +2254,16 @@ const rpsFig = (function () {
     const h = H - 2 * pad - 6, side = Math.min(W - 2 * pad, h / (Math.sqrt(3) / 2));
     const hh = side * Math.sqrt(3) / 2, cx = W / 2, top = (H - hh) / 2 + 8;
     geo = { W, H, d, P0: [cx - side / 2, top + hh], P1: [cx + side / 2, top + hh], P2: [cx, top] };
-    tab = arcTable(path.map(bary));
+    tab = null;
     draw(REDUCED ? 1 : started ? expEase(acc, T, K) : 0);
   }
   const bary = (p) => { const { P0, P1, P2 } = geo; return [p[0] * P0[0] + p[1] * P1[0] + p[2] * P2[0], p[0] * P0[1] + p[1] * P1[1] + p[2] * P2[1]]; };
-  function draw(frac) {
+  function table() {
+    if (tab && tab.phase === phase) return tab;
+    const m = bary([1 / 3, 1 / 3, 1 / 3]);
+    return (tab = bowlTable(m, geo.P0[1] - m[1], phase));   /* the inradius: Nash to the bottom edge */
+  }
+  function draw(u) {
     if (!geo) return;
     const { W, H, d, P0, P1, P2 } = geo; ctx.setTransform(d, 0, 0, d, 0, 0); ctx.clearRect(0, 0, W, H);
     const cell = 9; ctx.font = `${cell * 1.05}px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -2284,20 +2281,22 @@ const rpsFig = (function () {
     ctx.textAlign = 'right'; ctx.fillText('rock', P0[0] - 6, P0[1] + 4); ctx.textAlign = 'left'; ctx.fillText('paper', P1[0] + 6, P1[1] + 4); ctx.textAlign = 'center'; ctx.fillText('scissors', P2[0], P2[1] - 12);
     const m = bary([1 / 3, 1 / 3, 1 / 3]);
     ctx.strokeStyle = C.pink; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(m[0], m[1], 7, 0, Math.PI * 2); ctx.stroke();
-    if (frac <= 0) return;
-    const head = drawTrail(ctx, tab, frac, '233,184,98', 0.45, 0.12, 2.2);
+    if (u <= 0) return;
+    const tb = table();
+    const head = drawTrail(ctx, tb, bowlArc(tb, u), '233,184,98', 0.45, 0.12, 2.2);
     ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.arc(head[0], head[1], 4, 0, Math.PI * 2); ctx.fill();
-    if (frac >= 0.995) { ctx.fillStyle = C.pink; ctx.textAlign = 'left'; ctx.fillText('Nash (⅓, ⅓, ⅓)', m[0] + 14, m[1] - 14); ctx.fillStyle = C.ivory; ctx.fillText('σ̄ (0.334, 0.333, 0.333)', m[0] + 14, m[1] + 4); }
-    const s0 = bary(path[0]); ctx.fillStyle = C.iv60; ctx.textAlign = 'left'; ctx.fillText('start', s0[0] + 8, s0[1] + 4);
+    if (u >= 0.995) { ctx.fillStyle = C.pink; ctx.textAlign = 'left'; ctx.fillText('Nash (⅓, ⅓, ⅓)', m[0] + 14, m[1] - 14); ctx.fillStyle = C.ivory; ctx.fillText('σ̄ (0.334, 0.333, 0.333)', m[0] + 14, m[1] + 4); }
+    const s0 = tb.pts[0]; ctx.fillStyle = C.iv60; ctx.textAlign = 'left'; ctx.fillText('start', s0[0] + 8, s0[1] + 4);
   }
+  function restart() { acc = 0; phase = (phase + 1) % 3; if (REDUCED) draw(1); }   /* again, from the next corner */
   function loop(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    if (vis && !document.hidden) { acc += dt; if (acc > T + HOLD) acc = 0; draw(expEase(acc, T, K)); }
+    if (vis && !document.hidden) { acc += dt; if (acc > T + HOLD) restart(); draw(expEase(acc, T, K)); }
     requestAnimationFrame(loop);
   }
   function start() { if (started || REDUCED) return; started = true; last = performance.now(); requestAnimationFrame(loop); }
   c.style.cursor = 'pointer'; c.title = 'Click to start the walk again';
-  c.addEventListener('click', () => { acc = 0; if (REDUCED) draw(1); });
+  c.addEventListener('click', restart);
   return { canvas: c, layout, start, see(v) { vis = v; } };
 })();
 
