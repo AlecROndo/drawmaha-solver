@@ -2,9 +2,10 @@
 
 The census figures asserted here are the plan's §4.7 table — 455 hands, 95
 classes, 970 and 5,160 canonical pairs — and the 10,170 the solver's key
-actually uses once the two board cards keep their order. They are re-derived by enumeration
-rather than read from a fixture, because the enumeration is cheap at this deck
-size and a fixture would only record what this module already computes.
+actually uses once the two board cards keep their order. They are re-derived
+by enumeration rather than read from a fixture, because the enumeration is
+cheap at this deck size and a fixture would only record what this module
+already computes.
 """
 
 from itertools import combinations, permutations
