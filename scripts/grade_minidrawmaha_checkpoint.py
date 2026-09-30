@@ -6,8 +6,8 @@ Prints both seats' best-response values, the exploitability, the expected
 value, and how long the table, the compiled game and each measurement took.
 Units are chips per hand with the ante as 1. Each public call snapshots the
 profile itself, so the per-call times include a read of the whole table.
-Budget about 5 GB of memory: the table is 3.4 GB and the grader holds
-1.5 GB of showdown tables for the life of the process. A checkpoint saved
+Budget about 2 GB of memory: the packed table is about 0.3 GB and the grader
+holds 1.5 GB of showdown tables for the life of the process. A checkpoint saved
 before the key kept the board order is refused on load: its ledgers belong to
 a table of 3,142,290 keys, not this one.
 """
