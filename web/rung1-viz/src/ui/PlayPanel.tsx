@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react'
 import {
-  CARD_NAME,
   CARD_SYMBOL,
   DEALS,
   actionLabel,
@@ -111,6 +110,7 @@ export function PlayPanel() {
   const over = hand.result !== null
   const history = hand.history
   const yourCard = hand.cards[hand.humanSeat]
+  const botCard = hand.cards[1 - hand.humanSeat]
 
   return (
     <Panel
@@ -122,8 +122,21 @@ export function PlayPanel() {
       label="Play against the equilibrium"
     >
       <div className="hand">
-        <div className="cardglyph" style={{ color: `var(--${CARD_NAME[yourCard]})` }}>
-          {CARD_SYMBOL[yourCard]}
+        {/* The cards the way the homepage draws them: your card face up, the
+            bot's face down until the hand is over, then turned so you can see
+            whether you were bluffed. */}
+        <div className="cards" aria-label="The cards">
+          <div className="cardglyph">
+            {CARD_SYMBOL[yourCard]}
+            <span className="who">you</span>
+          </div>
+          <div
+            className={over ? 'cardglyph' : 'cardglyph back'}
+            aria-label={over ? undefined : 'Bot’s card, face down'}
+          >
+            {over ? CARD_SYMBOL[botCard] : '?'}
+            <span className="who">bot</span>
+          </div>
         </div>
         <div>
           <span className="k">

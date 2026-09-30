@@ -8,7 +8,7 @@ import { PlayPanel } from './ui/PlayPanel'
 import { ResponsePanel } from './ui/ResponsePanel'
 import { SeatPanel } from './ui/SeatPanel'
 import { useExploit, type Exploit } from './ui/useExploit'
-import { IdentityRail, LadderLine, Panel, Squiggle } from './ui/site'
+import { Footer, Hero, Panel, TopBar } from './ui/site'
 
 const TABS = [
   { id: 'walk', label: 'Walk the line', blurb: 'the timeline, both ranges, every node' },
@@ -42,6 +42,7 @@ function WalkTab({ walk, setWalk, x }: { walk: Walk; setWalk: (w: Walk) => void;
     <>
       <div className="block">
         <Panel
+          n="01"
           className="timeline wide"
           k="Fig. 1 · the hand so far — click a station to rewind"
           label="The action timeline"
@@ -78,8 +79,8 @@ export default function App() {
   const x = useExploit()
   const [play, setPlay] = useState<Session>(() => freshSession(SOLVE.strategy))
 
-  // The identity rail's "Play the solver" button points at #play from every
-  // page. On this page that is a hash change with no reload, so listen.
+  // The top bar's "Play the solver" button points at #play from every page.
+  // On this page that is a hash change with no reload, so listen.
   useEffect(() => {
     const onHash = () => setTab(tabFromHash())
     addEventListener('hashchange', onHash)
@@ -96,56 +97,63 @@ export default function App() {
 
   return (
     <>
-      <LadderLine here={2} />
-      <div className="shell">
-        <IdentityRail now="Rung 2 · Leduc poker" next="Rung 3 · mini-Drawmaha" />
-        <main>
-          <section>
-            <p className="stop">Rung 2 · Leduc poker · 288 information sets</p>
-            <h2 className="big">The action timeline, drawn as the ladder.</h2>
-            <Squiggle />
-            <p className="lede">
-              The site draws its validation ladder as a line with a station per rung, filled as
-              far as the climb has got. A hand of Leduc is the same shape — a line of decisions —
-              so this page reuses the motif: one station per action, the board card is a station
-              too, and the rail is solid as far as the hand has been played.{' '}
-              <strong>Click any station to rewind to it; click the board card to change it.</strong>{' '}
-              Rewinding never deletes the stations ahead; only choosing a different action forks
-              the line, and the page warns before it does. You never see a card — each seat is its
-              whole range, which is the only thing either player could actually condition on.
-            </p>
-            <p className="note script">
-              {SOLVE.iterations.toLocaleString()}-iteration solve — every number on this page is
-              the Python solver’s output: exploitability {SOLVE.exploitabilityAverage.toFixed(4)}{' '}
-              chips/hand, game value {SOLVE.gameValue.toFixed(4)} against the exact{' '}
-              {SOLVE.gameValueExact.toFixed(4)}.
-            </p>
+      <TopBar here={2} />
 
-            <div className="views" role="tablist" aria-label="Views">
-              {TABS.map((entry) => (
-                <button
-                  key={entry.id}
-                  role="tab"
-                  aria-selected={tab === entry.id}
-                  className={tab === entry.id ? 'view current' : 'view'}
-                  onClick={() => show(entry.id)}
-                >
-                  <b>{entry.label}</b>
-                  <span>{entry.blurb}</span>
-                </button>
-              ))}
-            </div>
+      <main className="wrap">
+        <Hero
+          eyebrow="Rung 2 of 4 · complete · CFR with a board"
+          done
+          title={
+            <>
+              The action timeline, <em>drawn as the ladder.</em>
+            </>
+          }
+          icon="table"
+          iconLabel="An oval poker table with a card at each seat and one on the board, drawn in ASCII"
+        >
+          <p className="lede">
+            The site draws its validation ladder as a line with a station per rung, filled as far
+            as the climb has got. A hand of Leduc is the same shape — a line of decisions — so this
+            page reuses the motif: one station per action, the board card is a station too, and
+            the rail is solid as far as the hand has been played.{' '}
+            <b>Click any station to rewind to it; click the board card to change it.</b> Rewinding
+            never deletes the stations ahead; only choosing a different action forks the line, and
+            the page warns before it does. You never see a card — each seat is its whole range,
+            which is the only thing either player could actually condition on.
+          </p>
+          <p className="note">
+            {SOLVE.iterations.toLocaleString()}-iteration solve — every number on this page is the
+            Python solver’s output: exploitability{' '}
+            <b>{SOLVE.exploitabilityAverage.toFixed(4)} chips/hand</b>, game value{' '}
+            {SOLVE.gameValue.toFixed(4)} against the exact {SOLVE.gameValueExact.toFixed(4)}.
+          </p>
+        </Hero>
 
-            {tab === 'walk' ? (
-              <WalkTab walk={walk} setWalk={setWalk} x={x} />
-            ) : (
-              <div className="block">
-                <PlayPanel session={play} setSession={setPlay} />
-              </div>
-            )}
-          </section>
-        </main>
-      </div>
+        <div className="views" role="tablist" aria-label="Views">
+          {TABS.map((entry) => (
+            <button
+              key={entry.id}
+              role="tab"
+              aria-selected={tab === entry.id}
+              className={tab === entry.id ? 'view current' : 'view'}
+              onClick={() => show(entry.id)}
+            >
+              <b>{entry.label}</b>
+              <span>{entry.blurb}</span>
+            </button>
+          ))}
+        </div>
+
+        {tab === 'walk' ? (
+          <WalkTab walk={walk} setWalk={setWalk} x={x} />
+        ) : (
+          <div className="block">
+            <PlayPanel session={play} setSession={setPlay} />
+          </div>
+        )}
+      </main>
+
+      <Footer />
     </>
   )
 }

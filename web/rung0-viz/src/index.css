@@ -1,651 +1,40 @@
 /*
- * DUOTONE / LADDER-AS-JOURNEY — the system shared by the cover page and both
- * visualizers. The rules, in the order they matter:
- *
- *   1. Duotone. ONE saturated hue and one paper, nothing else in the chrome.
- *      The two swap for the light colour scheme rather than being redefined.
- *   2. The site's own thesis carried literally: the validation ladder IS the
- *      nav, drawn as a line with a station per rung, solid as far as the
- *      project has actually climbed.
- *   3. A persistent identity rail down the left that never scrolls away.
- *   4. Three sharply separated type voices — serif display, MONO body (the
- *      unusual move; body copy is typed, not set), script annotation.
- *   5. Figures are rounded paper panels floating on the field, numbered.
- *   6. Anything tabular is hairline rows, never cards.
- *   7. One element per page deliberately off-axis.
- *   8. Illustration is monoline: one stroke weight, hatched shading.
- *
- * The only chromatic colour on the site lives INSIDE a figure, where it
- * carries an action's or a card's identity. Chrome never uses it.
+ * Rung 0's own figures, on top of the shared theme (theme.css): the identity
+ * inks the figures use, the console strip, the ledger bars, the update trace,
+ * the charts and the scoreboard. Everything here reads the theme's tokens;
+ * the old duotone names (--panel-mark, --panel-dim, --panel-hair) are the
+ * theme's aliases for ink on a window.
  */
 
 :root {
-  color-scheme: dark light;
-
-  /* the one hue, and the paper */
-  --oxblood: #8e2038;
-  --bone: #f5f0e6;
-
-  /* field = the page; mark = what sits on it; panel = the paper islands */
-  --field: var(--oxblood);
-  --mark: var(--bone);
-  --mark-dim: rgba(245, 240, 230, 0.72);
-  --hair: rgba(245, 240, 230, 0.28);
-  --hair-strong: rgba(245, 240, 230, 0.55);
-
-  --panel: var(--bone);
-  --panel-mark: var(--oxblood);
-  --panel-dim: #b04d65;
-  --panel-hair: rgba(142, 32, 56, 0.22);
-  --panel-border: transparent;
-
-  /* Identity colour, and the only chromatic ink on the site. It appears on a
-     paper panel and nowhere else — never in the chrome. */
-  --rock: #2a78d6;
-  --paper: #1b8f66;
-  --scissors: #c07a00;
-  --avg-obj: #4a3aa7;
-  --cur-obj: #8f616b;
-  --win: #0e7a34;
-  --loss: #b3243c;
-
-  --serif: 'Instrument Serif', Georgia, serif;
-  --mono: 'IBM Plex Mono', ui-monospace, monospace;
-  --script: 'Kalam', cursive;
-
-  --rail-w: 232px;
-  --gutter: clamp(20px, 3.4vw, 56px);
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    /* Same two colours, swapped. The panels stay paper but deepen a step so
-       they still read as islands once the field is paper too. */
-    --field: var(--bone);
-    --mark: var(--oxblood);
-    --mark-dim: rgba(142, 32, 56, 0.76);
-    --hair: rgba(142, 32, 56, 0.22);
-    --hair-strong: rgba(142, 32, 56, 0.62);
-
-    --panel: #eae0cb;
-    --panel-border: rgba(142, 32, 56, 0.26);
-    /* The panel deepens a step in this scheme, so every ink that sits on it
-       has to come down with it or it loses the contrast it had on bone. */
-    --panel-dim: #a1465c;
-    --cur-obj: #825962;
-    --win: #0d7431;
-    /* The one identity colour that does not survive the deeper panel: amber is
-       the lightest of the three, and only it drops under the 3:1 a legend dot
-       needs. Rung 1's three all clear it, which is why only this file carries
-       an identity override here. */
-    --scissors: #ac6d00;
-  }
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  background: var(--field);
-  color: var(--mark);
-  font: 400 14px/1.6 var(--mono);
-  -webkit-font-smoothing: antialiased;
-}
-
-a {
-  color: inherit;
-}
-
-:focus-visible {
-  outline: 2px solid var(--mark);
-  outline-offset: 3px;
-}
-
-/* Inside a paper panel the ring flips with everything else. --mark is bone and
-   so is the panel, so the field ring lands bone-on-bone — an invisible focus
-   indicator on the tree's lockable rows, the transport slider, the play
-   buttons and the cover's deal ticket, all of which live on paper. */
-.panel :focus-visible {
-  outline-color: var(--panel-mark);
-}
-
-/* ---------- 2. the ladder, drawn as the nav ------------------------------ */
-
-nav.line {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: var(--field);
-  border-bottom: 1px solid var(--hair);
-  padding: 20px 0 16px;
-}
-
-/* No fixed height: the track must grow with its labels, or the sub-lines
-   hang below the bar's background and float transparent over whatever
-   scrolls under them. */
-nav.line .track {
-  position: relative;
-  margin: 0 var(--gutter);
-}
-
-/* Named .bar, not .rail — the identity sidebar owns .rail, and sharing the
-   name would put its flex/height/padding rules on these two absolute divs. */
-nav.line .bar {
-  position: absolute;
-  left: 10%;
-  right: 10%;
-  top: 11px;
-  height: 1px;
-  background: var(--hair);
-}
-
-/* Stations sit at 10/30/50/70/90% — the centres of five equal columns — so
-   the climbed segment runs from the first station to the third. */
-nav.line .bar.done {
-  left: 10%;
-  right: 50%;
-  top: 10.5px;
-  height: 2px;
-  background: var(--mark);
-}
-
-nav.line ol {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-nav.line li {
-  text-align: center;
-  min-width: 0;
-}
-
-nav.line .dot {
-  display: block;
-  width: 13px;
-  height: 13px;
-  margin: 5px auto 0;
-  border-radius: 50%;
-  border: 2px solid var(--mark);
-  background: var(--field);
-}
-
-nav.line li.done .dot {
-  background: var(--mark);
-}
-
-nav.line li.todo .dot {
-  border-color: var(--mark-dim);
-}
-
-/* The station you are standing at gets a halo rather than a colour, because
-   there is no second colour to reach for. */
-nav.line li.here .dot {
-  box-shadow: 0 0 0 4px var(--field), 0 0 0 5.5px var(--mark);
-}
-
-nav.line a,
-nav.line span.stop-name {
-  display: block;
-  margin-top: 10px;
-  font: 500 13px/1 var(--mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  text-decoration: none;
-}
-
-nav.line li.todo span.stop-name {
-  color: var(--mark-dim);
-}
-
-nav.line a:hover {
-  text-decoration: underline;
-  text-underline-offset: 0.3em;
-}
-
-nav.line .sub {
-  display: block;
-  margin-top: 5px;
-  font: 400 12px/1.3 var(--mono);
-  color: var(--mark-dim);
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-/* ---------- 3. the identity rail ---------------------------------------- */
-
-.shell {
-  display: grid;
-  grid-template-columns: var(--rail-w) minmax(0, 1fr);
-}
-
-aside.rail {
-  position: sticky;
-  top: 98px;
-  align-self: start;
-  height: calc(100vh - 98px);
-  padding: 34px 26px 26px var(--gutter);
-  border-right: 1px solid var(--hair);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-aside.rail .mark {
-  width: 46px;
-  height: 46px;
-}
-
-aside.rail h1 {
-  font: 400 40px/0.98 var(--serif);
-  letter-spacing: -0.01em;
-  margin: 0;
-}
-
-aside.rail .quote {
-  font: 400 13px/1.55 var(--mono);
-  color: var(--mark-dim);
-  margin: 0;
-}
-
-aside.rail dl {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-aside.rail dt {
-  font: 600 13px/1.3 var(--mono);
-}
-
-aside.rail dd {
-  margin: 2px 0 0;
-  font: 400 12.5px/1.35 var(--mono);
-  color: var(--mark-dim);
-}
-
-aside.rail .spacer {
-  flex: 1;
-  min-height: 20px;
-}
-
-aside.rail .sketch {
-  width: 100%;
-  height: auto;
-}
-
-/* ---------- buttons and links -------------------------------------------- */
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  text-align: center;
-  text-decoration: none;
-  background: transparent;
-  color: var(--mark);
-  border: 1px solid var(--mark);
-  border-radius: 3px;
-  padding: 10px 14px;
-  font: 500 11.5px/1 var(--mono);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.btn:hover:not(:disabled) {
-  background: var(--mark);
-  color: var(--field);
-}
-
-.btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* Inside a paper panel the two colours are the other way round. */
-.panel .btn {
-  color: var(--panel-mark);
-  border-color: var(--panel-mark);
-}
-
-.panel .btn:hover:not(:disabled) {
-  background: var(--panel-mark);
-  color: var(--panel);
-}
-
-.panel .btn.solid {
-  background: var(--panel-mark);
-  color: var(--panel);
-}
-
-.panel .btn.solid:hover:not(:disabled) {
-  opacity: 0.85;
-}
-
-/* The secondary half of a button row — Step x1/x100/x10k beside Run, Reset,
-   the second of two play moves. It is the same button with the box turned
-   down to a hairline, never with the ink turned down: a .btn is a control and
-   its label has to stay at the full 7.66:1, which --mark-dim would not.
-   Hover restores the full border so the target is unambiguous. */
-.btn.ghost {
-  border-color: var(--hair-strong);
-}
-
-.btn.ghost:hover:not(:disabled) {
-  border-color: var(--mark);
-}
-
-.panel .btn.ghost {
-  border-color: var(--panel-hair);
-}
-
-.panel .btn.ghost:hover:not(:disabled) {
-  border-color: var(--panel-mark);
-}
-
-/* 10. links: mono, underlined, trailing arrow */
-.links {
-  margin: 20px 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.links a,
-a.arrow {
-  font: 400 13.5px/1.4 var(--mono);
-  text-decoration: underline;
-  text-underline-offset: 0.32em;
-  width: fit-content;
-}
-
-.links a:hover,
-a.arrow:hover {
-  color: var(--mark-dim);
-}
-
-/* ---------- 4. the three type voices ------------------------------------- */
-
-main {
-  padding: 34px var(--gutter) 96px 40px;
-}
-
-.stop {
-  font: 500 11.5px/1 var(--mono);
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--mark-dim);
-  margin: 0;
-}
-
-h2.big {
-  font: 400 clamp(34px, 4.6vw, 58px)/1.03 var(--serif);
-  letter-spacing: -0.015em;
-  margin: 14px 0 0;
-  max-width: 18ch;
-}
-
-.squiggle {
-  display: block;
-  width: 232px;
-  height: 9px;
-  margin: 7px 0 0;
-}
-
-.lede {
-  font: 400 14.5px/1.75 var(--mono);
-  max-width: 62ch;
-  margin: 26px 0 0;
-}
-
-.script {
-  font: 400 16px/1.5 var(--script);
-}
-
-section {
-  margin-top: 74px;
-}
-
-section:first-of-type {
-  margin-top: 0;
-}
-
-/* ---------- 5. figures are paper panels, numbered ------------------------ */
-
-.panels {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  margin-top: 26px;
-}
-
-.panel {
-  position: relative;
-  background: var(--panel);
-  color: var(--panel-mark);
-  border: 1px solid var(--panel-border);
-  border-radius: 13px;
-  padding: 26px 26px 24px;
-  min-width: 0;
-}
-
-.panel.wide {
-  grid-column: 1 / -1;
-}
-
-.panel .no {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1.5px solid var(--panel-mark);
-  font: 500 12px/25px var(--mono);
-  text-align: center;
-  color: var(--panel-mark);
-}
-
-.panel h3 {
-  font: 400 26px/1.12 var(--serif);
-  letter-spacing: -0.01em;
-  margin: 9px 0 0;
-  max-width: 26ch;
-}
-
-.panel .k {
-  font: 400 9px/1 var(--mono);
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--panel-dim);
-}
-
-.panel .say {
-  font: 400 12.5px/1.65 var(--mono);
-  color: var(--panel-dim);
-  margin: 10px 0 0;
-  max-width: 60ch;
-}
-
-.panel svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.panel svg text {
-  font-family: var(--mono);
-}
-
-/* readouts under a figure */
-.panel .stat {
-  display: flex;
-  gap: 34px;
-  flex-wrap: wrap;
-  margin: 18px 0 0;
-}
-
-.panel .stat div {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.panel .stat dt {
-  font: 400 9px/1 var(--mono);
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--panel-dim);
-}
-
-.panel .stat dd {
-  margin: 0;
-  font: 500 19px/1.1 var(--mono);
-  font-variant-numeric: tabular-nums;
-}
-
-/* field/value rows inside a panel */
-.fields {
-  list-style: none;
-  margin: 15px 0 0;
-  padding: 0;
-}
-
-.fields li {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 8px 0;
-  border-top: 1px solid var(--panel-hair);
-  font: 400 12px/1.35 var(--mono);
-  font-variant-numeric: tabular-nums;
-}
-
-.fields li span:first-child {
-  color: var(--panel-dim);
-}
-
-.legend {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  font: 400 11.5px/1.3 var(--mono);
-  color: var(--panel-dim);
-  margin: 14px 0 10px;
-}
-
-.legend .item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.legend .swatch {
-  width: 12px;
-  height: 3px;
-  border-radius: 2px;
-}
-
-/* Ink is inherited, never named: a chip appears both inside a paper panel (the
-   trace, the scoreboard, a chart legend) and on the field (the play-a-hand
-   buttons). Naming --panel-mark here painted the field chips oxblood on the
-   oxblood field — invisible until hovered. Inheriting picks up --panel-mark
-   from .panel and --mark from .btn, which is right in both places. */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  flex: none;
-}
-
-/* ---------- 6. hairline rows --------------------------------------------- */
-
-.rows {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 22px 0 0;
-}
-
-.rows td {
-  padding: 15px 0;
-  border-bottom: 1px solid var(--hair);
-  vertical-align: baseline;
-}
-
-.rows tr:first-child td {
-  border-top: 1px solid var(--hair);
-}
-
-.rows .g {
-  font: 600 14.5px/1.35 var(--mono);
-  width: 210px;
-}
-
-.rows .n {
-  width: 34px;
-  font: 400 13px/1.3 var(--mono);
-  color: var(--mark-dim);
-}
-
-.rows .p {
-  font: 400 13.5px/1.5 var(--mono);
-  color: var(--mark-dim);
-  padding-left: 26px;
-}
-
-.rows .s {
-  text-align: right;
-  font: 400 13px/1.3 var(--mono);
-  white-space: nowrap;
-  padding-left: 20px;
-}
-
-.rows .s a {
-  text-decoration: underline;
-  text-underline-offset: 0.3em;
-}
-
-.rows tr.pending .g,
-.rows tr.pending .n {
-  color: var(--mark-dim);
-}
-
-/* ---------- 7. the one off-axis element ---------------------------------- */
-
-.tilt {
-  transform: rotate(-2.2deg);
-}
-
-.tilt.right {
-  transform: rotate(1.8deg);
-}
-
-/* ---------- controls: mono, on the field --------------------------------- */
+  /* Identity colour, inside a figure only. Three actions, three inks: rock
+     is plain ivory, paper the yellow, scissors the pink. The average is the
+     product and gets the pointing colour; the current iterate is the
+     restless one and gets the action colour. */
+  --rock: var(--ivory);
+  --paper: var(--yellow);
+  --scissors: var(--pink);
+  --avg-obj: var(--yellow);
+  --cur-obj: var(--pink);
+  --win: var(--yellow);
+  --loss: var(--pink);
+
+}
+
+/* ---------- controls: the console strip ---------------------------------- */
 
 .controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 16px 0;
-  border-top: 1px solid var(--hair);
-  border-bottom: 1px solid var(--hair);
-  margin-top: 30px;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-top: 26px;
+  border: 1px solid var(--iv-10);
+  border-radius: 6px;
+  background: var(--panel);
+  font-family: var(--mono);
+  font-size: 12px;
 }
 
 .controls .grow {
@@ -654,70 +43,75 @@ section:first-of-type {
 
 .mode-tabs {
   display: flex;
-  gap: 20px;
+  gap: 2px;
   margin-right: 6px;
 }
 
 .mode-tabs button {
   font: 500 12px/1 var(--mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  border: none;
-  background: transparent;
-  color: var(--mark-dim);
-  padding: 3px 0;
-  cursor: pointer;
+  letter-spacing: 0.04em;
+  color: var(--iv-60);
+  padding: 8px 10px;
+  border-radius: 3px;
 }
 
 .mode-tabs button:hover {
-  color: var(--mark);
+  color: var(--ivory);
+  background: var(--iv-06);
 }
 
 .mode-tabs button[aria-selected='true'] {
-  color: var(--mark);
-  text-decoration: underline;
-  text-underline-offset: 0.35em;
+  color: var(--ivory);
+  background: var(--iv-10);
 }
 
 .controls label.inline {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font: 400 12.5px/1 var(--mono);
-  color: var(--mark-dim);
+  font: 400 11px/1 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--iv-45);
 }
 
 .controls input[type='range'] {
-  accent-color: var(--mark);
+  accent-color: var(--yellow);
+  width: 110px;
 }
 
 .controls input[type='text'] {
-  font: 400 12.5px/1 var(--mono);
-  width: 62px;
+  font: 400 12px/1 var(--mono);
+  width: 70px;
   padding: 7px 9px;
-  border: 1px solid var(--hair-strong);
+  border: 1px solid var(--iv-16);
   border-radius: 3px;
-  background: transparent;
-  color: var(--mark);
+  background: var(--well);
+  color: var(--ivory);
 }
 
 .controls .readout {
-  font: 400 12.5px/1 var(--mono);
+  font: 400 12px/1 var(--mono);
   font-variant-numeric: tabular-nums;
-  color: var(--mark-dim);
+  color: var(--iv-80);
   min-width: 88px;
+}
+
+.controls .btn {
+  padding: 7px 11px;
+  font-size: 12px;
 }
 
 .dist-sliders {
   flex-basis: 100%;
   display: flex;
-  gap: 14px;
+  gap: 16px;
   align-items: center;
   flex-wrap: wrap;
-  padding-top: 14px;
-  border-top: 1px solid var(--hair);
+  padding-top: 12px;
+  border-top: 1px solid var(--iv-10);
   font: 400 12px/1 var(--mono);
-  color: var(--mark-dim);
+  color: var(--iv-60);
 }
 
 .dist-sliders label {
@@ -728,36 +122,33 @@ section:first-of-type {
 
 .dist-sliders input[type='range'] {
   width: 62px;
-  accent-color: var(--mark);
+  accent-color: var(--yellow);
 }
 
 .dist-sliders .pct {
   width: 34px;
   text-align: right;
-  color: var(--mark);
+  color: var(--ivory);
+  font-variant-numeric: tabular-nums;
 }
 
-/* The row's own caption, in the eyebrow voice the panels use for .k. Without
-   it the caption inherited .dist-sliders' font and read as a fourth action
-   label sitting beside rock/paper/scissors rather than as their heading. */
 .dist-sliders .label {
-  font: 500 11px/1 var(--mono);
-  letter-spacing: 0.13em;
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  color: var(--iv-45);
 }
 
 /* ---------- the ledger bars (rung 0's figure 1) -------------------------- */
 
-/* The seat switch and the running exploitability, on one line under the
-   panel's own heading — they describe the figure, not the page. */
 .ledger-head {
   display: flex;
   align-items: baseline;
   gap: 16px;
   flex-wrap: wrap;
-  margin-top: 18px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--panel-hair);
+  margin-top: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--iv-10);
 }
 
 .ledger-head .grow {
@@ -765,22 +156,22 @@ section:first-of-type {
 }
 
 .ledger-head .mode-tabs button {
-  color: var(--panel-dim);
+  color: var(--iv-60);
 }
 
 .ledger-head .mode-tabs button:hover,
 .ledger-head .mode-tabs button[aria-selected='true'] {
-  color: var(--panel-mark);
+  color: var(--ivory);
 }
 
 .ledger-head .readout {
   font: 400 12px/1.4 var(--mono);
   font-variant-numeric: tabular-nums;
-  color: var(--panel-dim);
+  color: var(--iv-60);
 }
 
 .ledger-head .readout b {
-  color: var(--panel-mark);
+  color: var(--yellow);
   font-weight: 500;
 }
 
@@ -789,7 +180,7 @@ section:first-of-type {
   grid-template-columns: 1fr 22px 1fr 22px 1fr;
   gap: 18px;
   align-items: center;
-  margin-top: 22px;
+  margin-top: 20px;
 }
 
 .ledger-stage {
@@ -799,11 +190,15 @@ section:first-of-type {
 .ledger-stage .k {
   display: block;
   margin-bottom: 14px;
+  font: 400 10px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
 }
 
 .ledger-arrow {
   font: 400 18px/1 var(--mono);
-  color: var(--panel-dim);
+  color: var(--iv-45);
   text-align: center;
 }
 
@@ -831,8 +226,7 @@ section:first-of-type {
 
 /* No transition on the fill. At a thousand rounds a second the bar would
    spend its whole life interpolating toward a target it never reaches, so it
-   would disagree with the number printed above it — and at a signed bar it
-   would straddle the zero line on the way past. */
+   would disagree with the number printed above it. */
 .bar-fill {
   position: absolute;
   left: 9px;
@@ -848,12 +242,12 @@ section:first-of-type {
 .bar-value {
   font: 400 11.5px/1 var(--mono);
   font-variant-numeric: tabular-nums;
-  color: var(--panel-dim);
+  color: var(--iv-80);
 }
 
 .bar-name {
   font: 400 11px/1 var(--mono);
-  color: var(--panel-dim);
+  color: var(--iv-60);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -869,18 +263,18 @@ section:first-of-type {
 }
 
 .zero-line {
-  border-top: 1px solid var(--panel-dim);
+  border-top: 1px solid var(--iv-30);
 }
 
 .third-line {
-  border-top: 1px dashed var(--panel-dim);
+  border-top: 1px dashed var(--iv-30);
 }
 
 .third-label {
   position: absolute;
   right: 0;
   font: 400 10px/1 var(--mono);
-  color: var(--panel-dim);
+  color: var(--iv-45);
   transform: translateY(-115%);
 }
 
@@ -889,32 +283,32 @@ section:first-of-type {
 .trace {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .trace td {
   padding: 10px 0;
-  border-bottom: 1px solid var(--panel-hair);
+  border-bottom: 1px solid var(--iv-10);
   vertical-align: baseline;
-  font: 400 12.5px/1.45 var(--mono);
+  font: 400 12px/1.45 var(--mono);
   font-variant-numeric: tabular-nums;
 }
 
 .trace tr:first-child td {
-  border-top: 1px solid var(--panel-hair);
+  border-top: 1px solid var(--iv-10);
 }
 
 .trace td.lbl {
-  color: var(--panel-dim);
+  color: var(--iv-60);
   width: 38%;
   padding-right: 20px;
 }
 
 .trace-empty,
 .trace-compact {
-  font: 400 12.5px/1.6 var(--mono);
-  color: var(--panel-dim);
-  margin: 18px 0 0;
+  font: 400 12px/1.6 var(--mono);
+  color: var(--iv-60);
+  margin: 16px 0 0;
   min-height: calc(2 * 1.6em);
 }
 
@@ -928,13 +322,13 @@ section:first-of-type {
 .chart-tooltip {
   position: absolute;
   pointer-events: none;
-  background: var(--panel);
-  border: 1px solid var(--panel-hair);
-  border-radius: 6px;
-  padding: 8px 11px;
-  font: 400 11.5px/1.4 var(--mono);
+  background: var(--field);
+  border: 1px solid var(--iv-16);
+  border-radius: 3px;
+  padding: 6px 9px;
+  font: 400 11px/1.5 var(--mono);
   font-variant-numeric: tabular-nums;
-  color: var(--panel-mark);
+  color: var(--iv-80);
   white-space: nowrap;
   z-index: 2;
 }
@@ -948,6 +342,7 @@ section:first-of-type {
 
 .chart-tooltip .row .val {
   margin-left: 14px;
+  color: var(--ivory);
 }
 
 /* ---------- scoreboard ---------------------------------------------------- */
@@ -957,18 +352,19 @@ section:first-of-type {
   gap: 8px;
   flex-wrap: wrap;
   min-height: 54px;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .strip-empty {
-  font: 400 12.5px/1.5 var(--mono);
-  color: var(--panel-dim);
+  font: 400 12px/1.5 var(--mono);
+  color: var(--iv-60);
   align-self: center;
 }
 
 .outcome {
-  border: 1px solid var(--panel-hair);
-  border-radius: 6px;
+  border: 1px solid var(--iv-16);
+  border-radius: 4px;
+  background: var(--well);
   padding: 6px 9px;
   font: 400 11.5px/1.35 var(--mono);
   text-align: center;
@@ -987,62 +383,48 @@ section:first-of-type {
   margin-top: 2px;
 }
 
-.outcome .res.w { color: var(--win); }
-.outcome .res.l { color: var(--loss); }
-.outcome .res.t { color: var(--panel-dim); }
+.outcome .res.w {
+  color: var(--win);
+}
+
+.outcome .res.l {
+  color: var(--loss);
+}
+
+.outcome .res.t {
+  color: var(--iv-60);
+}
 
 .play-buttons {
   display: flex;
   gap: 10px;
-  padding: 18px 0;
-  border-bottom: 1px solid var(--hair);
+  padding: 18px 0 0;
   flex-wrap: wrap;
 }
 
+.play-buttons .btn {
+  padding: 12px 18px;
+  font-size: 13px;
+}
+
 .kbd-hint {
-  font: 400 12.5px/1.6 var(--mono);
-  color: var(--mark-dim);
-  margin: 56px 0 0;
+  font: 400 12px/1.6 var(--mono);
+  color: var(--iv-45);
+  margin: 40px 0 0;
 }
 
 kbd {
-  border: 1px solid var(--hair-strong);
+  border: 1px solid var(--iv-30);
   border-bottom-width: 2px;
   border-radius: 3px;
   padding: 0 5px;
   font: 400 11px/1.6 var(--mono);
-}
-
-.panel kbd {
-  border-color: var(--panel-hair);
+  color: var(--iv-80);
 }
 
 /* ---------- narrow -------------------------------------------------------- */
 
 @media (max-width: 1080px) {
-  .shell {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  aside.rail {
-    position: static;
-    height: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--hair);
-  }
-
-  aside.rail .spacer {
-    display: none;
-  }
-
-  main {
-    padding: 30px var(--gutter) 70px;
-  }
-
-  .panels {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .ledger-flow {
     grid-template-columns: minmax(0, 1fr);
     gap: 28px;
@@ -1050,16 +432,5 @@ kbd {
 
   .ledger-arrow {
     display: none;
-  }
-
-  nav.line .sub {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
   }
 }

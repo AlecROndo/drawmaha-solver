@@ -1,6 +1,8 @@
-# The cover page
+# The cover pages
 
-Two self-contained HTML files, served as the site's front door:
+Three self-contained HTML files, served as the site's front door. Two are
+exports of a design workflow that lives beside the repo and are never edited
+here; the third is authored in this directory by hand:
 
 - `index.html` — the homepage at `/`. A product fold (the ASCII-rendered chip
   stack beside rung 0's live regret-matching console), the rung-2 Leduc
@@ -11,26 +13,34 @@ Two self-contained HTML files, served as the site's front door:
   played, in the same chrome: a scroll-driven raymarched table that deals,
   flops, draws, turns, rivers and splits the pot, the worked hand read two
   ways, and why nobody has solved the game.
+- `cover.html` — the Cover at `/cover`: the site's original front page, kept
+  and rebuilt in the same theme. The homepage's nav and `chip.js` verbatim,
+  the two ASCII windows from `web/hero-studies` (the hand from the sidelines,
+  five giants at the bar) on an oxblood field, one window of numbers per
+  solved rung, and the ladder as hairline rows. Hand-authored here, not
+  exported.
 
 Each page inlines its own CSS, its data (the committed rung-1 and rung-2
 solves) and its scripts. Nothing here is built; there is no bundler and no
-third-party CDN. The only outside requests either page makes are for the
-fonts under `/fonts/`.
+third-party CDN. The only outside requests any page makes are for the fonts
+under `/fonts/`.
 
-## Designed outside the repo, then exported
+## Two exported, one authored
 
-The pages are not authored in this directory. They come out of a studies
-workflow that lives beside the repo: rounds of competing homepage studies,
-one chosen, then tightened with the Rules tab and built from a source file
-plus shared parts (the raymarching kernel, `chip.js`, the inlined solves).
-That workflow exports the finished pages with their font URLs rewritten to
-`/fonts/<file>`, and the export is what gets checked in here, byte for byte.
+The homepage and the Rules tab are not authored in this directory. They come
+out of a studies workflow that lives beside the repo: rounds of competing
+homepage studies, one chosen, then tightened with the Rules tab and built
+from a source file plus shared parts (the raymarching kernel, `chip.js`, the
+inlined solves). That workflow exports the finished pages with their font
+URLs rewritten to `/fonts/<file>`, and the export is what gets checked in
+here, byte for byte.
 
 So: do not hand-edit `index.html` or `rules.html`. A fix goes into the
-studies source, gets re-exported, and replaces both files. The tests in
-`tests/test_cover_page.py` check what the export can get wrong silently —
-a link to a route that does not exist, a font the build never copies, a
-script that does not parse — not the wording.
+studies source, gets re-exported, and replaces both files. `cover.html` is
+the exception: it is written here, so a fix to it is an ordinary edit. The
+tests in `tests/test_cover_page.py` check all three for what a static page
+can get wrong silently — a link to a route that does not exist, a font the
+build never copies, a script that does not parse — not the wording.
 
 ## The font rule
 
@@ -38,12 +48,13 @@ The pages load eight woff2 files from `/fonts/`, all named the @fontsource
 way (`<family>-latin-<weight>-<style>.woff2`), and they reach `public/fonts/`
 by two routes:
 
-- `scripts/vercel_build.sh` already copies IBM Plex Mono 400/500/600 and
-  Instrument Serif 400 regular out of rung 0's `@fontsource` packages with
-  `copy_font`. Those are **not** duplicated here.
-- The four files no visualizer bundles — Instrument Sans 400/500/600 (the
-  prose voice) and Instrument Serif 400 italic — live in `fonts/` in this
-  directory, and the build copies them beside the rest.
+- `scripts/vercel_build.sh` copies IBM Plex Mono 400/500/600 and Instrument
+  Serif 400 regular out of rung 0's `@fontsource` packages with `copy_font`.
+  Those are **not** duplicated here.
+- The other four — Instrument Sans 400/500/600 (the prose voice) and
+  Instrument Serif 400 italic — live in `fonts/` in this directory, and the
+  build copies them beside the rest. (The visualizers bundle their own copies
+  of all eight into their `assets/`; `/fonts/` serves only these pages.)
 
 A page may only reference a font that one of those two routes produces; the
 test enforces it. Adding a fifth voice means adding its file here (or a
@@ -58,24 +69,26 @@ test enforces it. Adding a fifth voice means adding its file here (or a
 | `/`            | `public/index.html` (no rewrite)   |
 | `/rules`       | rewritten to `/rules.html`         |
 | `/rules.html`  | the file itself                    |
+| `/cover`       | rewritten to `/cover.html`         |
+| `/cover.html`  | the file itself                    |
 | `/index.html`  | the file itself                    |
 | `/fonts/*`     | the woff2 files                    |
 
-The pages link to each other relatively (`rules.html`, `index.html#ladder`),
-which resolves at the root either way, and to the visualizers absolutely
-(`https://drawmaha.app/rung0` and so on); every such link must match a
-rewrite source in `vercel.json` or the test fails.
+The pages link to each other relatively (`rules.html`, `cover.html`,
+`index.html#rung3`), which resolves at the root either way, and to the
+visualizers absolutely (`https://drawmaha.app/rung0` and so on); every such
+link must match a rewrite source in `vercel.json` or the test fails.
 
 ## Checking them locally
 
 The build script is the real thing (`bash scripts/vercel_build.sh`, then
 `uv run python scripts/serve_site.py`), but it runs three `npm ci` builds
-first. To look at just these two pages, mimic `public/` in a temp dir and
+first. To look at just these three pages, mimic `public/` in a temp dir and
 serve it:
 
 ```bash
 tmp=$(mktemp -d)
-cp web/cover/index.html web/cover/rules.html "$tmp/"
+cp web/cover/index.html web/cover/rules.html web/cover/cover.html "$tmp/"
 mkdir "$tmp/fonts"
 cp web/cover/fonts/*.woff2 "$tmp/fonts/"
 # the four the build copies from @fontsource (after an npm ci in web/rung0-viz):
@@ -85,8 +98,9 @@ for w in 400 500 600; do cp $f/ibm-plex-mono/files/ibm-plex-mono-latin-$w-normal
 (cd "$tmp" && python3 -m http.server 8790)
 ```
 
-Then open `http://127.0.0.1:8790/` and `http://127.0.0.1:8790/rules.html`.
-The `/rules` rewrite is Vercel's and will not resolve under `http.server`;
-the in-page links use `rules.html`, so the Rules tab and its back link work.
+Then open `http://127.0.0.1:8790/`, `http://127.0.0.1:8790/rules.html` and
+`http://127.0.0.1:8790/cover.html`. The `/rules` and `/cover` rewrites are
+Vercel's and will not resolve under `http.server`; the in-page links use the
+file names, so the tabs and their back links work.
 What to look for: an empty devtools console, every `/fonts/` request a 200,
 and no request leaving the host.

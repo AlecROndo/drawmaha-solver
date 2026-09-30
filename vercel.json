@@ -8,6 +8,10 @@
       "destination": "/rules.html"
     },
     {
+      "source": "/cover",
+      "destination": "/cover.html"
+    },
+    {
       "source": "/rung0",
       "destination": "/rung0/index.html"
     },

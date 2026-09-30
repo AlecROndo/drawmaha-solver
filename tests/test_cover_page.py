@@ -1,9 +1,10 @@
-"""The cover page only promises what the deploy actually serves.
+"""The static pages only promise what the deploy actually serves.
 
-The homepage and its Rules tab are two self-contained HTML files under
-`web/cover/`, designed outside the repo and exported (see the README there),
-so nothing here re-checks their wording. What it checks is the set of things a
-static export gets wrong silently, and that no reviewer catches by reading:
+The homepage, its Rules tab and the Cover are three self-contained HTML files
+under `web/cover/` — the first two designed outside the repo and exported, the
+Cover authored here (see the README there) — so nothing here re-checks their
+wording. What it checks is the set of things a static page gets wrong
+silently, and that no reviewer catches by reading:
 
 - an `href` to a route that does not exist — the nav lists rungs that have no
   page yet, and the temptation each round is to link them "for later", which
@@ -28,7 +29,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 COVER = ROOT / "web" / "cover"
-PAGES = ("index.html", "rules.html")
+PAGES = ("index.html", "rules.html", "cover.html")
 
 # The site's own origin; absolute links to it are the same as root-relative ones.
 ORIGIN = "https://drawmaha.app"
@@ -43,16 +44,13 @@ def pages() -> dict[str, str]:
 def routes() -> set[str]:
     """Every path the deploy answers, from vercel.json plus the filesystem.
 
-    `public/` is served filesystem-first, so the two pages are reachable by
-    file name and `/` is `index.html` with no rewrite; everything else needs a
+    `public/` is served filesystem-first, so each page is reachable by file
+    name and `/` is `index.html` with no rewrite; everything else needs a
     rewrite source.
     """
     config = json.loads((ROOT / "vercel.json").read_text())
-    return {rewrite["source"] for rewrite in config["rewrites"]} | {
-        "/",
-        "/index.html",
-        "/rules",
-        "/rules.html",
+    return {rewrite["source"] for rewrite in config["rewrites"]} | {"/"} | {
+        f"/{name}" for name in PAGES
     }
 
 

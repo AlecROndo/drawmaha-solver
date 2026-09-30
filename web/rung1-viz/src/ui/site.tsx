@@ -1,158 +1,277 @@
 /**
- * The chrome every page of the site shares: the ladder drawn as a nav, the
- * identity rail down the left, and the paper panel a figure sits on.
+ * The chrome every page of the site shares, in the cover page's theme: the
+ * top bar with the turning chip as the home mark and the Rungs menu, the hero
+ * (copy beside the rung's own ASCII object), the window a figure sits in, and
+ * the footer that closes the page on the chip again.
  *
  * Deliberately duplicated in each visualizer rather than extracted to a
- * package: the two apps deploy independently and a shared build step would buy
- * ~120 lines at the cost of a workspace. When a third rung ships, extract.
+ * package: the apps deploy independently and a shared build step would buy
+ * ~300 lines at the cost of a workspace. Keep the three copies identical; a
+ * change here is a change in all three.
  */
 
-/** The five rungs, and how far the project has actually climbed. */
+import { useEffect, useRef, useState } from 'react'
+import { mountChip } from './mark'
+import { mountObject, type IconName } from './ascii'
+
+const HOME = 'https://drawmaha.app'
+
+/** The five rungs as the Rungs menu lists them, and what each one links to. */
 const RUNGS = [
-  { n: 0, name: 'Rung 0', sub: 'rock-paper-scissors', href: '/rung0', done: true },
-  { n: 1, name: 'Rung 1', sub: 'kuhn poker', href: '/rung1', done: true },
-  { n: 2, name: 'Rung 2', sub: 'leduc', href: '/rung2', done: true },
-  { n: 3, name: 'Rung 3', sub: 'mini-drawmaha', href: null, done: false },
-  { n: 4, name: 'Rung 4', sub: 'full drawmaha', href: null, done: false },
-]
+  { n: 0, name: 'Rock-paper-scissors', href: `${HOME}/rung0`, state: 'done', acts: [['Analysis', `${HOME}/rung0`]] },
+  { n: 1, name: 'Kuhn', href: `${HOME}/rung1`, state: 'done', acts: [['Analysis', `${HOME}/rung1`]] },
+  {
+    n: 2,
+    name: 'Leduc',
+    href: `${HOME}/rung2`,
+    state: 'done',
+    acts: [
+      ['Analysis', `${HOME}/rung2`],
+      ['Solver', `${HOME}/rung2#walk`],
+      ['Trainer', `${HOME}/rung2#play`],
+    ],
+  },
+  { n: 3, name: 'Mini-Drawmaha', href: `${HOME}/#rung3`, state: 'now', acts: [['Analysis', `${HOME}/#rung3`]] },
+  { n: 4, name: 'Full Drawmaha', href: `${HOME}/#rung4`, state: 'todo', acts: [['Analysis', `${HOME}/#rung4`]] },
+] as const
+
+/** The chip, turning. `font` is the cell size: 3 for the mark in the bar, 4 for the one that closes the page. */
+export function Mark({ font, speed }: { font: number; speed?: number }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    if (!ref.current) return
+    return mountChip(ref.current, { font, speed })
+  }, [font, speed])
+  return <canvas ref={ref} aria-hidden />
+}
+
+/** The rung's object, raymarched into glyphs; turns slowly, faster under the mouse. */
+export function RungObject({ icon, label }: { icon: IconName; label: string }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    if (!ref.current) return
+    return mountObject(ref.current, icon)
+  }, [icon])
+  return <canvas ref={ref} className="object" role="img" aria-label={label} />
+}
 
 /**
- * The validation ladder as the site's nav.
- *
- * The project's whole thesis is that it climbs one rung at a time, each
- * checked against a known answer, so the nav is that line: a station per rung,
- * filled where the rung is done, and a solid segment running only as far as
- * the climb has actually got. "Two of five complete" is the picture rather
- * than a caption under it.
+ * The Rungs menu: a rope ladder pulled open leftward from its button. Opens on
+ * hover (250 ms), click, tap or keyboard focus; Escape and a click outside
+ * close it. On a narrow screen the CSS turns it into a list under the button.
  */
-export function LadderLine({ here }: { here: number }) {
+function RungsMenu({ here }: { here: number }) {
+  const root = useRef<HTMLDivElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
+  const pinned = useRef(false)
+  const hoverT = useRef(0)
+  const leaveT = useRef(0)
+
+  const fit = (isOpen: boolean) => {
+    const m = menu.current
+    if (!m) return
+    if (matchMedia('(max-width:1240px)').matches) {
+      m.style.width = ''
+      return
+    }
+    const cells = m.querySelectorAll<HTMLElement>('.rcell')
+    const a = cells[0]
+    const z = cells[cells.length - 1]
+    m.style.width = isOpen ? `${z.offsetLeft + z.offsetWidth - a.offsetLeft + 10}px` : '0px'
+  }
+  const set = (v: boolean, pin = false) => {
+    pinned.current = v && pin
+    setOpen(v)
+    fit(v)
+  }
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (open && root.current && !root.current.contains(e.target as Node)) set(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open) {
+        set(false)
+        root.current?.querySelector<HTMLButtonElement>('.rungs-btn')?.focus()
+      }
+    }
+    const onResize = () => {
+      if (open) fit(true)
+    }
+    document.addEventListener('click', onClick)
+    document.addEventListener('keydown', onKey)
+    addEventListener('resize', onResize)
+    return () => {
+      document.removeEventListener('click', onClick)
+      document.removeEventListener('keydown', onKey)
+      removeEventListener('resize', onResize)
+    }
+  }, [open])
+
   return (
-    <nav className="line" aria-label="The validation ladder">
-      <div className="track">
-        <div className="bar" />
-        <div className="bar done" />
-        <ol>
-          {RUNGS.map((rung) => {
-            const state = [rung.done ? 'done' : 'todo', rung.n === here ? 'here' : '']
-              .filter(Boolean)
-              .join(' ')
-            const label = (
-              <>
-                {rung.name}
-                <span className="sub">{rung.sub}</span>
-              </>
-            )
-            return (
-              <li key={rung.n} className={state}>
-                <span className="dot" />
-                {rung.href ? (
-                  <a href={rung.href} aria-current={rung.n === here ? 'page' : undefined}>
-                    {label}
-                  </a>
-                ) : (
-                  <span className="stop-name">{label}</span>
-                )}
-              </li>
-            )
-          })}
-        </ol>
+    <div
+      ref={root}
+      className={open ? 'rungs open' : 'rungs'}
+      onMouseEnter={() => {
+        clearTimeout(leaveT.current)
+        if (!open) hoverT.current = window.setTimeout(() => set(true, false), 250)
+      }}
+      onMouseLeave={() => {
+        clearTimeout(hoverT.current)
+        if (open && !pinned.current) leaveT.current = window.setTimeout(() => set(false), 280)
+      }}
+      onBlur={(e) => {
+        if (open && e.relatedTarget && !root.current?.contains(e.relatedTarget as Node)) set(false)
+      }}
+    >
+      <button
+        className="navbtn rungs-btn"
+        type="button"
+        aria-expanded={open}
+        aria-controls="rungsMenu"
+        aria-haspopup="true"
+        onClick={() => {
+          clearTimeout(hoverT.current)
+          if (open && pinned.current) set(false)
+          else set(true, true)
+        }}
+        onFocus={(e) => {
+          if (e.target.matches(':focus-visible') && !open) set(true, true)
+        }}
+      >
+        Rungs
+      </button>
+      <div ref={menu} className="rungs-menu" id="rungsMenu" role="group" aria-label="The five rungs">
+        {RUNGS.map((rung, i) => (
+          <div
+            key={rung.n}
+            className={['rcell', rung.state, rung.n === here ? 'here' : ''].filter(Boolean).join(' ')}
+            style={{ '--i': RUNGS.length - 1 - i, '--j': i } as React.CSSProperties}
+          >
+            <a className="rmain" href={rung.href} aria-current={rung.n === here ? 'page' : undefined}>
+              <b>{rung.n}</b>
+              <span>{rung.name}</span>
+            </a>
+            <div className="racts">
+              {rung.acts.map(([label, href]) => (
+                <a key={label} href={href}>
+                  {label}
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
-    </nav>
+    </div>
   )
 }
 
-/** The suit mark, drawn monoline like everything else. */
-function Mark() {
+/** The top bar: the chip as the way home, the site nav, one way into the product. */
+export function TopBar({ here }: { here: number }) {
   return (
-    <svg className="mark" viewBox="0 0 46 46" aria-hidden>
-      <g fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="23" cy="23" r="22" />
-        <path d="M23 11c-4.4 4.6-8 8-8 11.6a8 8 0 0 0 16 0C31 19 27.4 15.6 23 11Z" />
-        <path d="M23 30.6V35M19.4 35h7.2" />
-      </g>
-    </svg>
+    <header className="top">
+      <div className="wrap">
+        <a className="chip-home" href={HOME} aria-label="Drawmaha home">
+          <Mark font={3} />
+          <span className="word">
+            Drawmaha<small>Solver · Deep CFR</small>
+          </span>
+        </a>
+        <nav className="nav" aria-label="Site">
+          <a className="navbtn" href={`${HOME}/rules`}>
+            Rules
+          </a>
+          <RungsMenu here={here} />
+        </nav>
+        {here === 2 ? (
+          <a className="btn primary" href="#play">
+            Play the solver →
+          </a>
+        ) : (
+          <a className="btn primary" href={`${HOME}/rung2`}>
+            Open the solver →
+          </a>
+        )}
+      </div>
+    </header>
   )
 }
 
-/** Chips and a couple of cards: monoline, one stroke weight, lightly hatched. */
-function Sketch() {
+/** The page closes on the chip, turning slower, and the site's short list of doors. */
+export function Footer() {
   return (
-    <svg className="sketch" viewBox="0 0 150 62" aria-hidden>
-      <g fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-        <ellipse cx="34" cy="46" rx="20" ry="7" />
-        <path d="M14 46v-7M54 46v-7" />
-        <ellipse cx="34" cy="39" rx="20" ry="7" />
-        <path d="M14 39v-7M54 39v-7" />
-        <ellipse cx="34" cy="32" rx="20" ry="7" />
-        <path d="M22 31.4a13 6 0 0 0 24 0" strokeOpacity=".55" />
-        <ellipse cx="96" cy="50" rx="15" ry="5.4" />
-        <path d="M81 50v-5.5M111 50v-5.5" />
-        <ellipse cx="96" cy="44.5" rx="15" ry="5.4" />
-        <rect x="112" y="16" width="24" height="33" rx="3" transform="rotate(11 124 32)" />
-        <rect x="104" y="14" width="24" height="33" rx="3" transform="rotate(-4 116 30)" />
-        <path d="M113 27.5l3.6-4 3.6 4-3.6 4.2z" />
-        <path d="M6 57h138" strokeOpacity=".4" />
-      </g>
-    </svg>
+    <footer>
+      <div className="wrap">
+        <a className="chip-end" href={HOME} aria-label="Drawmaha home">
+          <Mark font={4} speed={0.32} />
+        </a>
+        <span className="tag">Each rung is checked against a known answer before we climb.</span>
+        <div className="links">
+          <a href={HOME}>Home</a>
+          <a href={`${HOME}/rules`}>Rules</a>
+          <a href={`${HOME}/cover`}>Cover</a>
+          <a href={`${HOME}/rung0`}>/rung0</a>
+          <a href={`${HOME}/rung1`}>/rung1</a>
+          <a href={`${HOME}/rung2`}>/rung2</a>
+        </div>
+      </div>
+    </footer>
   )
 }
 
-/**
- * The identity rail: who this is, where the climb stands, and one way in. It
- * is sticky because it is the page's fixed point — everything to its right is
- * one rung's worth of evidence.
- */
-export function IdentityRail({ now, next }: { now: string; next: string }) {
-  return (
-    <aside className="rail">
-      <Mark />
-      <h1>
-        Drawmaha
-        <br />
-        Solver.
-      </h1>
-      <p className="quote">“Each rung is checked against a known answer before we climb.”</p>
-      <dl>
-        <div>
-          <dt>now</dt>
-          <dd>{now}</dd>
-        </div>
-        <div>
-          <dt>next</dt>
-          <dd>{next}</dd>
-        </div>
-        <div>
-          <dt>method</dt>
-          <dd>Deep CFR</dd>
-        </div>
-      </dl>
-      <span className="spacer" />
-      <Sketch />
-      <a className="btn" href="/rung2#play">
-        Play the solver →
-      </a>
-    </aside>
-  )
-}
-
-/** The hand-drawn rule under a headline — the one imperfect mark on the page. */
+/** The red squiggle under a headline: the one hand-drawn mark on the page. */
 export function Squiggle() {
   return (
-    <svg className="squiggle" viewBox="0 0 232 9" aria-hidden>
-      <path
-        d="M2 6.2c14-5 28 3.4 42-.6s28-4.6 42 .4 28 4 42-.8 28-4 42 1 28 3.4 60-1"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
+    <svg className="squig" viewBox="0 0 190 12" aria-hidden>
+      <path d="M2 7 C 12 1, 20 12, 30 7 S 48 1, 58 7 S 76 12, 86 7 S 104 1, 114 7 S 132 12, 142 7 S 160 1, 170 7 S 184 12, 188 7" />
     </svg>
   )
 }
 
 /**
- * A figure's paper panel: numbered top-right, a mono field label, a serif
- * title that states the finding, and a mono sentence saying what is drawn.
+ * The hero: the eyebrow says which rung and where it stands, the headline
+ * states the finding, the lede says what is on the page, and the rung's own
+ * object turns beside it.
+ */
+export function Hero({
+  eyebrow,
+  done,
+  title,
+  icon,
+  iconLabel,
+  children,
+}: {
+  eyebrow: React.ReactNode
+  /** a finished rung's dot is yellow; the rung in progress keeps the pink one */
+  done?: boolean
+  title: React.ReactNode
+  icon: IconName
+  iconLabel: string
+  children?: React.ReactNode
+}) {
+  return (
+    <div className="hero">
+      <div className="hero-copy">
+        <p className="eyebrow">
+          <span className={done ? 'dot done' : 'dot'} />
+          {eyebrow}
+        </p>
+        <h1>{title}</h1>
+        <Squiggle />
+        {children}
+      </div>
+      <div className="hero-obj">
+        <RungObject icon={icon} label={iconLabel} />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * A figure's window: a title bar with the figure's number and field label, then
+ * the pane with a serif title that states the finding, a mono sentence saying
+ * what is drawn, and the figure itself.
  */
 export function Panel({
   n,
@@ -163,6 +282,7 @@ export function Panel({
   wide,
   className,
   label,
+  live,
   children,
 }: {
   n?: string
@@ -174,6 +294,8 @@ export function Panel({
   wide?: boolean
   className?: string
   label?: string
+  /** a running figure gets the live dot in its title bar */
+  live?: boolean
   children: React.ReactNode
 }) {
   return (
@@ -182,11 +304,26 @@ export function Panel({
       className={['panel', wide ? 'wide' : '', className ?? ''].filter(Boolean).join(' ')}
       aria-label={label}
     >
-      {n && <span className="no">{n}</span>}
-      {k && <span className="k">{k}</span>}
-      {title && <h3>{title}</h3>}
-      {say && <p className="say">{say}</p>}
-      {children}
+      <div className="titlebar">
+        <span className="dots">
+          <i />
+          <i />
+          <i />
+        </span>
+        {k && <span className="k">{k}</span>}
+        {live && (
+          <span className="live">
+            <i />
+            live
+          </span>
+        )}
+        {n && <span className="no">{n}</span>}
+      </div>
+      <div className="pane">
+        {title && <h3>{title}</h3>}
+        {say && <p className="say">{say}</p>}
+        {children}
+      </div>
     </section>
   )
 }
