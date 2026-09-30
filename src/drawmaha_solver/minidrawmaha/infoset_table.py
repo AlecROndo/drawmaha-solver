@@ -86,7 +86,9 @@ InfoSetTable = dict[InfoSet, RegretMatcher]
 # Allocating the table
 # ---------------------------------------------------------------------------
 
-def new_infoset_table(keys: Iterable[InfoSet] | None = None) -> InfoSetTable:
+def new_infoset_table(
+    keys: Iterable[InfoSet] | None = None, *, extra_averages: int = 0
+) -> InfoSetTable:
     """A fresh table: one independent ledger per key, all playing uniformly.
 
     Pre-allocated rather than filled on demand, so a key the walk should never
@@ -111,6 +113,10 @@ def new_infoset_table(keys: Iterable[InfoSet] | None = None) -> InfoSetTable:
     `enumeration.py` refuses the equivalent collapse in `merged()` for the same
     reason, one layer up.
 
+    `extra_averages` gives every ledger that many `extra_sums` rows beside its
+    strategy sum — the averaging columns a regret rule banks (see
+    `regret_matching`'s ledger contract). Zero unless a run asks.
+
     A one-wide spot would be refused by `RegretMatcher`, which is the wanted
     behaviour rather than an edge case to smooth over: a ledger with one legal
     action has no regret to accumulate, and the betting rules only produce one
@@ -118,7 +124,9 @@ def new_infoset_table(keys: Iterable[InfoSet] | None = None) -> InfoSetTable:
     """
     table: InfoSetTable = {}
     for seen, infoset in enumerate(all_infosets() if keys is None else keys, start=1):
-        table[infoset] = RegretMatcher(len(infoset.legal_actions()))
+        table[infoset] = RegretMatcher(
+            len(infoset.legal_actions()), extra_averages=extra_averages
+        )
         if len(table) != seen:
             raise ValueError(f"{infoset} was handed to the table twice")
     return table

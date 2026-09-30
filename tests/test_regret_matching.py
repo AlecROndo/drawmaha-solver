@@ -145,3 +145,67 @@ def test_bad_weight_leaves_the_ledger_untouched():
         m.update(np.array([1.0, 0.0, 0.0]), regret_weight=float("nan"))
     assert np.allclose(m.cumulative_regret, np.zeros(3))
     assert np.allclose(m.strategy_sum, np.zeros(3))
+
+# ---------------------------------------------------------------------------
+# The ledger contract: the two slots rung 3's regret rules write, and ledgers
+# whose numbers live in a table's flat arrays
+# ---------------------------------------------------------------------------
+
+def test_a_fresh_ledger_has_no_extra_averages_and_a_zero_stamp():
+    m = RegretMatcher(3)
+    assert m.extra_sums.shape == (0, 3)
+    assert m.stamp.shape == (1,) and m.stamp.dtype == np.int64 and m.stamp[0] == 0
+
+def test_extra_averages_are_zeroed_rows_beside_the_strategy_sum():
+    m = RegretMatcher(3, extra_averages=2)
+    assert m.extra_sums.shape == (2, 3)
+    assert not m.extra_sums.any()
+
+def test_update_leaves_the_extra_averages_and_the_stamp_alone():
+    # Vanilla `update` is rung 0's rule and stays it. The extra columns and
+    # the stamp belong to the regret rules, which write them themselves.
+    m = RegretMatcher(3, extra_averages=1)
+    m.update(np.array([-1.0, 0.0, 1.0]), strategy_weight=2.0)
+    assert not m.extra_sums.any()
+    assert m.stamp[0] == 0
+
+def test_a_ledger_over_borrowed_arrays_writes_through_to_them():
+    # What a packed table hands the walk: a ledger whose four slots are views
+    # into the table's flat arrays, so an update lands in the table itself.
+    regret, strategy = np.zeros(5), np.zeros(5)
+    extra, stamps = np.zeros((1, 5)), np.zeros(4, dtype=np.int64)
+    m = RegretMatcher.over(
+        cumulative_regret=regret[2:5],
+        strategy_sum=strategy[2:5],
+        extra_sums=extra[:, 2:5],
+        stamp=stamps[1:2],
+    )
+    assert m.n_actions == 3
+    m.update(np.array([-1.0, 0.0, 1.0]))
+    m.extra_sums += 1.0
+    m.stamp[0] = 7
+    assert np.allclose(regret, [0, 0, -1, 0, 1])
+    assert np.allclose(strategy, [0, 0, 1 / 3, 1 / 3, 1 / 3])
+    assert np.allclose(extra, [[0, 0, 1, 1, 1]])
+    assert stamps.tolist() == [0, 7, 0, 0]
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"strategy_sum": np.zeros(4)},
+        {"extra_sums": np.zeros((1, 4))},
+        {"stamp": np.zeros(2, dtype=np.int64)},
+        {"stamp": np.zeros(1)},
+        {"cumulative_regret": np.zeros(3, dtype=np.float32)},
+    ],
+)
+def test_borrowed_arrays_of_the_wrong_shape_or_type_are_refused(bad):
+    slots = dict(
+        cumulative_regret=np.zeros(3),
+        strategy_sum=np.zeros(3),
+        extra_sums=np.zeros((0, 3)),
+        stamp=np.zeros(1, dtype=np.int64),
+    )
+    slots.update(bad)
+    with pytest.raises(ValueError):
+        RegretMatcher.over(**slots)

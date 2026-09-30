@@ -101,6 +101,14 @@ def test_a_table_allocated_at_one_public_point_holds_exactly_its_private_keys():
     assert len(table) == len(private_keys(board_cards=1, discards=0)) == 970
     assert set(table) == set(keys)
 
+def test_a_table_can_carry_extra_averaging_columns_on_every_ledger():
+    # The averaging columns a regret rule banks beside the strategy sum: one
+    # row per extra weighting, as wide as the ledger, on every key.
+    table = new_infoset_table(keys_at(THE_DRAW), extra_averages=3)
+    assert {ledger.extra_sums.shape for ledger in table.values()} == {(3, 4)}
+    plain = new_infoset_table(keys_at(THE_OPEN))
+    assert {ledger.extra_sums.shape[0] for ledger in plain.values()} == {0}
+
 def test_every_ledger_is_exactly_as_wide_as_its_spots_legal_actions():
     # Rung 2's claim, restated at every width this rung has. A uniform 4-wide
     # table would bank regret for throwing a card at a betting spot, and that
