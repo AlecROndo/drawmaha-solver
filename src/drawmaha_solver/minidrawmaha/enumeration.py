@@ -15,15 +15,17 @@ independent halves, and neither half is large:
   one depends on a single card, so ONE representative deal walks all of them.
   That is the same 141 whether the deck is 15 cards or 52.
 * a **private key** — the acting player's own `(hole, discarded, board)` after
-  the joint canonical relabelling. **970 / 10,170** while one board card is out
-  and **5,160 / 50,450** once two are, each pair ordered by whether that player
-  has thrown 0 or 1 cards. The first pair sums to 11,140, which is the number
-  §4.3 of the plan measured from the other side — by walking draw histories
-  rather than by building keys directly.
+  the joint canonical relabelling, the board in the order it came. **970 /
+  10,170** while one board card is out and **10,170 / 100,400** once two are,
+  each pair ordered by whether that player has thrown 0 or 1 cards. The first
+  pair sums to 11,140, which is the number §4.3 of the plan measured from the
+  other side — by walking draw histories rather than by building keys directly.
 
 An infoset is exactly one of each, so the enumerator is two nested loops and
-the census is a 141-term sum of products: **3,142,290 ledgers, 1,567,750 for
-P0 and 1,574,540 for P1.**
+the census is a 141-term sum of products: **6,220,050 ledgers, 3,106,630 for
+P0 and 3,113,420 for P1.** Keeping the board order is what doubles the
+round-2 half: a key that sorted the board held 3,142,290, and merged two
+histories the player can tell apart (see `game.canonical_picture`).
 
 Every count here is the game at `THROW_CAP = 1`. The cap is the dominant term
 and it pulls twice — it sets the draw's ledger width AND how many draw points
@@ -46,7 +48,7 @@ are argued here and tested in `tests/minidrawmaha/test_census.py`:
 * *Nothing is doubled.* `player`, `draws` and `betting` are all carried inside
   the key, so two different public points can never produce the same `InfoSet`,
   and inside one point the private keys are distinct by construction. Counting
-  what comes out is therefore exact, which matters: a `set` of 3.1 million keys
+  what comes out is therefore exact, which matters: a `set` of 6.2 million keys
   costs some hundreds of megabytes to hold, and holding it buys nothing.
 
 `all_infosets()` is deliberately the ONLY walk. The census script counts what
@@ -62,7 +64,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 from functools import cache
-from itertools import combinations
+from itertools import combinations, permutations
 from math import comb
 
 from drawmaha_solver.minidrawmaha.cards import DECK, Card, canonical
@@ -72,6 +74,7 @@ from drawmaha_solver.minidrawmaha.game import (
     InfoSet,
     MiniState,
     NodeKind,
+    canonical_picture,
 )
 from drawmaha_solver.minidrawmaha.hands import HOLE_CARDS
 
@@ -221,6 +224,9 @@ def public_decision_points() -> tuple[PublicPoint, ...]:
 def private_keys(*, board_cards: int, discards: int) -> tuple[PrivateKey, ...]:
     """Every canonical `(hole, discarded, board)` of this shape, sorted.
 
+    The board is ordered — `canonical_picture` keeps the card that came first
+    first — so the two-card shapes walk ordered pairs of board cards.
+
     Built in **key space**, not history space: three disjoint groups of the
     right sizes, relabelled jointly, deduped. The equivalent design-time script
     walked draw histories instead — dealt hand, throw, replacement — and got
@@ -230,18 +236,26 @@ def private_keys(*, board_cards: int, discards: int) -> tuple[PrivateKey, ...]:
     unreachable, and the five cards the deepest line leaves in the stub mean
     the opponent always fits around whatever is left.
 
+    Only the 95 holes that are already canonical on their own are walked, not
+    all 455. Every picture has a relabelling that makes its hole canonical, and
+    relabelling never changes a picture's key, so every key is reached from one
+    of the 95 — and it is almost five times cheaper, which matters because the
+    ordered board makes the widest shape 100,400 keys and every process that
+    builds a ledger table or a grader pays for it once.
+
     Sorted rather than left in set order so that two runs of the census, and
     two allocations of the ledger table, see the keys in the same order.
-    Cached because the four shapes cost about four and a half seconds together
-    and every one of the 141 public points asks for one of them.
+    Cached because the four shapes cost about two seconds together and every
+    one of the 141 public points asks for one of them.
     """
+    holes = sorted({canonical(hole)[0] for hole in combinations(DECK, HOLE_CARDS)})
     keys: set[PrivateKey] = set()
-    for hole in combinations(DECK, HOLE_CARDS):
+    for hole in holes:
         after_hole = [card for card in DECK if card not in hole]
-        for board in combinations(after_hole, board_cards):
+        for board in permutations(after_hole, board_cards):
             unseen = [card for card in after_hole if card not in board]
             for thrown in combinations(unseen, discards):
-                keys.add(canonical(hole, thrown, board))
+                keys.add(canonical_picture(hole, thrown, board))
     return tuple(sorted(keys))
 
 # ---------------------------------------------------------------------------
@@ -249,12 +263,12 @@ def private_keys(*, board_cards: int, discards: int) -> tuple[PrivateKey, ...]:
 # ---------------------------------------------------------------------------
 
 def all_infosets() -> Iterator[InfoSet]:
-    """Every infoset in mini-drawmaha, each exactly once. 3,142,290 of them.
+    """Every infoset in mini-drawmaha, each exactly once. 6,220,050 of them.
 
     A generator, and the only walk: `scripts/generate_minidrawmaha_census.py`
     counts what it yields and `infoset_table.py` allocates one ledger per key
     it yields, so the census and the table can never disagree about what the
-    game is. Consuming the whole of it builds 3.1 million `InfoSet` objects —
+    game is. Consuming the whole of it builds 6.2 million `InfoSet` objects —
     hold the two building blocks above instead if all you want is a count or a
     slice, since a count is a sum of products over them and needs no walk.
     """

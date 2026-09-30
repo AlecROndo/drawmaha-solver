@@ -37,7 +37,7 @@ from random import Random
 
 import pytest
 
-from drawmaha_solver.minidrawmaha.cards import DECK, canonical
+from drawmaha_solver.minidrawmaha.cards import DECK
 from drawmaha_solver.minidrawmaha.enumeration import (
     all_infosets,
     merged,
@@ -52,6 +52,7 @@ from drawmaha_solver.minidrawmaha.game import (
     InfoSet,
     MiniState,
     NodeKind,
+    canonical_picture,
     draw_order,
 )
 from drawmaha_solver.minidrawmaha.hands import HOLE_CARDS
@@ -184,10 +185,10 @@ def test_the_post_draw_key_count_is_the_one_the_plan_predicted_for_this_cap():
     assert CENSUS["private_keys"]["post_draw_board_one_total"] == total
 
 def test_the_two_pinned_pair_counts_come_back_out_of_the_key_sets():
-    # `test_cards.py` pins 970 and 5,160 from the deck alone. A key with
-    # nothing thrown is exactly such a pair, so the two files must agree.
+    # `test_cards.py` pins 970 and the ordered 10,170 from the deck alone. A
+    # key with nothing thrown is exactly such a pair, so the two files must agree.
     assert len(private_keys(board_cards=1, discards=0)) == 970
-    assert len(private_keys(board_cards=2, discards=0)) == 5_160
+    assert len(private_keys(board_cards=2, discards=0)) == 10_170
 
 def test_every_private_key_is_already_canonical_and_disjoint():
     # Canonical because `InfoSet` refuses anything else, disjoint because a
@@ -201,7 +202,7 @@ def test_every_private_key_is_already_canonical_and_disjoint():
             keys = private_keys(board_cards=board_cards, discards=discards)
             for index in rng.sample(range(len(keys)), min(len(keys), 500)):
                 hole, thrown, board = keys[index]
-                assert canonical(hole, thrown, board) == (hole, thrown, board)
+                assert canonical_picture(hole, thrown, board) == (hole, thrown, board)
                 cards = hole + thrown + board
                 assert len(set(cards)) == len(cards)
 
@@ -275,7 +276,7 @@ def test_the_generator_agrees_with_the_product_on_the_keys_it_emits():
 
 @pytest.mark.skipif(
     not FULL_RUN,
-    reason="builds all 3.1M keys; set MINIDRAWMAHA_FULL_CENSUS=1 to run it",
+    reason="builds all 6.2M keys; set MINIDRAWMAHA_FULL_CENSUS=1 to run it",
 )
 def test_the_generator_yields_exactly_the_committed_census():
     # The fixture's own derivation, repeated: count what comes out, and trust

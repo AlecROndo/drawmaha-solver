@@ -368,6 +368,39 @@ class DrawSignal:
         if not 0 <= self.count <= THROW_CAP:
             raise ValueError(f"a draw throws 0 to {THROW_CAP} cards, got {self.count}")
 
+def _picture(
+    hole: tuple[Card, ...], discarded: tuple[Card, ...], board: tuple[Card, ...]
+) -> tuple[tuple[Card, ...], ...]:
+    """The groups `canonical` relabels: the hole, the discards, then ONE group per board card."""
+    return (hole, discarded, *((card,) for card in board))
+
+def canonical_picture(
+    hole: tuple[Card, ...], discarded: tuple[Card, ...], board: tuple[Card, ...]
+) -> tuple[tuple[Card, ...], tuple[Card, ...], tuple[Card, ...]]:
+    """What the acting player sees, suits relabelled, the board in the order it came.
+
+    `canonical` sorts every group it is handed, so passing the board as one
+    group would forget which card came first. That is a fact the player
+    remembers: round 1 was played against the first card alone, and "6h then
+    3d" and "3d then 6h" reach round 2 behind betting that said different
+    things about the opponent's hand. Merging them costs perfect recall, and on
+    the first 1M-iteration solve an adversary who remembered the order took
+    0.012 chips a hand more than one who did not. So each board card is its own
+    one-card group — sorting a group of one is a no-op — and the relabelling
+    still runs over the whole picture in one call.
+
+    The one merge that survives is the real one: when a relabelling swaps the
+    two board cards and fixes the hole, "3d then 3h" behind a club hole IS
+    "3h then 3d", and both come back as one key. That is why ordering the
+    board takes the two-card keys from 5,160 to 10,170 and not to 10,320.
+
+    Every key in the rung is built here — `MiniState.infoset`, the enumerator,
+    the readout and the grader's key map — so none of them can keep the order
+    while another forgets it.
+    """
+    hole, discarded, *streets = canonical(*_picture(hole, discarded, board))
+    return hole, discarded, tuple(card for street in streets for card in street)
+
 def draw_order(
     *, hole: tuple[Card, ...], discarded: tuple[Card, ...], board: tuple[Card, ...]
 ) -> tuple[Card, ...]:
@@ -386,7 +419,7 @@ def draw_order(
     Ordered by canonical label, position k is the same card in both, and the
     ledger's four columns mean one thing each.
     """
-    relabelling = canonical_relabelling(hole, discarded, board)
+    relabelling = canonical_relabelling(*_picture(hole, discarded, board))
     return tuple(sorted(hole, key=lambda card: (card.rank, relabelling[card.suit])))
 
 # ---------------------------------------------------------------------------
@@ -470,9 +503,11 @@ class InfoSet:
 
     `hole`, `discarded` and `board` are canonicalised **jointly, in one suit
     relabelling** — separately would forget whether the hole shares the board's
-    suit, which is what a flush is. `draws` carries counts only and has no suits
-    to relabel. The opponent's cards appear nowhere; that indistinguishability
-    is the game.
+    suit, which is what a flush is. `board` keeps the order it was dealt in:
+    round 1 was played against the first card alone, so which card came first
+    is something the player remembers (see `canonical_picture`). `draws`
+    carries counts only and has no suits to relabel. The opponent's cards
+    appear nowhere; that indistinguishability is the game.
     """
 
     player: int
@@ -507,7 +542,7 @@ class InfoSet:
         # directly, and a hand-built key in physical suits would hash as a
         # perfectly ordinary ledger nobody ever reaches. The relabelling search
         # is memoised, so asking again costs a dict lookup.
-        if canonical(self.hole, self.discarded, self.board) != (
+        if canonical_picture(self.hole, self.discarded, self.board) != (
             self.hole,
             self.discarded,
             self.board,
@@ -883,14 +918,14 @@ class MiniState:
     def infoset(self) -> InfoSet:
         """What the player to act can see, with the suits relabelled to canonical form.
 
-        The three card groups this player can see go through `canonical` in one
+        The cards this player can see go through `canonical_picture` in one
         call, so the relabelling that hides which physical suit is which cannot
-        forget how they relate. The opponent's hole and discards are not passed
-        in at all.
+        forget how they relate, and the board keeps the order it was dealt in.
+        The opponent's hole and discards are not passed in at all.
         """
         self._require(NodeKind.DECISION)
         player = self.current_player
-        hole, discarded, board = canonical(
+        hole, discarded, board = canonical_picture(
             self.holes[player], self.discards[player], self.board
         )
         return InfoSet(

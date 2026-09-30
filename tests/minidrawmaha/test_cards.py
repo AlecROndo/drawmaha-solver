@@ -1,7 +1,8 @@
 """The 15-card deck and the one collapse rung 3 is allowed: relabelling suits.
 
 The census figures asserted here are the plan's §4.7 table — 455 hands, 95
-classes, 970 and 5,160 canonical pairs. They are re-derived by enumeration
+classes, 970 and 5,160 canonical pairs — and the 10,170 the solver's key
+actually uses once the two board cards keep their order. They are re-derived by enumeration
 rather than read from a fixture, because the enumeration is cheap at this deck
 size and a fixture would only record what this module already computes.
 """
@@ -148,3 +149,16 @@ def test_hole_and_both_board_cards_make_five_thousand_one_hundred_and_sixty():
         for board in combinations([c for c in DECK if c not in hand], 2)
     }
     assert len(pairs) == 5_160
+
+def test_hole_and_both_board_cards_in_order_make_ten_thousand_one_hundred_and_seventy():
+    # The key keeps the order the board came in — round 1 was played against
+    # the first card alone — so each board card is its own group. Just under
+    # twice 5,160 rather than twice: when a relabelling swaps the two board
+    # cards and fixes the hole ("3d then 3h" behind a club hole), both orders
+    # are one class.
+    pairs = {
+        canonical(hand, (first,), (second,))
+        for hand in HANDS
+        for first, second in permutations([c for c in DECK if c not in hand], 2)
+    }
+    assert len(pairs) == 10_170
