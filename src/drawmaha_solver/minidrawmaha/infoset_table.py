@@ -3,8 +3,8 @@
 Still a plain `dict[InfoSet, RegretMatcher]`, still pre-allocated so no code path
 can invent an entry, and still exactly TWO stored vectors per ledger —
 accumulated regret and the banked strategy sum, with both strategies derived at
-read time and never stored. What changes from rung 2 is the size: **3,142,290
-entries, 562 bytes each, 1.77 GB and about fourteen seconds to build.** Rung 2's
+read time and never stored. What changes from rung 2 is the size: **6,220,050
+entries, about 550 bytes each, 3.4 GB and about half a minute to build.** Rung 2's
 whole table was 288 spots.
 
 Width is still per key, and this rung adds a third width. A ledger is
@@ -17,11 +17,11 @@ could win the normalization. The walk must build its utilities in the same
 order; the ledger's shape check catches a wrong-width vector, but nothing
 numerical catches a right-width one built in the wrong order.
 
-**Three things do not survive the jump from 288 to 3.1 million, and this file is
+**Three things do not survive the jump from 288 to 6.2 million, and this file is
 mostly the answers to them.**
 
 *Allocating.* `new_infoset_table()` takes the keys it should allocate, defaulting
-to the whole game. A slice is not a test convenience: 1.77 GB is affordable once
+to the whole game. A slice is not a test convenience: 3.4 GB is affordable once
 per solve and ruinous anywhere else, so a readout, a unit test or a subtree
 experiment allocates the public points it actually reads. `ledger_widths()`
 answers what the full table *would* cost without building any of it, because the
@@ -29,7 +29,7 @@ width of a ledger is a property of its public point and the key count of a shape
 is already known — the table's size is a 141-term sum of products, not a walk.
 
 *Reading strategies out.* `current_strategy` and `average_strategy` return a
-live **view**, not a dict: materialising 3.1 million NumPy arrays to answer a
+live **view**, not a dict: materialising 6.2 million NumPy arrays to answer a
 question about a handful of spots costs more than the table it reads. The
 semantic distinction is rung 2's and it is the important half — `current_strategy`
 is what the walk acts on, it cycles forever and is NOT the solution;
@@ -37,7 +37,7 @@ is what the walk acts on, it cycles forever and is NOT the solution;
 an exploitability meter or a dashboard should ever be shown.
 
 *The readout.* Rung 2 printed all 288 spots as four grids. There is no printing
-of 3.1 million, and the grid does not merely grow — it transposes. Leduc's
+of 6.2 million, and the grid does not merely grow — it transposes. Leduc's
 columns were the player's own rank, which survives canonicalisation because
 Leduc's key has no suits; here the relabelling is joint over hole and board, so
 two different holes against "the same" board land in different canonical frames
@@ -59,7 +59,7 @@ from collections.abc import Callable, Iterable, Iterator, Mapping
 
 import numpy as np
 
-from drawmaha_solver.minidrawmaha.cards import Card, canonical, hand_symbol
+from drawmaha_solver.minidrawmaha.cards import Card, hand_symbol
 from drawmaha_solver.minidrawmaha.enumeration import (
     all_infosets,
     private_keys,
@@ -71,6 +71,7 @@ from drawmaha_solver.minidrawmaha.game import (
     Action,
     InfoSet,
     action_label,
+    canonical_picture,
     line_symbol,
 )
 from drawmaha_solver.regret_matching import RegretMatcher
@@ -95,8 +96,8 @@ def new_infoset_table(keys: Iterable[InfoSet] | None = None) -> InfoSetTable:
     for a move the rules do not offer, and it competes in the normalization with
     the moves that are real.
 
-    `keys` defaults to the whole game — 3,142,290 ledgers, 1.77 GB, fourteen
-    seconds. Pass a slice to allocate one public point's worth, which is what a
+    `keys` defaults to the whole game — 6,220,050 ledgers, 3.4 GB, about half
+    a minute. Pass a slice to allocate one public point's worth, which is what a
     readout or a test wants and is the only way to touch the real allocator
     without paying for the real table. The keys are consumed in the order given,
     so a slice of `all_infosets()` and the full table agree entry for entry.
@@ -104,9 +105,9 @@ def new_infoset_table(keys: Iterable[InfoSet] | None = None) -> InfoSetTable:
     A key arriving twice raises. A dict comprehension would keep the second
     ledger and throw the first away without a word, which is the same failure as
     two spots sharing one ledger — the thing this table exists to make
-    impossible — and it would land silently in the middle of a 3.1M-key build.
+    impossible — and it would land silently in the middle of a 6.2M-key build.
     Counting the keys consumed and comparing against the table's own length
-    catches it with one integer per call and no set of 3.1 million keys to hold;
+    catches it with one integer per call and no set of 6.2 million keys to hold;
     `enumeration.py` refuses the equivalent collapse in `merged()` for the same
     reason, one layer up.
 
@@ -125,7 +126,7 @@ def new_infoset_table(keys: Iterable[InfoSet] | None = None) -> InfoSetTable:
 def ledger_widths() -> dict[int, int]:
     """How many ledgers of each width the full table holds — without allocating one.
 
-    `{2: 2228280, 3: 893640, 4: 20370}`, which is `census.json`'s
+    `{2: 4426680, 3: 1773000, 4: 20370}`, which is `census.json`'s
     `by_ledger_width`, and it is reachable without building a ledger because the
     width of one never depends on the cards. `legal_actions()` reads a key's
     betting and its draw signals, both of which are the public half, so every
@@ -133,13 +134,13 @@ def ledger_widths() -> dict[int, int]:
     is a 141-term sum over (that width, how many private keys of that shape
     exist).
 
-    Costs 3.9 s on a cold process and 0.02 ms after, because the sum needs the
-    *sizes* of the four private-key shapes and `private_keys` caches them. That
-    is the same 3.9 s the table itself pays before its first ledger, so asking
+    Costs about a second on a cold process and 0.02 ms after, because the sum
+    needs the *sizes* of the four private-key shapes and `private_keys` caches
+    them. That is the same second the table itself pays before its first ledger, so asking
     this question first is free against allocating anyway.
 
     Worth having as a function rather than a comment because it is the question
-    asked *before* committing 1.77 GB, and because it is the cheap half of the
+    asked *before* committing 3.4 GB, and because it is the cheap half of the
     only claim plan §9 makes about this module.
     """
     widths: dict[int, int] = {}
@@ -166,7 +167,8 @@ def spots(
     The cards are canonicalised here. A human types physical suits and the table
     is keyed on canonical ones, so doing the relabelling at the call site is a
     step somebody will forget and be answered with `KeyError` at a spot that is
-    perfectly well allocated.
+    perfectly well allocated. `board` is read in the order it was dealt: "5d
+    then 6c" and "6c then 5d" are two positions with two sets of ledgers.
 
     A shape no decision point has — a discard while only one board card is out,
     which is a draw that has not happened yet — raises rather than returning
@@ -182,7 +184,7 @@ def spots(
     dealt = hole + discarded + board
     if len(set(dealt)) != len(dealt):
         raise ValueError(f"one card cannot be in two places: {hand_symbol(dealt)}")
-    hole, discarded, board = canonical(hole, discarded, board)
+    hole, discarded, board = canonical_picture(hole, discarded, board)
     points = [
         point
         for point in public_decision_points()
@@ -215,7 +217,7 @@ class StrategyView(Mapping[InfoSet, np.ndarray]):
     """One strategy per infoset, computed at the moment it is asked for.
 
     Rung 2 returned a `dict` because building 288 arrays cost nothing. Here the
-    same dict is 3.1 million arrays — more memory than the table it reads — to
+    same dict is 6.2 million arrays — more memory than the table it reads — to
     answer a question every caller asks about a handful of spots. So this is a
     view: O(1) to make, backed by the table, and it computes exactly the entries
     somebody looks at.
@@ -338,7 +340,7 @@ def format_strategy_tables(
 ) -> str:
     """One hand's whole strategy, as a block per stage, for eyeballing a solve.
 
-    The question a human actually has in front of 3.1 million ledgers is not
+    The question a human actually has in front of 6.2 million ledgers is not
     "show me the table" — it is "I hold these three cards on this board: what
     does the solve do?". So the hand is the argument and the rows are the spots
     it can be asked at: before the draw, eleven rows for P0 (four betting spots

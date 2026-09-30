@@ -150,8 +150,8 @@ def new_solve(
 ) -> Solve:
     """A fresh run at iteration 0, seeded so that it can be reproduced.
 
-    `table=None` allocates the whole mini-drawmaha table — 1.77 GB and about
-    fourteen seconds. Pass a table to train a slice or another game; it must
+    `table=None` allocates the whole mini-drawmaha table — 3.4 GB and about
+    half a minute. Pass a table to train a slice or another game; it must
     hold every key the walk can reach from `deal`'s roots, since a miss raises.
     """
     return Solve(
@@ -265,8 +265,8 @@ def _pick(rng: np.random.Generator, probabilities: Sequence[float]) -> int:
 def save_solve(solve: Solve, path: Path) -> None:
     """Write a run to one `.npz`: both accumulators flat, plus t and the RNG.
 
-    Flat arrays rather than a pickle because the full table is 1.77 GB of
-    Python objects but only 116 MB of numbers; pickling three million ledgers
+    Flat arrays rather than a pickle because the full table is 3.4 GB of
+    Python objects but only 228 MB of numbers; pickling six million ledgers
     is slower than rebuilding them. Every ledger's regret, and separately every
     ledger's strategy sum, are laid end to end in the table's own order, with
     each ledger's width alongside so `load_solve` can slice them back apart and

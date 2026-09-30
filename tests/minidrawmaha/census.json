@@ -34,32 +34,32 @@
     "by_shape": {
       "1_0": 970,
       "1_1": 10170,
-      "2_0": 5160,
-      "2_1": 50450
+      "2_0": 10170,
+      "2_1": 100400
     },
     "post_draw_board_one_total": 11140
   },
   "infosets": {
-    "total": 3142290,
+    "total": 6220050,
     "by_player": {
-      "0": 1567750,
-      "1": 1574540
+      "0": 3106630,
+      "1": 3113420
     },
     "by_stage": {
       "draw": 20370,
       "round_one": 7760,
-      "round_two": 3114160
+      "round_two": 6191920
     },
     "by_ledger_width": {
-      "2": 2228280,
-      "3": 893640,
+      "2": 4426680,
+      "3": 1773000,
       "4": 20370
     }
   },
   "gate": {
     "budget_infosets_per_player": 5000000,
-    "measured_worst_player": 1574540,
-    "ratio_to_budget": 0.314908,
+    "measured_worst_player": 3113420,
+    "ratio_to_budget": 0.622684,
     "verdict": "within_budget"
   }
 }

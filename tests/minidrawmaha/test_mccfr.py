@@ -21,7 +21,7 @@ file:
   one, which is why the weights are pinned directly.
 * **Mini-drawmaha** is smoke-tested for the things only it has: a four-wide
   draw ledger and a root that is a chance node. On a lazy table by default,
-  and for one iteration on the real 1.77 GB table behind
+  and for one iteration on the real 3.4 GB table behind
   `MINIDRAWMAHA_FULL_TABLE=1`.
 
 The million-iteration Leduc run — the only convergence test long enough to
@@ -379,7 +379,7 @@ class LazyTable(dict):
     """A ledger table that allocates on first touch — a test double only.
 
     The real table refuses unknown keys on purpose; this one exists so the
-    walk can run on mini-drawmaha without paying 1.77 GB for keys it will
+    walk can run on mini-drawmaha without paying 3.4 GB for keys it will
     mostly never reach.
     """
 
@@ -433,7 +433,7 @@ def test_mini_drawmahas_deck_deals_one_probability_per_public_point():
 
 @pytest.mark.skipif(
     not FULL_TABLE,
-    reason="the whole 3.1M-ledger table is 1.77 GB; set MINIDRAWMAHA_FULL_TABLE=1",
+    reason="the whole 6.2M-ledger table is 3.4 GB; set MINIDRAWMAHA_FULL_TABLE=1",
 )
 def test_one_iteration_on_the_real_table():
     solve = train(new_solve(0), 1)

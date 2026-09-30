@@ -448,6 +448,57 @@ def test_perfect_recall_keeps_what_this_player_threw():
     assert threw_club.discarded != threw_heart.discarded
     assert threw_club != threw_heart
 
+def round_two_open(first, second, holes=HOLES):
+    """P0 to act in round 2 after a checked-through round 1 and two pats."""
+    return play(
+        parse_cards(first),
+        X,
+        X,
+        Action.THROW_NONE,
+        Action.THROW_NONE,
+        parse_cards(second),
+        holes=holes,
+    )
+
+def test_perfect_recall_keeps_the_order_the_board_came_in():
+    # Round 1 was played against the first board card alone, so "6h then 3d"
+    # and "3d then 6h" are two histories the player can plainly tell apart:
+    # the betting that got here said different things about the opponent's
+    # hand. A key that sorts the board merges them.
+    six_first = round_two_open("6h", "3d").infoset()
+    three_first = round_two_open("3d", "6h").infoset()
+    assert six_first != three_first
+    assert [card.rank for card in six_first.board] == [4, 1]
+    assert [card.rank for card in three_first.board] == [1, 4]
+
+def test_two_board_orders_one_suit_swap_apart_are_one_infoset():
+    # Why the ordered key is just under twice the sorted one rather than
+    # twice: with a club hole, "3d then 3h" and "3h then 3d" are the same
+    # picture once diamonds and hearts trade names, so they stay one key.
+    clubs = (parse_cards("2c 3c 6c"), HOLES[1])
+    assert (
+        round_two_open("3d", "3h", holes=clubs).infoset()
+        == round_two_open("3h", "3d", holes=clubs).infoset()
+    )
+
+def test_an_infoset_s_board_is_canonical_in_the_order_it_came():
+    # The key's board is two streets, not one sorted group: `6d 5h` behind a
+    # club hole is canonical (the higher card came first), and `6h 5d` is the
+    # same position under a diamond/heart swap, so only the first may be built.
+    clubs = (parse_cards("2c 3c 4c"), parse_cards("2d 4d 4h"))
+    good = round_two_open("6d", "5h", holes=clubs).infoset()
+    assert good.board == parse_cards("6d 5h")
+    fields = dict(
+        player=good.player,
+        hole=good.hole,
+        discarded=good.discarded,
+        draws=good.draws,
+        betting=good.betting,
+    )
+    assert InfoSet(board=parse_cards("6d 5h"), **fields) == good
+    with pytest.raises(ValueError, match="canonical form"):
+        InfoSet(board=parse_cards("6h 5d"), **fields)
+
 def test_which_cards_were_kept_and_which_drawn_is_merged():
     # Lossless, not an abstraction: both players hold the same three cards, have
     # the same cards missing from the deck and pay out identically — so the two

@@ -102,6 +102,14 @@ def relabel(relabelling: tuple[int, ...], cards: Group) -> Group:
     """`cards` with every suit renamed by `relabelling`, ranks untouched."""
     return tuple(Card(card.rank, relabelling[card.suit]) for card in cards)
 
+# `relabel` as six lookup tables, one per relabelling, for the search below:
+# every key the solver, the enumerator and the grader build goes through it,
+# and a dict lookup per card is well over twice as fast as building a Card.
+_RELABEL_TABLES = tuple(
+    {card: Card(card.rank, relabelling[card.suit]) for card in DECK}
+    for relabelling in SUIT_RELABELLINGS
+)
+
 @lru_cache(maxsize=1 << 18)
 def _minimal_image(groups: tuple[Group, ...]) -> tuple[tuple[Group, ...], tuple[int, ...]]:
     """The smallest joint image of `groups`, and the relabelling that makes it.
@@ -120,8 +128,8 @@ def _minimal_image(groups: tuple[Group, ...]) -> tuple[tuple[Group, ...], tuple[
     """
     best_image: tuple[Group, ...] | None = None
     best_relabelling = SUIT_RELABELLINGS[0]
-    for relabelling in SUIT_RELABELLINGS:
-        image = tuple(tuple(sorted(relabel(relabelling, group))) for group in groups)
+    for relabelling, table in zip(SUIT_RELABELLINGS, _RELABEL_TABLES, strict=True):
+        image = tuple(tuple(sorted([table[card] for card in group])) for group in groups)
         if best_image is None or image < best_image:
             best_image, best_relabelling = image, relabelling
     return best_image or (), best_relabelling
@@ -129,8 +137,9 @@ def _minimal_image(groups: tuple[Group, ...]) -> tuple[tuple[Group, ...], tuple[
 def canonical(*groups: Group) -> tuple[Group, ...]:
     """Relabel suits to the smallest image of ALL `groups` jointly.
 
-    Called with the acting player's picture — `(hole, discards, board)` — as
-    separate groups in a single call. One permutation across every group at
+    Called with the acting player's picture — the hole, the discards and each
+    board card as its own group, so the board's order survives the sort (see
+    `game.canonical_picture`) — as separate groups in a single call. One permutation across every group at
     once: the groups stay distinguishable in the answer, while the suit names
     that relate them are forgotten together.
 

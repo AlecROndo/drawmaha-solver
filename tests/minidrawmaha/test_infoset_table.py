@@ -1,7 +1,7 @@
-"""The ledger table, pinned without ever allocating all 3.1 million of it.
+"""The ledger table, pinned without ever allocating all 6.2 million of it.
 
 Rung 2 could assert `len(table) == 288` and be done. Here the real table is
-3,142,290 ledgers, **1.77 GB and fourteen seconds**, which is affordable once per
+6,220,050 ledgers, **3.4 GB and about half a minute**, which is affordable once per
 solve and ruinous once per test — so this file is organised around what can be
 proved *structurally* instead of counted.
 
@@ -18,7 +18,7 @@ Two claims are what plan §9 asks of this module, and neither is spot-checkable:
   public signatures are distinct; this proves the *table* keeps them apart,
   which is the failure that would silently share one strategy between two spots.
 
-The whole 3.1M allocation is here too, behind `MINIDRAWMAHA_FULL_TABLE=1`, so
+The whole 6.2M allocation is here too, behind `MINIDRAWMAHA_FULL_TABLE=1`, so
 the default run stays short — and the fast tests already move whenever the slow
 one would, because both read the same census fixture.
 """
@@ -124,7 +124,7 @@ def test_width_is_a_property_of_the_public_point_and_never_of_the_cards():
 def test_the_width_histogram_matches_the_census_and_allocates_nothing():
     recorded = CENSUS["infosets"]["by_ledger_width"]
     assert ledger_widths() == {int(width): count for width, count in recorded.items()}
-    assert sum(ledger_widths().values()) == CENSUS["infosets"]["total"] == 3_142_290
+    assert sum(ledger_widths().values()) == CENSUS["infosets"]["total"] == 6_220_050
     # Width 4 exists only at the draw, and only before anybody has drawn, so it
     # is the 21 draw points times the 970 keys with one board card and nothing
     # thrown — the smallest slice of the table and the one rung 2 had no
@@ -163,7 +163,7 @@ def test_the_same_key_handed_in_twice_is_refused_rather_than_overwritten():
     # A dict comprehension would keep the second ledger and drop the first
     # without a word — the same "two spots, one strategy" failure the probe
     # above catches at the enumerator, arriving instead through the allocator's
-    # own argument. The guard costs one integer and no 3.1M-key set.
+    # own argument. The guard costs one integer and no 6.2M-key set.
     twice = keys_at(THE_OPEN, [0, 0])
     with pytest.raises(ValueError, match="twice"):
         new_infoset_table(twice)
@@ -185,7 +185,7 @@ def test_entry_k_of_a_ledger_means_legal_actions_k():
 
 @pytest.mark.skipif(
     not FULL_RUN,
-    reason="the whole 3.1M-ledger table is 1.77 GB; set MINIDRAWMAHA_FULL_TABLE=1",
+    reason="the whole 6.2M-ledger table is 3.4 GB; set MINIDRAWMAHA_FULL_TABLE=1",
 )
 def test_the_default_table_is_the_whole_census():
     # What the solver actually allocates, counted the expensive way once: the
@@ -206,7 +206,7 @@ def test_the_default_argument_is_the_enumerator_itself():
     assert list(new_infoset_table(prefix)) == prefix
 
 # ---------------------------------------------------------------------------
-# Reading the strategies out, without materialising 3.1 million arrays
+# Reading the strategies out, without materialising 6.2 million arrays
 # ---------------------------------------------------------------------------
 
 def test_a_fresh_table_plays_uniformly_at_all_three_widths():
@@ -338,6 +338,15 @@ def test_the_readout_canonicalises_the_hand_it_is_given():
         player=0, hole=hole, board=board
     )
     assert hole != HOLE or board != BOARD_ONE  # the fixture really is relabelled
+
+def test_the_readout_keeps_the_board_in_the_order_it_is_given():
+    # "5d then 6c" and "6c then 5d" are two positions — round 1 was played
+    # against the first card alone — so they read out two sets of ledgers.
+    in_order = spots(player=0, hole=HOLE, board=BOARD_TWO)
+    reversed_board = spots(player=0, hole=HOLE, board=BOARD_TWO[::-1])
+    assert not set(in_order) & set(reversed_board)
+    assert [card.rank for card in in_order[0].board] == [3, 4]
+    assert [card.rank for card in reversed_board[0].board] == [4, 3]
 
 def test_the_readout_titles_every_stage_the_hand_reaches():
     keys = spots(player=0, hole=HOLE, board=BOARD_ONE)

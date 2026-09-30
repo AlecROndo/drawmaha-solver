@@ -14,7 +14,7 @@ quietly shipping a solver for a different game.
 It takes about fifteen seconds — long enough to be worth committing the answer
 rather than recomputing it on every run. The cost is not the arithmetic: it is
 that this script **counts what the enumerator yields**, one `InfoSet` at a
-time, all 3.1 million of them. It deliberately does not compute the total any
+time, all 6.2 million of them. It deliberately does not compute the total any
 cheaper way: the test does that, and two derivations that agree are worth more
 than one that is fast.
 
