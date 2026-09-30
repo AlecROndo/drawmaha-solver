@@ -51,14 +51,22 @@ from drawmaha_solver.minidrawmaha.game import (
     InfoSet,
     random_deal,
 )
+from drawmaha_solver.minidrawmaha import regret_rules
 from drawmaha_solver.minidrawmaha.mccfr import (
     Solve,
+    _pick,
     load_solve,
     new_solve,
     run_iteration,
     save_solve,
     train,
     traverse,
+)
+from drawmaha_solver.minidrawmaha.regret_rules import (
+    Average,
+    RegretRule,
+    bank_vanilla,
+    extra_weights,
 )
 from drawmaha_solver.regret_matching import RegretMatcher
 
@@ -74,28 +82,48 @@ def leduc_deal(rng: np.random.Generator) -> LeducState:
     """Leduc's root sampler: one of the 30 ordered deals, uniformly."""
     return LeducState(cards=DEALS[rng.integers(len(DEALS))])
 
-def leduc_solve(seed: int, *, table=None) -> Solve:
+BOTH_COLUMNS = (Average.UNIFORM, Average.QUADRATIC)
+
+def new_leduc_table_with(extra_averages: int) -> dict:
+    """Leduc's 288 ledgers, each carrying `extra_averages` averaging rows."""
+    return {
+        key: RegretMatcher(ledger.n_actions, extra_averages=extra_averages)
+        for key, ledger in new_leduc_table().items()
+    }
+
+def leduc_solve(seed: int, *, table=None, rule=RegretRule.VANILLA, averages=()) -> Solve:
     return new_solve(
-        seed, table=new_leduc_table() if table is None else table, deal=leduc_deal
+        seed,
+        table=new_leduc_table_with(len(averages)) if table is None else table,
+        deal=leduc_deal,
+        rule=rule,
+        averages=averages,
     )
 
-class SpyLedger(RegretMatcher):
-    """A RegretMatcher that records every bank it receives."""
+@dataclass
+class SpyBank:
+    """A regret rule that records every bank it is handed, then banks it the vanilla way."""
 
-    def __init__(self, n_actions: int):
-        super().__init__(n_actions)
-        self.banked: list[tuple[np.ndarray, float, float]] = []
+    banked: list[tuple[RegretMatcher, np.ndarray, int]] = field(default_factory=list)
 
-    def update(self, utilities, *, regret_weight=1.0, strategy_weight=1.0):
-        self.banked.append((np.array(utilities), regret_weight, strategy_weight))
-        super().update(
-            utilities, regret_weight=regret_weight, strategy_weight=strategy_weight
-        )
+    def __call__(self, ledger: RegretMatcher, regret: np.ndarray, t: int) -> None:
+        self.banked.append((ledger, regret.copy(), t))
+        bank_vanilla(ledger, regret, t)
+
+@pytest.fixture
+def spy(monkeypatch) -> SpyBank:
+    """Stand a SpyBank in for vanilla, so whole iterations bank through it."""
+    bank = SpyBank()
+    monkeypatch.setitem(regret_rules.RULES, RegretRule.VANILLA, bank)
+    return bank
 
 def ledgers_equal(first, second) -> bool:
+    """Every slot of every ledger identical, bit for bit, in the same key order."""
     return list(first) == list(second) and all(
-        np.array_equal(first[key].cumulative_regret, second[key].cumulative_regret)
-        and np.array_equal(first[key].strategy_sum, second[key].strategy_sum)
+        first[key].cumulative_regret.tobytes() == second[key].cumulative_regret.tobytes()
+        and first[key].strategy_sum.tobytes() == second[key].strategy_sum.tobytes()
+        and first[key].extra_sums.tobytes() == second[key].extra_sums.tobytes()
+        and first[key].stamp.tobytes() == second[key].stamp.tobytes()
         for key in first
     )
 
@@ -162,8 +190,11 @@ class ScriptedState:
     def returns(self) -> tuple[float, float]:
         return (self._spec[1], -self._spec[1])
 
-def scripted_table() -> dict[str, SpyLedger]:
-    return {"I-left": SpyLedger(2), "J": SpyLedger(3), "I-right": SpyLedger(2)}
+def scripted_table(extra_averages: int = 0) -> dict[str, RegretMatcher]:
+    return {
+        key: RegretMatcher(width, extra_averages=extra_averages)
+        for key, width in (("I-left", 2), ("J", 3), ("I-right", 2))
+    }
 
 def test_a_terminal_returns_the_traversers_chips():
     rng = np.random.default_rng(0)
@@ -207,35 +238,52 @@ def test_seated_the_other_way_the_same_spots_swap_roles():
         if followed == ["L.ask"]:
             assert {"L.ask.c", "L.ask.d", "L.ask.e"} <= set(start.log)
 
-def test_the_traversers_bank_carries_regret_weight_one_and_no_strategy():
-    table = scripted_table()
-    traverse(ScriptedState("L"), table, 0, np.random.default_rng(3), 7)
-    ((utilities, regret_weight, strategy_weight),) = table["I-left"].banked
-    assert (regret_weight, strategy_weight) == (1.0, 0.0)
-    # "stop" pays 8; "ask" pays whichever answer P1 was sampled into.
+def test_the_traverser_hands_the_rule_each_actions_regret_and_banks_no_strategy():
+    table, spy = scripted_table(), SpyBank()
+    value = traverse(ScriptedState("L"), table, 0, np.random.default_rng(3), 7, bank=spy)
+    ((ledger, regret, t),) = spy.banked
+    assert (ledger, t) == (table["I-left"], 7)
+    # The regret is what each action earned minus the mix's value: "stop" pays
+    # 8; "ask" pays whichever answer P1 was sampled into.
+    utilities = regret + value
     assert utilities[1] == 8.0
     assert utilities[0] in (1.0, 2.0, 4.0)
+    assert not table["I-left"].strategy_sum.any()
 
 def test_regret_weight_is_one_however_rarely_the_spot_is_reached():
     # The gotcha, on a tree small enough to name the wrong answer: with P1
     # traversing, J sits behind the deck's 0.25 and P0's uniform 0.5, so a walk
     # threading reach down would bank it at 0.125. Sampling already charged
-    # that probability — J is simply banked on one traversal in eight.
-    banks = []
+    # that probability — J is simply banked on one traversal in eight, and each
+    # time at full weight: P1's answers pay −1, −2, −4 against a uniform mix.
+    answers = np.array([-1.0, -2.0, -4.0])
+    full_weight = answers - np.full(3, 1 / 3) @ answers
+    banks = 0
     for seed in range(64):
-        table = scripted_table()
-        traverse(ScriptedState("root"), table, 1, np.random.default_rng(seed), 1)
-        banks += table["J"].banked
+        table, spy = scripted_table(), SpyBank()
+        traverse(ScriptedState("root"), table, 1, np.random.default_rng(seed), 1, bank=spy)
+        for ledger, regret, _ in spy.banked:
+            if ledger is table["J"]:
+                banks += 1
+                assert regret.tobytes() == full_weight.tobytes()
+                assert table["J"].cumulative_regret.tobytes() == full_weight.tobytes()
     assert banks
-    assert all((regret_weight, strategy_weight) == (1.0, 0.0) for _, regret_weight, strategy_weight in banks)
 
 def test_the_opponents_bank_carries_the_iteration_and_no_regret():
-    table = scripted_table()
-    traverse(ScriptedState("L"), table, 0, np.random.default_rng(3), 7)
-    ((utilities, regret_weight, strategy_weight),) = table["J"].banked
-    assert (regret_weight, strategy_weight) == (0.0, 7.0)
-    assert not utilities.any()
-    assert table["J"].cumulative_regret.tolist() == [0.0, 0.0, 0.0]
+    table, spy = scripted_table(), SpyBank()
+    traverse(ScriptedState("L"), table, 0, np.random.default_rng(3), 7, bank=spy)
+    assert all(ledger is not table["J"] for ledger, _, _ in spy.banked)
+    assert table["J"].strategy_sum.tobytes() == (7 * np.full(3, 1 / 3)).tobytes()
+    assert not table["J"].cumulative_regret.any()
+
+def test_the_extra_columns_bank_the_same_mix_at_their_own_weights():
+    table = scripted_table(extra_averages=2)
+    weights = extra_weights(BOTH_COLUMNS, 7)
+    traverse(ScriptedState("L"), table, 0, np.random.default_rng(3), 7, column_weights=weights)
+    mix = np.full(3, 1 / 3)
+    np.testing.assert_array_equal(table["J"].extra_sums, [mix, 49 * mix])
+    # The traverser's own spot was enumerated, not played: no column banks it.
+    assert not table["I-left"].extra_sums.any()
 
 def test_the_value_is_the_traversers_mix_over_what_each_action_earned():
     # Fresh ledgers play uniformly, so the traverser's value at "L" is the plain
@@ -261,26 +309,34 @@ def test_an_action_the_opponent_never_plays_is_never_followed():
 # Training on Leduc: the weights, the seed, the chunks
 # ---------------------------------------------------------------------------
 
-def test_every_leduc_bank_has_one_of_the_two_weight_shapes():
-    # Over whole iterations, every update anywhere is either a traverser's
-    # (1, 0) or an opponent's (0, t) with zero utilities — the gotcha pinned at
-    # every ledger, not just one spot. Iteration t runs at weight t.
-    table = {key: SpyLedger(ledger.n_actions) for key, ledger in new_leduc_table().items()}
-    solve = leduc_solve(5, table=table)
+def test_every_leduc_traversal_banks_regret_or_strategy_and_never_both():
+    # Over whole traversals, every ledger touched is either the traverser's
+    # (regret handed to the rule, strategy sum untouched) or the opponent's
+    # (t·σ into the strategy sum, regret untouched) — the gotcha pinned at
+    # every ledger, not just one spot. Per traversal, not per iteration: a
+    # ledger is banked both ways in one iteration, once from each seat.
+    # Iteration t runs at weight t.
+    table, rng = new_leduc_table(), np.random.default_rng(5)
     for t in (1, 2, 3):
-        before = {key: len(ledger.banked) for key, ledger in table.items()}
-        run_iteration(solve)
-        new = [
-            bank
-            for key, ledger in table.items()
-            for bank in ledger.banked[before[key]:]
-        ]
-        assert new
-        for utilities, regret_weight, strategy_weight in new:
-            assert (regret_weight, strategy_weight) in ((1.0, 0.0), (0.0, float(t)))
-            if regret_weight == 0.0:
-                assert not utilities.any()
-    assert solve.iteration == 3
+        for traverser in (0, 1):
+            before = {
+                key: (ledger.cumulative_regret.copy(), ledger.strategy_sum.copy(), ledger.strategy())
+                for key, ledger in table.items()
+            }
+            spy = SpyBank()
+            traverse(leduc_deal(rng), table, traverser, rng, t, bank=spy)
+            regret_banked = {id(ledger) for ledger, _, _ in spy.banked}
+            assert regret_banked and all(bank_t == t for _, _, bank_t in spy.banked)
+            opponents = 0
+            for key, ledger in table.items():
+                regret_before, sum_before, sigma = before[key]
+                if id(ledger) in regret_banked:
+                    assert ledger.strategy_sum.tobytes() == sum_before.tobytes()
+                elif not np.array_equal(ledger.strategy_sum, sum_before):
+                    opponents += 1
+                    np.testing.assert_allclose(ledger.strategy_sum - sum_before, t * sigma)
+                    assert ledger.cumulative_regret.tobytes() == regret_before.tobytes()
+            assert opponents
 
 def test_training_is_reproducible_at_a_seed():
     first, second = train(leduc_solve(3), 200), train(leduc_solve(3), 200)
@@ -298,14 +354,128 @@ def test_zero_iterations_are_rejected():
     with pytest.raises(ValueError, match="at least 1"):
         train(leduc_solve(0), 0)
 
-def test_every_leduc_ledger_is_reached():
-    # Reached means banked at all. A nonzero STRATEGY sum is the wrong test:
-    # that is banked only when the owner is sampled into the spot, and a spot
-    # behind the owner's own zero-probability action is never sampled — its
-    # own-reach weight is genuinely 0 (8 of the 288 at this seed and length).
-    table = {key: SpyLedger(ledger.n_actions) for key, ledger in new_leduc_table().items()}
-    train(leduc_solve(2, table=table), 2_000)
-    assert all(ledger.banked for ledger in table.values())
+def test_every_leduc_ledger_is_reached(spy):
+    # Reached means banked at all. A nonzero STRATEGY sum alone is the wrong
+    # test: that is banked only when the owner is sampled into the spot, and a
+    # spot behind the owner's own zero-probability action is never sampled —
+    # its own-reach weight is genuinely 0 (8 of the 288 at this seed and
+    # length). Those are reached as the traverser, and handed to the rule.
+    solve = train(leduc_solve(2), 2_000)
+    regret_banked = {id(ledger) for ledger, _, _ in spy.banked}
+    assert all(
+        id(ledger) in regret_banked or ledger.strategy_sum.any()
+        for ledger in solve.table.values()
+    )
+
+# ---------------------------------------------------------------------------
+# The rules on the walk: today's learner bit for bit, and the other three
+# ---------------------------------------------------------------------------
+
+def reference_traverse(state, table, traverser: int, rng, t: int) -> float:
+    """The walk as it stood before regret rules: every bank through `RegretMatcher.update`.
+
+    Kept verbatim as the regression oracle. The walk now banks straight into
+    the ledger slots through a rule; under vanilla with no extra columns that
+    must be the same floating-point arithmetic `update` did at weights (1, 0)
+    and (0, t), so the two produce identical bytes, not merely close numbers.
+    """
+    if state.is_terminal():
+        return state.returns()[traverser]
+    if state.is_chance_node():
+        outcomes = state.chance_outcomes()
+        picked = _pick(rng, [probability for _, probability in outcomes])
+        return reference_traverse(state.apply_chance(outcomes[picked][0]), table, traverser, rng, t)
+    ledger = table[state.infoset()]
+    actions = state.legal_actions()
+    sigma = ledger.strategy()
+    if state.current_player == traverser:
+        utilities = np.array(
+            [reference_traverse(state.apply(action), table, traverser, rng, t) for action in actions]
+        )
+        ledger.update(utilities, regret_weight=1.0, strategy_weight=0.0)
+        return float(sigma @ utilities)
+    ledger.update(np.zeros(len(actions)), regret_weight=0.0, strategy_weight=float(t))
+    return reference_traverse(state.apply(actions[_pick(rng, sigma)]), table, traverser, rng, t)
+
+def reference_train(solve: Solve, iterations: int) -> Solve:
+    for _ in range(iterations):
+        t = solve.iteration + 1
+        for traverser in (0, 1):
+            reference_traverse(solve.deal(solve.rng), solve.table, traverser, solve.rng, t)
+        solve.iteration = t
+    return solve
+
+@pytest.mark.parametrize(
+    ("make", "iterations"),
+    [
+        (lambda: leduc_solve(3), 2_000),
+        (lambda: new_solve(0, table=LazyTable(), deal=random_deal), 50),
+    ],
+    ids=["leduc", "minidrawmaha"],
+)
+def test_vanilla_without_columns_is_the_learner_before_rules_bit_for_bit(make, iterations):
+    ruled, reference = train(make(), iterations), reference_train(make(), iterations)
+    assert ledgers_equal(ruled.table, reference.table)
+    assert ruled.rng.bit_generator.state == reference.rng.bit_generator.state
+
+@pytest.mark.parametrize("rule", list(RegretRule))
+def test_every_rule_is_reproducible_and_trains_the_same_in_chunks(rule):
+    straight = train(leduc_solve(11, rule=rule, averages=BOTH_COLUMNS), 60)
+    again = train(leduc_solve(11, rule=rule, averages=BOTH_COLUMNS), 60)
+    chunked = train(train(leduc_solve(11, rule=rule, averages=BOTH_COLUMNS), 25), 35)
+    assert chunked.iteration == 60
+    assert ledgers_equal(straight.table, again.table)
+    assert ledgers_equal(straight.table, chunked.table)
+
+def test_the_four_rules_train_four_different_tables():
+    tables = [train(leduc_solve(11, rule=rule), 60).table for rule in RegretRule]
+    for first in range(4):
+        for second in range(first + 1, 4):
+            assert not ledgers_equal(tables[first], tables[second])
+
+def test_the_rules_leave_their_marks():
+    # CFR+ never holds a negative regret; DCFR stamps every row it banks, with
+    # an iteration it has run; the others never stamp.
+    for rule in RegretRule:
+        table = train(leduc_solve(11, rule=rule), 60).table
+        regrets = np.concatenate([ledger.cumulative_regret for ledger in table.values()])
+        stamps = np.array([ledger.stamp[0] for ledger in table.values()])
+        if rule is RegretRule.CFR_PLUS:
+            assert regrets.min() == 0.0
+        else:
+            assert regrets.min() < 0.0
+        if rule is RegretRule.DCFR:
+            banked = [ledger.stamp[0] for ledger in table.values() if ledger.cumulative_regret.any()]
+            assert banked and all(1 <= stamp <= 60 for stamp in banked)
+        else:
+            assert not stamps.any()
+
+def test_at_iteration_one_every_column_banks_the_same_numbers():
+    # Weights 1, t and t² all equal 1 at t = 1, so one iteration pins that the
+    # columns bank the primary's very strategies, in the primary's places.
+    solve = train(leduc_solve(4, averages=BOTH_COLUMNS), 1)
+    for ledger in solve.table.values():
+        for row in ledger.extra_sums:
+            assert row.tobytes() == ledger.strategy_sum.tobytes()
+
+def test_a_run_refuses_a_rule_or_column_it_does_not_know():
+    with pytest.raises(ValueError, match="'rm-plus'"):
+        leduc_solve(0, rule="rm-plus")
+    with pytest.raises(ValueError, match="'cubic'"):
+        leduc_solve(0, averages=("cubic",))
+
+def test_a_run_refuses_a_table_without_a_row_per_column():
+    # A table one row short would crash on the first bank; one with a row too
+    # many would broadcast a single column's weights into both rows silently.
+    with pytest.raises(ValueError, match="1 extra averaging row"):
+        leduc_solve(0, table=new_leduc_table_with(1), averages=BOTH_COLUMNS)
+    with pytest.raises(ValueError, match="2 extra averaging rows"):
+        leduc_solve(0, table=new_leduc_table_with(2), averages=(Average.UNIFORM,))
+
+def test_rules_and_columns_are_accepted_by_name():
+    solve = leduc_solve(0, rule="dcfr", averages=("uniform", "quadratic"))
+    assert solve.rule is RegretRule.DCFR
+    assert solve.averages == BOTH_COLUMNS
 
 # ---------------------------------------------------------------------------
 # Convergence on Leduc, against the LP referee
@@ -384,19 +554,21 @@ class LazyTable(dict):
     """
 
     def __missing__(self, infoset: InfoSet) -> RegretMatcher:
-        ledger = self[infoset] = SpyLedger(len(infoset.legal_actions()))
+        ledger = self[infoset] = RegretMatcher(len(infoset.legal_actions()))
         return ledger
 
-def test_draw_spots_bank_four_wide_utilities():
+def test_draw_spots_bank_four_wide_regrets(spy):
     table = LazyTable()
     solve = train(new_solve(0, table=table, deal=random_deal), 20)
     draws = [key for key in table if key.is_draw_decision()]
     assert draws
     assert all(table[key].n_actions == len(DRAW_ACTIONS) == 4 for key in draws)
     assert {key.player for key in table} == {0, 1}
-    for ledger in table.values():
-        for utilities, _, _ in ledger.banked:
-            assert np.all(np.isfinite(utilities))
+    draw_ledgers = {id(table[key]) for key in draws}
+    assert any(id(ledger) in draw_ledgers for ledger, _, _ in spy.banked)
+    for ledger, regret, _ in spy.banked:
+        assert regret.shape == (ledger.n_actions,)
+        assert np.all(np.isfinite(regret))
     assert solve.iteration == 20
 
 def test_mini_drawmahas_root_is_dealt_by_the_deck_first():

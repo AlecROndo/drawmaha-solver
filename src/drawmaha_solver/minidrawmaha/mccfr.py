@@ -87,6 +87,15 @@ import numpy as np
 
 from drawmaha_solver.minidrawmaha.game import random_deal
 from drawmaha_solver.minidrawmaha.infoset_table import new_infoset_table
+from drawmaha_solver.minidrawmaha.regret_rules import (
+    RULES,
+    Average,
+    BankRegret,
+    RegretRule,
+    bank_vanilla,
+    extra_weights,
+    validate_averages,
+)
 from drawmaha_solver.regret_matching import RegretMatcher
 
 # ---------------------------------------------------------------------------
@@ -135,8 +144,15 @@ class Solve:
     stream is `rng`. Mutable on purpose: `train` advances it in place, and a
     copy would be a second solve silently diverging from the first.
 
-    The answer is `average_strategy(solve.table)`; the table's current strategy
-    cycles and is not the solution.
+    `rule` is how the traverser's regret is banked (`regret_rules`), and
+    `averages` the extra averaging columns banked beside the primary linear
+    one, in the order of the ledgers' `extra_sums` rows. Both are fixed for
+    the life of a run: a checkpoint records them and refuses to resume under
+    others.
+
+    The answer is `average_strategy(solve.table)` — or, for another column,
+    `regret_rules.column_average` — and never the table's current strategy,
+    which cycles and is not the solution.
     """
 
     table: Table
@@ -144,21 +160,42 @@ class Solve:
     deal: RootSampler
     seed: int
     iteration: int = 0
+    rule: RegretRule = RegretRule.VANILLA
+    averages: tuple[Average, ...] = ()
 
 def new_solve(
-    seed: int, *, table: Table | None = None, deal: RootSampler = random_deal
+    seed: int,
+    *,
+    table: Table | None = None,
+    deal: RootSampler = random_deal,
+    rule: RegretRule | str = RegretRule.VANILLA,
+    averages: Sequence[Average | str] = (),
 ) -> Solve:
     """A fresh run at iteration 0, seeded so that it can be reproduced.
 
     `table=None` allocates the whole mini-drawmaha table — 3.4 GB and about
-    half a minute. Pass a table to train a slice or another game; it must
-    hold every key the walk can reach from `deal`'s roots, since a miss raises.
+    half a minute — with one `extra_sums` row per averaging column. Pass a
+    table to train a slice or another game; it must hold every key the walk can
+    reach from `deal`'s roots, since a miss raises, and every ledger must carry
+    exactly one extra row per column.
+
+    `rule` and `averages` are accepted by name ("dcfr", ("uniform",
+    "quadratic")). The defaults — vanilla, no extra columns — are the learner
+    as it was before rules existed, bit for bit.
     """
+    rule = RegretRule(rule)
+    averages = validate_averages(averages)
+    if table is None:
+        table = new_infoset_table(extra_averages=len(averages))
+    else:
+        _require_extra_rows(table, averages)
     return Solve(
-        table=new_infoset_table() if table is None else table,
+        table=table,
         rng=np.random.default_rng(seed),
         deal=deal,
         seed=seed,
+        rule=rule,
+        averages=averages,
     )
 
 def train(solve: Solve, iterations: int) -> Solve:
@@ -178,19 +215,56 @@ def run_iteration(solve: Solve) -> None:
     """One iteration: a fresh deal walked with P0 traversing, then another with P1.
 
     Both traversals bank at the same t. Each seat gets its own deal rather than
-    sharing one, so the two samples are independent.
+    sharing one, so the two samples are independent. P0's regrets are banked
+    before P1 walks against them — CFR+'s alternating updates, for every rule.
     """
     t = solve.iteration + 1
+    bank = RULES[solve.rule]
+    column_weights = extra_weights(solve.averages, t)
     for traverser in (0, 1):
-        traverse(solve.deal(solve.rng), solve.table, traverser, solve.rng, t)
+        traverse(
+            solve.deal(solve.rng),
+            solve.table,
+            traverser,
+            solve.rng,
+            t,
+            bank=bank,
+            column_weights=column_weights,
+        )
     solve.iteration = t
+
+def _require_extra_rows(table: Table, averages: tuple[Average, ...]) -> None:
+    """Refuse a table whose ledgers do not carry exactly one `extra_sums` row per column.
+
+    Checked at every ledger, before training. A ledger a row short would crash
+    on its first bank, but one a row too many would not: a single column's
+    weights broadcast across two rows and bank the same numbers into both.
+    """
+    rows = len(averages)
+    mismatched = next(
+        (ledger.extra_sums.shape[0] for ledger in table.values() if ledger.extra_sums.shape[0] != rows),
+        None,
+    )
+    if mismatched is not None:
+        plural = "" if mismatched == 1 else "s"
+        raise ValueError(
+            f"a ledger carries {mismatched} extra averaging row{plural}, but the run "
+            f"banks {rows} columns: {[column.value for column in averages]}"
+        )
 
 # ---------------------------------------------------------------------------
 # The walk
 # ---------------------------------------------------------------------------
 
 def traverse(
-    state: State, table: Table, traverser: int, rng: np.random.Generator, t: int
+    state: State,
+    table: Table,
+    traverser: int,
+    rng: np.random.Generator,
+    t: int,
+    *,
+    bank: BankRegret = bank_vanilla,
+    column_weights: np.ndarray | None = None,
 ) -> float:
     """Chips to `traverser` from `state` along one sampled path, banking on the way up.
 
@@ -199,6 +273,14 @@ def traverse(
 
     The returned number is a sample, not an expectation: it is unbiased for the
     traverser's value under the current strategies, and noisy.
+
+    `bank` is the regret rule, handed each of the traverser's regrets unweighted
+    — what weight iteration t deserves is the rule's to decide. `column_weights`
+    is iteration t's weight for each extra averaging column, shaped (k, 1), or
+    None when the run banks none. The walk writes the slots directly rather
+    than through `RegretMatcher.update`, which would re-derive σ and re-check
+    its inputs at every visit; under vanilla it does the same arithmetic, and
+    `test_mccfr.py` holds the two to identical bytes.
     """
     if state.is_terminal():
         return state.returns()[traverser]
@@ -209,26 +291,59 @@ def traverse(
     if state.is_chance_node():
         outcomes = state.chance_outcomes()
         picked = _pick(rng, [probability for _, probability in outcomes])
-        return traverse(state.apply_chance(outcomes[picked][0]), table, traverser, rng, t)
+        return traverse(
+            state.apply_chance(outcomes[picked][0]),
+            table,
+            traverser,
+            rng,
+            t,
+            bank=bank,
+            column_weights=column_weights,
+        )
 
     ledger = table[state.infoset()]
     actions = state.legal_actions()
     sigma = ledger.strategy()
 
-    # My spot: walk every action, bank their regret at weight exactly 1. u[k]
-    # belongs to actions[k], which is the ledger's column k.
+    # My spot: walk every action and hand the rule their regret, at weight
+    # exactly 1. u[k] belongs to actions[k], which is the ledger's column k. σ
+    # was read before the subtree ran and is still this ledger's strategy:
+    # perfect recall keeps the subtree from reaching this spot again.
     if state.current_player == traverser:
         utilities = np.array(
-            [traverse(state.apply(action), table, traverser, rng, t) for action in actions]
+            [
+                traverse(
+                    state.apply(action),
+                    table,
+                    traverser,
+                    rng,
+                    t,
+                    bank=bank,
+                    column_weights=column_weights,
+                )
+                for action in actions
+            ]
         )
-        ledger.update(utilities, regret_weight=1.0, strategy_weight=0.0)
-        return float(sigma @ utilities)
+        value = sigma @ utilities
+        bank(ledger, utilities - value, t)
+        return float(value)
 
-    # Their spot: bank the mix they are about to be sampled from, weighted by
-    # t, and follow the one action it picks. Zero utilities at zero regret
-    # weight leave their regret untouched — it moves only when they traverse.
-    ledger.update(np.zeros(len(actions)), regret_weight=0.0, strategy_weight=float(t))
-    return traverse(state.apply(actions[_pick(rng, sigma)]), table, traverser, rng, t)
+    # Their spot: bank the mix they are about to be sampled from — weight t in
+    # the primary sum, each column's own weight in its row — and follow the
+    # one action it picks. Their regret is untouched: it moves only when they
+    # traverse.
+    ledger.strategy_sum += t * sigma
+    if column_weights is not None:
+        ledger.extra_sums += column_weights * sigma
+    return traverse(
+        state.apply(actions[_pick(rng, sigma)]),
+        table,
+        traverser,
+        rng,
+        t,
+        bank=bank,
+        column_weights=column_weights,
+    )
 
 def _pick(rng: np.random.Generator, probabilities: Sequence[float]) -> int:
     """An index drawn with probability `probabilities[k]`, from one uniform number.
