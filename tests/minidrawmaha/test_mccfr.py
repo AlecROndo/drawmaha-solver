@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -41,9 +42,6 @@ import pytest
 
 from drawmaha_solver.leduc.exploitability import exploitability, expected_value
 from drawmaha_solver.leduc.game import DEALS, LeducState
-from drawmaha_solver.leduc.infoset_table import (
-    average_strategy as leduc_average_strategy,
-)
 from drawmaha_solver.leduc.infoset_table import new_infoset_table as new_leduc_table
 from drawmaha_solver.minidrawmaha.game import (
     DRAW_ACTIONS,
@@ -481,65 +479,143 @@ def test_rules_and_columns_are_accepted_by_name():
 # Convergence on Leduc, against the LP referee
 # ---------------------------------------------------------------------------
 
-def grade(solve: Solve) -> tuple[float, float]:
-    """(exploitability, P0's game value) of a solve's average strategy."""
-    strategies = leduc_average_strategy(solve.table)
+def grade(solve: Solve, column: Average = Average.LINEAR) -> tuple[float, float]:
+    """(exploitability, P0's game value) of one of a solve's averages."""
+    strategies = {
+        key: regret_rules.column_average(ledger, column, solve.averages)
+        for key, ledger in solve.table.items()
+    }
     return exploitability(strategies), expected_value(strategies)[0]
 
-# Calibrated against this traverse() on 2026-09-29, seeds 1-3 (exploitability /
-# |value - LP|): 10k 0.18-0.40 / 0.0004-0.012; 50k 0.15-0.26 / 0.0004-0.0077;
-# 200k 0.10-0.13 / 0.0001-0.0034; 1M 0.046-0.055 / 0.0003-0.0014. Seed 1 is the
-# slowest of the three at 50k, so the default gate runs on the worst case.
+def leduc_trajectory(rule: RegretRule, seed: int, marks: tuple[int, ...]) -> list[dict]:
+    """Grades of every column of one run, at each of `marks` iterations.
+
+    Module-level so a process pool can run the four rules side by side: each
+    rule's trajectory is its own run, and four of them one after another
+    would push the default suite past its minute.
+    """
+    solve, done, grades = leduc_solve(seed, rule=rule, averages=BOTH_COLUMNS), 0, []
+    for mark in marks:
+        train(solve, mark - done)
+        done = mark
+        grades.append({column: grade(solve, column) for column in Average})
+    return grades
+
+def trajectories_side_by_side(seed: int, marks: tuple[int, ...]) -> dict[RegretRule, list[dict]]:
+    """`leduc_trajectory` for all four rules at once, one process each.
+
+    Spawned workers import this module by its pytest name, `tests.minidrawmaha.
+    test_mccfr`, which resolves only with the repo root on the path they
+    inherit — hence the prepend, undone when the pool is.
+    """
+    rules = list(RegretRule)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.syspath_prepend(str(Path(__file__).parents[2]))
+        with ProcessPoolExecutor(max_workers=len(rules)) as pool:
+            runs = pool.map(leduc_trajectory, rules, [seed] * len(rules), [marks] * len(rules))
+            return dict(zip(rules, runs, strict=True))
+
+# Calibrated against this traverse() on 2026-09-30, seeds 1-3, exploitability
+# of each rule's columns (and the widest |value - LP| at 50k):
 #
-# The gates follow ONE deterministic trajectory, so they are not flaky, but
-# they are tied to it: anything that changes how the walk consumes the RNG (a
-# change to `_pick`, the traversal order, the deal) moves seed 1 onto another
-# trajectory and can trip a gate with no real regression. Re-measure the three
-# seeds before reading a failure after such a change as a broken walk.
+#                        10k                 50k                 200k
+#   vanilla  linear   0.177-0.404  ->  0.148-0.257 (0.008) -> 0.101-0.132
+#   vanilla  uniform  0.115-0.148  ->  0.058-0.074 (0.005) -> 0.030-0.039
+#   CFR+     linear   0.177-0.196  ->  0.082-0.095 (0.012) -> 0.045-0.049
+#   LCFR     linear   0.127-0.178  ->  0.053-0.070 (0.006) -> 0.026-0.042
+#   DCFR     linear   0.174-0.186  ->  0.081-0.082 (0.010) -> 0.043-0.048
+#   DCFR     quadratic 0.165-0.176 ->  0.077-0.085 (0.009) -> 0.043-0.050
+#
+# The finding in the second row: under sampling, vanilla's UNIFORM average
+# beats the linear one it has always reported, three- to four-fold at every
+# length — the linear weight leans on recent iterates, and vanilla's recent
+# iterates are no better than its old ones, only fewer. The three other rules
+# fix exactly that, which is why their primary (linear) column is the good one.
+#
+# Each bound sits 1.3-1.5x above the worst seed, and every new rule's bound
+# sits below vanilla-linear's seed-1 0.257: a rule that silently fell back to
+# vanilla fails its own gate. Seed 1 runs because the vanilla gate has always
+# run on it; it is the slowest of the three for vanilla at 50k.
+#
+# The gates follow ONE deterministic trajectory per rule, so they are not
+# flaky, but they are tied to it: anything that changes how the walk consumes
+# the RNG (a change to `_pick`, the traversal order, the deal) moves seed 1 onto
+# another trajectory and can trip a gate with no real regression. Re-measure
+# the three seeds before reading a failure after such a change as a broken walk.
 #
 # What these gates do NOT do at 50k is catch a double-weighted walk. A walk
 # that threads the opponent's reach into the regret weight measured 0.24-0.34
-# at 50k with a value gap of 0.0002-0.0054 — inside every bound here. The spy
+# at 50k with a value gap of 0.0002-0.0054 — inside vanilla's bound. The spy
 # tests above are what catch it in the default run; only the million-iteration
 # run below separates the two by convergence (the mutant stalls at 0.14-0.20).
 # Threading the CHANCE reach in is not detectable at all on either game, and
 # not wrong in effect: every chance probability at one public point is the
 # same number, so it rescales a ledger's regrets uniformly and regret matching
 # reads only their ratios.
+GATES_AT_50K = [
+    (RegretRule.VANILLA, Average.LINEAR, 0.35),
+    (RegretRule.VANILLA, Average.UNIFORM, 0.10),
+    (RegretRule.CFR_PLUS, Average.LINEAR, 0.13),
+    (RegretRule.LCFR, Average.LINEAR, 0.10),
+    (RegretRule.DCFR, Average.LINEAR, 0.12),
+    (RegretRule.DCFR, Average.QUADRATIC, 0.12),
+]
+GATE_IDS = [f"{rule.value}-{column.value}" for rule, column, _ in GATES_AT_50K]
 
 @pytest.fixture(scope="module")
-def seed_one_trajectory():
-    solve = leduc_solve(1)
-    early = grade(train(solve, 10_000))
-    late = grade(train(solve, 40_000))
-    return early, late
+def seed_one_trajectories():
+    return trajectories_side_by_side(1, (10_000, 50_000))
 
-def test_leduc_game_value_approaches_the_lp_value(seed_one_trajectory):
-    # Measured 0.0004 at seed 1; 0.0077 is the widest of three seeds.
-    _, (_, value) = seed_one_trajectory
+@pytest.mark.parametrize(("rule", "column", "_"), GATES_AT_50K, ids=GATE_IDS)
+def test_leduc_game_value_approaches_the_lp_value(seed_one_trajectories, rule, column, _):
+    _, late = seed_one_trajectories[rule]
+    _, value = late[column]
     assert abs(value - LP_VALUE) < 0.02
 
-def test_leduc_exploitability_falls_under_sampling(seed_one_trajectory):
-    # Measured 0.404 -> 0.256. The bound is a smoke test, not a target: rung 2's
-    # vanilla walk reaches 0.011 in 2,000 full-tree iterations, and a sampled
-    # walk is never judged against that curve.
-    (early, _), (late, _) = seed_one_trajectory
-    assert late < early
-    assert late < 0.35
+@pytest.mark.parametrize(("rule", "column", "bound"), GATES_AT_50K, ids=GATE_IDS)
+def test_leduc_exploitability_falls_under_sampling(seed_one_trajectories, rule, column, bound):
+    # The bounds are smoke tests, not targets: rung 2's vanilla walk reaches
+    # 0.011 in 2,000 full-tree iterations, and a sampled walk is never judged
+    # against that curve.
+    early, late = seed_one_trajectories[rule]
+    assert late[column][0] < early[column][0]
+    assert late[column][0] < bound
+
+# At a million iterations, seeds 1-3 (widest |value - LP| 0.0027 anywhere):
+#
+#   vanilla linear 0.046-0.055   vanilla uniform 0.012-0.013   CFR+ 0.020-0.022
+#   LCFR linear    0.012-0.014   DCFR linear     0.020-0.020   DCFR quadratic 0.018-0.020
+#
+# Vanilla-linear's opponent-reach mutant stalls at 0.14-0.20, so its 0.10
+# bound sits between the two with room on both sides; the others sit about
+# 1.5x above their worst seed.
+GATES_AT_1M = [
+    (RegretRule.VANILLA, Average.LINEAR, 0.10),
+    (RegretRule.VANILLA, Average.UNIFORM, 0.02),
+    (RegretRule.CFR_PLUS, Average.LINEAR, 0.035),
+    (RegretRule.LCFR, Average.LINEAR, 0.02),
+    (RegretRule.DCFR, Average.LINEAR, 0.03),
+    (RegretRule.DCFR, Average.QUADRATIC, 0.03),
+]
+
+@pytest.fixture(scope="module")
+def seed_one_millions():
+    return trajectories_side_by_side(1, (2_000, 1_000_000))
 
 @pytest.mark.skipif(
     not FULL_CALIBRATION,
-    reason="a million Leduc iterations is ~4.5 min; set MINIDRAWMAHA_FULL_CALIBRATION=1",
+    reason="a million Leduc iterations per rule is ~6 min; set MINIDRAWMAHA_FULL_CALIBRATION=1",
 )
-def test_a_million_iterations_separate_the_walk_from_a_double_weighted_one():
-    # Correct walk at 1M: 0.046-0.055 over seeds 1-3. Opponent-reach mutant:
-    # 0.144-0.200. The bound sits between them with room on both sides.
-    solve = leduc_solve(1)
-    start, _ = grade(train(solve, 2_000))
-    final, value = grade(train(solve, 998_000))
-    assert final < 0.10
-    assert final < start / 5
-    assert abs(value - LP_VALUE) < 0.005
+@pytest.mark.parametrize(
+    ("rule", "column", "bound"),
+    GATES_AT_1M,
+    ids=[f"{rule.value}-{column.value}" for rule, column, _ in GATES_AT_1M],
+)
+def test_a_million_iterations_converge_under_every_rule(seed_one_millions, rule, column, bound):
+    start, final = (grades[column] for grades in seed_one_millions[rule])
+    assert final[0] < bound
+    assert final[0] < start[0] / 5
+    assert abs(final[1] - LP_VALUE) < 0.005
 
 # ---------------------------------------------------------------------------
 # Mini-drawmaha: the draw, and a root that is a chance node
@@ -553,8 +629,13 @@ class LazyTable(dict):
     mostly never reach.
     """
 
+    def __init__(self, extra_averages: int = 0):
+        super().__init__()
+        self.extra_averages = extra_averages
+
     def __missing__(self, infoset: InfoSet) -> RegretMatcher:
-        ledger = self[infoset] = RegretMatcher(len(infoset.legal_actions()))
+        width = len(infoset.legal_actions())
+        ledger = self[infoset] = RegretMatcher(width, extra_averages=self.extra_averages)
         return ledger
 
 def test_draw_spots_bank_four_wide_regrets(spy):
@@ -570,6 +651,20 @@ def test_draw_spots_bank_four_wide_regrets(spy):
         assert regret.shape == (ledger.n_actions,)
         assert np.all(np.isfinite(regret))
     assert solve.iteration == 20
+
+@pytest.mark.parametrize("rule", list(RegretRule))
+def test_every_rule_trains_on_mini_drawmaha(rule):
+    # The draw is where one traversal comes closest to reaching a spot of the
+    # traverser's twice — throwing the low card or the middle one leaves the
+    # same count public — and DCFR refuses a second bank into a row in one
+    # iteration. The thrown card is in the traverser's own key, so it never
+    # happens; this is the run that would say otherwise.
+    table = LazyTable(extra_averages=2)
+    solve = train(new_solve(0, table=table, deal=random_deal, rule=rule, averages=BOTH_COLUMNS), 30)
+    assert solve.iteration == 30
+    assert any(ledger.extra_sums.any() for ledger in table.values())
+    if rule is RegretRule.DCFR:
+        assert any(ledger.stamp[0] for ledger in table.values())
 
 def test_mini_drawmahas_root_is_dealt_by_the_deck_first():
     # `random_deal` hands back a state with no board card: the walk's first act

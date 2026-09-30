@@ -47,20 +47,29 @@ The strategy sum is banked at the OPPONENT's spots, where the walk samples from
 adding σ once per arrival reproduces the own-reach weighting rung 2 wrote out
 by hand. The traverser's own spots bank no strategy — they were enumerated,
 not played, and counting them would credit every action with having been
-chosen. The weight `t` makes the AVERAGE linear: later, better iterates count
-more in the answer. The regrets are not weighted — they still accumulate at
-weight 1 — so this is vanilla regret with a linearly weighted average, not
-Linear CFR, which weights both. Weighting the regrets by `t` too, or CFR+'s
-regret clipping, are the plan's levers if convergence stalls; neither has been
-measured against sampling noise here.
+chosen. The weight `t` makes the AVERAGE linear: later iterates count more in
+the answer, on the premise that they are better. Extra averaging columns —
+uniform, quadratic — bank the same σ at their own weights beside it, free,
+because nothing reads an average while training. Under vanilla regret that
+premise is measured wrong: on Leduc the UNIFORM column beats the linear one
+three- to four-fold at every length (0.012 against 0.050 at a million
+iterations), because vanilla's recent iterates are no better than its old ones,
+only fewer. The other rules make them better, and their linear column wins.
+
+What happens to the regret once measured is the run's REGRET RULE
+(`regret_rules`): vanilla adds it at weight 1, which makes the default a vanilla
+regret with a linearly weighted average, not Linear CFR, which weights both;
+LCFR weights it by `t`; CFR+ floors the sum at zero; DCFR discounts by sign.
+The walk measures the regret the same way for all four and hands it over
+unweighted. `test_mccfr.py` grades each rule on Leduc against the LP value.
 
 Linear weighting makes `t` part of a run's state, which is why training takes a
-`Solve` — table, RNG, root sampler and iteration count together — rather than a
-bare table: a table handed back alone would restart `t` at 1 and weight every
-later strategy as if the run were young. The RNG is consumed in one fixed order
-(root deal, then every pick in recursion order), so a seed reproduces a run bit
-for bit, a run trained in chunks equals one trained straight, and a checkpoint
-restores the random stream along with the ledgers.
+`Solve` — table, RNG, root sampler, iteration count, rule and columns together
+— rather than a bare table: a table handed back alone would restart `t` at 1
+and weight every later strategy as if the run were young. The RNG is consumed
+in one fixed order (root deal, then every pick in recursion order), so a seed
+reproduces a run bit for bit, a run trained in chunks equals one trained
+straight, and a checkpoint restores the random stream along with the ledgers.
 
 The walk is written against a nine-member state protocol, not against
 `MiniState`, and both `LeducState` and `MiniState` satisfy it unchanged. That is
@@ -241,10 +250,8 @@ def _require_extra_rows(table: Table, averages: tuple[Average, ...]) -> None:
     weights broadcast across two rows and bank the same numbers into both.
     """
     rows = len(averages)
-    mismatched = next(
-        (ledger.extra_sums.shape[0] for ledger in table.values() if ledger.extra_sums.shape[0] != rows),
-        None,
-    )
+    carried = (ledger.extra_sums.shape[0] for ledger in table.values())
+    mismatched = next((count for count in carried if count != rows), None)
     if mismatched is not None:
         plural = "" if mismatched == 1 else "s"
         raise ValueError(
@@ -377,6 +384,11 @@ def _pick(rng: np.random.Generator, probabilities: Sequence[float]) -> int:
 # Checkpoints
 # ---------------------------------------------------------------------------
 
+# Present in every checkpoint written since regret rules existed, and absent
+# from every one written before; `averages`, `extra_sums` and `stamps` travel
+# with it.
+_RULE_KEY = "rule"
+
 def save_solve(solve: Solve, path: Path) -> None:
     """Write a run to one `.npz`: every ledger slot flat, plus t, the RNG, the rule and the columns.
 
@@ -462,7 +474,8 @@ def load_solve(
             extra_sums = np.zeros((0, int(widths.sum())))
             stamps = np.zeros(len(widths), dtype=np.int64)
         ends = np.cumsum(widths)
-        for ledger, end, width, stamp in zip(table.values(), ends, widths, stamps, strict=True):
+        rows = zip(table.values(), ends, widths, stamps, strict=True)
+        for ledger, end, width, stamp in rows:
             ledger.cumulative_regret[:] = regret[end - width : end]
             ledger.strategy_sum[:] = strategy_sum[end - width : end]
             ledger.extra_sums[:] = extra_sums[:, end - width : end]
@@ -477,10 +490,6 @@ def load_solve(
             averages=averages,
         )
 
-# Present in every checkpoint written since regret rules existed, and absent
-# from every one written before; the other three new arrays travel with it.
-_RULE_KEY = "rule"
-
 def _require_same_run(
     saved: np.lib.npyio.NpzFile, rule: RegretRule, averages: tuple[Average, ...]
 ) -> None:
@@ -492,7 +501,8 @@ def _require_same_run(
         saved_rule, saved_averages = RegretRule.VANILLA.value, []
     if saved_rule != rule.value:
         raise ValueError(
-            f"the checkpoint was trained under {saved_rule!r}, and this run asks for {rule.value!r}"
+            f"the checkpoint was trained under {saved_rule!r}, "
+            f"and this run asks for {rule.value!r}"
         )
     asked = [column.value for column in averages]
     if saved_averages != asked:
