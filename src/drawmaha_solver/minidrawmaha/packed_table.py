@@ -28,7 +28,7 @@ step — shared memory, a flat checkpoint — needs to reach them by name:
 **The window.** `table[key]` returns a `RegretMatcher` built with
 `RegretMatcher.over` on slices of those arrays: no copy, so an `update` through
 it lands in the table and the ledger object can be dropped after the visit.
-The walk gets a fresh window per visit, which costs under a microsecond
+The walk gets a fresh window per visit, which costs about a microsecond
 against the ~25 µs a state costs it. The one rule the contract asks of every
 writer follows from this: `ledger.strategy_sum[:] = ...` writes into the table,
 `ledger.strategy_sum = ...` replaces the window and writes into nothing.
@@ -130,7 +130,7 @@ class PackedTable(Mapping[InfoSet, RegretMatcher]):
         return cls(_ListedIndex(keys), extra_averages=extra_averages)
 
     def __getitem__(self, key: InfoSet) -> RegretMatcher:
-        return self._window(*self._index.locate(key))
+        return self._window(*self._locate(key))
 
     def __iter__(self) -> Iterator[InfoSet]:
         return self._index.keys()
@@ -142,10 +142,8 @@ class PackedTable(Mapping[InfoSet, RegretMatcher]):
         # `Mapping` answers this by building `self[key]` and catching the miss,
         # which here is a four-view ledger built to be thrown away. The index
         # alone knows.
-        if not isinstance(key, InfoSet):
-            return False
         try:
-            self._index.locate(key)
+            self._locate(key)
         except KeyError:
             return False
         return True
@@ -162,7 +160,7 @@ class PackedTable(Mapping[InfoSet, RegretMatcher]):
 
     def row_of(self, key: InfoSet) -> int:
         """Which row `key` occupies: its position in the table's iteration order."""
-        return self._index.locate(key)[0]
+        return self._locate(key)[0]
 
     def widths(self) -> np.ndarray:
         """Every ledger's width, int64, one per row — the checkpoint's fingerprint.
@@ -179,6 +177,13 @@ class PackedTable(Mapping[InfoSet, RegretMatcher]):
     def values(self) -> ValuesView[RegretMatcher]:
         return _Values(self)
 
+    def _locate(self, key: object) -> Slot:
+        # A non-`InfoSet` (a Leduc key handed to the wrong table) is a miss,
+        # as it would be in a dict, not an `AttributeError` from the index.
+        if not isinstance(key, InfoSet):
+            raise KeyError(key)
+        return self._index.locate(key)
+
     def _window(self, row: int, start: int, width: int) -> RegretMatcher:
         stop = start + width
         return RegretMatcher.over(
@@ -193,14 +198,17 @@ class PackedTable(Mapping[InfoSet, RegretMatcher]):
 
         What `items()` and `values()` walk. The default `Mapping` versions look
         each key up again, which over the whole game is 6.2 million index
-        lookups to rediscover rows that arrive in order anyway.
+        lookups to rediscover rows that arrive in order anyway. The cursor is
+        a running sum rather than a starts array, which over the whole game
+        would be 6.2 million Python ints held at once.
         """
-        widths = self._index.widths()
-        starts = np.cumsum(widths) - widths
-        for row, (key, start, width) in enumerate(
-            zip(self._index.keys(), starts.tolist(), widths.tolist(), strict=True)
+        start = 0
+        for row, (key, width) in enumerate(
+            zip(self._index.keys(), self._index.widths(), strict=True)
         ):
+            width = int(width)
             yield key, self._window(row, start, width)
+            start += width
 
 class _Items(ItemsView[InfoSet, RegretMatcher]):
     def __iter__(self) -> Iterator[tuple[InfoSet, RegretMatcher]]:
