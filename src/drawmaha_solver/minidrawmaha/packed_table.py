@@ -126,6 +126,41 @@ class PackedTable(Mapping[InfoSet, RegretMatcher]):
         """
         return cls(_ListedIndex(keys), extra_averages=extra_averages)
 
+    def over(
+        self,
+        *,
+        cumulative_regret: np.ndarray,
+        strategy_sum: np.ndarray,
+        extra_sums: np.ndarray,
+        stamp: np.ndarray,
+    ) -> PackedTable:
+        """The same keys and rows over four arrays somebody else owns — no copy.
+
+        What a shared-memory run needs: every process builds its own index (a
+        second of arithmetic) and lays it over the one set of buffers. Checked
+        rather than trusted, for the reason `RegretMatcher.over` checks: a
+        buffer of the wrong length or dtype would not crash, it would put
+        ledgers in the wrong columns.
+        """
+        for name, array, like in (
+            ("cumulative_regret", cumulative_regret, self.cumulative_regret),
+            ("strategy_sum", strategy_sum, self.strategy_sum),
+            ("extra_sums", extra_sums, self.extra_sums),
+            ("stamp", stamp, self.stamp),
+        ):
+            if array.shape != like.shape or array.dtype != like.dtype:
+                raise ValueError(
+                    f"{name} must be {like.dtype.name} {like.shape}, "
+                    f"got {array.dtype.name} {array.shape}"
+                )
+        table = object.__new__(PackedTable)
+        table._index = self._index
+        table.cumulative_regret = cumulative_regret
+        table.strategy_sum = strategy_sum
+        table.extra_sums = extra_sums
+        table.stamp = stamp
+        return table
+
     def __getitem__(self, key: InfoSet) -> RegretMatcher:
         return self._window(*self._locate(key))
 
@@ -158,6 +193,10 @@ class PackedTable(Mapping[InfoSet, RegretMatcher]):
     def row_of(self, key: InfoSet) -> int:
         """Which row `key` occupies: its position in the table's iteration order."""
         return self._locate(key)[0]
+
+    def slot_of(self, key: InfoSet) -> Slot:
+        """Where `key`'s ledger lives: its row, its first column, its width."""
+        return self._locate(key)
 
     def widths(self) -> np.ndarray:
         """Every ledger's width, int64, one per row — the checkpoint's fingerprint.
