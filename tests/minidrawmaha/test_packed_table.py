@@ -353,6 +353,19 @@ def test_a_checkpoint_round_trips_through_a_listed_packed_table(tmp_path):
     assert np.array_equal(resumed.cumulative_regret, straight.cumulative_regret)
     assert np.array_equal(resumed.strategy_sum, straight.strategy_sum)
 
+def test_a_packed_table_with_the_wrong_number_of_columns_is_refused():
+    # `mccfr` asks the store's one `extra_sums` array rather than every window,
+    # which is right because every window's rows ARE the store's rows. A
+    # table a column short or a column over is refused before training.
+    keys = keys_at(public_decision_points()[0], 5)
+    for carried in (1, 3):
+        with pytest.raises(ValueError, match="extra averaging row"):
+            new_solve(
+                0,
+                table=PackedTable.listed(keys, extra_averages=carried),
+                averages=("uniform", "quadratic"),
+            )
+
 def test_a_rule_run_checkpoints_straight_from_the_packed_arrays(tmp_path):
     # A rule's checkpoint carries all four slots, and a packed table writes
     # them from its arrays without building a window. The same DCFR run with
