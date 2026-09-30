@@ -173,10 +173,12 @@ HAND_EDITS = {
         "function bowlArc(tab, u)",  # the ball's clock converted to arc length, shared by both triangles (#43)
         "function bowlTable(m, R0, phase)",  # the bowl path in a triangle's pixels (#43)
         "bowlTable(m, geo.P0[1] - m[1], phase)",  # the rung-0 figure draws the bowl, not its own run (#43)
+        "acc = BOWL.acc",  # the figure's clock honours ?bowl= like the Solve widget (#44)
+        "ctx.fillText('rung 0 lands at'",  # the end label says the numbers are the real run's (#44)
     ),
     "rules.html": (
         "(el.lastElementChild || el).getBoundingClientRect().bottom",  # a beat's anchor is its text (#43)
-        "Math.round(feltP)));",  # the lit beat is the one whose text is nearest mid-screen (#43)
+        "Math.min(5, Math.max(0, Math.round(feltP)));",  # the lit beat is the one whose text is nearest mid-screen (#43)
     ),
 }
 
