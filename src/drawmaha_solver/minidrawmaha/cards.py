@@ -139,9 +139,9 @@ def canonical(*groups: Group) -> tuple[Group, ...]:
 
     Called with the acting player's picture — the hole, the discards and each
     board card as its own group, so the board's order survives the sort (see
-    `game.canonical_picture`) — as separate groups in a single call. One permutation across every group at
-    once: the groups stay distinguishable in the answer, while the suit names
-    that relate them are forgotten together.
+    `game.canonical_picture`) — as separate groups in a single call. One
+    permutation across every group at once: the groups stay distinguishable in
+    the answer, while the suit names that relate them are forgotten together.
 
     Canonicalising the groups one at a time instead destroys the suit
     relationship *between* them, which is what makes a flush. That merges
