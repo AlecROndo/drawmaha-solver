@@ -384,6 +384,11 @@ def load_lockstep(
             averages=averages,
         )
 
+def is_lockstep(path: Path) -> bool:
+    """Whether a checkpoint was written by a lockstep run (it records `workers`)."""
+    with np.load(Path(path), allow_pickle=False) as saved:
+        return "workers" in saved.files
+
 def read_lockstep(path: Path) -> dict[str, object]:
     """A lockstep checkpoint's run description, read without loading its arrays."""
     with np.load(Path(path), allow_pickle=False) as saved:

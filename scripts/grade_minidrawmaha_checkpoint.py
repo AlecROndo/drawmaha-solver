@@ -29,8 +29,14 @@ from drawmaha_solver.minidrawmaha.exploitability import (
     minidrawmaha_game,
 )
 from drawmaha_solver.minidrawmaha.infoset_table import StrategyView, new_infoset_table
+from drawmaha_solver.minidrawmaha.lockstep import is_lockstep, load_lockstep, read_lockstep
 from drawmaha_solver.minidrawmaha.mccfr import load_solve, read_run
-from drawmaha_solver.minidrawmaha.regret_rules import Average, column_average
+from drawmaha_solver.minidrawmaha.regret_rules import (
+    Average,
+    RegretRule,
+    column_average,
+    validate_averages,
+)
 
 
 def main() -> None:
@@ -43,9 +49,17 @@ def main() -> None:
     clock = time.perf_counter
 
     t = clock()
-    rule, averages = read_run(args.checkpoint)
-    table = new_infoset_table(extra_averages=len(averages))
-    solve = load_solve(args.checkpoint, table=table, rule=rule, averages=averages)
+    if is_lockstep(args.checkpoint):
+        run = read_lockstep(args.checkpoint)
+        rule, averages = RegretRule(run["rule"]), validate_averages(run["averages"])
+        table = new_infoset_table(extra_averages=len(averages))
+        solve = load_lockstep(
+            args.checkpoint, table=table, workers=run["workers"], rule=rule, averages=averages
+        )
+    else:
+        rule, averages = read_run(args.checkpoint)
+        table = new_infoset_table(extra_averages=len(averages))
+        solve = load_solve(args.checkpoint, table=table, rule=rule, averages=averages)
     print(
         f"table + checkpoint: {clock() - t:.1f} s "
         f"(iteration {solve.iteration:,}, seed {solve.seed}, {rule.value}, "
