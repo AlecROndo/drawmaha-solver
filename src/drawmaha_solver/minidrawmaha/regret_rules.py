@@ -23,8 +23,8 @@ but the first):
   assumed to win.
 - **DCFR** (discounted CFR, α = 1.5, β = 0) — `R += r`, then every POSITIVE
   entry is multiplied by t^1.5/(t^1.5 + 1) and every NEGATIVE one by 1/2.
-  Positive regret fades slowly (the factor tends to 1: 0.5 at t = 1, 0.97 at
-  t = 1,000); negative regret is halved every iteration, so a mistake is
+  Positive regret fades fast early and hardly at all later (the factor is
+  0.5 at t = 1, 0.99 by t = 22, 0.99997 at t = 1,000); negative regret is halved every iteration, so a mistake is
   forgotten within a few dozen iterations — a softer CFR+.
 
 A rule is a function `bank(ledger, r, t)` and nothing else. The AVERAGE is not
@@ -61,7 +61,7 @@ the packed table itself. It is not needed, because L converges: the k-th term
 is about k^−1.5, and those sum to a finite total. So L is exact from a 65,536-
 entry table for the first stretch, and beyond it the tail — how much of the
 remaining sum is still to come — has a short closed form (Euler–Maclaurin on
-Σ log(1 + k^−1.5), expanded as Σ k^−1.5 − Σ k^−3/2 + …) whose first omitted
+Σ log(1 + k^−1.5), expanded as Σ k^−1.5 − ½Σ k^−3 + …) whose first omitted
 term is below 10^−17. The tests check both halves against brute-force sums out
 to fifty million iterations. The lazy form is also no less precise than the
 eager one: eager DCFR rounds once per iteration of a gap too.
