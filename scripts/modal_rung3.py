@@ -1,9 +1,14 @@
 """Rung 3's race on Modal: four regret rules, 10 lockstep workers each, 10M iterations.
 
-    uv run --with modal modal run scripts/modal_rung3.py::smoke          # ~10 min, one rule: it/s on Modal
-    uv run --with modal modal run --detach scripts/modal_rung3.py        # launch (or resume) all four
+    uv run --with modal modal run scripts/modal_rung3.py::smoke          # ~15 min, one rule: it/s on Modal
+    uv run --with modal modal deploy scripts/modal_rung3.py              # once, and after any code change
+    uv run --with modal modal run scripts/modal_rung3.py::main --target 3000000 --rules vanilla,cfr+,dcfr
     uv run --with modal modal run scripts/modal_rung3.py::status         # where each run stands
     uv run --with modal modal volume get drawmaha-rung3 dcfr/iter-001000000.npz .
+
+Deploy first: `main` then spawns on the DEPLOYED app, whose calls outlive this
+terminal and can spawn their own continuations. (Measured 2026-09-30: 30.9
+it/s on Modal, 10.5 ms a walk against 2.4 ms on an M5 Pro core.)
 
 One container per rule (11 cores: 10 workers and the parent), writing to the
 `drawmaha-rung3` Volume under `<rule>/`. Every save is committed at once (see
@@ -15,7 +20,8 @@ already at its target returns at once.
 
 Only one container may train a rule at a time: each writes a heartbeat to
 `<rule>/owner.json` at every save, and a new one refuses to start while
-another's heartbeat is under 30 minutes old.
+another's heartbeat is under 30 minutes old — unless that one's last progress
+line says it stopped and saved (a preemption), in which case it takes over.
 """
 
 from __future__ import annotations
@@ -45,11 +51,24 @@ def _claim(out: Path) -> None:
     """Refuse to train a rule another live container is training."""
     me = os.environ.get("MODAL_TASK_ID", "local")
     owner = out / "owner.json"
-    if owner.exists():
+    if owner.exists() and not _stopped(out):
         held = json.loads(owner.read_text())
         if held["task"] != me and time.time() - held["heartbeat"] < STALE_S:
             raise RuntimeError(f"{out.name} is being trained by {held['task']}")
     _beat(out)
+
+def _stopped(out: Path) -> bool:
+    """Whether the last container on this rule stopped and saved (its last line says so).
+
+    A preempted container saves, writes a `stopped` line and commits both, and
+    its final commit also refreshes the heartbeat; without this check Modal's
+    automatic restart of the same call would be refused as a second trainer.
+    """
+    progress = out / "progress.jsonl"
+    if not progress.exists():
+        return False
+    lines = progress.read_text().splitlines()
+    return bool(lines) and "stopped" in json.loads(lines[-1])
 
 def _beat(out: Path) -> None:
     owner = out / "owner.json"
@@ -134,8 +153,9 @@ def read_status() -> dict:
 
 @app.local_entrypoint()
 def main(target: int = TARGET, rules: str = ",".join(RULES), seed: int = 0) -> None:
+    deployed = modal.Function.from_name("drawmaha-rung3", "train_rule")
     for rule in rules.split(","):
-        call = train_rule.spawn(rule, target, seed)
+        call = deployed.spawn(rule, target, seed)
         print(f"{rule}: launched {call.object_id}")
 
 @app.local_entrypoint()
