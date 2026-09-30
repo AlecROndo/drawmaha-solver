@@ -42,6 +42,15 @@ tests in `tests/test_cover_page.py` check all three for what a static page
 can get wrong silently — a link to a route that does not exist, a font the
 build never copies, a script that does not parse — not the wording.
 
+One standing exception. The studies source predates #42, so the bowl
+settling in the Solve widget (#42), the rung-0 triangle drawing that same
+bowl and the Rules tab's beat anchor (#43) were made here, in the exported
+files, because the source has no bowl code to fix. Until those edits are
+ported into the source, a re-export would silently put the old code back;
+`test_the_hand_edits_survived_the_last_export` pins each one by a line only
+the new code has, so the revert fails the suite instead. Port the edits and
+re-export to retire that test.
+
 ## The font rule
 
 The pages load eight woff2 files from `/fonts/`, all named the @fontsource
