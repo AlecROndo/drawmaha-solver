@@ -1318,7 +1318,7 @@ const ribbon = [...document.getElementById('ribbon').children];
 const beats = [...document.querySelectorAll('.beat')];
 const names = ['the deal', 'the flop', 'the draw', 'the turn', 'the river', 'the showdown'];
 function readout() {
-  const b = Math.min(5, Math.max(0, Math.round(feltP - 0.35)));
+  const b = Math.min(5, Math.max(0, Math.round(feltP)));   /* the beat whose text is nearest the middle of the screen */
   capT.textContent = names[b]; capP.textContent = feltP.toFixed(2);
   const frac = feltP - Math.floor(feltP), bi = Math.floor(feltP);
   ribbon.forEach((el) => { el.className = ''; });
@@ -1349,8 +1349,10 @@ function mountFelt() {
     if (HP !== null) feltWant = parseFloat(HP);
     else if (reduced) feltWant = 5.6;
     else {
+      /* each beat is a tall block (min-height 76vh) with its text at the top, so anchor on the text, not the block:
+         the felt reaches street i, and beat i lights, when the middle of beat i's text is at the middle of the screen */
       const mid = innerHeight * 0.5;
-      const cs = beats.map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height * 0.45; });
+      const cs = beats.map((el) => { const r = el.getBoundingClientRect(), b = el.lastElementChild.getBoundingClientRect().bottom; return (r.top + b) / 2; });
       let p;
       if (mid <= cs[0]) p = 0;
       else if (mid >= cs[5]) p = Math.min(5.6, 5 + (mid - cs[5]) / (cs[5] - cs[4]) * 1.6);
