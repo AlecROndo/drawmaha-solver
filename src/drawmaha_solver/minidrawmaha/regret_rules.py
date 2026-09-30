@@ -24,8 +24,9 @@ but the first):
 - **DCFR** (discounted CFR, α = 1.5, β = 0) — `R += r`, then every POSITIVE
   entry is multiplied by t^1.5/(t^1.5 + 1) and every NEGATIVE one by 1/2.
   Positive regret fades fast early and hardly at all later (the factor is
-  0.5 at t = 1, 0.99 by t = 22, 0.99997 at t = 1,000); negative regret is halved every iteration, so a mistake is
-  forgotten within a few dozen iterations — a softer CFR+.
+  0.5 at t = 1, 0.99 by t = 22, 0.99997 at t = 1,000); negative regret is
+  halved every iteration, so a mistake is forgotten within a few dozen
+  iterations — a softer CFR+.
 
 A rule is a function `bank(ledger, r, t)` and nothing else. The AVERAGE is not
 the rule's business: every rule banks the same strategies into the same
@@ -189,10 +190,10 @@ def settled_regret(ledger: RegretMatcher, t: int) -> np.ndarray:
     """A DCFR row's regret as of the end of iteration t, as a copy; the ledger is untouched.
 
     What the stored numbers would be had every iteration's discount been
-    applied eagerly — through t's own, which a bank leaves owed. The walk never needs it (see the module docstring on reads); a
-    reader of regret MAGNITUDES does. For the other three rules the stamp stays
-    0 and — since they are only defined from iteration 1 — this would apply
-    discounts they never had, so it is for DCFR rows only.
+    applied eagerly — through t's own, which a bank leaves owed. The walk never
+    needs it (see the module docstring on reads); a reader of regret
+    MAGNITUDES does. The other three rules leave the stamp at 0, and this would
+    discount their rows from iteration 1 on, so it is for DCFR rows only.
     """
     stamp = int(ledger.stamp[0])
     if stamp > t:
@@ -204,7 +205,7 @@ def settled_regret(ledger: RegretMatcher, t: int) -> np.ndarray:
     return settled
 
 def _pay_owed(regret: np.ndarray, *, stamp: int, through: int) -> None:
-    """Apply DCFR's factors for iterations stamp … through to a row stamped `stamp`, in place, by sign.
+    """Multiply a row stamped `stamp` by DCFR's factors for iterations stamp … through, by sign.
 
     A stamp of 0 is a row never banked: all zeros, owing nothing, so it pays
     from iteration 1, which multiplies zeros and changes nothing.
@@ -288,7 +289,7 @@ def column_average(
 _TABLE_END = 2**16
 
 def cumulative_log_discount(n: int) -> float:
-    """L(n) = −Σ_{k ≤ n} log(1 + k^−1.5): the log of DCFR's positive factors through iteration n.
+    """L(n) = −Σ_{k ≤ n} log(1 + k^−1.5): the log of DCFR's positive factors through n.
 
     L(0) = 0. From a table up to 2^16, and from the table's last entry minus
     the tail formula beyond it. Measured against brute-force sums out to fifty

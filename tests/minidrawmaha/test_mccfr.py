@@ -293,7 +293,10 @@ def test_a_row_reached_twice_in_one_traversal_banks_both_regrets():
     # both too and owes iteration 1's discount once, by the sign of the sum —
     # a DCFR that discounted at each bank would halve the −1 before the 12
     # arrived.
-    tables = {bank: {"M": RegretMatcher(2), "K": RegretMatcher(2)} for bank in (bank_vanilla, bank_discounted)}
+    tables = {
+        bank: {"M": RegretMatcher(2), "K": RegretMatcher(2)}
+        for bank in (bank_vanilla, bank_discounted)
+    }
     for bank, table in tables.items():
         traverse(ScriptedState("S"), table, 0, np.random.default_rng(0), 1, bank=bank)
     assert tables[bank_vanilla]["K"].cumulative_regret.tolist() == [11.0, 1.0]
@@ -344,7 +347,11 @@ def test_every_leduc_traversal_banks_regret_or_strategy_and_never_both():
     for t in (1, 2, 3):
         for traverser in (0, 1):
             before = {
-                key: (ledger.cumulative_regret.copy(), ledger.strategy_sum.copy(), ledger.strategy())
+                key: (
+                    ledger.cumulative_regret.copy(),
+                    ledger.strategy_sum.copy(),
+                    ledger.strategy(),
+                )
                 for key, ledger in table.items()
             }
             spy = SpyBank()
@@ -414,7 +421,10 @@ def reference_traverse(state, table, traverser: int, rng, t: int) -> float:
     sigma = ledger.strategy()
     if state.current_player == traverser:
         utilities = np.array(
-            [reference_traverse(state.apply(action), table, traverser, rng, t) for action in actions]
+            [
+                reference_traverse(state.apply(action), table, traverser, rng, t)
+                for action in actions
+            ]
         )
         ledger.update(utilities, regret_weight=1.0, strategy_weight=0.0)
         return float(sigma @ utilities)
@@ -469,7 +479,9 @@ def test_the_rules_leave_their_marks():
         else:
             assert regrets.min() < 0.0
         if rule is RegretRule.DCFR:
-            banked = [ledger.stamp[0] for ledger in table.values() if ledger.cumulative_regret.any()]
+            banked = [
+                ledger.stamp[0] for ledger in table.values() if ledger.cumulative_regret.any()
+            ]
             assert banked and all(1 <= stamp <= 60 for stamp in banked)
         else:
             assert not stamps.any()
@@ -557,8 +569,9 @@ def trajectories_side_by_side(seed: int, marks: tuple[int, ...]) -> dict[RegretR
 #
 # The finding in the second row: under sampling, vanilla's UNIFORM average
 # beats the linear one it has always reported at every length — 1.5-2.7x at
-# 10k, about 3x at 50k and 200k, about 4x at a million — the linear weight leans on recent iterates, and vanilla's recent
-# iterates are no better than its old ones, only fewer. The three other rules
+# 10k, about 3x at 50k and 200k, about 4x at a million. The linear weight
+# leans on recent iterates, and vanilla's recent iterates are no better than
+# its old ones, only fewer. The three other rules
 # fix exactly that, which is why their primary (linear) column is the good one.
 #
 # Each bound sits 1.3-1.5x above the worst seed, and every new rule's bound
@@ -851,7 +864,9 @@ def test_a_resumed_ruled_run_matches_an_uninterrupted_one(tmp_path, rule):
     path = tmp_path / "solve.npz"
     save_solve(ruled_run(50, rule=rule), path)
     resumed = train(
-        load_solve(path, table=new_leduc_table_with(2), deal=leduc_deal, rule=rule, averages=BOTH_COLUMNS),
+        load_solve(
+            path, table=new_leduc_table_with(2), deal=leduc_deal, rule=rule, averages=BOTH_COLUMNS
+        ),
         50,
     )
     assert ledgers_equal(resumed.table, ruled_run(100, rule=rule).table)
@@ -871,7 +886,9 @@ def test_load_refuses_other_columns_before_touching_the_table(tmp_path):
     save_solve(ruled_run(10), path)
     table = new_leduc_table_with(2)
     with pytest.raises(ValueError, match="columns"):
-        load_solve(path, table=table, deal=leduc_deal, rule="dcfr", averages=("quadratic", "uniform"))
+        load_solve(
+            path, table=table, deal=leduc_deal, rule="dcfr", averages=("quadratic", "uniform")
+        )
     assert untouched(table)
 
 def test_load_refuses_a_table_without_a_row_per_column(tmp_path):
@@ -889,7 +906,8 @@ def test_a_checkpoint_from_before_rules_loads_as_vanilla(tmp_path):
     solve = train(leduc_solve(9), 100)
     save_solve(solve, path)
     with np.load(path) as saved:
-        arrays = {key: saved[key] for key in saved.files if key not in ("rule", "averages", "extra_sums", "stamps")}
+        new_keys = ("rule", "averages", "extra_sums", "stamps")
+        arrays = {key: saved[key] for key in saved.files if key not in new_keys}
     np.savez(path, **arrays)
     loaded = load_solve(path, table=new_leduc_table(), deal=leduc_deal)
     assert ledgers_equal(solve.table, loaded.table)

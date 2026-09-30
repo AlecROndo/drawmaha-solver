@@ -516,7 +516,7 @@ def _saved_run(saved: np.lib.npyio.NpzFile) -> tuple[RegretRule, tuple[Average, 
 def _require_same_run(
     saved: tuple[RegretRule, tuple[Average, ...]], asked: tuple[RegretRule, tuple[Average, ...]]
 ) -> None:
-    """Refuse to resume a checkpoint under another rule or other columns than it was trained with."""
+    """Refuse to resume a checkpoint under a rule or columns it was not trained with."""
     (saved_rule, saved_averages), (rule, averages) = saved, asked
     if saved_rule is not rule:
         raise ValueError(

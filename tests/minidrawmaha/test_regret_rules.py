@@ -46,7 +46,7 @@ def positive_factor(t: int) -> float:
 def eager_discounted(
     visits: dict[int, list[np.ndarray]], width: int
 ) -> dict[int, list[float]]:
-    """DCFR as the paper writes it: every iteration adds its regrets (none if unvisited), then discounts.
+    """DCFR as the paper writes it: each iteration adds its regrets (if any), then discounts.
 
     Returns the row at the end of each visited iteration. Scalar Python rather
     than NumPy, because tens of thousands of three-entry array operations cost
@@ -218,10 +218,11 @@ def brute_force_tail(start: int, stop: int) -> float:
     its last place. A literal product of fifty million factors would not: its
     own rounding, one per factor, would reach ~5e-9.
     """
-    totals = [
-        float(np.log1p(np.arange(first, min(first + 1_000_000, stop), dtype=np.float64) ** -1.5).sum())
+    chunks = (
+        np.arange(first, min(first + 1_000_000, stop), dtype=np.float64)
         for first in range(start, stop, 1_000_000)
-    ]
+    )
+    totals = [float(np.log1p(chunk**-1.5).sum()) for chunk in chunks]
     return math.fsum(totals)
 
 @functools.cache
