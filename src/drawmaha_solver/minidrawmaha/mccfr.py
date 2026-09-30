@@ -51,10 +51,10 @@ chosen. The weight `t` makes the AVERAGE linear: later iterates count more in
 the answer, on the premise that they are better. Extra averaging columns —
 uniform, quadratic — bank the same σ at their own weights beside it, free,
 because nothing reads an average while training. Under vanilla regret that
-premise is measured wrong: on Leduc the UNIFORM column beats the linear one
-three- to four-fold at every length (0.012 against 0.050 at a million
-iterations), because vanilla's recent iterates are no better than its old ones,
-only fewer. The other rules make them better, and their linear column wins.
+premise is measured wrong: on Leduc the UNIFORM column beats the linear one at
+every length, 1.5-2.7x at 10k iterations and about 4x by a million (0.012
+against 0.050), because vanilla's recent iterates are no better than its old
+ones, only fewer. The other rules make them better, and their linear column wins.
 
 What happens to the regret once measured is the run's REGRET RULE
 (`regret_rules`): vanilla adds it at weight 1, which makes the default a vanilla
@@ -422,8 +422,12 @@ def save_solve(solve: Solve, path: Path) -> None:
             iteration=np.int64(solve.iteration),
             seed=np.int64(solve.seed),
             rng_state=np.str_(json.dumps(solve.rng.bit_generator.state)),
-            rule=np.str_(solve.rule.value),
-            averages=np.array([column.value for column in solve.averages], dtype=np.str_),
+            # Through the enums, so a hand-built Solve holding plain names is
+            # validated here rather than written as whatever it holds.
+            rule=np.str_(RegretRule(solve.rule).value),
+            averages=np.array(
+                [Average(column).value for column in solve.averages], dtype=np.str_
+            ),
         )
 
 def load_solve(
@@ -461,7 +465,7 @@ def load_solve(
     with np.load(Path(path), allow_pickle=False) as saved:
         widths = saved["widths"]
         _validate_shape(widths, table)
-        _require_same_run(saved, rule, averages)
+        _require_same_run(_saved_run(saved), (rule, averages))
         _require_extra_rows(table, averages)
         rng_state = json.loads(str(saved["rng_state"]))
         _require_restorable(rng_state)
@@ -473,6 +477,7 @@ def load_solve(
         else:
             extra_sums = np.zeros((0, int(widths.sum())))
             stamps = np.zeros(len(widths), dtype=np.int64)
+        _validate_columns(extra_sums, stamps, widths, len(averages))
         ends = np.cumsum(widths)
         rows = zip(table.values(), ends, widths, stamps, strict=True)
         for ledger, end, width, stamp in rows:
@@ -490,24 +495,38 @@ def load_solve(
             averages=averages,
         )
 
+def read_run(path: Path) -> tuple[RegretRule, tuple[Average, ...]]:
+    """The rule and the extra columns a checkpoint was trained under, read without loading it.
+
+    What a caller needs BEFORE `load_solve`: the table it allocates must carry
+    one extra row per column, and `load_solve` must be told the rule it is
+    continuing. A checkpoint from before rules existed reads as vanilla with
+    no columns, which is what it was.
+    """
+    with np.load(Path(path), allow_pickle=False) as saved:
+        return _saved_run(saved)
+
+def _saved_run(saved: np.lib.npyio.NpzFile) -> tuple[RegretRule, tuple[Average, ...]]:
+    if _RULE_KEY not in saved.files:
+        return RegretRule.VANILLA, ()
+    return RegretRule(str(saved[_RULE_KEY])), validate_averages(
+        str(column) for column in saved["averages"]
+    )
+
 def _require_same_run(
-    saved: np.lib.npyio.NpzFile, rule: RegretRule, averages: tuple[Average, ...]
+    saved: tuple[RegretRule, tuple[Average, ...]], asked: tuple[RegretRule, tuple[Average, ...]]
 ) -> None:
     """Refuse to resume a checkpoint under another rule or other columns than it was trained with."""
-    if _RULE_KEY in saved.files:
-        saved_rule = str(saved[_RULE_KEY])
-        saved_averages = [str(column) for column in saved["averages"]]
-    else:
-        saved_rule, saved_averages = RegretRule.VANILLA.value, []
-    if saved_rule != rule.value:
+    (saved_rule, saved_averages), (rule, averages) = saved, asked
+    if saved_rule is not rule:
         raise ValueError(
-            f"the checkpoint was trained under {saved_rule!r}, "
+            f"the checkpoint was trained under {saved_rule.value!r}, "
             f"and this run asks for {rule.value!r}"
         )
-    asked = [column.value for column in averages]
-    if saved_averages != asked:
+    if saved_averages != averages:
         raise ValueError(
-            f"the checkpoint banks the columns {saved_averages}, and this run asks for {asked}"
+            f"the checkpoint banks the columns {[column.value for column in saved_averages]}, "
+            f"and this run asks for {[column.value for column in averages]}"
         )
 
 def _require_restorable(rng_state: Mapping[str, Any]) -> None:
@@ -527,6 +546,24 @@ def _widths(table: Table) -> np.ndarray:
     return np.fromiter(
         (ledger.n_actions for ledger in table.values()), dtype=np.int64, count=len(table)
     )
+
+def _validate_columns(
+    extra_sums: np.ndarray, stamps: np.ndarray, widths: np.ndarray, rows: int
+) -> None:
+    """Refuse extra sums or stamps that do not match the widths, before writing into the table.
+
+    The write loop's `zip(strict=True)` would notice a short stamp array too,
+    but only after pouring every ledger before the end of it.
+    """
+    if extra_sums.shape != (rows, int(widths.sum())):
+        raise ValueError(
+            f"the checkpoint's extra_sums are {extra_sums.shape}, and its widths "
+            f"and columns need {(rows, int(widths.sum()))}"
+        )
+    if stamps.shape != widths.shape:
+        raise ValueError(
+            f"the checkpoint holds {len(stamps)} stamps for {len(widths)} ledgers"
+        )
 
 def _validate_shape(widths: np.ndarray, table: Table) -> None:
     """Refuse a table the checkpoint's ledgers do not fit, before writing into it."""

@@ -43,21 +43,23 @@ def positive_factor(t: int) -> float:
     """DCFR's per-iteration shrink of a positive regret, straight from the paper."""
     return t**1.5 / (t**1.5 + 1)
 
-def eager_discounted(visits: dict[int, np.ndarray], width: int) -> dict[int, list[float]]:
-    """DCFR as the paper writes it: every iteration adds (zero if unvisited), then discounts.
+def eager_discounted(
+    visits: dict[int, list[np.ndarray]], width: int
+) -> dict[int, list[float]]:
+    """DCFR as the paper writes it: every iteration adds its regrets (none if unvisited), then discounts.
 
-    Returns the row as it stands right after each visit. Scalar Python rather
+    Returns the row at the end of each visited iteration. Scalar Python rather
     than NumPy, because tens of thousands of three-entry array operations cost
     seconds and this loop is the reference, not the thing under test.
     """
     regret, after = [0.0] * width, {}
     for t in range(1, max(visits) + 1):
-        added = visits.get(t)
+        added = [sum(bank[a] for bank in visits.get(t, ())) for a in range(width)]
         shrink = positive_factor(t)
         for a in range(width):
-            value = regret[a] + (added[a] if added is not None else 0.0)
+            value = regret[a] + added[a]
             regret[a] = value * (shrink if value > 0.0 else 0.5)
-        if added is not None:
+        if t in visits:
             after[t] = list(regret)
     return after
 
@@ -104,60 +106,77 @@ def test_only_dcfr_touches_the_stamp(bank):
 def test_every_rule_writes_in_place(bank):
     # The ledger may be a view into a packed table's buffer; a rule that
     # rebinds the attribute would bank into a copy the table never sees.
-    buffer = np.array([1.0, -1.0])
+    buffer, stamp = np.array([1.0, -1.0]), np.zeros(1, dtype=np.int64)
     ledger = RegretMatcher.over(
         cumulative_regret=buffer,
         strategy_sum=np.zeros(2),
         extra_sums=np.zeros((0, 2)),
-        stamp=np.zeros(1, dtype=np.int64),
+        stamp=stamp,
     )
     bank(ledger, np.array([0.5, -0.5]), 3)
-    assert ledger.cumulative_regret is buffer
+    assert ledger.cumulative_regret is buffer and ledger.stamp is stamp
     assert not np.array_equal(buffer, [1.0, -1.0])
 
 # ---------------------------------------------------------------------------
 # DCFR: one visit, then the lazy discount against the eager one
 # ---------------------------------------------------------------------------
 
-def test_dcfr_discounts_by_sign_after_adding():
-    # At t = 4, t^1.5 = 8: positives keep 8/9, negatives keep 1/2. The sign is
-    # read AFTER the add — the first entry is positive only because of it.
-    ledger = ledger_with([-0.5, 0.0, 0.0], stamp=3)
-    bank_discounted(ledger, np.array([1.4, 0.9, -0.6]), 4)
-    np.testing.assert_allclose(
-        ledger.cumulative_regret, [0.9 * 8 / 9, 0.9 * 8 / 9, -0.3], rtol=1e-15
-    )
+def test_dcfr_owes_its_own_iteration_until_the_next_visit():
+    # A bank adds and stops: iteration t's discount is applied at the row's
+    # next visit (or by `settled_regret`), by the sign the row has then. At
+    # t = 4, t^1.5 = 8: positives keep 8/9, negatives keep 1/2.
+    ledger = ledger_with([0.0, 0.0])
+    bank_discounted(ledger, np.array([0.9, -0.6]), 4)
+    assert ledger.cumulative_regret.tolist() == [0.9, -0.6]
     assert ledger.stamp[0] == 4
+    np.testing.assert_allclose(settled_regret(ledger, 4), [0.9 * 8 / 9, -0.3], rtol=1e-15)
+    bank_discounted(ledger, np.zeros(2), 5)
+    np.testing.assert_allclose(ledger.cumulative_regret, [0.9 * 8 / 9, -0.3], rtol=1e-15)
+
+def test_dcfr_discounts_by_the_sign_after_the_whole_iteration():
+    # Two banks in iteration 4 — a second visit in the same traversal, which
+    # mini-drawmaha's suit relabelling makes possible. The first entry ends
+    # the iteration positive only because of the second bank, so it is
+    # discounted as a positive, once.
+    ledger = ledger_with([0.0, 0.0])
+    bank_discounted(ledger, np.array([-0.5, 0.2]), 4)
+    bank_discounted(ledger, np.array([1.4, 0.7]), 4)
+    np.testing.assert_allclose(settled_regret(ledger, 4), [0.9 * 8 / 9, 0.9 * 8 / 9], rtol=1e-15)
 
 def test_dcfr_at_the_first_iteration_halves_both_signs():
     # t = 1: 1^1.5 / (1^1.5 + 1) = 1/2, the same as the negative factor.
     ledger = ledger_with([0.0, 0.0])
     bank_discounted(ledger, np.array([2.0, -2.0]), 1)
-    assert ledger.cumulative_regret.tolist() == [1.0, -1.0]
-    assert ledger.stamp[0] == 1
+    assert settled_regret(ledger, 1).tolist() == [1.0, -1.0]
 
-def test_dcfr_owes_nothing_for_a_gap_of_zero():
-    # Visited at t - 1 and again at t: no iteration was missed, so only day t's
-    # own factor applies.
+def test_dcfr_owes_one_iteration_for_a_gap_of_zero():
+    # Banked at t - 1 and again at t: no iteration was missed, so only t - 1's
+    # own, still-owed factor applies before the add.
     ledger = ledger_with([3.0, -3.0], stamp=6)
-    bank_discounted(ledger, np.zeros(2), 7)
+    bank_discounted(ledger, np.array([1.0, 1.0]), 7)
     np.testing.assert_allclose(
-        ledger.cumulative_regret, [3.0 * positive_factor(7), -1.5], rtol=1e-15
+        ledger.cumulative_regret, [3.0 * positive_factor(6) + 1.0, -0.5], rtol=1e-15
     )
+    assert ledger.stamp[0] == 7
 
 @pytest.mark.parametrize("seed", range(3))
 def test_dcfr_lazy_equals_dcfr_eager(seed):
-    # Sparse visits with random regrets, including a gap long enough to push
-    # the negatives through a thousand halvings (to exactly zero) and one that
-    # crosses the exact table's end into the tail formula.
+    # Sparse visits with random regrets: two of them twice in one iteration, a
+    # gap long enough to push the negatives through a thousand halvings (to
+    # exactly zero), and one that crosses the exact table's end into the tail.
     rng = np.random.default_rng(seed)
-    visit_at = [1, 3, 10, 11, 500, 2_000, 66_000, 70_000]
-    visits = {t: rng.normal(size=3) for t in visit_at}
+    visit_at = [1, 3, 3, 10, 11, 500, 2_000, 66_000, 66_000, 70_000]
+    visits: dict[int, list[np.ndarray]] = {}
+    for t in visit_at:
+        visits.setdefault(t, []).append(rng.normal(size=3))
     eager = eager_discounted(visits, 3)
     ledger = ledger_with([0.0, 0.0, 0.0])
-    for t in visit_at:
-        bank_discounted(ledger, visits[t], t)
-        np.testing.assert_allclose(ledger.cumulative_regret, eager[t], rtol=1e-12, atol=1e-300)
+    for t, banks in visits.items():
+        for regret in banks:
+            bank_discounted(ledger, regret, t)
+        # The regrets are O(1) normals, so an entry that cancels to near zero
+        # carries ~1e-14 of absolute rounding in both forms — hence atol.
+        np.testing.assert_allclose(settled_regret(ledger, t), eager[t], rtol=1e-12, atol=1e-13)
 
 def test_a_pending_discount_never_changes_the_strategy():
     # Why reads need no catch-up: every positive entry of a row is owed the
@@ -167,40 +186,48 @@ def test_a_pending_discount_never_changes_the_strategy():
     np.testing.assert_allclose(settled.strategy(), ledger.strategy(), rtol=1e-15)
 
 def test_settled_regret_brings_a_row_up_to_date_without_touching_it():
+    # Stamped 4: owes iterations 4 … 9 by 9 — its own, and the five it missed.
     ledger = ledger_with([3.0, -1.0], stamp=4)
     settled = settled_regret(ledger, 9)
-    expected = [3.0 * math.prod(positive_factor(s) for s in range(5, 10)), -(0.5**5)]
+    expected = [3.0 * math.prod(positive_factor(s) for s in range(4, 10)), -(0.5**6)]
     np.testing.assert_allclose(settled, expected, rtol=1e-14)
     assert ledger.cumulative_regret.tolist() == [3.0, -1.0]
-    assert settled_regret(ledger, 4).tolist() == [3.0, -1.0]
+    assert ledger.stamp[0] == 4
+
+def test_a_fresh_row_owes_nothing():
+    assert settled_regret(ledger_with([0.0, 0.0]), 1_000).tolist() == [0.0, 0.0]
 
 def test_a_row_cannot_be_settled_or_banked_into_its_past():
-    # A stamp ahead of the iteration means the row came from another run, or
-    # was banked twice in one iteration — neither can be discounted backwards.
+    # A stamp ahead of the iteration means the row came from another run; it
+    # cannot be discounted backwards.
     ledger = ledger_with([1.0, -1.0], stamp=9)
     with pytest.raises(ValueError, match="stamped at iteration 9"):
         settled_regret(ledger, 8)
     with pytest.raises(ValueError, match="stamped at iteration 9"):
-        bank_discounted(ledger, np.zeros(2), 9)
+        bank_discounted(ledger, np.zeros(2), 8)
 
 # ---------------------------------------------------------------------------
 # DCFR: the running log-discount, exact table and tail formula
 # ---------------------------------------------------------------------------
 
-@functools.cache
-def brute_force_log_discount(n: int) -> float:
-    """−Σ_{k ≤ n} log(1 + k^−1.5), summed accurately in million-term chunks.
+def brute_force_tail(start: int, stop: int) -> float:
+    """Σ_{start ≤ k < stop} log(1 + k^−1.5), summed accurately in million-term chunks.
 
     Each chunk is a NumPy pairwise sum of same-signed terms and the chunk
-    totals are added with `math.fsum`, so the reference is good to ~1e-15
-    at fifty million terms. A literal product of fifty million factors would
-    not be: its own rounding, one per factor, would reach ~5e-9.
+    totals are added with `math.fsum`, so the reference carries a few units in
+    its last place. A literal product of fifty million factors would not: its
+    own rounding, one per factor, would reach ~5e-9.
     """
     totals = [
-        float(np.log1p(np.arange(start, min(start + 1_000_000, n + 1), dtype=np.float64) ** -1.5).sum())
-        for start in range(1, n + 1, 1_000_000)
+        float(np.log1p(np.arange(first, min(first + 1_000_000, stop), dtype=np.float64) ** -1.5).sum())
+        for first in range(start, stop, 1_000_000)
     ]
-    return -math.fsum(totals)
+    return math.fsum(totals)
+
+@functools.cache
+def brute_force_log_discount(n: int) -> float:
+    """L(n) = −Σ_{k ≤ n} log(1 + k^−1.5), by `brute_force_tail`."""
+    return -brute_force_tail(1, n + 1)
 
 TABLE_END = 2**16
 
@@ -235,6 +262,18 @@ def test_a_missed_stretch_is_discounted_by_the_product_it_stands_for(since, unti
     owed = math.exp(cumulative_log_discount(until) - cumulative_log_discount(since))
     exact = math.exp(brute_force_log_discount(until) - brute_force_log_discount(since))
     assert owed == pytest.approx(exact, rel=1e-14)
+
+@pytest.mark.parametrize(("start", "stop"), [(TABLE_END + 1, 10**6), (TABLE_END + 1, 5 * 10**7)])
+def test_the_tail_formula_alone_matches_a_brute_force_tail(start, stop):
+    # The tail formula without the table's ~2.2 riding on it: Σ_{start ≤ k <
+    # stop} log(1 + k^−1.5) ≈ 0.006, whose last bit is ~1e-18. At that
+    # resolution the formula's a^−3 term (8.9e-16 at the table's end) is
+    # visible, which the full L above, at 4.4e-16 per bit, cannot resolve.
+    from drawmaha_solver.minidrawmaha.regret_rules import _tail
+
+    assert _tail(start) - _tail(stop) == pytest.approx(
+        brute_force_tail(start, stop), rel=0, abs=5e-17
+    )
 
 def test_the_log_discount_refuses_a_negative_iteration():
     with pytest.raises(ValueError, match="-1"):

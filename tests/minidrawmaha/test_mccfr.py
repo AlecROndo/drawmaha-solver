@@ -32,6 +32,7 @@ separate a double-weighted walk from a correct one — sits behind
 from __future__ import annotations
 
 import json
+import multiprocessing
 import os
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
@@ -55,6 +56,7 @@ from drawmaha_solver.minidrawmaha.mccfr import (
     _pick,
     load_solve,
     new_solve,
+    read_run,
     run_iteration,
     save_solve,
     train,
@@ -63,6 +65,7 @@ from drawmaha_solver.minidrawmaha.mccfr import (
 from drawmaha_solver.minidrawmaha.regret_rules import (
     Average,
     RegretRule,
+    bank_discounted,
     bank_vanilla,
     extra_weights,
 )
@@ -144,6 +147,16 @@ _TREE = {
     "R": ("decision", 0, "I-right", ("x", "y")),
     "R.x": ("terminal", 16.0),
     "R.y": ("terminal", -32.0),
+    # A second tree, where P0's two actions lead to one row "K": what mini-
+    # drawmaha's suit relabelling does to two throws from a pair followed by
+    # two different draws. One traversal from "S" banks K twice.
+    "S": ("decision", 0, "M", ("a", "b")),
+    "S.a": ("decision", 0, "K", ("x", "y")),
+    "S.b": ("decision", 0, "K", ("x", "y")),
+    "S.a.x": ("terminal", 1.0),
+    "S.a.y": ("terminal", 3.0),
+    "S.b.x": ("terminal", 5.0),
+    "S.b.y": ("terminal", -7.0),
 }
 
 @dataclass(frozen=True)
@@ -273,6 +286,19 @@ def test_the_opponents_bank_carries_the_iteration_and_no_regret():
     assert all(ledger is not table["J"] for ledger, _, _ in spy.banked)
     assert table["J"].strategy_sum.tobytes() == (7 * np.full(3, 1 / 3)).tobytes()
     assert not table["J"].cumulative_regret.any()
+
+def test_a_row_reached_twice_in_one_traversal_banks_both_regrets():
+    # Through "a", K's regret is (1, 3) − 2 = (−1, 1). Through "b", K already
+    # plays y, so it is (5, −7) − (−7) = (12, 0). Vanilla adds both; DCFR adds
+    # both too and owes iteration 1's discount once, by the sign of the sum —
+    # a DCFR that discounted at each bank would halve the −1 before the 12
+    # arrived.
+    tables = {bank: {"M": RegretMatcher(2), "K": RegretMatcher(2)} for bank in (bank_vanilla, bank_discounted)}
+    for bank, table in tables.items():
+        traverse(ScriptedState("S"), table, 0, np.random.default_rng(0), 1, bank=bank)
+    assert tables[bank_vanilla]["K"].cumulative_regret.tolist() == [11.0, 1.0]
+    assert tables[bank_discounted]["K"].cumulative_regret.tolist() == [11.0, 1.0]
+    assert tables[bank_discounted]["K"].stamp[0] == 1
 
 def test_the_extra_columns_bank_the_same_mix_at_their_own_weights():
     table = scripted_table(extra_averages=2)
@@ -511,7 +537,10 @@ def trajectories_side_by_side(seed: int, marks: tuple[int, ...]) -> dict[RegretR
     rules = list(RegretRule)
     with pytest.MonkeyPatch.context() as patch:
         patch.syspath_prepend(str(Path(__file__).parents[2]))
-        with ProcessPoolExecutor(max_workers=len(rules)) as pool:
+        # Spawn on every platform: a fork would copy the parent whole, and a
+        # forkserver started earlier would not have seen the prepend.
+        context = multiprocessing.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=len(rules), mp_context=context) as pool:
             runs = pool.map(leduc_trajectory, rules, [seed] * len(rules), [marks] * len(rules))
             return dict(zip(rules, runs, strict=True))
 
@@ -527,8 +556,8 @@ def trajectories_side_by_side(seed: int, marks: tuple[int, ...]) -> dict[RegretR
 #   DCFR     quadratic 0.165-0.176 ->  0.077-0.085 (0.009) -> 0.043-0.050
 #
 # The finding in the second row: under sampling, vanilla's UNIFORM average
-# beats the linear one it has always reported, three- to four-fold at every
-# length — the linear weight leans on recent iterates, and vanilla's recent
+# beats the linear one it has always reported at every length — 1.5-2.7x at
+# 10k, about 3x at 50k and 200k, about 4x at a million — the linear weight leans on recent iterates, and vanilla's recent
 # iterates are no better than its old ones, only fewer. The three other rules
 # fix exactly that, which is why their primary (linear) column is the good one.
 #
@@ -654,17 +683,33 @@ def test_draw_spots_bank_four_wide_regrets(spy):
 
 @pytest.mark.parametrize("rule", list(RegretRule))
 def test_every_rule_trains_on_mini_drawmaha(rule):
-    # The draw is where one traversal comes closest to reaching a spot of the
-    # traverser's twice — throwing the low card or the middle one leaves the
-    # same count public — and DCFR refuses a second bank into a row in one
-    # iteration. The thrown card is in the traverser's own key, so it never
-    # happens; this is the run that would say otherwise.
+    # Every rule and both columns through the draw's four-wide rows. Thirty
+    # iterations are too few to reach a row twice in one traversal (about one
+    # traversal in a thousand does); the scripted tree above pins that case,
+    # and the calibration run below meets it on the real game.
     table = LazyTable(extra_averages=2)
     solve = train(new_solve(0, table=table, deal=random_deal, rule=rule, averages=BOTH_COLUMNS), 30)
     assert solve.iteration == 30
     assert any(ledger.extra_sums.any() for ledger in table.values())
     if rule is RegretRule.DCFR:
         assert any(ledger.stamp[0] for ledger in table.values())
+
+@pytest.mark.skipif(
+    not FULL_CALIBRATION,
+    reason="6,000 mini-drawmaha iterations is ~30 s; set MINIDRAWMAHA_FULL_CALIBRATION=1",
+)
+def test_dcfr_trains_through_the_rows_mini_drawmaha_reaches_twice(spy):
+    # Seed 0 reaches a row twice in one traversal a few times in 3,000
+    # iterations (the first near iteration 1,000). The spy stands in for vanilla
+    # only to count the repeats; DCFR runs for real, and before the discount
+    # was deferred to the next visit it raised at the first repeat.
+    train(new_solve(0, table=LazyTable(), deal=random_deal), 3_000)
+    # A row belongs to one seat and is banked only in that seat's traversal,
+    # so a (row, iteration) pair seen twice is a repeat within one traversal.
+    banks = [(id(ledger), t) for ledger, _, t in spy.banked]
+    assert len(banks) > len(set(banks))
+    dcfr = train(new_solve(0, table=LazyTable(), deal=random_deal, rule="dcfr"), 3_000)
+    assert dcfr.iteration == 3_000
 
 def test_mini_drawmahas_root_is_dealt_by_the_deck_first():
     # `random_deal` hands back a state with no board card: the walk's first act
@@ -851,3 +896,29 @@ def test_a_checkpoint_from_before_rules_loads_as_vanilla(tmp_path):
     assert (loaded.rule, loaded.averages) == (RegretRule.VANILLA, ())
     with pytest.raises(ValueError, match="'vanilla'.*'dcfr'"):
         load_solve(path, table=new_leduc_table(), deal=leduc_deal, rule="dcfr")
+
+def test_a_checkpoint_says_what_run_it_holds_before_anything_is_allocated(tmp_path):
+    # What a grader needs first: the rule and the columns, to size the table
+    # it will pour the checkpoint into.
+    path = tmp_path / "solve.npz"
+    save_solve(ruled_run(10), path)
+    assert read_run(path) == (RegretRule.DCFR, BOTH_COLUMNS)
+    save_solve(train(leduc_solve(9), 10), path)
+    assert read_run(path) == (RegretRule.VANILLA, ())
+
+def test_load_refuses_a_corrupt_column_block_before_touching_the_table(tmp_path):
+    # The stamps and the extra sums are checked against the widths up front;
+    # zip(strict=True) alone would notice a short array only after writing
+    # every ledger before it.
+    path = tmp_path / "solve.npz"
+    save_solve(ruled_run(10), path)
+    for key in ("stamps", "extra_sums"):
+        with np.load(path) as saved:
+            arrays = dict(saved)
+        arrays[key] = arrays[key][..., :-1]
+        corrupt = tmp_path / f"corrupt-{key}.npz"
+        np.savez(corrupt, **arrays)
+        table = new_leduc_table_with(2)
+        with pytest.raises(ValueError, match=key):
+            load_solve(corrupt, table=table, deal=leduc_deal, rule="dcfr", averages=BOTH_COLUMNS)
+        assert untouched(table)

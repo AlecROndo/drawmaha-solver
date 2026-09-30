@@ -31,22 +31,29 @@ A rule is a function `bank(ledger, r, t)` and nothing else. The AVERAGE is not
 the rule's business: every rule banks the same strategies into the same
 averages, because what is averaged is what was played, whichever rule chose it.
 
-**DCFR, discounted lazily.** Written as the paper writes it, DCFR multiplies
-EVERY one of the traverser's regrets every iteration, visited or not. Under
-sampling a row is visited once in thousands of iterations, and touching all six
-million rows per iteration is out of the question — so a row is discounted only
-when it is next visited, all the missed iterations at once. That is exact, not
-an approximation, for one reason: a row nobody visits receives r = 0, and
-multiplying by a positive factor never changes a sign, so every entry stays
-positive or negative for the whole stretch and the per-sign factors simply
-multiply. A row last banked at iteration s (its `stamp`) and visited again at t
-owes, for iterations s+1 … t−1:
+**DCFR, discounted lazily.** Written as the paper writes it, DCFR adds each
+iteration's regrets and then multiplies EVERY one of the traverser's regrets by
+that iteration's factor, visited or not. Under sampling a row is visited once
+in thousands of iterations, and touching all six million rows per iteration is
+out of the question — so a row is discounted only when it is next visited, all
+the owed iterations at once. That is exact, not an approximation, for one
+reason: a row nobody visits receives r = 0, and multiplying by a positive factor
+never changes a sign, so every entry stays positive or negative for the whole
+stretch and the per-sign factors simply multiply.
 
-    positive entries:  ∏ₖ k^1.5/(k^1.5 + 1) = exp(L(t−1) − L(s))
-    negative entries:  (1/2)^(t−1−s)
+A bank ADDS and stops; the iteration's own discount waits for the row's next
+visit too. That is not a detail: suit relabelling can bring one traversal to the
+same mini-drawmaha row twice — two throws from a pair, two different draws,
+one canonical picture — about once in a thousand traversals, and eager DCFR
+adds both regrets before it discounts once, by the sign of their sum. So the
+stored row holds everything banked through iteration s (its `stamp`) with s's
+own discount still owed. A visit at t > s first pays iterations s … t−1:
 
-then the visit adds its r and applies iteration t's own factor by the NEW sign.
-L(n) = −Σ_{k≤n} log(1 + k^−1.5) is the running log of the positive factors; a
+    positive entries:  ∏ₖ k^1.5/(k^1.5 + 1) = exp(L(t−1) − L(s−1))
+    negative entries:  (1/2)^(t−s)
+
+then adds its r and stamps t; a second visit at t just adds. L(n) =
+−Σ_{k≤n} log(1 + k^−1.5) is the running log of the positive factors; a
 difference of two L's is the product over just the stretch between them.
 
 Reading a strategy needs no catch-up at all. `strategy()` normalises the
@@ -76,9 +83,12 @@ never read during training, so a column cannot change the play it averages,
 whereas two rules on one run would each be learning from strategies the other
 chose. Which columns a run banks is its own choice, recorded in its checkpoint.
 
-Only `cumulative_regret`, `stamp` and — for the columns — `extra_sums` and
-`strategy_sum` are written, always in place (see `regret_matching`'s ledger
-contract): a ledger may be a view into a packed table's buffer.
+A rule writes only `cumulative_regret` and `stamp`. The averages —
+`strategy_sum` and the `extra_sums` rows — are banked by the walk at the
+opponent's spots, with weights from `extra_weights`, because they do not depend
+on the rule; `regret_matching`'s contract says "only a regret rule writes"
+`extra_sums`, and in that sentence the walk is acting for the run's rule. Every
+write is in place: a ledger may be a view into a packed table's buffer.
 """
 
 from __future__ import annotations
@@ -137,32 +147,36 @@ def bank_cfr_plus(ledger: RegretMatcher, regret: np.ndarray, t: int) -> None:
 
     Flooring the increment instead would let a positive balance only grow, and
     an action that turned bad could never lose the lead it built.
+
+    Floored after every bank, not once per iteration. The two differ only for
+    a row banked twice in one traversal — about one mini-drawmaha traversal in
+    a thousand, never in Leduc — where the paper would floor the iteration's
+    total once. Deferring the floor as DCFR defers its discount would need the
+    stamp, which the contract reserves for DCFR; the difference is left as a
+    known approximation of RM+ under sampling, which is itself one.
     """
     cumulative = ledger.cumulative_regret
     cumulative += regret
     np.maximum(cumulative, 0.0, out=cumulative)
 
 def bank_discounted(ledger: RegretMatcher, regret: np.ndarray, t: int) -> None:
-    """DCFR: settle the iterations missed since the stamp, add, discount iteration t by sign.
+    """DCFR: pay the discounts owed since the stamp, then add; iteration t's own discount waits.
 
-    The stamp must be behind t. Equal would mean a second bank into the row in
-    the same iteration, which perfect recall rules out — the traverser's own
-    history is in the key, so one traversal reaches a spot of theirs at most
-    once — and which the lazy form could not represent, because iteration t's
-    factor has already been applied. Ahead would mean the row came from another
-    run. Both raise rather than discount backwards.
+    A second bank in the same iteration only adds, which is what makes a row
+    reached twice in one traversal come out as eager DCFR would have it (see
+    the module docstring). A stamp AHEAD of t means the row came from another
+    run, and raises rather than discount backwards.
     """
     stamp = int(ledger.stamp[0])
-    if stamp >= t:
+    if stamp > t:
         raise ValueError(
             f"the row is stamped at iteration {stamp} and cannot be banked at {t}"
         )
     cumulative = ledger.cumulative_regret
-    _discount(cumulative, since=stamp, until=t - 1)
+    if stamp < t:
+        _pay_owed(cumulative, stamp=stamp, through=t - 1)
+        ledger.stamp[0] = t
     cumulative += regret
-    positive = t**1.5 / (t**1.5 + 1.0)
-    cumulative *= np.where(cumulative > 0.0, positive, _NEGATIVE_FACTOR)
-    ledger.stamp[0] = t
 
 RULES: dict[RegretRule, BankRegret] = {
     RegretRule.VANILLA: bank_vanilla,
@@ -174,8 +188,8 @@ RULES: dict[RegretRule, BankRegret] = {
 def settled_regret(ledger: RegretMatcher, t: int) -> np.ndarray:
     """A DCFR row's regret as of the end of iteration t, as a copy; the ledger is untouched.
 
-    What the stored numbers would be had every missed iteration been applied
-    eagerly. The walk never needs it (see the module docstring on reads); a
+    What the stored numbers would be had every iteration's discount been
+    applied eagerly — through t's own, which a bank leaves owed. The walk never needs it (see the module docstring on reads); a
     reader of regret MAGNITUDES does. For the other three rules the stamp stays
     0 and — since they are only defined from iteration 1 — this would apply
     discounts they never had, so it is for DCFR rows only.
@@ -186,17 +200,24 @@ def settled_regret(ledger: RegretMatcher, t: int) -> np.ndarray:
             f"the row is stamped at iteration {stamp} and cannot be settled to {t}"
         )
     settled = ledger.cumulative_regret.copy()
-    _discount(settled, since=stamp, until=t)
+    _pay_owed(settled, stamp=stamp, through=t)
     return settled
 
-def _discount(regret: np.ndarray, *, since: int, until: int) -> None:
-    """Apply DCFR's factors for iterations since+1 … until to `regret`, in place, by sign."""
-    if until <= since:
+def _pay_owed(regret: np.ndarray, *, stamp: int, through: int) -> None:
+    """Apply DCFR's factors for iterations stamp … through to a row stamped `stamp`, in place, by sign.
+
+    A stamp of 0 is a row never banked: all zeros, owing nothing, so it pays
+    from iteration 1, which multiplies zeros and changes nothing.
+    """
+    first = max(stamp, 1)
+    if through < first:
         return
-    positive = math.exp(cumulative_log_discount(until) - cumulative_log_discount(since))
-    # Past ~1,075 missed iterations this underflows to exactly 0.0, which is
+    positive = math.exp(
+        cumulative_log_discount(through) - cumulative_log_discount(first - 1)
+    )
+    # Past ~1,075 owed iterations this underflows to exactly 0.0, which is
     # the right answer: a negative regret halved a thousand times is gone.
-    negative = _NEGATIVE_FACTOR ** (until - since)
+    negative = _NEGATIVE_FACTOR ** (through - first + 1)
     regret *= np.where(regret > 0.0, positive, negative)
 
 # ---------------------------------------------------------------------------
@@ -263,7 +284,7 @@ def column_average(
 # ---------------------------------------------------------------------------
 
 # Where the exact table stops and the tail formula takes over. At 2^16 the
-# formula's first omitted term is ~1e-18, and the table is 512 KB.
+# formula's first omitted term is ~1e-18, and the table is a 2 MB list.
 _TABLE_END = 2**16
 
 def cumulative_log_discount(n: int) -> float:
@@ -286,7 +307,8 @@ def _head_table() -> list[float]:
 
     Compensated because a plain running sum rounds once per term and 65,536
     roundings reach ~1e-12 in the worst case; this keeps the table at the
-    precision of its last bit. Built once, on DCFR's first use (~30 ms).
+    precision of its last bit. Built once, on DCFR's first use (~10 ms). A
+    list rather than an array because the walk reads it one float at a time.
     """
     table = [0.0]
     total = compensation = 0.0
