@@ -27,6 +27,27 @@ keyword-only, so a call site cannot silently transpose them.
 
 This module knows nothing about cards, trees, or reach probabilities.
 Computing the two weights is the caller's job.
+
+**The ledger contract (rung 3).** Everything outside this file that touches a
+ledger — the walk, the strategy views, the checkpoint, the regret rules, a
+packed table — reads and writes exactly these slots, and nothing else:
+
+- `n_actions`, `strategy()`, `average_strategy()`, `update(...)` — rung 0's
+  ledger, unchanged. `update` is vanilla regret matching and touches only the
+  first two arrays below.
+- `cumulative_regret` — float64, `(n_actions,)`.
+- `strategy_sum` — float64, `(n_actions,)`: the run's PRIMARY average, the one
+  `average_strategy()` reads.
+- `extra_sums` — float64, `(k, n_actions)`: k further averages of the same
+  strategies under other weightings, banked beside the primary one. `k = 0`
+  unless asked for. Only a regret rule writes them; which weighting row j
+  holds is the run's business, not the ledger's.
+- `stamp` — int64, `(1,)`: the last iteration a lazily applied discount has
+  been brought up to. 0 until a rule that discounts sets it.
+
+All four arrays may be VIEWS into a table's flat buffers (`RegretMatcher.over`),
+so every writer changes them in place — `+=`, `[:] =` — and never rebinds
+the attribute, which would silently cut the ledger loose from its table.
 """
 
 from __future__ import annotations
@@ -38,12 +59,13 @@ import numpy as np
 class RegretMatcher:
     """One regret-matching ledger over a fixed set of actions.
 
-    Holds exactly two persistent vectors — accumulated regret and the banked
-    strategy sum. The current and average strategies are derived from them on
-    demand and never stored.
+    Holds two persistent vectors — accumulated regret and the banked strategy
+    sum — plus the two slots rung 3's regret rules write (`extra_sums`,
+    `stamp`; see the module docstring). The current and average strategies are
+    derived on demand and never stored.
     """
 
-    def __init__(self, n_actions: int):
+    def __init__(self, n_actions: int, *, extra_averages: int = 0):
         # Caught here rather than left to np.zeros, which rejects a float with
         # "expected a sequence of integers" — a message that points at the
         # array shape instead of at the action count the caller got wrong.
@@ -57,6 +79,48 @@ class RegretMatcher:
         self.n_actions = n_actions
         self.cumulative_regret = np.zeros(n_actions)
         self.strategy_sum = np.zeros(n_actions)
+        self.extra_sums = np.zeros((extra_averages, n_actions))
+        self.stamp = np.zeros(1, dtype=np.int64)
+
+    @classmethod
+    def over(
+        cls,
+        *,
+        cumulative_regret: np.ndarray,
+        strategy_sum: np.ndarray,
+        extra_sums: np.ndarray,
+        stamp: np.ndarray,
+    ) -> RegretMatcher:
+        """A ledger whose numbers live in arrays somebody else owns — no copy.
+
+        What a packed table hands the walk: the four slots are views into the
+        table's flat buffers, so an `update` lands in the table itself and the
+        ledger object can be thrown away after the visit. Checked here rather
+        than trusted, because a wrong-width view or a float32 buffer would not
+        crash — it would bank into a neighbour's columns or lose precision
+        without a word.
+        """
+        n = len(cumulative_regret)
+        if n < 2:
+            raise ValueError(f"n_actions must be at least 2, got {n}")
+        for name, array, shape, dtype in (
+            ("cumulative_regret", cumulative_regret, (n,), np.float64),
+            ("strategy_sum", strategy_sum, (n,), np.float64),
+            ("extra_sums", extra_sums, (len(extra_sums), n), np.float64),
+            ("stamp", stamp, (1,), np.int64),
+        ):
+            if array.shape != shape or array.dtype != dtype:
+                raise ValueError(
+                    f"{name} must be {np.dtype(dtype).name} {shape}, "
+                    f"got {array.dtype.name} {array.shape}"
+                )
+        ledger = cls.__new__(cls)
+        ledger.n_actions = n
+        ledger.cumulative_regret = cumulative_regret
+        ledger.strategy_sum = strategy_sum
+        ledger.extra_sums = extra_sums
+        ledger.stamp = stamp
+        return ledger
 
     def strategy(self) -> np.ndarray:
         """Current strategy: positive regrets normalized; uniform fallback."""

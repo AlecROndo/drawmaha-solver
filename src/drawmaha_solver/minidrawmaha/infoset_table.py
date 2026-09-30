@@ -1,11 +1,16 @@
 """The solver's memory: one regret-matching ledger per mini-drawmaha infoset.
 
-Still a plain `dict[InfoSet, RegretMatcher]`, still pre-allocated so no code path
-can invent an entry, and still exactly TWO stored vectors per ledger —
-accumulated regret and the banked strategy sum, with both strategies derived at
-read time and never stored. What changes from rung 2 is the size: **6,220,050
-entries, about 550 bytes each, 3.4 GB and about half a minute to build.** Rung 2's
-whole table was 288 spots.
+Still a mapping from `InfoSet` to `RegretMatcher`, still pre-allocated so no
+code path can invent an entry, and still exactly two trained vectors per
+ledger — accumulated regret and the banked strategy sum, with both strategies
+derived at read time and never stored. What changes from rung 2 is the size,
+**6,220,050 entries** against 288, and with it where the numbers live: a
+`PackedTable` (`packed_table.py`) keeps them in four flat arrays, about 280 MB
+for the whole game, and `table[key]` is a ledger *window* into them rather
+than an object of its own. The first version of this rung held a
+`RegretMatcher` per key instead — 3.4 GB and half a minute to build, 5.4 GB
+once the ledger contract added its two slots — which no parallel run could
+afford ten of.
 
 Width is still per key, and this rung adds a third width. A ledger is
 `len(infoset.legal_actions())` wide — 2 at an open or a shove, 3 facing a bet,
@@ -21,12 +26,14 @@ numerical catches a right-width one built in the wrong order.
 mostly the answers to them.**
 
 *Allocating.* `new_infoset_table()` takes the keys it should allocate, defaulting
-to the whole game. A slice is not a test convenience: 3.4 GB is affordable once
-per solve and ruinous anywhere else, so a readout, a unit test or a subtree
-experiment allocates the public points it actually reads. `ledger_widths()`
-answers what the full table *would* cost without building any of it, because the
-width of a ledger is a property of its public point and the key count of a shape
-is already known — the table's size is a 141-term sum of products, not a walk.
+to the whole game. The whole game is cheap now — the packed store's index is
+built from the 141 public points and the cached private keys, never from the
+6.2 million `InfoSet`s themselves — but a slice is still what a readout, a unit
+test or a subtree experiment wants, because iterating a whole table is still
+6.2 million keys. `ledger_widths()` answers what the full table costs without
+building any of it, because the width of a ledger is a property of its public
+point and the key count of a shape is already known — the table's size is a
+141-term sum of products, not a walk.
 
 *Reading strategies out.* `current_strategy` and `average_strategy` return a
 live **view**, not a dict: materialising 6.2 million NumPy arrays to answer a
@@ -61,7 +68,6 @@ import numpy as np
 
 from drawmaha_solver.minidrawmaha.cards import Card, hand_symbol
 from drawmaha_solver.minidrawmaha.enumeration import (
-    all_infosets,
     private_keys,
     public_decision_points,
 )
@@ -74,19 +80,22 @@ from drawmaha_solver.minidrawmaha.game import (
     canonical_picture,
     line_symbol,
 )
+from drawmaha_solver.minidrawmaha.packed_table import PackedTable
 from drawmaha_solver.regret_matching import RegretMatcher
 
 # The walk keys this by `state.infoset()`. Every InfoSet a legal state can
 # produce is one the enumerator yields, so a lookup into a fully allocated table
 # can never miss — and a lookup that does miss is a walk that reached a position
 # the census says does not exist.
-InfoSetTable = dict[InfoSet, RegretMatcher]
+InfoSetTable = PackedTable
 
 # ---------------------------------------------------------------------------
 # Allocating the table
 # ---------------------------------------------------------------------------
 
-def new_infoset_table(keys: Iterable[InfoSet] | None = None) -> InfoSetTable:
+def new_infoset_table(
+    keys: Iterable[InfoSet] | None = None, *, extra_averages: int = 0
+) -> InfoSetTable:
     """A fresh table: one independent ledger per key, all playing uniformly.
 
     Pre-allocated rather than filled on demand, so a key the walk should never
@@ -96,32 +105,34 @@ def new_infoset_table(keys: Iterable[InfoSet] | None = None) -> InfoSetTable:
     for a move the rules do not offer, and it competes in the normalization with
     the moves that are real.
 
-    `keys` defaults to the whole game — 6,220,050 ledgers, 3.4 GB, about half
-    a minute. Pass a slice to allocate one public point's worth, which is what a
-    readout or a test wants and is the only way to touch the real allocator
-    without paying for the real table. The keys are consumed in the order given,
-    so a slice of `all_infosets()` and the full table agree entry for entry.
+    `keys` defaults to the whole game — 6,220,050 ledgers in four flat arrays,
+    about 280 MB, a fraction of a second, and no `InfoSet` built or held:
+    `PackedTable.whole_game` computes each key's row from the enumerator's own
+    structure. Pass a slice to allocate one public point's worth, or a handful
+    of spots, which is what a readout or a test wants; the keys are consumed in
+    the order given, so a slice of `all_infosets()` and the full table agree
+    entry for entry on the keys they share. Handing the whole enumerator in
+    explicitly works but holds every key, which is the object table's cost
+    back again — leave `keys` out for the whole game.
 
-    A key arriving twice raises. A dict comprehension would keep the second
-    ledger and throw the first away without a word, which is the same failure as
-    two spots sharing one ledger — the thing this table exists to make
-    impossible — and it would land silently in the middle of a 6.2M-key build.
-    Counting the keys consumed and comparing against the table's own length
-    catches it with one integer per call and no set of 6.2 million keys to hold;
-    `enumeration.py` refuses the equivalent collapse in `merged()` for the same
-    reason, one layer up.
+    A key arriving twice raises. A dict would keep the second row and throw
+    the first away without a word, which is the same failure as two spots
+    sharing one ledger — the thing this table exists to make impossible.
+    `enumeration.py` refuses the equivalent collapse in `merged()` for the
+    same reason, one layer up.
 
-    A one-wide spot would be refused by `RegretMatcher`, which is the wanted
-    behaviour rather than an edge case to smooth over: a ledger with one legal
-    action has no regret to accumulate, and the betting rules only produce one
-    at a stack size this game does not use.
+    `extra_averages` gives every ledger that many `extra_sums` rows beside its
+    strategy sum — the averaging columns a regret rule banks (see
+    `regret_matching`'s ledger contract). Zero unless a run asks.
+
+    A one-wide spot would be refused by `RegretMatcher.over`, which is the
+    wanted behaviour rather than an edge case to smooth over: a ledger with one
+    legal action has no regret to accumulate, and the betting rules only
+    produce one at a stack size this game does not use.
     """
-    table: InfoSetTable = {}
-    for seen, infoset in enumerate(all_infosets() if keys is None else keys, start=1):
-        table[infoset] = RegretMatcher(len(infoset.legal_actions()))
-        if len(table) != seen:
-            raise ValueError(f"{infoset} was handed to the table twice")
-    return table
+    if keys is None:
+        return PackedTable.whole_game(extra_averages=extra_averages)
+    return PackedTable.listed(keys, extra_averages=extra_averages)
 
 def ledger_widths() -> dict[int, int]:
     """How many ledgers of each width the full table holds — without allocating one.
@@ -139,9 +150,10 @@ def ledger_widths() -> dict[int, int]:
     them. That is the same second the table itself pays before its first ledger, so asking
     this question first is free against allocating anyway.
 
-    Worth having as a function rather than a comment because it is the question
-    asked *before* committing 3.4 GB, and because it is the cheap half of the
-    only claim plan §9 makes about this module.
+    Worth having as a function rather than a comment because it is the size
+    question asked *without* a table in hand — a checkpoint's fingerprint, a
+    memory budget — and because it is the cheap half of the only claim plan
+    §9 makes about this module.
     """
     widths: dict[int, int] = {}
     for point in public_decision_points():
@@ -217,7 +229,7 @@ class StrategyView(Mapping[InfoSet, np.ndarray]):
     """One strategy per infoset, computed at the moment it is asked for.
 
     Rung 2 returned a `dict` because building 288 arrays cost nothing. Here the
-    same dict is 6.2 million arrays — more memory than the table it reads — to
+    same dict is 6.2 million arrays — many times the table it reads — to
     answer a question every caller asks about a handful of spots. So this is a
     view: O(1) to make, backed by the table, and it computes exactly the entries
     somebody looks at.

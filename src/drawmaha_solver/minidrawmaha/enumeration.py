@@ -239,13 +239,14 @@ def private_keys(*, board_cards: int, discards: int) -> tuple[PrivateKey, ...]:
     Only the 95 holes that are already canonical on their own are walked, not
     all 455. Every picture has a relabelling that makes its hole canonical, and
     relabelling never changes a picture's key, so every key is reached from one
-    of the 95 — and it is almost five times cheaper, which matters because the
-    ordered board makes the widest shape 100,400 keys and every process that
-    builds a ledger table or a grader pays for it once.
+    of the 95 — and the walk has 455/95, almost five times, fewer holes to
+    visit, which matters because the ordered board makes the widest shape
+    100,400 keys and every process that builds a ledger table or a grader pays
+    for it once.
 
     Sorted rather than left in set order so that two runs of the census, and
     two allocations of the ledger table, see the keys in the same order.
-    Cached because the four shapes cost about two seconds together and every
+    Cached because the four shapes cost about a second together and every
     one of the 141 public points asks for one of them.
     """
     holes = sorted({canonical(hole)[0] for hole in combinations(DECK, HOLE_CARDS)})

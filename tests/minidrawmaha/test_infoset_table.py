@@ -1,9 +1,12 @@
-"""The ledger table, pinned without ever allocating all 6.2 million of it.
+"""The ledger table's public face: allocation, widths, the views and the readout.
 
-Rung 2 could assert `len(table) == 288` and be done. Here the real table is
-6,220,050 ledgers, **3.4 GB and about half a minute**, which is affordable once per
-solve and ruinous once per test — so this file is organised around what can be
-proved *structurally* instead of counted.
+Rung 2 could assert `len(table) == 288` and be done. Here the table is
+6,220,050 ledgers, and until the packed store it was **3.4 GB and about half a
+minute** — affordable once per solve and ruinous once per test — so this file
+was organised around what can be proved *structurally* instead of counted.
+The packed table made the whole thing cheap to allocate (the store itself is
+pinned in `test_packed_table.py`), but the structural proofs stay, because
+they are the ones that say *why* the counts come out as they do.
 
 Two claims are what plan §9 asks of this module, and neither is spot-checkable:
 
@@ -18,13 +21,11 @@ Two claims are what plan §9 asks of this module, and neither is spot-checkable:
   public signatures are distinct; this proves the *table* keeps them apart,
   which is the failure that would silently share one strategy between two spots.
 
-The whole 6.2M allocation is here too, behind `MINIDRAWMAHA_FULL_TABLE=1`, so
-the default run stays short — and the fast tests already move whenever the slow
-one would, because both read the same census fixture.
+The whole 6.2M allocation runs every time now, since it costs a fraction of a
+second; what stays gated in `test_packed_table.py` is streaming all 6.2M keys.
 """
 
 import json
-import os
 from itertools import islice
 from pathlib import Path
 from random import Random
@@ -47,10 +48,9 @@ from drawmaha_solver.minidrawmaha.infoset_table import (
     new_infoset_table,
     spots,
 )
+from drawmaha_solver.minidrawmaha.packed_table import PackedTable
 
 CENSUS = json.loads((Path(__file__).parent / "census.json").read_text())
-
-FULL_RUN = os.environ.get("MINIDRAWMAHA_FULL_TABLE") == "1"
 
 F, C, P = Action.FOLD, Action.CHECK_CALL, Action.POT
 
@@ -101,6 +101,14 @@ def test_a_table_allocated_at_one_public_point_holds_exactly_its_private_keys():
     assert len(table) == len(private_keys(board_cards=1, discards=0)) == 970
     assert set(table) == set(keys)
 
+def test_a_table_can_carry_extra_averaging_columns_on_every_ledger():
+    # The averaging columns a regret rule banks beside the strategy sum: one
+    # row per extra weighting, as wide as the ledger, on every key.
+    table = new_infoset_table(keys_at(THE_DRAW), extra_averages=3)
+    assert {ledger.extra_sums.shape for ledger in table.values()} == {(3, 4)}
+    plain = new_infoset_table(keys_at(THE_OPEN))
+    assert {ledger.extra_sums.shape[0] for ledger in plain.values()} == {0}
+
 def test_every_ledger_is_exactly_as_wide_as_its_spots_legal_actions():
     # Rung 2's claim, restated at every width this rung has. A uniform 4-wide
     # table would bank regret for throwing a card at a betting spot, and that
@@ -131,11 +139,15 @@ def test_the_width_histogram_matches_the_census_and_allocates_nothing():
     # equivalent of.
     assert ledger_widths()[4] == 21 * 970
 
-def test_ledgers_are_distinct_objects():
-    # A single shared RegretMatcher would still run and still converge — to one
-    # strategy played at every spot in the game, which is not poker.
-    ledgers = list(new_infoset_table(keys_at(THE_DRAW, range(200))).values())
-    assert len({id(ledger) for ledger in ledgers}) == len(ledgers)
+def test_ledgers_are_distinct_cells():
+    # A single shared ledger would still run and still converge — to one
+    # strategy played at every spot in the game, which is not poker. On a
+    # packed table the objects are fresh windows every time, so distinctness
+    # is a property of the CELLS: writing one ledger moves no other.
+    keys = keys_at(THE_DRAW, range(200))
+    table = new_infoset_table(keys)
+    table[keys[17]].cumulative_regret[:] = 1.0
+    assert not any(table[key].cumulative_regret.any() for key in keys if key != keys[17])
 
 def test_no_two_public_points_share_a_ledger():
     # The collision probe, run across the whole public tree at once for the
@@ -183,20 +195,17 @@ def test_entry_k_of_a_ledger_means_legal_actions_k():
     assert keys_at(FACING_A_BET, [0])[0].legal_actions() == (F, C, P)
     assert keys_at(THE_DRAW, [0])[0].legal_actions() == DRAW_ACTIONS
 
-@pytest.mark.skipif(
-    not FULL_RUN,
-    reason="the whole 6.2M-ledger table is 3.4 GB; set MINIDRAWMAHA_FULL_TABLE=1",
-)
 def test_the_default_table_is_the_whole_census():
-    # What the solver actually allocates, counted the expensive way once: the
-    # default argument really is every key the enumerator yields, and the
-    # widths really do come out as the product argument predicts.
+    # What the solver actually allocates: the default argument is every key the
+    # enumerator yields, and the widths come out as the product argument
+    # predicts. Once gated behind an environment flag at 3.4 GB and half a
+    # minute; the packed table allocates it in a fraction of a second.
     table = new_infoset_table()
+    assert isinstance(table, PackedTable)
     assert len(table) == CENSUS["infosets"]["total"]
-    widths: dict[int, int] = {}
-    for ledger in table.values():
-        widths[ledger.n_actions] = widths.get(ledger.n_actions, 0) + 1
-    assert widths == ledger_widths()
+    counted = np.bincount(table.widths())
+    assert {width: int(counted[width]) for width in (2, 3, 4)} == ledger_widths()
+    assert int(counted.sum()) == len(table)
 
 def test_the_default_argument_is_the_enumerator_itself():
     # The cheap half of the test above, run every time: the first keys of the
@@ -227,15 +236,27 @@ def test_the_readouts_are_views_and_never_a_dict_of_three_million_arrays():
     spot = keys_at(THE_OPEN, [0])[0]
     average = average_strategy(table)
     snapshot = dict(average)
-    table[spot].strategy_sum = np.array([3.0, 1.0])
+    table[spot].strategy_sum[:] = [3.0, 1.0]
     assert np.allclose(average[spot], [0.75, 0.25])
     assert np.allclose(snapshot[spot], [0.5, 0.5])
     assert not isinstance(average, dict)
 
+def test_a_ledger_is_a_window_so_only_in_place_writes_reach_the_readout():
+    # The contract's rule from the reader's side: `ledger.x[:] = ...` is what
+    # the views see, and `ledger.x = array` swaps the window for a private
+    # array the table never learns about. A test that assigned slots the old
+    # way would silently be reading a fresh table.
+    table = new_infoset_table(keys_at(THE_OPEN, range(5)))
+    spot = keys_at(THE_OPEN, [0])[0]
+    table[spot].strategy_sum = np.array([3.0, 1.0])
+    assert np.allclose(average_strategy(table)[spot], [0.5, 0.5])
+    table[spot].strategy_sum[:] = [3.0, 1.0]
+    assert np.allclose(average_strategy(table)[spot], [0.75, 0.25])
+
 def test_current_strategy_follows_positive_regret():
     table = new_infoset_table(keys_at(FACING_A_BET, range(5)))
     spot, untouched = keys_at(FACING_A_BET, range(2))
-    table[spot].cumulative_regret = np.array([-1.0, 2.0, 5.0])
+    table[spot].cumulative_regret[:] = [-1.0, 2.0, 5.0]
     # Negative regret contributes nothing; the rest normalize: [0, 2/7, 5/7].
     assert np.allclose(current_strategy(table)[spot], [0.0, 2 / 7, 5 / 7])
     assert np.allclose(current_strategy(table)[untouched], np.full(3, 1 / 3))
@@ -243,7 +264,7 @@ def test_current_strategy_follows_positive_regret():
 def test_average_strategy_follows_the_banked_strategy_sum():
     table = new_infoset_table(keys_at(THE_OPEN, range(5)))
     spot = keys_at(THE_OPEN, [0])[0]
-    table[spot].strategy_sum = np.array([3.0, 1.0])
+    table[spot].strategy_sum[:] = [3.0, 1.0]
     assert np.allclose(average_strategy(table)[spot], [0.75, 0.25])
 
 def test_the_two_readouts_are_independent():
@@ -251,8 +272,8 @@ def test_the_two_readouts_are_independent():
     # solver that reports the wrong one of these looks convergent and is not.
     table = new_infoset_table(keys_at(THE_OPEN, range(5)))
     spot = keys_at(THE_OPEN, [0])[0]
-    table[spot].cumulative_regret = np.array([0.0, 5.0])
-    table[spot].strategy_sum = np.array([1.0, 1.0])
+    table[spot].cumulative_regret[:] = [0.0, 5.0]
+    table[spot].strategy_sum[:] = [1.0, 1.0]
     assert np.allclose(current_strategy(table)[spot], [0.0, 1.0])
     assert np.allclose(average_strategy(table)[spot], [0.5, 0.5])
 
@@ -365,7 +386,7 @@ def test_cells_print_the_whole_mixed_strategy_in_legal_action_order():
     keys = spots(player=0, hole=HOLE, board=BOARD_ONE)
     table = new_infoset_table(keys)
     opening = next(key for key in keys if key.betting == ((),))
-    table[opening].strategy_sum = np.array([0.0, 1.0])  # pure bet
+    table[opening].strategy_sum[:] = [0.0, 1.0]  # pure bet
     text = format_strategy_tables(
         average_strategy(table), player=0, hole=HOLE, board=BOARD_ONE
     )
