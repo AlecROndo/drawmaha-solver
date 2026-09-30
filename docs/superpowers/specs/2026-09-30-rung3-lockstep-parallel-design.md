@@ -55,7 +55,8 @@ back into play.
   `drawmaha-rung3`, one function per rule (`cpu=11`, ~6 GB, `timeout=24h`). Each call
   trains until ~23 h of wall clock, saves, and `spawn`s its own continuation, so a run
   survives the 24 h cap with nobody watching (`modal run --detach`). Kept checkpoints
-  at 10k, 30k, 100k, 300k, 1M, 3M, 10M (~530 MB each, ~15 GB total), plus a rolling
+  on a 1-2-5 grid to 1M, then every 1M: 10k, 20k, 50k, 100k, 200k, 500k, 1M, 2M, …,
+  10M — 16 per rule (~530 MB each, ~34 GB total), plus a rolling
   resume checkpoint every ~30 min. Progress lines (iteration, it/s, ETA) in the logs.
 
 ## Tests (TDD)
