@@ -20,7 +20,7 @@ already at its target returns at once.
 
 Only one container may train a rule at a time: each writes a heartbeat to
 `<rule>/owner.json` at every save, and a new one refuses to start while
-another's heartbeat is under 30 minutes old — unless that one's last progress
+another's heartbeat is under 15 minutes old (it waits that long for a dead one's to lapse) — unless that one's last progress
 line says it stopped and saved (a preemption), in which case it takes over and
 appends a `claimed_by` line, so the next newcomer is refused. Only the 23-hour
 deadline spawns a continuation; a preempted call is restarted by Modal.
@@ -39,7 +39,7 @@ WORKERS = 10
 TARGET = 10_000_000
 RULES = ("vanilla", "cfr+", "lcfr", "dcfr")
 ROOT = Path("/runs")
-STALE_S = 30 * 60
+STALE_S = 15 * 60  # a live trainer beats every 10 minutes
 CLAIM_SETTLE_S = 30
 
 app = modal.App("drawmaha-rung3")
@@ -54,10 +54,18 @@ def _claim(out: Path) -> None:
     """Refuse to train a rule another live container is training."""
     me = os.environ.get("MODAL_TASK_ID", "local")
     owner = out / "owner.json"
-    if owner.exists() and not _stopped(out):
+    waited = 0
+    while owner.exists() and not _stopped(out):
+        # A container killed before it could write its `stopped` line leaves a fresh
+        # heartbeat behind; wait for it to go stale rather than refuse Modal's restart.
         held = json.loads(owner.read_text())
-        if held["task"] != me and time.time() - held["heartbeat"] < STALE_S:
+        if held["task"] == me or time.time() - held["heartbeat"] >= STALE_S:
+            break
+        if waited >= STALE_S:
             raise RuntimeError(f"{out.name} is being trained by {held['task']}")
+        time.sleep(60)
+        waited += 60
+        volume.reload()
     if _stopped(out):
         # Taking over a stopped run: mark it, so a second newcomer sees a live owner.
         with (out / "progress.jsonl").open("a") as file:
