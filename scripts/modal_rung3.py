@@ -21,7 +21,9 @@ already at its target returns at once.
 Only one container may train a rule at a time: each writes a heartbeat to
 `<rule>/owner.json` at every save, and a new one refuses to start while
 another's heartbeat is under 30 minutes old — unless that one's last progress
-line says it stopped and saved (a preemption), in which case it takes over.
+line says it stopped and saved (a preemption), in which case it takes over and
+appends a `claimed_by` line, so the next newcomer is refused. Only the 23-hour
+deadline spawns a continuation; a preempted call is restarted by Modal.
 """
 
 from __future__ import annotations
@@ -55,6 +57,10 @@ def _claim(out: Path) -> None:
         held = json.loads(owner.read_text())
         if held["task"] != me and time.time() - held["heartbeat"] < STALE_S:
             raise RuntimeError(f"{out.name} is being trained by {held['task']}")
+    if _stopped(out):
+        # Taking over a stopped run: mark it, so a second newcomer sees a live owner.
+        with (out / "progress.jsonl").open("a") as file:
+            file.write(json.dumps({"claimed_by": me, "time": time.time()}) + "\n")
     _beat(out)
 
 def _stopped(out: Path) -> bool:
@@ -91,6 +97,7 @@ def train_rule(rule: str, target: int = TARGET, seed: int = 0) -> int:
     volume.reload()
     _claim(out)
     volume.commit()
+    started = time.monotonic()
 
     def commit() -> None:
         _beat(out)
@@ -107,7 +114,9 @@ def train_rule(rule: str, target: int = TARGET, seed: int = 0) -> int:
     )
     (out / "owner.json").unlink(missing_ok=True)
     volume.commit()
-    if solve.iteration < target:
+    # Continue only past the 23-hour deadline. A preempted container stops early,
+    # and Modal restarts that call itself; spawning here too made a second trainer.
+    if solve.iteration < target and time.monotonic() - started >= 23 * 3600:
         train_rule.spawn(rule, target, seed)
     return solve.iteration
 
@@ -148,7 +157,8 @@ def read_status() -> dict:
     for rule in RULES:
         progress = ROOT / rule.replace("+", "plus") / "progress.jsonl"
         if progress.exists():
-            status[rule] = json.loads(progress.read_text().splitlines()[-1])
+            lines = [json.loads(line) for line in progress.read_text().splitlines()]
+            status[rule] = [line for line in lines if "iteration" in line][-1]
     return status
 
 @app.local_entrypoint()
