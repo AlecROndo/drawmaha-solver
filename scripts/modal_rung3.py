@@ -40,6 +40,7 @@ TARGET = 10_000_000
 RULES = ("vanilla", "cfr+", "lcfr", "dcfr")
 ROOT = Path("/runs")
 STALE_S = 30 * 60
+CLAIM_SETTLE_S = 30
 
 app = modal.App("drawmaha-rung3")
 volume = modal.Volume.from_name("drawmaha-rung3", create_if_missing=True)
@@ -97,6 +98,13 @@ def train_rule(rule: str, target: int = TARGET, seed: int = 0) -> int:
     volume.reload()
     _claim(out)
     volume.commit()
+    # Two containers starting together can both pass `_claim`; commits are last-writer-wins,
+    # so after a pause both read the same owner and only that one trains.
+    time.sleep(CLAIM_SETTLE_S)
+    volume.reload()
+    held = json.loads((out / "owner.json").read_text())["task"]
+    if held != os.environ.get("MODAL_TASK_ID", "local"):
+        raise RuntimeError(f"{out.name} was claimed by {held} at the same time")
     started = time.monotonic()
 
     def commit() -> None:
