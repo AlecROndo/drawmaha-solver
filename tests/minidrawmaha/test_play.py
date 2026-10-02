@@ -14,6 +14,7 @@ import pytest
 
 from drawmaha_solver.minidrawmaha.cards import CARD_SYMBOL, parse_cards
 from drawmaha_solver.minidrawmaha.game import Action, MiniState
+from drawmaha_solver.minidrawmaha import play
 from drawmaha_solver.minidrawmaha.play import (
     RELEASE_EXPLOITABILITY,
     RELEASE_SELF_PLAY_VALUE_P0,
@@ -27,6 +28,7 @@ from drawmaha_solver.minidrawmaha.play import (
     showdown_line,
     thrown_card,
 )
+from drawmaha_solver.minidrawmaha.strategy import save_strategy, uniform_strategy
 from drawmaha_solver.play_session import QuitGame, Scoreboard
 
 GRADES = Path(__file__).parents[2] / "figures" / "rung3" / "grades.json"
@@ -208,3 +210,31 @@ def test_another_strategy_is_not_read_against_the_release_numbers(capsys):
     out = capsys.readouterr().out
     assert "as P0: -1 over 1 hands (-1.000 per hand)" in out
     assert "0.091" not in out and "0.061" not in out
+
+# ---------------------------------------------------------------------------
+# The command
+# ---------------------------------------------------------------------------
+
+def test_main_plays_the_file_it_is_given_without_fetching_and_its_seed_replays(
+    tmp_path, monkeypatch, capsys
+):
+    # A whole-game uniform file: `load_strategy` refuses any other layout.
+    path = tmp_path / "uniform.npz"
+    save_strategy(uniform_strategy(), path)
+
+    def no_fetch():
+        raise AssertionError("--strategy was given, so nothing is fetched")
+
+    monkeypatch.setattr(play, "fetch_strategy", no_fetch)
+    typed = iter(["c", "s"] * 6 + ["q"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(typed))
+
+    def session():
+        play.main(["--strategy", str(path), "--seed", "3"])
+        return capsys.readouterr().out
+
+    first = session()
+    typed = iter(["c", "s"] * 6 + ["q"])
+    assert "Loaded UNIFORM" in first and "hand 2" in first
+    assert "0.061" not in first
+    assert session() == first

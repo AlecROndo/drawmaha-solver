@@ -44,7 +44,7 @@ from pathlib import Path
 
 import numpy as np
 
-from drawmaha_solver.minidrawmaha.exploitability import _ROW_SUM_TOLERANCE
+from drawmaha_solver.minidrawmaha.exploitability import ROW_SUM_TOLERANCE
 from drawmaha_solver.minidrawmaha.game import InfoSet
 from drawmaha_solver.minidrawmaha.lockstep import read_lockstep
 from drawmaha_solver.minidrawmaha.packed_table import PackedTable
@@ -143,7 +143,7 @@ def _first_bad_row(probabilities: np.ndarray, widths: np.ndarray) -> int | None:
     finite = np.logical_and.reduceat(np.isfinite(values), starts)
     nonnegative = np.logical_and.reduceat(values >= 0.0, starts)
     totals = np.add.reduceat(values, starts)
-    fine = finite & nonnegative & (np.abs(totals - 1.0) <= _ROW_SUM_TOLERANCE)
+    fine = finite & nonnegative & (np.abs(totals - 1.0) <= ROW_SUM_TOLERANCE)
     bad = np.flatnonzero(~fine)
     return int(bad[0]) if bad.size else None
 

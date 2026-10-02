@@ -139,15 +139,20 @@ class _Rule:
     linewidth: float
     zorder: int
 
+# CFR+ and DCFR are one family (both drop negative regret) and their curves
+# lie almost on top of each other, so they share CATEGORICAL[1]'s hue in two
+# shades: DCFR goes wide underneath in a light tint, CFR+ dashed on top in a
+# dark shade. In one shade the dashes vanish into the wide line beneath them.
+_FAMILY_LIGHT = "#f4b298"  # CATEGORICAL[1] mixed half and half with the surface
+_FAMILY_DARK = "#a44924"  # CATEGORICAL[1] at 70% brightness
+
 # Keyed by the directory name the Volume and `grades.json` both use, in the
-# order the legend and the answer sheet list them. CFR+ and DCFR share a colour
-# because their curves lie close: DCFR goes wide underneath, CFR+ dashed on
-# top, so both stay visible where they overlap.
+# order the legend and the answer sheet list them.
 RULES: dict[str, _Rule] = {
     "vanilla": _Rule(RegretRule.VANILLA, "vanilla", True, CATEGORICAL[0], "-", 1.8, 3),
     "lcfr": _Rule(RegretRule.LCFR, "LCFR", True, CATEGORICAL[2], "-", 1.8, 3),
-    "cfrplus": _Rule(RegretRule.CFR_PLUS, "CFR+", False, CATEGORICAL[1], (0, (4, 3)), 1.8, 4),
-    "dcfr": _Rule(RegretRule.DCFR, "DCFR", False, CATEGORICAL[1], "-", 3.2, 3),
+    "cfrplus": _Rule(RegretRule.CFR_PLUS, "CFR+", False, _FAMILY_DARK, (0, (4, 3)), 1.8, 4),
+    "dcfr": _Rule(RegretRule.DCFR, "DCFR", False, _FAMILY_LIGHT, "-", 4.0, 3),
 }
 
 COLUMN_COLOURS = {
