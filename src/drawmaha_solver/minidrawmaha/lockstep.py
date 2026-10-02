@@ -122,7 +122,12 @@ def new_lockstep(
     else:
         _require_extra_rows(table, averages)
     return LockstepSolve(
-        table=table, seed=seed, workers=workers, deal=deal, rule=rule, averages=averages
+        table=table,
+        seed=int(seed),
+        workers=int(workers),
+        deal=deal,
+        rule=rule,
+        averages=averages,
     )
 
 def train_lockstep(solve: LockstepSolve, iterations: int) -> LockstepSolve:
@@ -420,7 +425,7 @@ def load_lockstep(
         return LockstepSolve(
             table=table,
             seed=int(saved["seed"]),
-            workers=workers,
+            workers=saved_workers,
             deal=deal,
             iteration=int(saved["iteration"]),
             rule=rule,

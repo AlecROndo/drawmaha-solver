@@ -179,8 +179,12 @@ def test_workers_must_be_a_real_int_not_a_bool():
     with pytest.raises(ValueError, match="positive int"):
         new_lockstep(0, workers=True, table={})
 
-def test_a_numpy_int_worker_count_is_accepted_as_a_numpy_int_seed_is():
-    assert new_lockstep(np.int64(0), workers=np.int64(2), table={}).workers == 2
+def test_a_numpy_int_seed_and_worker_count_are_stored_as_plain_ints():
+    # The fields are typed int; a numpy int kept as given would leak into
+    # anything that serialises the run, and json.dumps refuses np.int64.
+    solve = new_lockstep(np.int64(0), workers=np.int64(2), table={})
+    assert (solve.seed, solve.workers) == (0, 2)
+    assert type(solve.seed) is int and type(solve.workers) is int
 
 @pytest.mark.parametrize("seed", [-1, True, 1.5])
 def test_a_seed_the_streams_cannot_take_is_refused_up_front(seed):
@@ -228,6 +232,18 @@ def test_a_checkpoint_resumes_to_equal_an_uninterrupted_run(tmp_path, dcfr_keys)
     straight = train_lockstep(dcfr_run(dcfr_keys), 20)
     assert packed_equal(resumed.table, straight.table)
     assert straight.table.stamp.any()
+
+def test_a_resume_asked_with_a_numpy_worker_count_stores_a_plain_int(tmp_path, dcfr_keys):
+    path = tmp_path / "run.npz"
+    save_lockstep(train_lockstep(dcfr_run(dcfr_keys), 1), path)
+    resumed = load_lockstep(
+        path,
+        table=PackedTable.listed(dcfr_keys, extra_averages=2),
+        workers=np.int64(2),
+        rule="dcfr",
+        averages=BOTH_COLUMNS,
+    )
+    assert type(resumed.workers) is int and resumed.workers == 2
 
 @pytest.mark.parametrize(
     ("change", "message"),
