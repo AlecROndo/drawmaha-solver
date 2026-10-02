@@ -237,6 +237,62 @@ The **Play the solver** tab deals one hand at a time on a monoline oval: your ca
 
 Lock any rank's row with ◇ in a seat panel, drag its frequencies off Nash, and press Run: the locked rows are POSTed to a local Python process (`uv run leduc-exploit-server`, port 8001 — `src/drawmaha_solver/leduc/exploiter.py` re-solving with your rows held still). Every bar then shows the response in full colour over a muted lane where Nash stood, so the baseline is never hidden while you read what your edit did to the whole game. Lock a whole seat and the run is graded against an exact best response, rung 1's four numbers included.
 
+## Rung 3 — Mini-drawmaha
+
+`src/drawmaha_solver/minidrawmaha/`. A bomb pot with a draw and a pot that pays twice, on a 15-card deck (ranks 2–6, three suits). Both players ante 1 from 26-chip stacks. Each gets three cards, then a board card and a betting round. Then comes the draw: each player may throw one card for a face-down replacement, P1 knowing only *whether* P0 drew. Then a second board card and a second betting round. Half the pot goes to the best three cards held (inner), half to the best two held plus both board cards (outer). No engine plays this game, so there is no referee: the exact best-response walk in `exploitability.py` is the ground truth.
+
+Mini-drawmaha has 6,220,050 infosets, about 21,000 times Leduc's 288. One pass over the whole tree is out of the question, so the learner is external-sampling MCCFR (`mccfr.py`). It is parallelised as **lockstep** MCCFR (`lockstep.py`): each iteration, W = 10 workers each walk one sampled hand per seat against the same frozen strategy, and every touched row is banked once with the sum of the workers' regrets. The 6.2M ledgers live in four flat arrays (`packed_table.py`), and the workers share them across processes (`parallel.py`).
+
+### The race
+
+Four regret rules, each trained for 2,000,000 lockstep iterations (20M hands per seat) on Modal and graded by the exact walk (`regret_rules.py`, `scripts/modal_rung3.py`):
+
+| hands per seat | vanilla | LCFR | CFR+ | DCFR |
+|---|---|---|---|---|
+| 1M | 114.5 | 113.1 | 156.4 | 156.0 |
+| 10M | 16.7 | 12.6 | 36.9 | 37.0 |
+| 20M | 8.6 | **6.1** | 24.8 | 25.0 |
+
+Exploitability in chips per 100 hands, ante 1, linear average, seed 0. Uniform random play loses 484.
+
+![Keeping negative regret wins](figures/rung3/race.png)
+
+The two rules that keep negative regret beat the two that throw it away by 3–4×. CFR+ floors it at zero; DCFR halves it every iteration. Under sampling those are the same rule. At 2M iterations the median row was last visited about 37,000 iterations earlier, and halving a regret even 1,075 times takes it to exactly zero in double precision. So by the time a row comes round again its negative regret is gone, which is CFR+'s floor, and the two curves lie on top of each other. This is one seed, so the 6.1 against 8.6 between LCFR and vanilla is suggestive, not settled.
+
+![Averaging columns](figures/rung3/averaging_columns.png)
+
+Each run also banked further averages of the same strategies at other weights. These cost nothing to keep and cannot change the play. Linear beats uniform for both vanilla (8.6 against 15.5) and CFR+ (24.8 against 36.5).
+
+### The answer
+
+The winner is frozen as rung 3's solution: LCFR's linear average at 2M. That is 14.25M probabilities, 18 MB compressed, published as the `rung3-lcfr-2m` release asset. `strategy.py` downloads it once and checks it against a pinned SHA-256. Graded, it is exploitable for **0.061346 chips/hand**, with BR₀ −0.034421 and BR₁ +0.157114. In self-play P0 is worth −0.0906 a hand: P1 acts last in both rounds and in the draw, and that is worth about a tenth of an ante.
+
+![Round 1 betting by inner category](figures/rung3/round_one_betting.png)
+
+The bars average each strategy over every physical deal of a category with equal weight, so they show what the solution does holding that hand, not how often the line happens:
+
+- **P0's lead.** P0 bets out with 19–40% of every category and slowplays trips (21%).
+- **P1 checked to.** P1 bets 97% of its trips and straight flushes.
+- **P1 facing a bet.** P1 folds a pair (39%) more often than high card (28%). The pair is already made and has less to draw to.
+
+![The draw](figures/rung3/draw.png)
+
+High cards and pairs throw a card 88–98% of the time, and flushes and better almost never do. P1 throws more often after P0 stands pat: with a straight, 41% against 32% after P0 drew. A pat P0 is showing strength, so P1 has to improve.
+
+### Running it
+
+```bash
+uv run minidraw-analysis                         # figures/rung3/ + answer_sheet.json, ~2 min
+uv run minidraw-analysis --grade-runs runs/modal  # first grade new checkpoints into grades.json
+uv run minidraw-play                             # deal yourself in against the frozen strategy
+```
+
+`minidraw-analysis` reads two inputs: the committed `figures/rung3/grades.json` (every grid checkpoint of the race, graded) and the release strategy. It does not need the 555 MB checkpoints unless it is asked to grade new ones. To retrain, use `uv run --with modal modal run scripts/modal_rung3.py::main` (it costs Modal money; `::status` shows progress). To freeze a checkpoint, use `scripts/freeze_minidrawmaha_strategy.py`.
+
+### Playing it
+
+`minidraw-play` deals hands against the frozen strategy, alternating seats. At the draw the prompt names each throw by the position the solver's ledgers use (low, mid, top) and shows the physical card it would throw. The bot's draw is reported only as the table sees it: whether it drew, never what. Every hand ends by revealing both holdings and who took each half of the pot.
+
 ## The site
 
 Six surfaces: the homepage at `/`, its Rules tab at `/rules` and the Cover at `/cover` (three self-contained static pages in `web/cover/` — the first two designed outside the repo and exported, the Cover authored here; see `web/cover/README.md`) and the three visualizers at `/rung0`, `/rung1` and `/rung2`.
@@ -260,4 +316,6 @@ Rungs 0 and 1 complete. Rung 1 solves Kuhn to its closed-form equilibrium, repro
 
 Rung 2's solver is complete and checked against an outside referee: it reaches the sequence-form LP's −0.08561 game value, drives exploitability to 0.011 chips/hand, and holds a committed OpenSpiel fixture that pins the tree's shape, the payoff ladder and the exact answer — none of which any closed form could supply. It ships the analysis pipeline, three figures, `leduc-play`, and the `/rung2` action-timeline visualizer over a committed solve. Still open at rung 2: an exploit mode — lock a range and watch a Leduc best-responder punish it, the rung-1 exploit tab's equivalent.
 
-One gap worth naming: **CI runs no tests.** The only workflow is an automated code review, so the 500-plus-test suite is run by hand rather than enforced on a pull request. Next: a test job, then rung 3 — mini-Drawmaha, where the tree stops fitting in memory and tabular CFR has to give way.
+Rung 3 is solved tabularly. Four regret rules raced to 20M hands per seat on Modal, and LCFR won at 0.061 chips/hand by the exact grader. Its average is frozen as a release asset, and the rung ships `minidraw-analysis`, four figures and `minidraw-play`. Next: rung 4, Deep CFR. Its first target is mini-drawmaha itself, where the exact grader and this tabular answer measure what the networks give up.
+
+One gap worth naming: **CI runs no tests.** The only workflow is an automated code review, so the 500-plus-test suite is run by hand rather than enforced on a pull request. Next: a test job.

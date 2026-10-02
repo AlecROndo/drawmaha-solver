@@ -1,0 +1,344 @@
+{
+  "cfrplus/000010000/linear": {
+    "br0": 3.042435,
+    "br1": 3.792775,
+    "exploitability": 3.417605,
+    "seed": 0,
+    "value_p0": 0.206628,
+    "workers": 10
+  },
+  "cfrplus/000020000/linear": {
+    "br0": 2.645814,
+    "br1": 3.514806,
+    "exploitability": 3.08031,
+    "seed": 0,
+    "value_p0": 0.089597,
+    "workers": 10
+  },
+  "cfrplus/000050000/linear": {
+    "br0": 1.985479,
+    "br1": 2.681766,
+    "exploitability": 2.3336225,
+    "seed": 0,
+    "value_p0": -0.073424,
+    "workers": 10
+  },
+  "cfrplus/000100000/linear": {
+    "br0": 1.370373,
+    "br1": 1.758405,
+    "exploitability": 1.564389,
+    "seed": 0,
+    "value_p0": -0.089605,
+    "workers": 10
+  },
+  "cfrplus/000200000/linear": {
+    "br0": 0.848173,
+    "br1": 1.10683,
+    "exploitability": 0.9775015,
+    "seed": 0,
+    "value_p0": -0.06847,
+    "workers": 10
+  },
+  "cfrplus/000500000/linear": {
+    "br0": 0.44341,
+    "br1": 0.66216,
+    "exploitability": 0.552785,
+    "seed": 0,
+    "value_p0": -0.078861,
+    "workers": 10
+  },
+  "cfrplus/001000000/linear": {
+    "br0": 0.264773,
+    "br1": 0.472244,
+    "exploitability": 0.3685085,
+    "seed": 0,
+    "value_p0": -0.088953,
+    "workers": 10
+  },
+  "cfrplus/002000000/linear": {
+    "br0": 0.146582,
+    "br1": 0.350415,
+    "exploitability": 0.24849849999999998,
+    "seed": 0,
+    "value_p0": -0.094016,
+    "workers": 10
+  },
+  "cfrplus/002000000/uniform": {
+    "br0": 0.255021,
+    "br1": 0.47467,
+    "exploitability": 0.3648455,
+    "seed": 0,
+    "value_p0": -0.096728,
+    "workers": 10
+  },
+  "dcfr/000010000/linear": {
+    "br0": 3.087794,
+    "br1": 3.79559,
+    "exploitability": 3.4416919999999998,
+    "seed": 0,
+    "value_p0": 0.208385,
+    "workers": 10
+  },
+  "dcfr/000020000/linear": {
+    "br0": 2.662532,
+    "br1": 3.539992,
+    "exploitability": 3.101262,
+    "seed": 0,
+    "value_p0": 0.101132,
+    "workers": 10
+  },
+  "dcfr/000050000/linear": {
+    "br0": 1.995527,
+    "br1": 2.682502,
+    "exploitability": 2.3390145,
+    "seed": 0,
+    "value_p0": -0.081628,
+    "workers": 10
+  },
+  "dcfr/000100000/linear": {
+    "br0": 1.368245,
+    "br1": 1.751427,
+    "exploitability": 1.559836,
+    "seed": 0,
+    "value_p0": -0.083428,
+    "workers": 10
+  },
+  "dcfr/000200000/linear": {
+    "br0": 0.851236,
+    "br1": 1.110055,
+    "exploitability": 0.9806455000000001,
+    "seed": 0,
+    "value_p0": -0.066856,
+    "workers": 10
+  },
+  "dcfr/000500000/linear": {
+    "br0": 0.443032,
+    "br1": 0.662047,
+    "exploitability": 0.5525395,
+    "seed": 0,
+    "value_p0": -0.076874,
+    "workers": 10
+  },
+  "dcfr/001000000/linear": {
+    "br0": 0.266208,
+    "br1": 0.473539,
+    "exploitability": 0.36987349999999997,
+    "seed": 0,
+    "value_p0": -0.088023,
+    "workers": 10
+  },
+  "dcfr/002000000/linear": {
+    "br0": 0.147247,
+    "br1": 0.352149,
+    "exploitability": 0.24969799999999998,
+    "seed": 0,
+    "value_p0": -0.094021,
+    "workers": 10
+  },
+  "dcfr/002000000/quadratic": {
+    "br0": 0.122053,
+    "br1": 0.325875,
+    "exploitability": 0.223964,
+    "seed": 0,
+    "value_p0": -0.095278,
+    "workers": 10
+  },
+  "lcfr/000010000/linear": {
+    "br0": 2.695607,
+    "br1": 3.401088,
+    "exploitability": 3.0483475,
+    "seed": 0,
+    "value_p0": 0.21551,
+    "workers": 10
+  },
+  "lcfr/000020000/linear": {
+    "br0": 2.293438,
+    "br1": 3.099619,
+    "exploitability": 2.6965285000000003,
+    "seed": 0,
+    "value_p0": 0.077716,
+    "workers": 10
+  },
+  "lcfr/000050000/linear": {
+    "br0": 1.577997,
+    "br1": 2.17458,
+    "exploitability": 1.8762885000000002,
+    "seed": 0,
+    "value_p0": -0.119443,
+    "workers": 10
+  },
+  "lcfr/000100000/linear": {
+    "br0": 1.00039,
+    "br1": 1.261159,
+    "exploitability": 1.1307744999999998,
+    "seed": 0,
+    "value_p0": -0.076764,
+    "workers": 10
+  },
+  "lcfr/000200000/linear": {
+    "br0": 0.53037,
+    "br1": 0.728884,
+    "exploitability": 0.6296269999999999,
+    "seed": 0,
+    "value_p0": -0.054583,
+    "workers": 10
+  },
+  "lcfr/000500000/linear": {
+    "br0": 0.171103,
+    "br1": 0.35704,
+    "exploitability": 0.2640715,
+    "seed": 0,
+    "value_p0": -0.066982,
+    "workers": 10
+  },
+  "lcfr/001000000/linear": {
+    "br0": 0.032537,
+    "br1": 0.218907,
+    "exploitability": 0.125722,
+    "seed": 0,
+    "value_p0": -0.081451,
+    "workers": 10
+  },
+  "lcfr/002000000/linear": {
+    "br0": -0.034421,
+    "br1": 0.157114,
+    "exploitability": 0.0613465,
+    "seed": 0,
+    "value_p0": -0.090645,
+    "workers": 10
+  },
+  "uniform_random": {
+    "br0": 4.373032996340769,
+    "br1": 5.311779155769628,
+    "exploitability": 4.842406076055198,
+    "value_p0": 0.21875000993411092
+  },
+  "vanilla/000010000/linear": {
+    "br0": 2.641622,
+    "br1": 3.400152,
+    "exploitability": 3.020887,
+    "seed": 0,
+    "value_p0": 0.225025,
+    "workers": 10
+  },
+  "vanilla/000010000/uniform": {
+    "br0": 2.852144,
+    "br1": 3.604608,
+    "exploitability": 3.228376,
+    "seed": 0,
+    "value_p0": 0.249824,
+    "workers": 10
+  },
+  "vanilla/000020000/linear": {
+    "br0": 2.231728,
+    "br1": 3.081273,
+    "exploitability": 2.6565005,
+    "seed": 0,
+    "value_p0": 0.050651,
+    "workers": 10
+  },
+  "vanilla/000020000/uniform": {
+    "br0": 2.401374,
+    "br1": 3.255731,
+    "exploitability": 2.8285525,
+    "seed": 0,
+    "value_p0": 0.136127,
+    "workers": 10
+  },
+  "vanilla/000050000/linear": {
+    "br0": 1.559918,
+    "br1": 2.237316,
+    "exploitability": 1.8986169999999998,
+    "seed": 0,
+    "value_p0": -0.176646,
+    "workers": 10
+  },
+  "vanilla/000050000/uniform": {
+    "br0": 1.76978,
+    "br1": 2.512467,
+    "exploitability": 2.1411235,
+    "seed": 0,
+    "value_p0": -0.084998,
+    "workers": 10
+  },
+  "vanilla/000100000/linear": {
+    "br0": 0.958251,
+    "br1": 1.331477,
+    "exploitability": 1.144864,
+    "seed": 0,
+    "value_p0": -0.13147,
+    "workers": 10
+  },
+  "vanilla/000100000/uniform": {
+    "br0": 1.228101,
+    "br1": 1.729923,
+    "exploitability": 1.479012,
+    "seed": 0,
+    "value_p0": -0.134707,
+    "workers": 10
+  },
+  "vanilla/000200000/linear": {
+    "br0": 0.544902,
+    "br1": 0.786034,
+    "exploitability": 0.665468,
+    "seed": 0,
+    "value_p0": -0.079385,
+    "workers": 10
+  },
+  "vanilla/000200000/uniform": {
+    "br0": 0.770735,
+    "br1": 1.094201,
+    "exploitability": 0.932468,
+    "seed": 0,
+    "value_p0": -0.119445,
+    "workers": 10
+  },
+  "vanilla/000500000/linear": {
+    "br0": 0.214596,
+    "br1": 0.411828,
+    "exploitability": 0.31321200000000005,
+    "seed": 0,
+    "value_p0": -0.076195,
+    "workers": 10
+  },
+  "vanilla/000500000/uniform": {
+    "br0": 0.364661,
+    "br1": 0.605845,
+    "exploitability": 0.485253,
+    "seed": 0,
+    "value_p0": -0.098812,
+    "workers": 10
+  },
+  "vanilla/001000000/linear": {
+    "br0": 0.072417,
+    "br1": 0.261635,
+    "exploitability": 0.167026,
+    "seed": 0,
+    "value_p0": -0.087142,
+    "workers": 10
+  },
+  "vanilla/001000000/uniform": {
+    "br0": 0.170528,
+    "br1": 0.385755,
+    "exploitability": 0.27814150000000004,
+    "seed": 0,
+    "value_p0": -0.09765,
+    "workers": 10
+  },
+  "vanilla/002000000/linear": {
+    "br0": -0.009416,
+    "br1": 0.181672,
+    "exploitability": 0.086128,
+    "seed": 0,
+    "value_p0": -0.093406,
+    "workers": 10
+  },
+  "vanilla/002000000/uniform": {
+    "br0": 0.054042,
+    "br1": 0.256871,
+    "exploitability": 0.1554565,
+    "seed": 0,
+    "value_p0": -0.098596,
+    "workers": 10
+  }
+}
