@@ -179,6 +179,9 @@ def test_workers_must_be_a_real_int_not_a_bool():
     with pytest.raises(ValueError, match="positive int"):
         new_lockstep(0, workers=True, table={})
 
+def test_a_numpy_int_worker_count_is_accepted_as_a_numpy_int_seed_is():
+    assert new_lockstep(np.int64(0), workers=np.int64(2), table={}).workers == 2
+
 @pytest.mark.parametrize("seed", [-1, True, 1.5])
 def test_a_seed_the_streams_cannot_take_is_refused_up_front(seed):
     with pytest.raises(ValueError, match="seed must be a non-negative int"):

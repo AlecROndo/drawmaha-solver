@@ -459,9 +459,18 @@ def _validate_run(seed: object, workers: object) -> None:
     if not isinstance(seed, (int, np.integer)) or isinstance(seed, bool) or seed < 0:
         raise ValueError(f"seed must be a non-negative int, got {seed!r}")
     # W is the number of hands per seat per iteration; zero would train nothing.
-    if not isinstance(workers, int) or isinstance(workers, bool) or workers < 1:
+    if (
+        not isinstance(workers, (int, np.integer))
+        or isinstance(workers, bool)
+        or workers < 1
+    ):
         raise ValueError(f"workers must be a positive int, got {workers!r}")
 
 def _require_lockstep(saved: np.lib.npyio.NpzFile, path: Path) -> None:
+    """Refuse a serial checkpoint where a lockstep one is expected.
+
+    Only a lockstep run records `workers`; without it there is no W to resume
+    with or to describe, so loading or reading on would have to invent one.
+    """
     if _WORKERS_KEY not in saved.files:
         raise ValueError(f"{path} is not a lockstep checkpoint")
