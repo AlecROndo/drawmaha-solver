@@ -6,6 +6,7 @@
 * **The packed path is the dict path.** On mini-drawmaha with W = 3, the
   vectorised apply over a packed table equals the per-ledger apply over a dict
   of the same keys, every rule.
+* **A run** refuses a seed or worker count it could not use, up front.
 * **Checkpoints** round-trip and resume exactly, and refuse another run.
 * **Leduc gate:** every rule with W = 4 reaches the LP value's neighbourhood.
 """
@@ -22,14 +23,16 @@ from drawmaha_solver.leduc.exploitability import exploitability, expected_value
 from drawmaha_solver.leduc.game import DEALS, LeducState
 from drawmaha_solver.leduc.infoset_table import new_infoset_table as new_leduc_table
 from drawmaha_solver.minidrawmaha.lockstep import (
+    _Recorder,
     load_lockstep,
     new_lockstep,
     read_lockstep,
     save_lockstep,
     stream,
     train_lockstep,
+    walk,
 )
-from drawmaha_solver.minidrawmaha.mccfr import traverse
+from drawmaha_solver.minidrawmaha.mccfr import new_solve, save_solve, train, traverse
 from drawmaha_solver.minidrawmaha.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.regret_rules import (
     RULES,
@@ -55,14 +58,14 @@ def new_leduc_table_with(extra_averages: int) -> dict:
         for key, ledger in new_leduc_table().items()
     }
 
+SLOTS = ("cumulative_regret", "strategy_sum", "extra_sums", "stamp")
+
 def ledgers_equal(first, second) -> bool:
     return list(first) == list(second) and all(
         getattr(first[key], slot).tobytes() == getattr(second[key], slot).tobytes()
         for key in first
-        for slot in ("cumulative_regret", "strategy_sum", "extra_sums", "stamp")
+        for slot in SLOTS
     )
-
-SLOTS = ("cumulative_regret", "strategy_sum", "extra_sums", "stamp")
 
 class GrowingTable(dict):
     """A dict that grows a ledger on first touch — how a test meets a run's keys."""
@@ -118,14 +121,21 @@ def test_one_worker_is_the_one_hand_walk_on_leduc(rule):
     assert ledgers_equal(lockstep.table, walked)
 
 def test_a_lockstep_walk_writes_nothing_until_the_phase_is_applied():
-    from drawmaha_solver.minidrawmaha.lockstep import walk
-
     table = new_leduc_table_with(0)
     before = {key: ledger.cumulative_regret.copy() for key, ledger in table.items()}
     recorded = walk(table, leduc_deal, 1, 1, 0, 0, ())
     assert recorded.regret and recorded.strategy
     assert all(not ledger.strategy_sum.any() for ledger in table.values())
     assert all(np.array_equal(table[key].cumulative_regret, before[key]) for key in table)
+
+def test_asking_the_recorder_whether_it_holds_a_row_records_no_visit():
+    key = ("row",)
+    recorder = _Recorder({key: RegretMatcher(2)}, extra_rows=0)
+    assert key in recorder and ("other",) not in recorder
+    assert recorder.get(("other",)) is None
+    assert recorder.recorded().strategy == []
+    recorder.get(key)
+    assert len(recorder.recorded().strategy) == 1
 
 # ---------------------------------------------------------------------------
 # The packed path is the dict path
@@ -155,8 +165,24 @@ def test_more_workers_bank_more_hands_per_iteration():
     three = new_lockstep(0, workers=3, table=GrowingTable(0))
     train_lockstep(one, 5)
     train_lockstep(three, 5)
-    mass = lambda table: sum(ledger.strategy_sum.sum() for ledger in table.values())
+
+    def mass(table) -> float:
+        return sum(ledger.strategy_sum.sum() for ledger in table.values())
+
     assert mass(three.table) > 2 * mass(one.table)
+
+# ---------------------------------------------------------------------------
+# Starting a run
+# ---------------------------------------------------------------------------
+
+def test_workers_must_be_a_real_int_not_a_bool():
+    with pytest.raises(ValueError, match="positive int"):
+        new_lockstep(0, workers=True, table={})
+
+@pytest.mark.parametrize("seed", [-1, True, 1.5])
+def test_a_seed_the_streams_cannot_take_is_refused_up_front(seed):
+    with pytest.raises(ValueError, match="seed must be a non-negative int"):
+        new_lockstep(seed, workers=1, table={})
 
 # ---------------------------------------------------------------------------
 # Checkpoints
@@ -204,8 +230,8 @@ def test_a_checkpoint_resumes_to_equal_an_uninterrupted_run(tmp_path, dcfr_keys)
     ("change", "message"),
     [
         ({"workers": 3}, "ran 2 workers"),
-        ({"rule": "lcfr"}, "asks for lcfr"),
-        ({"averages": ("uniform",)}, "asks for dcfr"),
+        ({"rule": "lcfr"}, "asks for 'lcfr'"),
+        ({"averages": ("uniform",)}, r"asks for \['uniform'\]"),
     ],
 )
 def test_a_checkpoint_refuses_another_run(tmp_path, dcfr_keys, change, message):
@@ -218,8 +244,6 @@ def test_a_checkpoint_refuses_another_run(tmp_path, dcfr_keys, change, message):
     assert not table.cumulative_regret.any()
 
 def test_a_serial_checkpoint_is_not_a_lockstep_one(tmp_path):
-    from drawmaha_solver.minidrawmaha.mccfr import new_solve, save_solve, train
-
     serial = train(new_solve(1, table=GrowingTable(2), averages=BOTH_COLUMNS), 1)
     keys = list(serial.table)
     save_solve(serial, tmp_path / "serial.npz")
@@ -231,6 +255,16 @@ def test_a_serial_checkpoint_is_not_a_lockstep_one(tmp_path):
             rule="vanilla",
             averages=BOTH_COLUMNS,
         )
+
+def test_reading_a_serial_checkpoint_as_lockstep_says_so(tmp_path):
+    save_solve(train(new_solve(1, table=GrowingTable(0)), 1), tmp_path / "serial.npz")
+    with pytest.raises(ValueError, match="not a lockstep checkpoint"):
+        read_lockstep(tmp_path / "serial.npz")
+
+def test_an_empty_table_is_refused_a_checkpoint(tmp_path):
+    with pytest.raises(ValueError, match="nothing to checkpoint"):
+        save_lockstep(new_lockstep(0, workers=1, table={}), tmp_path / "run.npz")
+    assert not list(tmp_path.iterdir())
 
 # ---------------------------------------------------------------------------
 # Leduc gate
@@ -296,18 +330,3 @@ def test_every_rule_converges_on_leduc_with_four_workers(lockstep_gate_grades, r
     exploitability_, value = lockstep_gate_grades[rule][column]
     assert exploitability_ < bound
     assert abs(value - LP_VALUE) < 0.025
-
-def test_workers_must_be_a_real_int_not_a_bool():
-    with pytest.raises(ValueError, match="positive int"):
-        new_lockstep(0, workers=True, table={})
-
-def test_asking_the_recorder_whether_it_holds_a_row_records_no_visit():
-    from drawmaha_solver.minidrawmaha.lockstep import _Recorder
-
-    key = ("row",)
-    recorder = _Recorder({key: RegretMatcher(2)}, extra_rows=0)
-    assert key in recorder and ("other",) not in recorder
-    assert recorder.get(("other",)) is None
-    assert recorder.recorded().strategy == []
-    recorder.get(key)
-    assert len(recorder.recorded().strategy) == 1

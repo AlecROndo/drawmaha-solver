@@ -1,12 +1,14 @@
-"""The Modal launcher's one-trainer-per-rule claim, without Modal.
+"""The Modal launcher's one-trainer-per-rule claim and its launch, without Modal.
 
 `scripts/modal_rung3.py` imports `modal` at the top, so the module is loaded
-with a stand-in for it; only the claim helpers (`_claim`, `_stopped`, `_settle`,
-`_continues`) are exercised, and they touch nothing of Modal's but
-`volume.reload()`. The clock and the sleep are replaced by a fake that advances
-when slept, so the 15-minute wait for a dead trainer's heartbeat runs
-instantly. `train_rule` itself only wires these helpers to Modal and `run_to`,
-and is left to the real runs.
+with a stand-in for it whose decorators hand the functions back unchanged, so
+`main` and the claim helpers (`_claim`, `_stopped`, `_settle`, `_continues`)
+are called as plain functions. The helpers touch nothing of Modal's but
+`volume.reload()`; `main` touches only the deployed function's `spawn`. The
+clock and the sleep are replaced by a fake that advances when slept, so the
+15-minute wait for a dead trainer's heartbeat runs instantly. `train_rule`
+itself only wires these helpers to Modal and `run_to`, and is left to the real
+runs.
 """
 
 from __future__ import annotations
@@ -22,9 +24,23 @@ import pytest
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "modal_rung3.py"
 START = 1_000_000.0
 
+class FakeApp:
+    """`modal.App` whose decorators return the function itself."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def function(self, **options):
+        return lambda function: function
+
+    def local_entrypoint(self):
+        return lambda function: function
+
 @pytest.fixture
 def launcher(monkeypatch):
-    monkeypatch.setitem(sys.modules, "modal", mock.MagicMock())
+    fake_modal = mock.MagicMock()
+    fake_modal.App = FakeApp
+    monkeypatch.setitem(sys.modules, "modal", fake_modal)
     spec = importlib.util.spec_from_file_location("modal_rung3_under_test", SCRIPT)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -36,6 +52,7 @@ def launcher(monkeypatch):
     monkeypatch.setattr(module, "time", mock.Mock(time=lambda: clock["now"], sleep=sleep))
     monkeypatch.setenv("MODAL_TASK_ID", "me")
     module.clock = clock
+    module.modal = fake_modal
     return module
 
 def held_by(out: Path, task: str, heartbeat: float) -> None:
@@ -120,3 +137,23 @@ def test_only_the_deadline_spawns_a_continuation(launcher):
     assert launcher._continues(10, 20, deadline)
     assert not launcher._continues(10, 20, deadline - 1)  # preempted: Modal restarts it
     assert not launcher._continues(20, 20, deadline)  # done
+
+def test_claiming_outside_a_modal_container_is_refused(launcher, tmp_path, monkeypatch):
+    # Every container would otherwise claim as the same name and wave the others through.
+    monkeypatch.delenv("MODAL_TASK_ID")
+    with pytest.raises(KeyError, match="MODAL_TASK_ID"):
+        launcher._claim(tmp_path)
+
+def test_main_spawns_each_listed_rule_on_the_deployed_app(launcher):
+    launcher.main(target=2_000_000, rules="vanilla,cfr+", seed=3)
+    launcher.modal.Function.from_name.assert_called_once_with("drawmaha-rung3", "train_rule")
+    spawn = launcher.modal.Function.from_name.return_value.spawn
+    assert spawn.call_args_list == [
+        mock.call("vanilla", 2_000_000, 3),
+        mock.call("cfr+", 2_000_000, 3),
+    ]
+
+def test_main_refuses_an_unknown_rule_before_spawning_any(launcher):
+    with pytest.raises(ValueError, match="dcfrr"):
+        launcher.main(rules="vanilla,dcfrr")
+    launcher.modal.Function.from_name.return_value.spawn.assert_not_called()
