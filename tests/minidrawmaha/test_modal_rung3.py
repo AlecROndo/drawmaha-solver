@@ -3,9 +3,10 @@
 `scripts/modal_rung3.py` imports `modal` at the top, so the module is loaded
 with a stand-in for it; only the claim helpers (`_claim`, `_stopped`, `_settle`,
 `_continues`) are exercised, and they touch nothing of Modal's but
-`volume.reload()`. The clock and the
-sleep are replaced by a fake that advances when slept, so the 15-minute wait
-for a dead trainer's heartbeat runs instantly.
+`volume.reload()`. The clock and the sleep are replaced by a fake that advances
+when slept, so the 15-minute wait for a dead trainer's heartbeat runs
+instantly. `train_rule` itself only wires these helpers to Modal and `run_to`,
+and is left to the real runs.
 """
 
 from __future__ import annotations
