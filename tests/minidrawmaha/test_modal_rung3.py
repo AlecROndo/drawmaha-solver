@@ -1,8 +1,9 @@
 """The Modal launcher's one-trainer-per-rule claim, without Modal.
 
 `scripts/modal_rung3.py` imports `modal` at the top, so the module is loaded
-with a stand-in for it; only `_claim`, `_stopped` and `_beat` are exercised,
-and they touch nothing of Modal's but `volume.reload()`. The clock and the
+with a stand-in for it; only the claim helpers (`_claim`, `_stopped`, `_settle`,
+`_continues`) are exercised, and they touch nothing of Modal's but
+`volume.reload()`. The clock and the
 sleep are replaced by a fake that advances when slept, so the 15-minute wait
 for a dead trainer's heartbeat runs instantly.
 """
@@ -101,3 +102,20 @@ def test_a_stale_heartbeat_is_taken_at_once(launcher, tmp_path):
     launcher._claim(tmp_path)
     assert owner(tmp_path) == "me"
     assert launcher.clock["now"] == START
+
+def test_the_settle_keeps_the_container_that_won_the_claim(launcher, tmp_path):
+    held_by(tmp_path, "me", START)
+    launcher._settle(tmp_path)
+    assert launcher.clock["now"] - START == launcher.CLAIM_SETTLE_S
+
+def test_the_settle_refuses_a_container_whose_claim_was_overwritten(launcher, tmp_path):
+    # Both passed `_claim`; the other's commit landed last.
+    held_by(tmp_path, "other", START)
+    with pytest.raises(RuntimeError, match="claimed by other at the same time"):
+        launcher._settle(tmp_path)
+
+def test_only_the_deadline_spawns_a_continuation(launcher):
+    deadline = launcher.DEADLINE_S
+    assert launcher._continues(10, 20, deadline)
+    assert not launcher._continues(10, 20, deadline - 1)  # preempted: Modal restarts it
+    assert not launcher._continues(20, 20, deadline)  # done
