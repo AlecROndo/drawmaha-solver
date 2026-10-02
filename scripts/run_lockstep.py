@@ -10,10 +10,11 @@ import argparse
 from pathlib import Path
 
 from drawmaha_solver.minidrawmaha.lockstep_run import run_to
+from drawmaha_solver.minidrawmaha.regret_rules import RegretRule
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("rule", choices=["vanilla", "cfr+", "lcfr", "dcfr"])
+    parser.add_argument("rule", choices=[rule.value for rule in RegretRule])
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--target", type=int, default=10_000_000)
     parser.add_argument("--workers", type=int, default=10)
