@@ -22,6 +22,8 @@ kuhn-exploit-server = "drawmaha_solver.kuhn.exploit_server:main"
 leduc-analysis = "drawmaha_solver.leduc.analysis:main"
 leduc-play = "drawmaha_solver.leduc.play:main"
 leduc-exploit-server = "drawmaha_solver.leduc.exploit_server:main"
+minidraw-analysis = "drawmaha_solver.minidrawmaha.analysis:main"
+minidraw-play = "drawmaha_solver.minidrawmaha.play:main"
 
 [build-system]
 requires = ["hatchling"]
