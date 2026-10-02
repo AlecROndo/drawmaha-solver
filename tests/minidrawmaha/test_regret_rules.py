@@ -362,11 +362,19 @@ def test_bank_rows_equals_the_per_ledger_rule_bit_for_bit(rule):
     columns = np.concatenate([np.arange(starts[r], starts[r] + widths[r]) for r in deltas])
     rows = np.concatenate([np.full(widths[r], r) for r in deltas])
     totals = np.concatenate(list(deltas.values()))
-    bank_rows(rule, regret, stamp, columns, rows, totals, t)
+    bank_rows(rule, regret=regret, stamp=stamp, columns=columns, rows=rows, totals=totals, t=t)
     assert np.array_equal(regret, one_by_one[0])
     assert np.array_equal(stamp, one_by_one[1])
 
 def test_bank_rows_refuses_a_row_stamped_ahead():
     regret, stamp = np.zeros(2), np.array([9], dtype=np.int64)
     with pytest.raises(ValueError, match="stamped at iteration 9"):
-        bank_rows("dcfr", regret, stamp, np.array([0, 1]), np.array([0, 0]), np.ones(2), 5)
+        bank_rows(
+            "dcfr",
+            regret=regret,
+            stamp=stamp,
+            columns=np.array([0, 1]),
+            rows=np.array([0, 0]),
+            totals=np.ones(2),
+            t=5,
+        )

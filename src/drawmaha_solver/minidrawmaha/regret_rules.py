@@ -185,63 +185,6 @@ RULES: dict[RegretRule, BankRegret] = {
     RegretRule.DCFR: bank_discounted,
 }
 
-def bank_rows(
-    rule: RegretRule | str,
-    regret: np.ndarray,
-    stamp: np.ndarray,
-    columns: np.ndarray,
-    rows: np.ndarray,
-    totals: np.ndarray,
-    t: int,
-) -> None:
-    """Bank one iteration's regret into many rows of a packed table at once.
-
-    `columns` are distinct column indices into `regret`, `rows[i]` the row that
-    owns `columns[i]` (for DCFR's stamp), and `totals[i]` the iteration's summed
-    regret for that column. Each touched row is banked exactly once, which is
-    what a lockstep iteration asks, and the arithmetic per entry is the same as
-    the per-ledger rule's, so the two agree bit for bit.
-
-    DCFR's owed discount depends only on a row's stamp and t, so it is computed
-    once per distinct stamp with the same scalar functions `bank_discounted`
-    uses — not with a vectorised `exp`, which may round the last bit differently.
-    """
-    rule = RegretRule(rule)
-    if rule is RegretRule.VANILLA:
-        regret[columns] += totals
-    elif rule is RegretRule.LCFR:
-        regret[columns] += t * totals
-    elif rule is RegretRule.CFR_PLUS:
-        regret[columns] = np.maximum(regret[columns] + totals, 0.0)
-    else:
-        stamps = stamp[rows]
-        if stamps.size and int(stamps.max()) > t:
-            raise ValueError(
-                f"a row is stamped at iteration {int(stamps.max())} and cannot be banked at {t}"
-            )
-        owing = stamps < t
-        if owing.any():
-            owed_columns = columns[owing]
-            current = regret[owed_columns]
-            positive = np.empty(current.size)
-            negative = np.empty(current.size)
-            owed_stamps = stamps[owing]
-            for owed in np.unique(owed_stamps).tolist():
-                first = max(owed, 1)
-                through = t - 1
-                at = owed_stamps == owed
-                if through < first:
-                    positive[at] = negative[at] = 1.0
-                    continue
-                positive[at] = math.exp(
-                    cumulative_log_discount(through) - cumulative_log_discount(first - 1)
-                )
-                negative[at] = _NEGATIVE_FACTOR ** (through - first + 1)
-            current *= np.where(current > 0.0, positive, negative)
-            regret[owed_columns] = current
-            stamp[rows[owing]] = t
-        regret[columns] += totals
-
 def settled_regret(ledger: RegretMatcher, t: int) -> np.ndarray:
     """A DCFR row's regret as of the end of iteration t, as a copy; the ledger is untouched.
 
@@ -266,16 +209,93 @@ def _pay_owed(regret: np.ndarray, *, stamp: int, through: int) -> None:
     A stamp of 0 is a row never banked: all zeros, owing nothing, so it pays
     from iteration 1, which multiplies zeros and changes nothing.
     """
+    positive, negative = _owed_factors(stamp=stamp, through=through)
+    regret *= np.where(regret > 0.0, positive, negative)
+
+def _owed_factors(*, stamp: int, through: int) -> tuple[float, float]:
+    """DCFR's (positive, negative) factors over iterations max(stamp, 1) … through.
+
+    (1, 1) when that stretch is empty: multiplying by 1.0 is exact, so a row
+    that owes nothing comes back as the same bits. Scalar `math.exp` on
+    purpose — `bank_rows` reuses these factors for many rows at once, and a
+    vectorised `exp` may round the last bit differently from the per-ledger
+    path it must equal.
+    """
     first = max(stamp, 1)
     if through < first:
-        return
+        return 1.0, 1.0
     positive = math.exp(
         cumulative_log_discount(through) - cumulative_log_discount(first - 1)
     )
     # Past ~1,075 owed iterations this underflows to exactly 0.0, which is
     # the right answer: a negative regret halved a thousand times is gone.
     negative = _NEGATIVE_FACTOR ** (through - first + 1)
-    regret *= np.where(regret > 0.0, positive, negative)
+    return positive, negative
+
+# ---------------------------------------------------------------------------
+# Many rows at once: a lockstep iteration's bank
+# ---------------------------------------------------------------------------
+
+def bank_rows(
+    rule: RegretRule | str,
+    *,
+    regret: np.ndarray,
+    stamp: np.ndarray,
+    columns: np.ndarray,
+    rows: np.ndarray,
+    totals: np.ndarray,
+    t: int,
+) -> None:
+    """Bank one iteration's regret into many rows of a packed table at once, in place.
+
+    `regret` and `stamp` are a packed table's `cumulative_regret` and `stamp`
+    arrays. `columns` are DISTINCT column indices into `regret` (the caller
+    has summed each column's samples into one total; a repeated column would
+    be banked once, silently), `rows[i]` the row that owns `columns[i]` (for
+    DCFR's stamp), and `totals[i]` the iteration's summed regret for that
+    column. Each touched row is banked exactly once, which is what a lockstep
+    iteration asks, and the arithmetic per entry is the same as the
+    per-ledger rule's in `RULES`, so the two agree bit for bit.
+
+    DCFR's owed discount depends only on a row's stamp and t, so it is
+    computed once per distinct stamp, with the scalar `_owed_factors`
+    `bank_discounted` uses. A row stamped ahead of t raises, as it does there.
+    """
+    rule = RegretRule(rule)
+    if rule is RegretRule.VANILLA:
+        regret[columns] += totals
+    elif rule is RegretRule.LCFR:
+        regret[columns] += t * totals
+    elif rule is RegretRule.CFR_PLUS:
+        regret[columns] = np.maximum(regret[columns] + totals, 0.0)
+    else:
+        # RegretRule is closed and DCFR is the one left.
+        _pay_owed_rows(regret, stamp, columns=columns, rows=rows, t=t)
+        regret[columns] += totals
+
+def _pay_owed_rows(
+    regret: np.ndarray, stamp: np.ndarray, *, columns: np.ndarray, rows: np.ndarray, t: int
+) -> None:
+    """`_pay_owed` through t − 1 for every touched row stamped before t, then stamp them t."""
+    stamps = stamp[rows]
+    if stamps.size and int(stamps.max()) > t:
+        raise ValueError(
+            f"a row is stamped at iteration {int(stamps.max())} and cannot be banked at {t}"
+        )
+    owing = stamps < t
+    if not owing.any():
+        return
+    owed_columns = columns[owing]
+    owed_stamps = stamps[owing]
+    positive = np.empty(owed_columns.size)
+    negative = np.empty(owed_columns.size)
+    for owed in np.unique(owed_stamps).tolist():
+        at = owed_stamps == owed
+        positive[at], negative[at] = _owed_factors(stamp=owed, through=t - 1)
+    current = regret[owed_columns]
+    current *= np.where(current > 0.0, positive, negative)
+    regret[owed_columns] = current
+    stamp[rows[owing]] = t
 
 # ---------------------------------------------------------------------------
 # The averaging columns
