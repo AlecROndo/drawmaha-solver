@@ -731,7 +731,7 @@ footer a:hover{color:var(--ivory)}
           <a class="go" href="https://drawmaha.app/rung0">Play rung 0 <span class="arrow">→</span></a>
         </div>
         <div class="fig">
-          <canvas id="fig-rps" aria-label="The strategy simplex for rock, paper, scissors: the average strategy rolls in from a corner and circles down to the centre, the Nash point, like a ball settling in a bowl."></canvas>
+          <canvas id="fig-rps" aria-label="The strategy simplex for rock, paper, scissors: a stylised path shows the average strategy rolling in from a corner and circling down to the centre, the Nash point, like a ball settling in a bowl. The real run's numbers tick in the console at the top of the page."></canvas>
           <p class="cap"><b>The strategy triangle.</b> Each corner is a pure strategy; the <i>yellow path</i> is the average strategy rolling in from a corner and circling down to the <em>Nash point</em> at the centre, like a ball in a bowl. The path is stylised, the same settling as in the Solve section above: the real run's numbers tick in the console at the top of the page.</p>
         </div>
       </article>
@@ -2007,7 +2007,7 @@ function drawTrail(x, tab, u, rgb, win, floor, wmax) {
    runs on the exponential ease, so the whole settling is front-loaded. */
 const RPS_NORMALS = [Math.PI / 2, Math.PI * 7 / 6, -Math.PI / 6];   /* the triangle's edge normals from the centroid, canvas y-down */
 const BOWL = { T: 6, k: 1, hold: 2, acc: 0, last: 0, phase: 0, tab: null, path: bowlPath() };
-{ const q = new URLSearchParams(location.search).get('bowl'); if (q) BOWL.acc = parseFloat(q) * BOWL.T; }
+{ const q = parseFloat(new URLSearchParams(location.search).get('bowl')); if (Number.isFinite(q)) BOWL.acc = q * BOWL.T; }   /* debug: start both walks part-way, as a fraction of T */
 /* the ball, simulated once in inradius units from the rock corner; the bowl is three-fold symmetric, so the other
    corners' runs are this one rotated. Scaled so the widest swing stays within 92 % of the way to any edge. */
 /* u is the ball's clock; the trail is drawn by arc length, so convert: how far along the path the ball has rolled */
@@ -2245,7 +2245,7 @@ const RUNG0 = { it: 100000, avg: 0.0009 };
 const rpsFig = (function () {
   const c = $('#fig-rps'); if (!c) return { canvas: null, layout() {}, start() {}, see() {} };
   const { T, k: K, hold: HOLD } = BOWL;
-  let geo, tab = null, phase = 0, started = false, vis = false, acc = 0, last = 0;
+  let geo, tab = null, phase = 0, started = false, vis = false, acc = BOWL.acc, last = 0;   /* acc honours ?bowl=, like the Solve widget */
   const ctx = c.getContext('2d');
   function layout() {
     const r = c.getBoundingClientRect(); if (!r.width) return; const d = dprOf();
@@ -2285,7 +2285,8 @@ const rpsFig = (function () {
     const tb = table();
     const head = drawTrail(ctx, tb, bowlArc(tb, u), '233,184,98', 0.45, 0.12, 2.2);
     ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.arc(head[0], head[1], 4, 0, Math.PI * 2); ctx.fill();
-    if (u >= 0.995) { ctx.fillStyle = C.pink; ctx.textAlign = 'left'; ctx.fillText('Nash (⅓, ⅓, ⅓)', m[0] + 14, m[1] - 14); ctx.fillStyle = C.ivory; ctx.fillText('σ̄ (0.334, 0.333, 0.333)', m[0] + 14, m[1] + 4); }
+    /* the path is stylised; the numbers are the real run's, the same ones the Solve section quotes */
+    if (u >= 0.995) { ctx.textAlign = 'left'; ctx.fillStyle = C.pink; ctx.fillText('Nash (⅓, ⅓, ⅓)', m[0] + 14, m[1] - 16); ctx.fillStyle = C.iv60; ctx.fillText('rung 0 lands at', m[0] + 14, m[1]); ctx.fillStyle = C.ivory; ctx.fillText('σ̄ (0.334, 0.333, 0.333)', m[0] + 14, m[1] + 16); }
     const s0 = tb.pts[0]; ctx.fillStyle = C.iv60; ctx.textAlign = 'left'; ctx.fillText('start', s0[0] + 8, s0[1] + 4);
   }
   function restart() { acc = 0; phase = (phase + 1) % 3; if (REDUCED) draw(1); }   /* again, from the next corner */
