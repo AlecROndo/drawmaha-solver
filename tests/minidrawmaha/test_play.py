@@ -7,6 +7,7 @@ needs the 18 MB release file; the frozen strategy itself is pinned in
 
 import json
 from collections.abc import Mapping
+from itertools import chain, repeat
 from pathlib import Path
 
 import numpy as np
@@ -225,16 +226,17 @@ def test_main_plays_the_file_it_is_given_without_fetching_and_its_seed_replays(
     def no_fetch():
         raise AssertionError("--strategy was given, so nothing is fetched")
 
-    monkeypatch.setattr(play, "fetch_strategy", no_fetch)
-    typed = iter(["c", "s"] * 6 + ["q"])
-    monkeypatch.setattr("builtins.input", lambda prompt: next(typed))
-
     def session():
+        # Check or call, stand pat, a dozen times; an answer illegal at its
+        # prompt is re-asked. Then quit at every prompt, so a seed that needs
+        # more answers ends the session instead of exhausting the script.
+        typed = chain(["c", "s"] * 6, repeat("q"))
+        monkeypatch.setattr("builtins.input", lambda prompt: next(typed))
         play.main(["--strategy", str(path), "--seed", "3"])
         return capsys.readouterr().out
 
+    monkeypatch.setattr(play, "fetch_strategy", no_fetch)
     first = session()
-    typed = iter(["c", "s"] * 6 + ["q"])
     assert "Loaded UNIFORM" in first and "hand 2" in first
     assert "0.061" not in first
     assert session() == first

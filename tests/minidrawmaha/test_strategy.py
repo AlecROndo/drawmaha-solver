@@ -141,3 +141,7 @@ def test_the_uniform_strategy_plays_every_row_evenly():
     for key in islice(iter(uniform), 0, None, 500_000):
         width = len(key.legal_actions())
         np.testing.assert_allclose(uniform[key], np.full(width, 1 / width), rtol=1e-6)
+
+def test_every_width_fits_the_int8_the_file_stores_it_in():
+    # save_strategy writes widths as int8; the draw's four throws are the most.
+    assert PackedTable.whole_game().widths().max() == 4

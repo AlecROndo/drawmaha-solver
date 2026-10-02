@@ -26,8 +26,8 @@ The four figures:
 
 1. **The race.** Exploitability against hands sampled, one line per rule. LCFR
    and vanilla — the two rules that keep negative regret — finish 3–4× below
-   CFR+ and DCFR, which floor it or discount it away. CFR+ and DCFR are
-   drawn in one colour because, under sampling, they treat negative regret
+   CFR+ and DCFR, which floor it or discount it away. CFR+ and DCFR share
+   one hue (in two shades) because, under sampling, they treat negative regret
    the same way: a row is revisited every ~37,000 iterations at the median,
    and DCFR's per-iteration halving takes a negative regret to exactly zero
    long before that, which is CFR+'s floor. They are not one algorithm —
@@ -69,6 +69,7 @@ from itertools import combinations
 from pathlib import Path
 
 import numpy as np
+from matplotlib.colors import to_hex, to_rgb
 
 from drawmaha_solver.minidrawmaha.cards import DECK, Card
 from drawmaha_solver.minidrawmaha.exploitability import (
@@ -102,6 +103,7 @@ from drawmaha_solver.plotting import (
     CATEGORICAL,
     MUTED,
     SECONDARY,
+    SURFACE,
     legend,
     new_axes,
     save,
@@ -143,8 +145,8 @@ class _Rule:
 # lie almost on top of each other, so they share CATEGORICAL[1]'s hue in two
 # shades: DCFR goes wide underneath in a light tint, CFR+ dashed on top in a
 # dark shade. In one shade the dashes vanish into the wide line beneath them.
-_FAMILY_LIGHT = "#f4b298"  # CATEGORICAL[1] mixed half and half with the surface
-_FAMILY_DARK = "#a44924"  # CATEGORICAL[1] at 70% brightness
+_FAMILY_LIGHT = to_hex((np.array(to_rgb(CATEGORICAL[1])) + to_rgb(SURFACE)) / 2)
+_FAMILY_DARK = to_hex(0.7 * np.array(to_rgb(CATEGORICAL[1])))
 
 # Keyed by the directory name the Volume and `grades.json` both use, in the
 # order the legend and the answer sheet list them.
