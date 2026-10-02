@@ -25,8 +25,6 @@ jacks apart either.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
 import numpy as np
 
 from drawmaha_solver.leduc.cfr import train
@@ -46,6 +44,7 @@ from drawmaha_solver.leduc.infoset_table import (
     average_strategy,
     format_strategy_tables,
 )
+from drawmaha_solver.play_session import QuitGame, Scoreboard, verdict
 
 # One iteration walks 9,450 nodes at about 50 ms, so this is roughly two
 # minutes — the point where the strategy is worth playing against (beatable
@@ -54,10 +53,6 @@ from drawmaha_solver.leduc.infoset_table import (
 SOLVE_ITERATIONS = 2_000
 
 RANK_NAME = {"J": "jack", "Q": "queen", "K": "king"}
-
-
-class QuitGame(Exception):
-    """Raised when the human asks to stop."""
 
 
 # ---------------------------------------------------------------------------
@@ -126,21 +121,6 @@ def play_hand(
         shown += f" board {CARD_SYMBOL[state.board]}"
     print(f"  showdown: {shown}   {verdict(chips)}   "
           f"(running {board.chips:+.0f} over {board.hands})\n")
-
-
-def verdict(chips: float) -> str:
-    """How the hand ended, from the human's seat.
-
-    Three outcomes, not rung 1's two: there are two cards of each rank here,
-    so both players can hold the same one and a showdown between them splits
-    the pot. Reporting that as "bot wins 0" would call a chop a loss on the
-    one line of the hand the player actually reads.
-    """
-    if chips > 0:
-        return f"you win {chips:.0f}"
-    if chips < 0:
-        return f"bot wins {-chips:.0f}"
-    return "split pot"
 
 
 def deal(rng: np.random.Generator) -> LeducState:
@@ -219,42 +199,6 @@ def parse_action(typed: str, line: tuple[Action, ...]) -> Action | None:
 # ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------
-
-
-@dataclass(slots=True)
-class Scoreboard:
-    """Chips and hands from the human's seat, across alternating seats.
-
-    Kept per seat as well as in total, because the total is the only number
-    that is supposed to approach zero. Each seat separately approaches its own
-    game value, and seeing the two straddle -/+0.086 is what shows the
-    alternation is cancelling a seat edge rather than hiding one.
-    """
-
-    chips: float = 0.0
-    hands: int = 0
-    seat_chips: list[float] = field(default_factory=lambda: [0.0, 0.0])
-    seat_hands: list[int] = field(default_factory=lambda: [0, 0])
-
-    def record(self, *, human_seat: int, returns: tuple[float, float]) -> None:
-        """Bank one finished hand, taking the human's side of the payoff."""
-        self.chips += returns[human_seat]
-        self.seat_chips[human_seat] += returns[human_seat]
-        self.seat_hands[human_seat] += 1
-        self.hands += 1
-
-    @property
-    def per_hand(self) -> float | None:
-        """Chips per hand, or None before any hand has been played."""
-        if self.hands == 0:
-            return None
-        return self.chips / self.hands
-
-    def per_hand_in_seat(self, seat: int) -> float | None:
-        """Chips per hand in `seat`, or None before that seat has played."""
-        if self.seat_hands[seat] == 0:
-            return None
-        return self.seat_chips[seat] / self.seat_hands[seat]
 
 
 def _report(board: Scoreboard, strategies: Profile) -> None:

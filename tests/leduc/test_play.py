@@ -4,16 +4,14 @@ import pytest
 from drawmaha_solver.leduc.game import DEALS, DECK, Action, Card, LeducState, Rank
 from drawmaha_solver.leduc.infoset_table import average_strategy, new_infoset_table
 from drawmaha_solver.leduc.play import (
-    QuitGame,
-    Scoreboard,
     _report,
     bot_action,
     deal,
     parse_action,
     prompt_for,
     turn_board,
-    verdict,
 )
+from drawmaha_solver.play_session import QuitGame, Scoreboard, verdict
 
 F, C, R = Action.FOLD, Action.CALL, Action.RAISE
 J, Q, K = Rank.JACK, Rank.QUEEN, Rank.KING
