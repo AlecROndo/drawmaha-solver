@@ -56,6 +56,7 @@ checkpoint. This file is only where the numbers live.
 
 from __future__ import annotations
 
+import copy
 from collections.abc import ItemsView, Iterable, Iterator, Mapping, ValuesView
 from typing import Protocol
 
@@ -153,8 +154,9 @@ class PackedTable(Mapping[InfoSet, RegretMatcher]):
                     f"{name} must be {like.dtype.name} {like.shape}, "
                     f"got {array.dtype.name} {array.shape}"
                 )
-        table = object.__new__(PackedTable)
-        table._index = self._index
+        # A shallow copy shares the index and carries every attribute the
+        # constructor sets, so a field added there cannot be missed here.
+        table = copy.copy(self)
         table.cumulative_regret = cumulative_regret
         table.strategy_sum = strategy_sum
         table.extra_sums = extra_sums

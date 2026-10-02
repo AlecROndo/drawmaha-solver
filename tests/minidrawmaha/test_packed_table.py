@@ -281,6 +281,35 @@ def test_values_and_items_walk_the_rows_in_order_without_a_lookup_each():
         assert np.shares_memory(ledger.cumulative_regret, table[key].cumulative_regret)
         assert np.shares_memory(value.strategy_sum, table[key].strategy_sum)
 
+def test_a_table_over_borrowed_buffers_writes_into_them_and_keeps_the_index():
+    template = PackedTable.listed(keys_at(public_decision_points()[0], 40), extra_averages=1)
+    buffers = {
+        name: np.zeros_like(getattr(template, name))
+        for name in ("cumulative_regret", "strategy_sum", "extra_sums", "stamp")
+    }
+    borrowed = template.over(**buffers)
+    key = keys_at(public_decision_points()[0], 40)[7]
+    borrowed[key].cumulative_regret[:] = [1.0, -1.0]
+    borrowed[key].stamp[0] = 3
+    start = int(template.widths()[:7].sum())
+    assert buffers["cumulative_regret"][start : start + 2].tolist() == [1.0, -1.0]
+    assert buffers["stamp"][7] == 3
+    assert list(borrowed) == list(template) and not template.cumulative_regret.any()
+
+@pytest.mark.parametrize(
+    ("name", "wrong"),
+    [("cumulative_regret", np.zeros(3)), ("stamp", np.zeros(40))],
+    ids=["shape", "dtype"],
+)
+def test_a_borrowed_buffer_of_the_wrong_shape_or_dtype_is_refused(name, wrong):
+    template = PackedTable.listed(keys_at(public_decision_points()[0], 40))
+    buffers = {
+        n: np.zeros_like(getattr(template, n))
+        for n in ("cumulative_regret", "strategy_sum", "extra_sums", "stamp")
+    }
+    with pytest.raises(ValueError, match=name):
+        template.over(**(buffers | {name: wrong}))
+
 # ---------------------------------------------------------------------------
 # A listed slice: the same store over the keys a test or a readout names
 # ---------------------------------------------------------------------------
