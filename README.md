@@ -253,11 +253,11 @@ Four regret rules, each trained for 2,000,000 lockstep iterations (20M hands per
 | 10M | 16.7 | 12.6 | 36.9 | 37.0 |
 | 20M | 8.6 | **6.1** | 24.8 | 25.0 |
 
-Exploitability in chips per 100 hands, ante 1, linear average, seed 0. Uniform random play loses 484.
+Exploitability in chips per 100 hands, ante 1, linear average, seed 0. For scale, uniform random play is exploitable for 484: that is the mean of the two best responses against it, not what it loses to any one opponent.
 
 ![Keeping negative regret wins](figures/rung3/race.png)
 
-The two rules that keep negative regret beat the two that throw it away by 3–4×. CFR+ floors it at zero; DCFR halves it every iteration. Under sampling those are the same rule. At 2M iterations the median row was last visited about 37,000 iterations earlier, and halving a regret even 1,075 times takes it to exactly zero in double precision. So by the time a row comes round again its negative regret is gone, which is CFR+'s floor, and the two curves lie on top of each other. This is one seed, so the 6.1 against 8.6 between LCFR and vanilla is suggestive, not settled.
+The two rules that keep negative regret beat the two that throw it away by 3–4×. CFR+ floors it at zero; DCFR halves it every iteration. Under sampling, those treat negative regret the same way. At 2M iterations the median row was last visited about 37,000 iterations earlier, and the ledgers are float64, where halving a regret about 1,075 times takes it to exactly zero. So by the time a row comes round again its negative regret is gone, which is CFR+'s floor. The two are still not one algorithm: DCFR also discounts positive regret and averages differently, so the curves lie close (24.8 against 25.0) rather than on top of each other. This is one seed, so the 6.1 against 8.6 between LCFR and vanilla is suggestive, not settled.
 
 ![Averaging columns](figures/rung3/averaging_columns.png)
 
@@ -273,11 +273,13 @@ The bars average each strategy over every physical deal of a category with equal
 
 - **P0's lead.** P0 bets out with 19–40% of every category and slowplays trips (21%).
 - **P1 checked to.** P1 bets 97% of its trips and straight flushes.
-- **P1 facing a bet.** P1 folds a pair (39%) more often than high card (28%). The pair is already made and has less to draw to.
+- **P1 facing a bet.** P1 folds a pair (39%) more often than high card (28%).
 
 ![The draw](figures/rung3/draw.png)
 
-High cards and pairs throw a card 88–98% of the time, and flushes and better almost never do. P1 throws more often after P0 stands pat: with a straight, 41% against 32% after P0 drew. A pat P0 is showing strength, so P1 has to improve.
+High cards and pairs throw a card 88–98% of the time, and flushes and better almost never do. P1 throws more often after P0 stands pat: with a straight, 41% against 32% after P0 drew.
+
+These are readings of what the strategy does, not tested reasons for it. A category is the three held cards alone, and its deals meet different boards, so a gap between two categories can come from that mix rather than from the category itself.
 
 ### Running it
 

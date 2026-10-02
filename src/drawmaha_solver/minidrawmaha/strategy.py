@@ -44,6 +44,7 @@ from pathlib import Path
 
 import numpy as np
 
+from drawmaha_solver.minidrawmaha.exploitability import _ROW_SUM_TOLERANCE
 from drawmaha_solver.minidrawmaha.game import InfoSet
 from drawmaha_solver.minidrawmaha.lockstep import read_lockstep
 from drawmaha_solver.minidrawmaha.packed_table import PackedTable
@@ -61,6 +62,8 @@ RELEASE_URL = (
 )
 # `fetch_strategy` refuses any download that does not hash to this.
 STRATEGY_SHA256 = "d49f0f3792627cd5b0279956c7b67690af1507b5beec264cbf5e4606f437b6b8"
+# Seconds a download may sit with no data before it is abandoned.
+DOWNLOAD_TIMEOUT = 60
 
 
 @dataclass(frozen=True)
@@ -82,6 +85,13 @@ class FrozenStrategy(Mapping[InfoSet, np.ndarray]):
     `probabilities`, never a copy. The key → row arithmetic is the packed
     table's whole-game index, borrowed from a table whose arrays are never
     touched and so cost nothing.
+
+    The constructor takes its own copy of `probabilities` before freezing it,
+    so the caller's array stays writable, and refuses any row that is not a
+    distribution — negative, non-finite, or summing further from one than the
+    grader's tolerance. `--strategy PATH` skips the digest, so this is what
+    stops a corrupt or hand-edited file at load rather than deep inside
+    `rng.choice` on the bot's first move.
     """
 
     def __init__(
@@ -100,8 +110,11 @@ class FrozenStrategy(Mapping[InfoSet, np.ndarray]):
             raise ValueError(
                 f"{probabilities.shape} probabilities for {int(expected.sum()):,} columns"
             )
-        self.probabilities = np.asarray(probabilities, dtype=np.float32)
+        self.probabilities = np.array(probabilities, dtype=np.float32)
         self.probabilities.setflags(write=False)
+        bad = _first_bad_row(self.probabilities, expected)
+        if bad is not None:
+            raise ValueError(f"row {bad:,} of this strategy is not a probability distribution")
         self.info = info
 
     @property
@@ -117,6 +130,18 @@ class FrozenStrategy(Mapping[InfoSet, np.ndarray]):
 
     def __len__(self) -> int:
         return len(self._table)
+
+
+def _first_bad_row(probabilities: np.ndarray, widths: np.ndarray) -> int | None:
+    """Index of the first row that is not a distribution by the grader's test, or None."""
+    starts = np.concatenate(([0], np.cumsum(widths)[:-1]))
+    values = probabilities.astype(np.float64)
+    finite = np.logical_and.reduceat(np.isfinite(values), starts)
+    nonnegative = np.logical_and.reduceat(values >= 0.0, starts)
+    totals = np.add.reduceat(values, starts)
+    fine = finite & nonnegative & (np.abs(totals - 1.0) <= _ROW_SUM_TOLERANCE)
+    bad = np.flatnonzero(~fine)
+    return int(bad[0]) if bad.size else None
 
 
 def average_rows(sums: np.ndarray, widths: np.ndarray) -> np.ndarray:
@@ -158,6 +183,17 @@ def from_checkpoint(path: Path, column: Average = PRIMARY_AVERAGE) -> FrozenStra
         workers=int(run["workers"]),
     )
     return FrozenStrategy(average_rows(sums, widths), widths, info)
+
+
+def uniform_strategy() -> FrozenStrategy:
+    """Every infoset playing each legal action equally often: the race's floor line.
+
+    Built the way an unreached row is read, from an all-zero sum, so it is in
+    the same float32 rows as a frozen run and grades through the same walk.
+    """
+    widths = PackedTable.whole_game().widths()
+    info = StrategyInfo(rule="uniform", column="uniform", iteration=0, seed=0, workers=0)
+    return FrozenStrategy(average_rows(np.zeros(int(widths.sum())), widths), widths, info)
 
 
 def save_strategy(strategy: FrozenStrategy, path: Path) -> None:
@@ -213,21 +249,27 @@ def fetch_strategy(
     A cached copy is re-hashed on every call (a fraction of a second) and
     replaced if it does not match, so a truncated download never sticks. The
     download lands in a temporary file first and is moved into place only
-    after it hashes correctly.
+    after it hashes correctly; if it fails or hashes wrong — a dropped
+    connection, a 404, Ctrl-C — the temporary file is deleted, so retries do
+    not pile partial 18 MB files up in the cache. A connection that goes
+    silent for `DOWNLOAD_TIMEOUT` seconds is a failure, not a hang.
     """
-    if not sha256:
-        raise RuntimeError("no strategy digest is pinned yet; pass --strategy PATH")
     cache = cache or default_cache()
     target = cache / Path(url).name
     if target.exists() and sha256_of(target) == sha256:
         return target
     cache.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(dir=cache, delete=False) as partial:
-        with urllib.request.urlopen(url) as response:
-            shutil.copyfileobj(response, partial)
-    found = sha256_of(Path(partial.name))
-    if found != sha256:
-        Path(partial.name).unlink()
-        raise ValueError(f"{url} hashed to {found}, expected {sha256}")
-    Path(partial.name).replace(target)
+        partial_path = Path(partial.name)
+    try:
+        with open(partial_path, "wb") as stream:
+            with urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT) as response:
+                shutil.copyfileobj(response, stream)
+        found = sha256_of(partial_path)
+        if found != sha256:
+            raise ValueError(f"{url} hashed to {found}, expected {sha256}")
+        partial_path.replace(target)
+    except BaseException:
+        partial_path.unlink(missing_ok=True)
+        raise
     return target

@@ -293,6 +293,15 @@ def _label_and_key(state: MiniState, action: Action) -> tuple[str, str]:
 
 
 def report(board: Scoreboard) -> None:
+    """The session's net, and each seat's rate beside what that seat earns in self-play.
+
+    The per-seat target is the value of the seat the human sat in when the
+    strategy plays itself, so a human matching it in both seats has played as
+    well as the bot. Over alternating seats those targets cancel to zero; a
+    perfect adversary can push the average up to +0.061, and a weaker player
+    can land anywhere below. A hand's result swings by several chips, so the
+    rates are noise until the hands run into the thousands.
+    """
     if board.per_hand is None:
         return
     print(f"\n{board.hands} hands. You net {board.chips:+.0f} chips "
@@ -303,10 +312,11 @@ def report(board: Scoreboard) -> None:
             continue
         target = SELF_PLAY_VALUE_P0 if seat == 0 else -SELF_PLAY_VALUE_P0
         print(f"  as P{seat}: {board.seat_chips[seat]:+.0f} over "
-              f"{board.seat_hands[seat]} hands ({rate:+.3f} per hand, "
-              f"the bot's own seat value {target:+.3f})")
-    print("Against this strategy the long-run answer from alternating seats is")
-    print("about zero, and at most +0.061 for a perfect adversary.\n")
+              f"{board.seat_hands[seat]} hands ({rate:+.3f} per hand; "
+              f"this seat is worth {target:+.3f} in the bot's self-play)")
+    print("Alternating seats, matching the bot averages zero and a perfect")
+    print("adversary at most +0.061 a hand. A hand swings by several chips, so")
+    print("short sessions are mostly noise.\n")
 
 
 if __name__ == "__main__":
