@@ -2,12 +2,17 @@
 
 That equality is the whole claim: the workers only read during a phase, the
 parent banks their records in worker order, so scheduling cannot change a bit.
-Plus: a worker that raises surfaces its traceback, and no shared memory
-outlives the run however it ends.
+Plus: a worker that raises surfaces its traceback, one that dies is noticed
+in seconds, keys that do not match the table are refused, and no shared memory
+or worker process outlives the run however it ends — a worker raising, dying
+while starting or killed mid-run, or the caller raising.
 """
 
 from __future__ import annotations
 
+import os
+import signal
+import time
 from multiprocessing import shared_memory
 from pathlib import Path
 
@@ -84,6 +89,12 @@ def test_a_parallel_run_resumes_in_process_and_back():
         parallel.train(4)
     assert same(solve.table, straight.table)
 
+def assert_unlinked(names: list[str]) -> None:
+    assert names
+    for name in names:
+        with pytest.raises(FileNotFoundError):
+            shared_memory.SharedMemory(name=name)
+
 def broken_deal(rng):
     raise RuntimeError("the deck is on fire")
 
@@ -94,9 +105,7 @@ def test_a_worker_that_raises_surfaces_and_leaves_no_shared_memory():
         with parallel:
             names = [block.name for block in parallel._blocks]
             parallel.train(1)
-    for name in names:
-        with pytest.raises(FileNotFoundError):
-            shared_memory.SharedMemory(name=name)
+    assert_unlinked(names)
     assert isinstance(solve.table, PackedTable) and not solve.table.cumulative_regret.any()
 
 def test_a_parallel_run_needs_a_packed_table():
@@ -109,30 +118,69 @@ class DiesInTheWorker:
     def __reduce__(self):
         return (broken_deal, (None,))
 
-def test_a_worker_that_dies_while_starting_fails_fast():
-    # The keys are handed to the workers; one they cannot rebuild kills them
-    # before the barrier. The parent must say so at once, not after the
-    # barrier's ten-minute timeout.
-    import time
+@pytest.fixture
+def created(monkeypatch) -> list[str]:
+    """The names of every shared block the parent creates during the test."""
+    names: list[str] = []
 
+    class Recording(shared_memory.SharedMemory):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            if kwargs.get("create"):
+                names.append(self.name)
+
+    monkeypatch.setattr(shared_memory, "SharedMemory", Recording)
+    return names
+
+def test_a_worker_that_dies_while_starting_fails_fast(created):
+    # The keys are handed to the workers; one they cannot rebuild kills them
+    # before they report ready. The parent must say so at once, not after the
+    # startup timeout.
     solve = new_lockstep(0, workers=2, table=PackedTable.listed([]))
+    parallel = ParallelLockstep(solve, keys=[DiesInTheWorker()])
     started = time.monotonic()
     with pytest.raises(RuntimeError, match="exited while starting"):
-        with ParallelLockstep(solve, keys=[DiesInTheWorker()]):
+        with parallel:
             pass
     assert time.monotonic() - started < 60
+    assert_unlinked(created)
+    assert not parallel._processes
 
 def test_a_worker_killed_mid_run_is_noticed_within_seconds():
-    import os
-    import signal
-    import time
-
     solve = new_lockstep(0, workers=2)
     started = None
     with pytest.raises(RuntimeError, match="dead workers"):
         with ParallelLockstep(solve) as parallel:
             parallel.train(2)
-            os.kill(parallel._processes[1].pid, signal.SIGKILL)
+            names = [block.name for block in parallel._blocks]
+            processes = list(parallel._processes)
+            os.kill(processes[1].pid, signal.SIGKILL)
             started = time.monotonic()
             parallel.train(1_000)
     assert time.monotonic() - started < 10
+    assert_unlinked(names)
+    assert not any(process.is_alive() for process in processes)
+    assert solve.iteration == 2 and solve.table.cumulative_regret.any()
+
+def test_a_caller_that_raises_stops_the_workers_and_leaves_no_shared_memory():
+    solve = new_lockstep(0, workers=2)
+    with pytest.raises(KeyError, match="the caller"):
+        with ParallelLockstep(solve) as parallel:
+            parallel.train(1)
+            names = [block.name for block in parallel._blocks]
+            processes = list(parallel._processes)
+            raise KeyError("the caller")
+    assert_unlinked(names)
+    assert not any(process.is_alive() for process in processes)
+    assert solve.iteration == 1 and solve.table.cumulative_regret.any()
+
+def test_keys_that_do_not_match_the_table_are_refused_at_startup():
+    # The workers rebuild the table's index from `keys`. A key list that
+    # lays out fewer rows than the parent's table would fit inside its
+    # shared buffers and silently bank the walks in the wrong columns.
+    keys = keys_met(1, 2, 3, RegretRule.VANILLA)
+    table = PackedTable.listed(keys, extra_averages=2)
+    solve = new_lockstep(1, workers=2, table=table, averages=BOTH_COLUMNS)
+    with pytest.raises(RuntimeError, match="cumulative_regret must be"):
+        with ParallelLockstep(solve, keys=keys[:-1]):
+            pass
