@@ -65,8 +65,11 @@ STRATEGY_SHA256 = "d49f0f3792627cd5b0279956c7b67690af1507b5beec264cbf5e4606f437b
 # Seconds a download may sit with no data before it is abandoned.
 DOWNLOAD_TIMEOUT = 60
 
+# ---------------------------------------------------------------------------
+# A frozen strategy
+# ---------------------------------------------------------------------------
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class StrategyInfo:
     """Where a frozen strategy came from: enough to say what a player is facing."""
 
@@ -75,7 +78,6 @@ class StrategyInfo:
     iteration: int
     seed: int
     workers: int
-
 
 class FrozenStrategy(Mapping[InfoSet, np.ndarray]):
     """Every infoset's average strategy, read from two flat arrays.
@@ -93,6 +95,8 @@ class FrozenStrategy(Mapping[InfoSet, np.ndarray]):
     stops a corrupt or hand-edited file at load rather than deep inside
     `rng.choice` on the bot's first move.
     """
+
+    __slots__ = ("_table", "info", "probabilities")
 
     def __init__(
         self, probabilities: np.ndarray, widths: np.ndarray, info: StrategyInfo
@@ -119,6 +123,7 @@ class FrozenStrategy(Mapping[InfoSet, np.ndarray]):
 
     @property
     def widths(self) -> np.ndarray:
+        """Each row's number of legal actions, in row order: the layout's fingerprint."""
         return self._table.widths()
 
     def __getitem__(self, key: InfoSet) -> np.ndarray:
@@ -131,10 +136,9 @@ class FrozenStrategy(Mapping[InfoSet, np.ndarray]):
     def __len__(self) -> int:
         return len(self._table)
 
-
 def _first_bad_row(probabilities: np.ndarray, widths: np.ndarray) -> int | None:
     """Index of the first row that is not a distribution by the grader's test, or None."""
-    starts = np.concatenate(([0], np.cumsum(widths)[:-1]))
+    starts = _row_starts(widths)
     values = probabilities.astype(np.float64)
     finite = np.logical_and.reduceat(np.isfinite(values), starts)
     nonnegative = np.logical_and.reduceat(values >= 0.0, starts)
@@ -143,18 +147,23 @@ def _first_bad_row(probabilities: np.ndarray, widths: np.ndarray) -> int | None:
     bad = np.flatnonzero(~fine)
     return int(bad[0]) if bad.size else None
 
+def _row_starts(widths: np.ndarray) -> np.ndarray:
+    """Where each row begins in the flat array: the offsets `reduceat` sums rows between."""
+    return np.concatenate(([0], np.cumsum(widths)[:-1]))
+
+# ---------------------------------------------------------------------------
+# Freezing a run's average
+# ---------------------------------------------------------------------------
 
 def average_rows(sums: np.ndarray, widths: np.ndarray) -> np.ndarray:
     """Normalise each row of a flat strategy sum; a row that sums to zero plays uniformly."""
     widths = np.asarray(widths, dtype=np.int64)
-    starts = np.concatenate(([0], np.cumsum(widths)[:-1]))
-    totals = np.add.reduceat(sums, starts) if sums.size else np.zeros(0)
+    totals = np.add.reduceat(sums, _row_starts(widths))
     per_column = np.repeat(totals, widths)
     uniform = np.repeat(1.0 / widths, widths)
     with np.errstate(invalid="ignore", divide="ignore"):
         rows = np.where(per_column > 0.0, sums / per_column, uniform)
     return rows.astype(np.float32)
-
 
 def from_checkpoint(path: Path, column: Average = PRIMARY_AVERAGE) -> FrozenStrategy:
     """Freeze one averaging column of a lockstep checkpoint.
@@ -184,7 +193,6 @@ def from_checkpoint(path: Path, column: Average = PRIMARY_AVERAGE) -> FrozenStra
     )
     return FrozenStrategy(average_rows(sums, widths), widths, info)
 
-
 def uniform_strategy() -> FrozenStrategy:
     """Every infoset playing each legal action equally often: the race's floor line.
 
@@ -195,6 +203,9 @@ def uniform_strategy() -> FrozenStrategy:
     info = StrategyInfo(rule="uniform", column="uniform", iteration=0, seed=0, workers=0)
     return FrozenStrategy(average_rows(np.zeros(int(widths.sum())), widths), widths, info)
 
+# ---------------------------------------------------------------------------
+# The file
+# ---------------------------------------------------------------------------
 
 def save_strategy(strategy: FrozenStrategy, path: Path) -> None:
     """Write a frozen strategy as a compressed `.npz`."""
@@ -202,6 +213,7 @@ def save_strategy(strategy: FrozenStrategy, path: Path) -> None:
     np.savez_compressed(
         path,
         probabilities=strategy.probabilities,
+        # No spot has more than four legal actions (the draw's four throws).
         widths=strategy.widths.astype(np.int8),
         rule=info.rule,
         column=info.column,
@@ -209,7 +221,6 @@ def save_strategy(strategy: FrozenStrategy, path: Path) -> None:
         seed=np.int64(info.seed),
         workers=np.int64(info.workers),
     )
-
 
 def load_strategy(path: Path) -> FrozenStrategy:
     """Read a frozen strategy back; refused if its rows are not this game's."""
@@ -223,20 +234,22 @@ def load_strategy(path: Path) -> FrozenStrategy:
         )
         return FrozenStrategy(saved["probabilities"], saved["widths"], info)
 
+# ---------------------------------------------------------------------------
+# The release
+# ---------------------------------------------------------------------------
 
 def default_cache() -> Path:
     """`$XDG_CACHE_HOME/drawmaha-solver`, else `~/.cache/drawmaha-solver`."""
     base = os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache"
     return Path(base) / "drawmaha-solver"
 
-
 def sha256_of(path: Path) -> str:
+    """The file's SHA-256 as hex, read in 1 MB blocks so an 18 MB file never sits in memory."""
     digest = hashlib.sha256()
     with open(path, "rb") as stream:
         for block in iter(lambda: stream.read(1 << 20), b""):
             digest.update(block)
     return digest.hexdigest()
-
 
 def fetch_strategy(
     cache: Path | None = None,
