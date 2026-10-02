@@ -1,6 +1,10 @@
-"""Rung 3's race on Modal: four regret rules, 10 lockstep workers each, 10M iterations.
+"""Rung 3's race on Modal: four regret rules, 10 lockstep workers each.
 
-    uv run --with modal modal run scripts/modal_rung3.py::smoke          # ~15 min, one rule: it/s on Modal
+`TARGET` (10M) is only the default ceiling; the race itself ran every rule to
+2M with `--target 2000000`, and `benchmark`'s `hours_for_default_target` is
+measured against that default.
+
+    uv run --with modal modal run scripts/modal_rung3.py::smoke          # ~15 min, one rule: it/s on Modal (`benchmark`)
     uv run --with modal modal deploy scripts/modal_rung3.py              # once, and after any code change
     uv run --with modal modal run scripts/modal_rung3.py::main --target 3000000 --rules vanilla,cfr+,dcfr
     uv run --with modal modal run scripts/modal_rung3.py::status         # where each run stands
@@ -41,6 +45,7 @@ RULES = ("vanilla", "cfr+", "lcfr", "dcfr")
 ROOT = Path("/runs")
 STALE_S = 15 * 60  # a live trainer beats every 10 minutes
 CLAIM_SETTLE_S = 30
+DEADLINE_S = 23 * 3600  # under Modal's 24-hour cap, with room to save
 
 app = modal.App("drawmaha-rung3")
 volume = modal.Volume.from_name("drawmaha-rung3", create_if_missing=True)
@@ -75,9 +80,13 @@ def _claim(out: Path) -> None:
 def _stopped(out: Path) -> bool:
     """Whether the last container on this rule stopped and saved (its last line says so).
 
-    A preempted container saves, writes a `stopped` line and commits both, and
-    its final commit also refreshes the heartbeat; without this check Modal's
-    automatic restart of the same call would be refused as a second trainer.
+    The line says why: a signal (a preemption), the 23-hour `deadline`, or
+    `done`. What matters to `_claim` is only that nobody is training: a
+    preempted container saves, writes a `stopped` line and commits both, and its
+    final commit also refreshes the heartbeat; without this check Modal's
+    automatic restart of the same call would be refused as a second trainer. A
+    finished run reads as stopped too, which is harmless: a later launch claims
+    it, appends its `claimed_by` line, and `run_to` returns at once.
     """
     progress = out / "progress.jsonl"
     if not progress.exists():
@@ -106,13 +115,7 @@ def train_rule(rule: str, target: int = TARGET, seed: int = 0) -> int:
     volume.reload()
     _claim(out)
     volume.commit()
-    # Two containers starting together can both pass `_claim`; commits are last-writer-wins,
-    # so after a pause both read the same owner and only that one trains.
-    time.sleep(CLAIM_SETTLE_S)
-    volume.reload()
-    held = json.loads((out / "owner.json").read_text())["task"]
-    if held != os.environ.get("MODAL_TASK_ID", "local"):
-        raise RuntimeError(f"{out.name} was claimed by {held} at the same time")
+    _settle(out)
     started = time.monotonic()
 
     def commit() -> None:
@@ -125,16 +128,38 @@ def train_rule(rule: str, target: int = TARGET, seed: int = 0) -> int:
         target=target,
         workers=WORKERS,
         seed=seed,
-        deadline_s=23 * 3600,
+        deadline_s=DEADLINE_S,
         commit=commit,
     )
     (out / "owner.json").unlink(missing_ok=True)
     volume.commit()
-    # Continue only past the 23-hour deadline. A preempted container stops early,
-    # and Modal restarts that call itself; spawning here too made a second trainer.
-    if solve.iteration < target and time.monotonic() - started >= 23 * 3600:
+    if _continues(solve.iteration, target, time.monotonic() - started):
         train_rule.spawn(rule, target, seed)
     return solve.iteration
+
+def _settle(out: Path) -> None:
+    """Refuse to train if another container claimed this rule at the same moment.
+
+    Two containers starting together can both pass `_claim`; commits are
+    last-writer-wins, so after a pause both read the same owner and only that
+    one trains. The pause is a heuristic: a Volume reload lagging past it could
+    leave both alive. They would then write identical files (same resume, same
+    counter-based streams) and only waste a container, so the window is narrowed
+    rather than closed with a real lock.
+    """
+    time.sleep(CLAIM_SETTLE_S)
+    volume.reload()
+    held = json.loads((out / "owner.json").read_text())["task"]
+    if held != os.environ.get("MODAL_TASK_ID", "local"):
+        raise RuntimeError(f"{out.name} was claimed by {held} at the same time")
+
+def _continues(iteration: int, target: int, elapsed_s: float) -> bool:
+    """Whether a container that has stopped should spawn its own continuation.
+
+    Only past the 23-hour deadline. A preempted container stops early, and
+    Modal restarts that call itself; spawning here too made a second trainer.
+    """
+    return iteration < target and elapsed_s >= DEADLINE_S
 
 @app.function(image=image, cpu=WORKERS + 1, memory=8192, timeout=3600)
 def benchmark(rule: str, iterations: int) -> dict:
@@ -161,7 +186,7 @@ def benchmark(rule: str, iterations: int) -> dict:
         "rule": rule,
         "iterations_per_s": round(rate, 1),
         "ms_per_iteration": round(1000 / rate, 2),
-        "hours_for_10M": round(TARGET / rate / 3600, 1),
+        "hours_for_default_target": round(TARGET / rate / 3600, 1),
         "checkpoint_save_s": round(save_s, 1),
         "cpu_count": os.cpu_count(),
     }

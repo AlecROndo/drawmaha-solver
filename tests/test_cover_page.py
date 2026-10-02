@@ -161,6 +161,39 @@ def test_the_checked_in_fonts_are_not_ones_the_build_already_copies() -> None:
         )
 
 
+# The fixes that post-date the studies source. `index.html` and `rules.html`
+# are exports (see the README), but the source they come from predates #42:
+# the bowl settling in the Solve widget (#42), the rung-0 triangle drawing that
+# same bowl and the Rules tab's beat anchor (#43) are hand-edits to the exported
+# files. A re-export of the stale source would put the old code back and
+# nothing would fail, so each edit is pinned here by a line only the new code
+# has. Porting the edits into the source and re-exporting retires this.
+HAND_EDITS = {
+    "index.html": (
+        "function bowlArc(tab, u)",  # the ball's clock converted to arc length, shared by both triangles (#43)
+        "function bowlTable(m, R0, phase)",  # the bowl path in a triangle's pixels (#43)
+        "bowlTable(m, geo.P0[1] - m[1], phase)",  # the rung-0 figure draws the bowl, not its own run (#43)
+        "acc = BOWL.acc",  # the figure's clock honours ?bowl= like the Solve widget (#44)
+        "ctx.fillText('rung 0 lands at'",  # the end label says the numbers are the real run's (#44)
+    ),
+    "rules.html": (
+        "(el.lastElementChild || el).getBoundingClientRect().bottom",  # a beat's anchor is its text (#43)
+        "Math.min(5, Math.max(0, Math.round(feltP)));",  # the lit beat is the one whose text is nearest mid-screen (#43)
+    ),
+}
+
+
+@pytest.mark.parametrize("name", sorted(HAND_EDITS))
+def test_the_hand_edits_survived_the_last_export(
+    name: str, pages: dict[str, str]
+) -> None:
+    for marker in HAND_EDITS[name]:
+        assert marker in pages[name], (
+            f"{name} no longer contains `{marker}`: a re-export of the studies "
+            "source has reverted a hand edit (see web/cover/README.md)"
+        )
+
+
 @pytest.mark.parametrize("name", PAGES)
 def test_every_inline_script_parses(name: str, pages: dict[str, str]) -> None:
     node = shutil.which("node")

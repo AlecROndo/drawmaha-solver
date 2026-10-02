@@ -8,7 +8,7 @@ Everything lives in `out/`:
 - `iter-<t>.npz` — a kept checkpoint at each mark of the grid, never overwritten;
 - `progress.jsonl` — one line per save: iteration, speed, what was written.
 
-Every save is a temp file renamed into place, then `commit()` (a Modal Volume's
+Every save is a temp file renamed into place, then its progress line, then one `commit()` (a Modal Volume's
 commit; nothing locally). A checkpoint holds every iteration up to its t, so a
 run killed outright loses at most the time since its last commit. SIGTERM and
 SIGINT end the run gracefully: the iteration finishes, the state is saved and
@@ -106,13 +106,11 @@ def run_to(
                 if wrote or time.monotonic() - last_save >= save_every_s:
                     save_lockstep(solve, out / RESUME)
                     wrote.append(RESUME)
-                    commit()
                     now = time.monotonic()
                     rate = (solve.iteration - window[1]) / max(now - window[0], 1e-9)
                     window, last_save = (now, solve.iteration), now
                     _progress(out, solve, rate, target, wrote, commit, log)
             save_lockstep(solve, out / RESUME)
-            commit()
             _progress(out, solve, None, target, [RESUME], commit, log, why=stop["why"] or "done")
     finally:
         for sig, handler in previous.items():
@@ -127,10 +125,16 @@ def _open(out: Path, *, rule, averages, workers, seed, keys) -> LockstepSolve:
 
     resume = out / RESUME
     if resume.exists():
-        return load_lockstep(resume, table=table(), workers=workers, rule=rule, averages=averages)
+        solve = load_lockstep(resume, table=table(), workers=workers, rule=rule, averages=averages)
+        # A resume continues the saved run's streams; a different seed would be dropped
+        # silently, so refuse it as `load_lockstep` refuses a different W.
+        if solve.seed != seed:
+            raise ValueError(f"{resume} was trained with seed {solve.seed}, and this run asks for {seed}")
+        return solve
     return new_lockstep(seed, workers=workers, table=table(), rule=rule, averages=averages)
 
 def _progress(out, solve, rate, target, wrote, commit, log, *, why: str = "") -> None:
+    """Append one progress line and commit it with the save just written (one commit a save)."""
     line = {
         "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "rule": solve.rule.value,
