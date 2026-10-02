@@ -1,6 +1,10 @@
-"""Rung 3's race on Modal: four regret rules, 10 lockstep workers each, 10M iterations.
+"""Rung 3's race on Modal: four regret rules, 10 lockstep workers each.
 
-    uv run --with modal modal run scripts/modal_rung3.py::smoke          # ~15 min, one rule: it/s on Modal
+`TARGET` (10M) is only the default ceiling; the race itself ran every rule to
+2M with `--target 2000000`, and `benchmark`'s `hours_for_10M` is measured
+against that default.
+
+    uv run --with modal modal run scripts/modal_rung3.py::smoke          # ~15 min, one rule: it/s on Modal (`benchmark`)
     uv run --with modal modal deploy scripts/modal_rung3.py              # once, and after any code change
     uv run --with modal modal run scripts/modal_rung3.py::main --target 3000000 --rules vanilla,cfr+,dcfr
     uv run --with modal modal run scripts/modal_rung3.py::status         # where each run stands
@@ -75,9 +79,13 @@ def _claim(out: Path) -> None:
 def _stopped(out: Path) -> bool:
     """Whether the last container on this rule stopped and saved (its last line says so).
 
-    A preempted container saves, writes a `stopped` line and commits both, and
-    its final commit also refreshes the heartbeat; without this check Modal's
-    automatic restart of the same call would be refused as a second trainer.
+    The line says why: a signal (a preemption), the 23-hour `deadline`, or
+    `done`. What matters to `_claim` is only that nobody is training: a
+    preempted container saves, writes a `stopped` line and commits both, and its
+    final commit also refreshes the heartbeat; without this check Modal's
+    automatic restart of the same call would be refused as a second trainer. A
+    finished run reads as stopped too, which is harmless: a later launch claims
+    it, appends its `claimed_by` line, and `run_to` returns at once.
     """
     progress = out / "progress.jsonl"
     if not progress.exists():
@@ -107,7 +115,10 @@ def train_rule(rule: str, target: int = TARGET, seed: int = 0) -> int:
     _claim(out)
     volume.commit()
     # Two containers starting together can both pass `_claim`; commits are last-writer-wins,
-    # so after a pause both read the same owner and only that one trains.
+    # so after a pause both read the same owner and only that one trains. The pause is a
+    # heuristic: a Volume reload lagging past it could leave both alive. They would then
+    # write identical files (same resume, same counter-based streams) and only waste a
+    # container, so the window is narrowed rather than closed with a real lock.
     time.sleep(CLAIM_SETTLE_S)
     volume.reload()
     held = json.loads((out / "owner.json").read_text())["task"]

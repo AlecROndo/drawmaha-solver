@@ -16,8 +16,10 @@ the processes must equal bit for bit.
 
 Two consequences worth knowing:
 
-- Every rule is exact here, including CFR+: a row is floored once per
-  iteration, on its total, which is the paper's rule. (`mccfr`'s one-hand walk
+- Every rule is exact for W-sample lockstep iterations, including CFR+: a row
+  is floored once per iteration, on the total of its W sampled regrets, which
+  is the paper's rule with that total as the iteration's regret. It is not W
+  separately floored one-hand banks. (`mccfr`'s one-hand walk
   floors after each bank, which differs on the rare row one walk reaches twice.)
 - A walk that reaches the same row twice (suit relabelling) reads σₜ both
   times, instead of seeing its own first bank the second time. Every sample of
@@ -95,7 +97,7 @@ def new_lockstep(
     averages: Sequence[Average | str] = (),
 ) -> LockstepSolve:
     """A fresh lockstep run at iteration 0. `table=None` is the whole packed game."""
-    if not isinstance(workers, int) or workers < 1:
+    if not isinstance(workers, int) or isinstance(workers, bool) or workers < 1:
         raise ValueError(f"workers must be a positive int, got {workers!r}")
     rule = RegretRule(rule)
     averages = validate_averages(averages)
@@ -170,6 +172,13 @@ class _Recorder(Mapping):
         )
         self._visits.append((key, slot, scratch))
         return scratch
+
+    def __contains__(self, key: object) -> bool:
+        # Mapping's default would call __getitem__ and record a phantom visit.
+        return key in self._table
+
+    def get(self, key, default=None):
+        return self[key] if key in self._table else default
 
     def bank(self, ledger: RegretMatcher, regret: np.ndarray, t: int) -> None:
         self._banked[id(ledger)] = regret

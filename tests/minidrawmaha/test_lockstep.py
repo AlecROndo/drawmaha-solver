@@ -296,3 +296,18 @@ def test_every_rule_converges_on_leduc_with_four_workers(lockstep_gate_grades, r
     exploitability_, value = lockstep_gate_grades[rule][column]
     assert exploitability_ < bound
     assert abs(value - LP_VALUE) < 0.025
+
+def test_workers_must_be_a_real_int_not_a_bool():
+    with pytest.raises(ValueError, match="positive int"):
+        new_lockstep(0, workers=True, table={})
+
+def test_asking_the_recorder_whether_it_holds_a_row_records_no_visit():
+    from drawmaha_solver.minidrawmaha.lockstep import _Recorder
+
+    key = ("row",)
+    recorder = _Recorder({key: RegretMatcher(2)}, extra_rows=0)
+    assert key in recorder and ("other",) not in recorder
+    assert recorder.get(("other",)) is None
+    assert recorder.recorded().strategy == []
+    recorder.get(key)
+    assert len(recorder.recorded().strategy) == 1

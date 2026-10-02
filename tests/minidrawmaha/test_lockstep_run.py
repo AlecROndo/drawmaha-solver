@@ -95,3 +95,14 @@ def test_a_deadline_stops_the_run_with_its_state_saved(tmp_path, keys):
     solve = run(tmp_path, keys, 30, deadline_s=0.0)
     assert solve.iteration < 30
     assert read_lockstep(tmp_path / RESUME)["iteration"] == solve.iteration
+
+def test_a_resume_refuses_a_different_seed(tmp_path, keys):
+    run(tmp_path, keys, 10)
+    with pytest.raises(ValueError, match="seed 0"):
+        run(tmp_path, keys, 20, seed=1)
+
+def test_each_save_is_committed_once(tmp_path, keys):
+    commits = []
+    run(tmp_path, keys, 30, commit=lambda: commits.append(1))
+    lines = (tmp_path / "progress.jsonl").read_text().splitlines()
+    assert len(commits) == len(lines)
