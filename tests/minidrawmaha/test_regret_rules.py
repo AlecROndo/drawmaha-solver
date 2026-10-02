@@ -24,6 +24,7 @@ from drawmaha_solver.minidrawmaha.regret_rules import (
     bank_cfr_plus,
     bank_discounted,
     bank_linear,
+    bank_rows,
     bank_vanilla,
     column_average,
     cumulative_log_discount,
@@ -320,3 +321,60 @@ def test_a_column_the_run_did_not_bank_is_refused():
     ledger = RegretMatcher(2, extra_averages=1)
     with pytest.raises(ValueError, match="quadratic"):
         column_average(ledger, Average.QUADRATIC, (Average.UNIFORM,))
+
+# ---------------------------------------------------------------------------
+# Banking many rows at once
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("rule", list(RegretRule))
+def test_bank_rows_equals_the_per_ledger_rule_bit_for_bit(rule):
+    # A lockstep iteration banks each touched row once, vectorised; the walk
+    # banked row by row. Forty rows of widths 2–4, a history of banks with
+    # gaps (so DCFR rows carry stamps from many iterations, some beyond the
+    # log-discount table's end), then one more iteration through both paths.
+    rng = np.random.default_rng(5)
+    widths = rng.integers(2, 5, size=40)
+    starts = np.concatenate([[0], np.cumsum(widths)[:-1]])
+    total = int(widths.sum())
+    regret, stamp = np.zeros(total), np.zeros(len(widths), dtype=np.int64)
+
+    def ledger(row, regret, stamp):
+        start, width = int(starts[row]), int(widths[row])
+        return RegretMatcher.over(
+            cumulative_regret=regret[start : start + width],
+            strategy_sum=np.zeros(width),
+            extra_sums=np.zeros((0, width)),
+            stamp=stamp[row : row + 1],
+        )
+
+    t = 0
+    for t in sorted(rng.choice(np.arange(1, 70_000), size=30, replace=False)):
+        for row in rng.choice(len(widths), size=10, replace=False):
+            RULES[rule](ledger(row, regret, stamp), rng.normal(size=widths[row]) * 5, int(t))
+    t = int(t) + int(rng.integers(1, 3))
+    touched = np.sort(rng.choice(len(widths), size=25, replace=False))
+    deltas = {row: rng.normal(size=widths[row]) * 5 for row in touched.tolist()}
+
+    one_by_one = (regret.copy(), stamp.copy())
+    for row, delta in deltas.items():
+        RULES[rule](ledger(row, *one_by_one), delta, t)
+
+    columns = np.concatenate([np.arange(starts[r], starts[r] + widths[r]) for r in deltas])
+    rows = np.concatenate([np.full(widths[r], r) for r in deltas])
+    totals = np.concatenate(list(deltas.values()))
+    bank_rows(rule, regret=regret, stamp=stamp, columns=columns, rows=rows, totals=totals, t=t)
+    assert np.array_equal(regret, one_by_one[0])
+    assert np.array_equal(stamp, one_by_one[1])
+
+def test_bank_rows_refuses_a_row_stamped_ahead():
+    regret, stamp = np.zeros(2), np.array([9], dtype=np.int64)
+    with pytest.raises(ValueError, match="stamped at iteration 9"):
+        bank_rows(
+            "dcfr",
+            regret=regret,
+            stamp=stamp,
+            columns=np.array([0, 1]),
+            rows=np.array([0, 0]),
+            totals=np.ones(2),
+            t=5,
+        )
