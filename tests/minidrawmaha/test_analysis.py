@@ -20,6 +20,7 @@ import pytest
 from drawmaha_solver.minidrawmaha import analysis
 from drawmaha_solver.minidrawmaha.analysis import (
     GRADES,
+    RULES,
     UNIFORM_RANDOM,
     answer_sheet,
     draw_frequencies,
@@ -101,6 +102,12 @@ def test_a_series_is_hands_per_seat_in_order_and_skips_reference_lines():
     assert points[0][1] > points[1][1]
     assert series(fake_grades(), "vanilla", column=Average.UNIFORM)
     assert not series(fake_grades(), "lcfr", column=Average.UNIFORM)
+
+def test_cfr_plus_is_drawn_in_its_own_shade_over_dcfr():
+    # CFR+ is dashed on top of DCFR's wider line; in one shade its dashes vanish.
+    cfr_plus, dcfr = RULES["cfrplus"], RULES["dcfr"]
+    assert cfr_plus.colour != dcfr.colour
+    assert cfr_plus.zorder > dcfr.zorder
 
 def test_an_unknown_rule_is_named_rather_than_a_bare_key_error():
     grades = {**fake_grades(), grade_key("mystery", 10_000, "linear"): {"workers": 10}}
