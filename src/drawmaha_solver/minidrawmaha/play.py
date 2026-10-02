@@ -21,21 +21,24 @@ What is new at this table, against rung 2's:
   war, so the prompt always shows the pot and what a call costs.
 
 The bot reads only its own infoset, and seats alternate every hand because the
-game is not symmetric: in the frozen strategy's self-play P0 is worth about
+game is not symmetric: in the release strategy's self-play P0 is worth about
 −0.091 a hand. That number comes from the strategy, not from an exact solve, so
-it is a target to read the per-seat lines against, not a law.
+it is a target to read the per-seat lines against, not a law — and it belongs
+to the release file alone, so a session against any other `--strategy` file
+reports its seats without targets. The session bookkeeping (quitting, the
+per-seat tally, the hand's verdict) is rung 2's, shared through `play_session`.
 """
 
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
 
-from drawmaha_solver.leduc.play import QuitGame, Scoreboard, verdict
-from drawmaha_solver.minidrawmaha.cards import CARD_SYMBOL, hand_symbol
+from drawmaha_solver.minidrawmaha.cards import CARD_SYMBOL, Card, hand_symbol
+from drawmaha_solver.minidrawmaha.exploitability import Profile
 from drawmaha_solver.minidrawmaha.game import (
     ANTE,
     STACK,
@@ -48,34 +51,60 @@ from drawmaha_solver.minidrawmaha.game import (
     random_deal,
     throw_count,
 )
-from drawmaha_solver.minidrawmaha.hands import inner_score, outer_score
-from drawmaha_solver.minidrawmaha.strategy import fetch_strategy, load_strategy
+from drawmaha_solver.minidrawmaha.hands import Score, inner_score, outer_score
+from drawmaha_solver.minidrawmaha.strategy import (
+    STRATEGY_SHA256,
+    StrategyInfo,
+    fetch_strategy,
+    load_strategy,
+    sha256_of,
+)
+from drawmaha_solver.play_session import QuitGame, Scoreboard, verdict
 
-Profile = Mapping  # InfoSet -> probability row, e.g. a FrozenStrategy
+# The release strategy's (`STRATEGY_SHA256`) exact grades, as banked in
+# `figures/rung3/grades.json`: P0's value per hand when it plays itself, and
+# the mean of the two best responses against it. They describe that one file,
+# so the report quotes them only when that file is the one at the table.
+RELEASE_SELF_PLAY_VALUE_P0 = -0.090645
+RELEASE_EXPLOITABILITY = 0.0613465
 
-# P0's value per hand when the frozen LCFR strategy plays itself, from
-# `exploitability.expected_value` on the release file.
-SELF_PLAY_VALUE_P0 = -0.0906
+# The one-card throws in the order `draw_order` lays the actor's cards out.
+ONE_CARD_THROWS = (Action.THROW_LOW, Action.THROW_MID, Action.THROW_TOP)
 
+# Reads one human decision; raises QuitGame when the human types q.
 Ask = Callable[[MiniState], Action]
-
 
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
-
 def main(argv: list[str] | None = None) -> None:
-    """Load the frozen strategy, then play hands against it until quit."""
+    """Load the frozen strategy, then play hands against it until quit.
+
+    Steps:
+    1. Read the strategy: `--strategy PATH`, else the release, fetched once.
+    2. Explain the table.
+    3. Play the session, seeded by `--seed` when given.
+    4. Report it, against the release's seat values only if that is what played.
+    """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--strategy", type=Path, help="a frozen strategy .npz")
     parser.add_argument("--seed", type=int, help="seed the deal and the bot")
     args = parser.parse_args(argv)
 
+    # Step 1: Read the strategy
     print("Mini-drawmaha against rung 3's solved strategy.")
     path = args.strategy or fetch_strategy()
     strategies = load_strategy(path)
-    info = strategies.info
+    # Step 2: Explain the table
+    introduce(strategies.info)
+    # Step 3: Play the session
+    board = play_session(strategies, np.random.default_rng(args.seed), ask=ask_action)
+    # Step 4: Report it
+    report(board, release=sha256_of(path) == STRATEGY_SHA256)
+
+def introduce(info: StrategyInfo) -> None:
+    """Which strategy is at the table, and the rules in one paragraph."""
     print(
         f"Loaded {info.rule.upper()} after {info.iteration:,} iterations "
         f"({info.workers} hands per seat each), {info.column} average.\n"
@@ -86,20 +115,27 @@ def main(argv: list[str] | None = None) -> None:
     print("betting round. Half the pot to the best three cards held, half to the")
     print("best two held plus both board cards. Bets are pot-sized. q to quit.\n")
 
-    rng = np.random.default_rng(args.seed)
+# ---------------------------------------------------------------------------
+# A session
+# ---------------------------------------------------------------------------
+
+def play_session(strategies: Profile, rng: np.random.Generator, *, ask: Ask) -> Scoreboard:
+    """Hands until the human quits, seats alternating from P0; the finished hands' tally.
+
+    A quit abandons the hand it was typed in, so that hand is never scored.
+    Every deal and every bot decision draws from `rng`, in play order, so a
+    seeded session against the same moves replays exactly.
+    """
     board = Scoreboard()
     while True:
         try:
-            play_hand(strategies, rng, human_seat=board.hands % 2, board=board)
+            play_hand(strategies, rng, human_seat=board.hands % 2, board=board, ask=ask)
         except QuitGame:
-            break
-    report(board)
-
+            return board
 
 # ---------------------------------------------------------------------------
 # One hand
 # ---------------------------------------------------------------------------
-
 
 def play_hand(
     strategies: Profile,
@@ -107,23 +143,22 @@ def play_hand(
     *,
     human_seat: int,
     board: Scoreboard,
-    ask: Ask | None = None,
+    ask: Ask,
 ) -> MiniState:
     """Deal, play both rounds and the draw, score, narrate; returns the final state."""
-    ask = ask or ask_action
     state = random_deal(rng)
     print(f"--- hand {board.hands + 1}   you are P{human_seat}, "
           f"holding {hand_symbol(state.holes[human_seat])}")
 
     while not state.is_terminal():
         if state.is_chance_node():
-            state = deal_chance(state, rng, human_seat)
+            state = deal_chance(state, rng, human_seat=human_seat)
             continue
         player = state.current_player
         if player == human_seat:
             action = ask(state)
         else:
-            action = bot_action(state, strategies, rng)
+            action = bot_action(state, strategies, rng=rng)
         print("  " + narrate(state, action, mine=player == human_seat))
         state = state.apply(action)
 
@@ -135,9 +170,12 @@ def play_hand(
           f"(running {board.chips:+.0f} over {board.hands})\n")
     return state
 
+def deal_chance(state: MiniState, rng: np.random.Generator, *, human_seat: int) -> MiniState:
+    """Turn a board card or deal a draw's replacement, at the deck's own odds.
 
-def deal_chance(state: MiniState, rng: np.random.Generator, human_seat: int) -> MiniState:
-    """Turn a board card or deal a draw's replacement, at the deck's own odds."""
+    The human sees their own replacement and every board card; the bot's
+    replacement is dealt silently.
+    """
     outcomes, probabilities = zip(*state.chance_outcomes())
     drawing = [len(hole) < 3 for hole in state.holes]
     after = state.apply_chance(outcomes[rng.choice(len(outcomes), p=probabilities)])
@@ -149,8 +187,7 @@ def deal_chance(state: MiniState, rng: np.random.Generator, human_seat: int) -> 
         print(f"  board: {hand_symbol(after.board)}   pot {chip_state(after.betting).pot}")
     return after
 
-
-def bot_action(state: MiniState, strategies: Profile, rng: np.random.Generator) -> Action:
+def bot_action(state: MiniState, strategies: Profile, *, rng: np.random.Generator) -> Action:
     """Sample the frozen strategy at the bot's own infoset.
 
     The sampled index is a POSITION in the spot's legal actions, not an
@@ -158,9 +195,9 @@ def bot_action(state: MiniState, strategies: Profile, rng: np.random.Generator) 
     """
     spot = state.infoset()
     probabilities = np.asarray(strategies[spot], dtype=np.float64)
-    probabilities /= probabilities.sum()  # float32 rows land a hair off 1
+    # A float32 row sums to 1 only within 1e-6, looser than `rng.choice` accepts.
+    probabilities /= probabilities.sum()
     return spot.legal_actions()[rng.choice(len(probabilities), p=probabilities)]
-
 
 def narrate(state: MiniState, action: Action, *, mine: bool) -> str:
     """One line for one decision, saying only what the table would see of the bot's."""
@@ -183,15 +220,13 @@ def narrate(state: MiniState, action: Action, *, mine: bool) -> str:
         return f"{who} {verb} {paid}   (pot {after.pot})"
     return f"{who} {verb}"
 
-
-def thrown_card(state: MiniState, action: Action):
+def thrown_card(state: MiniState, action: Action) -> Card:
     """The physical card a one-card throw discards, by its canonical position."""
     player = state.current_player
     ordered = draw_order(
         hole=state.holes[player], discarded=state.discards[player], board=state.board
     )
-    return ordered[(Action.THROW_LOW, Action.THROW_MID, Action.THROW_TOP).index(action)]
-
+    return ordered[ONE_CARD_THROWS.index(action)]
 
 def showdown_line(state: MiniState, human_seat: int) -> str:
     """Both hands, the board, and who took each half — or just the cards on a fold."""
@@ -210,15 +245,13 @@ def showdown_line(state: MiniState, human_seat: int) -> str:
     shares = pot_shares(state.holes, state.board)
     return f"{shown}\n  {'; '.join(halves)}   share {shares[human_seat]:.2f}"
 
-
-def category(score) -> str:
+def category(score: Score) -> str:
+    """A hand score's category as words: `two pair`, `high card`."""
     return score.category.name.lower().replace("_", " ")
-
 
 # ---------------------------------------------------------------------------
 # Reading the human's move
 # ---------------------------------------------------------------------------
-
 
 def ask_action(state: MiniState) -> Action:
     """Prompt until the human types a move that is legal here."""
@@ -229,36 +262,22 @@ def ask_action(state: MiniState) -> Action:
             return action
         print(f"  didn't understand {typed.strip()!r} here")
 
-
-def choices(state: MiniState) -> dict[str, Action]:
-    """Every word that names a legal action here: its key, its label, and for a throw its card."""
-    named: dict[str, Action] = {}
-    for action in state.legal_actions():
-        label, key = _label_and_key(state, action)
-        named[key] = named[label] = action
-        if action in (Action.THROW_LOW, Action.THROW_MID, Action.THROW_TOP):
-            named[CARD_SYMBOL[thrown_card(state, action)].lower()] = action
-    return named
-
-
 def prompt_for(state: MiniState) -> str:
     """The prompt, naming exactly the legal actions; a throw also shows its card."""
     words = []
     for action in state.legal_actions():
-        label, key = _label_and_key(state, action)
-        at = label.index(key, label.find(" ") + 1 if label.startswith("throw ") else 0)
-        word = f"{label[:at]}[{key}]{label[at + 1:]}"
-        if action in (Action.THROW_LOW, Action.THROW_MID, Action.THROW_TOP):
+        label, at = _label_and_key(state, action)
+        word = f"{label[:at]}[{label[at]}]{label[at + 1:]}"
+        if action in ONE_CARD_THROWS:
             word += f" {CARD_SYMBOL[thrown_card(state, action)]}"
         words.append(word)
-    if not state.is_draw_decision():
-        player = state.current_player
-        chips = chip_state(state.betting)
-        owed = chips.owed_by(player)
-        status = f"pot {chips.pot}" + (f", {owed} to call" if owed else "")
-        return f"  {status} | " + " / ".join([*words, "[q]uit"]) + " > "
-    return "  " + " / ".join([*words, "[q]uit"]) + " > "
-
+    menu = " / ".join([*words, "[q]uit"]) + " > "
+    if state.is_draw_decision():
+        return "  " + menu
+    chips = chip_state(state.betting)
+    owed = chips.owed_by(state.current_player)
+    status = f"pot {chips.pot}" + (f", {owed} to call" if owed else "")
+    return f"  {status} | {menu}"
 
 def parse_action(typed: str, state: MiniState) -> Action | None:
     """The action `typed` names here, or None. Raises QuitGame on q.
@@ -269,38 +288,45 @@ def parse_action(typed: str, state: MiniState) -> Action | None:
     word = typed.strip().lower()
     if word in ("q", "quit", "exit"):
         raise QuitGame
-    return choices(state).get(word)
+    return _choices(state).get(word)
 
+def _choices(state: MiniState) -> dict[str, Action]:
+    """Every word that names a legal action here: its key, its label, and for a throw its card."""
+    named: dict[str, Action] = {}
+    for action in state.legal_actions():
+        label, at = _label_and_key(state, action)
+        named[label[at]] = named[label] = action
+        if action in ONE_CARD_THROWS:
+            named[CARD_SYMBOL[thrown_card(state, action)].lower()] = action
+    return named
 
-def _label_and_key(state: MiniState, action: Action) -> tuple[str, str]:
-    """An action's word here and the one letter that selects it.
+def _label_and_key(state: MiniState, action: Action) -> tuple[str, int]:
+    """An action's word here, and where in it the one letter that selects it sits.
 
     Betting words take their first letter (only one of check and call is ever
     legal at once). Throws take low/mid/top's, and standing pat its `s`.
     """
     line = () if state.is_draw_decision() else state.betting[-1]
     label = action_label(action, line)
-    if action is Action.THROW_NONE:
-        return label, "s"
-    if label.startswith("throw "):
-        return label, label.removeprefix("throw ")[0]
-    return label, label[0]
-
+    return label, len("throw ") if label.startswith("throw ") else 0
 
 # ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------
 
-
-def report(board: Scoreboard) -> None:
-    """The session's net, and each seat's rate beside what that seat earns in self-play.
+def report(board: Scoreboard, *, release: bool) -> None:
+    """The session's net, and each seat's rate — beside its self-play value if `release`.
 
     The per-seat target is the value of the seat the human sat in when the
     strategy plays itself, so a human matching it in both seats has played as
     well as the bot. Over alternating seats those targets cancel to zero; a
-    perfect adversary can push the average up to +0.061, and a weaker player
-    can land anywhere below. A hand's result swings by several chips, so the
-    rates are noise until the hands run into the thousands.
+    perfect adversary can push the average up to the exploitability, and a
+    weaker player can land anywhere below. A hand's result swings by several
+    chips, so the rates are noise until the hands run into the thousands.
+
+    The targets are the release file's grades. `release` says whether that is
+    the file that played; for any other the seats are printed bare, because
+    nothing here has measured that strategy.
     """
     if board.per_hand is None:
         return
@@ -310,14 +336,16 @@ def report(board: Scoreboard) -> None:
         rate = board.per_hand_in_seat(seat)
         if rate is None:
             continue
-        target = SELF_PLAY_VALUE_P0 if seat == 0 else -SELF_PLAY_VALUE_P0
-        print(f"  as P{seat}: {board.seat_chips[seat]:+.0f} over "
-              f"{board.seat_hands[seat]} hands ({rate:+.3f} per hand; "
-              f"this seat is worth {target:+.3f} in the bot's self-play)")
-    print("Alternating seats, matching the bot averages zero and a perfect")
-    print("adversary at most +0.061 a hand. A hand swings by several chips, so")
-    print("short sessions are mostly noise.\n")
-
+        line = (f"  as P{seat}: {board.seat_chips[seat]:+.0f} over "
+                f"{board.seat_hands[seat]} hands ({rate:+.3f} per hand")
+        if release:
+            target = RELEASE_SELF_PLAY_VALUE_P0 if seat == 0 else -RELEASE_SELF_PLAY_VALUE_P0
+            line += f"; this seat is worth {target:+.3f} in the bot's self-play"
+        print(line + ")")
+    if release:
+        print("Alternating seats, matching the bot averages zero and a perfect")
+        print(f"adversary at most {RELEASE_EXPLOITABILITY:+.3f} a hand.", end=" ")
+    print("A hand swings by several chips, so short sessions are mostly noise.\n")
 
 if __name__ == "__main__":
     main()
