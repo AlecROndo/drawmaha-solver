@@ -76,11 +76,12 @@ PRIVATE_WIDTH = 4 * CARD_GROUP  # 92
 _DRAW_STATES = THROW_CAP + 2  # 3
 DRAW_WIDTH = 2 * _DRAW_STATES  # 6
 # The longest betting line is five actions — check, bet, raise, raise (the
-# all-in), call — which the stack fixes, not a raise cap: pot-limit from the
-# 2-chip ante pot runs 2 -> 8 -> 26 and 25 behind truncates the third raise to
-# a shove, so nothing deeper exists. `public_row` refuses a longer line rather
-# than spilling it into the next round's slots, and the tests pin the maximum
-# over every public point.
+# all-in), call — which the stack fixes, not a raise cap. Each pot-sized bet
+# or raise puts the actor's own in-round commitment at 2, then 8, then what
+# would be 26; with 25 behind the ante the third truncates to the shove and
+# nothing deeper exists (`chip_state().in_round` reads 2, 8, 25 along the
+# line; the test pins it). `public_row` refuses a longer line rather than
+# spilling it into the next round's slots.
 LINE_SLOTS = 5
 _BETTING_ACTIONS = len(BETTING_ACTIONS)  # 3
 BETTING_WIDTH = N_ROUNDS * LINE_SLOTS * _BETTING_ACTIONS  # 30
@@ -150,14 +151,16 @@ def public_row(
     not just which actions it holds. Chips: the pot and each seat's chips
     behind, over the stack. Stage: round 1, the draw, round 2.
 
-    Refuses, rather than corrupting the row, a line longer than the slots
-    or an empty betting history: round 1's line exists from the first deal,
-    so a key without one is not a key of this game.
+    Refuses, rather than corrupting the row, a line longer than the slots,
+    a third draw signal, or an empty betting history: round 1's line exists
+    from the first deal, so a key without one is not a key of this game.
     """
     if not betting:
         raise ValueError("a public point has at least round 1's betting line, got none")
     if any(len(line) > LINE_SLOTS for line in betting):
         raise ValueError(f"a betting line is longer than {LINE_SLOTS} actions: {betting}")
+    if len(draws) > 2:
+        raise ValueError(f"two seats draw, got {len(draws)} draw signals")
     row = np.zeros(PUBLIC_WIDTH, dtype=np.float32)
     # The draws come in seat order, P0 then P1, so a missing signal is
     # always the later seat's and means "not drawn yet"; `DrawSignal` has
@@ -238,7 +241,9 @@ def encode(key: InfoSet) -> np.ndarray:
 # From a row number to its two halves
 # ---------------------------------------------------------------------------
 
-@dataclass(frozen=True, slots=True)
+# eq=False: the fields are arrays, so the generated __eq__ would be ambiguous;
+# there is one layout per process and it is compared by identity.
+@dataclass(frozen=True, slots=True, eq=False)
 class Layout:
     """Where every row of the whole-game table sits: which point, which position.
 
@@ -286,7 +291,10 @@ class Layout:
         return self.row_offset[point] + (columns - self.column_offset[point]) // self.width[point]
 
     def features(self, rows: np.ndarray) -> np.ndarray:
-        """The 136 floats of each row, gathered from the two halves; (n, 136) float32."""
+        """The 136 floats of each row, gathered from the two halves; (n, 136) float32.
+
+        `rows` is a 1-D array of integer row numbers, as `locate_rows` takes.
+        """
         point, position = self.locate_rows(rows)
         private = self.private[self.private_offset[point] + position]
         return np.concatenate([private, self.public[point]], axis=1)

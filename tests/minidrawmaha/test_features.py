@@ -203,6 +203,17 @@ def test_public_row_refuses_an_empty_betting_history():
     with pytest.raises(ValueError):
         public_row(draws=(), betting=(), player=0, is_draw=False)
 
+def test_public_row_refuses_a_third_draw_signal():
+    three = (DrawSignal(0), DrawSignal(0), DrawSignal(0))
+    with pytest.raises(ValueError):
+        public_row(draws=three, betting=((Action.CHECK_CALL,),), player=0, is_draw=False)
+
+def test_the_widths_are_the_numbers_the_comments_say():
+    # The widths are derived from the game's constants; the numbers in the
+    # comments beside them, and the slices the tests above read, are these.
+    assert (CARD_GROUP, PRIVATE_WIDTH, PUBLIC_WIDTH, FEATURE_WIDTH) == (23, 92, 44, 136)
+    assert (LINE_SLOTS, MAX_WIDTH, HEAD_WIDTH) == (5, 4, 7)
+
 def test_the_stage_follows_the_draws_at_every_point():
     # Round 1 is before either draw, round 2 after both; the stage is read
     # off the line count, so this pins that the two agree everywhere.
