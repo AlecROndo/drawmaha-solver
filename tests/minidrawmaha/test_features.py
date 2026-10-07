@@ -188,9 +188,20 @@ def test_the_longest_line_in_the_game_fills_the_slots_exactly():
     assert max(len(line) for point in points for line in point.betting) == LINE_SLOTS
     assert max(len(point.betting) for point in points) == 2
     assert max(point.width for point in points) == MAX_WIDTH
-    six = ((Action.CHECK_CALL, Action.POT, Action.POT, Action.POT, Action.POT, Action.CHECK_CALL),)
+    # The stack, not a raise cap, is what ends the longest line: it is
+    # check, bet, raise, raise, call, and the last raise is the all-in.
+    longest = {line for point in points for line in point.betting if len(line) == LINE_SLOTS}
+    cpppc = (Action.CHECK_CALL, Action.POT, Action.POT, Action.POT, Action.CHECK_CALL)
+    assert longest == {cpppc}
+    assert chip_state((cpppc[:4],)).in_round == (8, 25)
+    assert chip_state((cpppc,)).behind == (0, 0)
+    six = (cpppc + (Action.CHECK_CALL,),)
     with pytest.raises(ValueError):
         public_row(draws=(), betting=six, player=0, is_draw=False)
+
+def test_public_row_refuses_an_empty_betting_history():
+    with pytest.raises(ValueError):
+        public_row(draws=(), betting=(), player=0, is_draw=False)
 
 def test_the_stage_follows_the_draws_at_every_point():
     # Round 1 is before either draw, round 2 after both; the stage is read

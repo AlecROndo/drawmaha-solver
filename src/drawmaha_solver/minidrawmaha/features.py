@@ -143,16 +143,25 @@ def public_row(
 ) -> np.ndarray:
     """A public point's 44 floats: draw signals, betting slots, chips, seat, stage.
 
-    Draw signals: per seat, one-hot over {not drawn yet, threw 0, threw 1}.
-    Betting: per round, five slots, each a one-hot over {fold, check/call,
-    pot} for the action in that slot and zeros past the line's end — so the
-    ORDER of the line is in the vector, not just which actions it holds.
-    Chips: the pot and each seat's chips behind, over the 26-chip stack.
-    Stage: round 1, the draw, round 2.
+    Draw signals: per seat, one-hot over {not drawn yet, then one state per
+    throw count up to `THROW_CAP`}. Betting: per round, `LINE_SLOTS` slots,
+    each a one-hot over `BETTING_ACTIONS` for the action in that slot and
+    zeros past the line's end — so the ORDER of the line is in the vector,
+    not just which actions it holds. Chips: the pot and each seat's chips
+    behind, over the stack. Stage: round 1, the draw, round 2.
+
+    Refuses, rather than corrupting the row, a line longer than the slots
+    or an empty betting history: round 1's line exists from the first deal,
+    so a key without one is not a key of this game.
     """
+    if not betting:
+        raise ValueError("a public point has at least round 1's betting line, got none")
     if any(len(line) > LINE_SLOTS for line in betting):
         raise ValueError(f"a betting line is longer than {LINE_SLOTS} actions: {betting}")
     row = np.zeros(PUBLIC_WIDTH, dtype=np.float32)
+    # The draws come in seat order, P0 then P1, so a missing signal is
+    # always the later seat's and means "not drawn yet"; `DrawSignal` has
+    # already bounded the count to THROW_CAP.
     for seat in (0, 1):
         state = 1 + draws[seat].count if len(draws) > seat else 0
         row[seat * _DRAW_STATES + state] = 1.0
