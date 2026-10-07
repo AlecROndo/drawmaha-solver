@@ -55,7 +55,9 @@ describe('equityAgainst', () => {
 describe('ignoring card removal between the seats', () => {
   // Brute force, per hand of `mine`: the weighted total equity over every hand
   // of `theirs`, and over only the hands that share no card with it. The
-  // module note's "the error is small" is this difference.
+  // module note's "the error is small" is this difference. 2,000 × 2,000
+  // pairs × 25 card comparisons is ~100M per weighting, about 80 ms each on
+  // a laptop; the module note's numbers were taken at 3,000 a side.
   const mine = sampleRange(FLOP, 2000, 21)
   const theirs = sampleRange(FLOP, 2000, 22)
   const theirPolicy = policyFor(theirs, 'open')
@@ -86,6 +88,7 @@ describe('ignoring card removal between the seats', () => {
     }
     return { all, disjoint }
   }
+  // Fails loudly on an empty row (a NaN mean is silent), so the seed is pinned by name.
   const mean = (v: Float64Array, keep: (i: number) => boolean): number => {
     let sum = 0
     let m = 0
@@ -93,6 +96,7 @@ describe('ignoring card removal between the seats', () => {
       sum += v[i]
       m++
     }
+    expect(m, 'the row must hold enough hands for a mean to say anything').toBeGreaterThan(20)
     return sum / m
   }
 

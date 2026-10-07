@@ -19,7 +19,8 @@
  * whole range's total moves by under 1 point against a betting, checking or
  * uniform range and each inner row's by about 1 point; a single hand's can
  * move up to 9 points, so the per-cell readout is the coarsest number here.
- * `equity.test.ts` pins the first two bounds, and the page says so.
+ * `equity.test.ts` re-measures at 2,000 hands a side (to stay fast) and pins
+ * the first two bounds with a little slack; the page says so.
  */
 
 import type { Policy } from './policy'
