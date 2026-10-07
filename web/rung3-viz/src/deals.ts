@@ -17,6 +17,10 @@ export function expectedDeals(manifest: Manifest, index: number): number {
   return index < full ? manifest.chunk : manifest.deals - manifest.chunk * full
 }
 
+/** How many deals `loaded` chunks hold: a full chunk each, except that the last is whatever is left. */
+export const loadedDeals = (manifest: Manifest, loaded: number): number =>
+  Math.min(manifest.deals, loaded * manifest.chunk)
+
 /**
  * Refuse a chunk the manifest did not describe, or a deal the grammar cannot
  * play. The manifest and the chunks are separate files, so a cache can hand

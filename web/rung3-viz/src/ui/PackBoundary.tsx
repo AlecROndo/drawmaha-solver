@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from 'react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 import { Panel } from './site'
 
@@ -18,8 +18,8 @@ export class PackBoundary extends Component<{ children: ReactNode }, { message: 
   }
 
   /** React logs a caught error only in development; the panel asks for a bug report, so the stack must reach the console in production too. */
-  componentDidCatch(error: Error): void {
-    console.error(error)
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error(error, info.componentStack)
   }
 
   render() {

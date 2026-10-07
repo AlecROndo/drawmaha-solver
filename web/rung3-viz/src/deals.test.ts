@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
-import { checkChunk, checkManifest, expectedDeals, loadFirst, loadNext } from './deals'
+import { checkChunk, checkManifest, expectedDeals, loadFirst, loadNext, loadedDeals } from './deals'
 import type { Deal, Manifest } from './play'
 
 const read = (name: string) => JSON.parse(readFileSync(new URL(`../public/deals/${name}`, import.meta.url), 'utf8'))
@@ -28,6 +28,14 @@ describe('a chunk against the manifest', () => {
 
   it('expects a full chunk everywhere but the last, which holds what is left', () => {
     expect([0, 1, 2].map((i) => expectedDeals(manifest, i))).toEqual([2, 2, 1])
+  })
+
+  it('counts the deals loaded so far, the partial last chunk included', () => {
+    expect([0, 1, 2, 3].map((n) => loadedDeals(manifest, n))).toEqual([0, 2, 4, 5])
+    const partial: Manifest = { ...manifest, deals: 650, chunk: 100, chunks: Array.from({ length: 7 }, (_, i) => `pack-0${i}.json`) }
+    expect(() => checkManifest(partial)).not.toThrow()
+    expect(loadedDeals(partial, 6)).toBe(600)
+    expect(loadedDeals(partial, 7)).toBe(650)
   })
 
   it('refuses a manifest whose deals, chunk size and chunk count do not agree', () => {
