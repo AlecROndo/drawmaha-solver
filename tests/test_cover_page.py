@@ -93,7 +93,7 @@ def test_every_link_goes_somewhere_that_exists(
         if fragment:
             # Cross-page fragments are the visualizers' business, not ours; the
             # route existing is all this page can promise.
-            assert target in {"/rung0", "/rung1", "/rung2"}, (
+            assert target in {"/rung0", "/rung1", "/rung2", "/rung3"}, (
                 f"{name}: {href} anchors into a page with no app"
             )
 

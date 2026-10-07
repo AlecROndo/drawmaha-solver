@@ -1,0 +1,21 @@
+{
+ "seed": 0,
+ "deals": 600,
+ "chunk": 100,
+ "chunks": [
+  "pack-00.json",
+  "pack-01.json",
+  "pack-02.json",
+  "pack-03.json",
+  "pack-04.json",
+  "pack-05.json"
+ ],
+ "strategy": {
+  "sha256": "d49f0f3792627cd5b0279956c7b67690af1507b5beec264cbf5e4606f437b6b8",
+  "rule": "lcfr",
+  "column": "linear",
+  "iteration": 2000000,
+  "workers": 10,
+  "seed": 0
+ }
+}

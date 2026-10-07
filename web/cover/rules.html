@@ -370,8 +370,8 @@ footer a:hover{color:var(--ivory)}
             <div class="racts"><a href="https://drawmaha.app/rung2">Analysis</a><a href="https://drawmaha.app/rung2#walk">Solver</a><a href="https://drawmaha.app/rung2#play">Trainer</a></div>
           </div>
           <div class="rcell now" style="--i:1;--j:3">
-            <a class="rmain" href="index.html#rung3"><b>3</b><span>Mini-Drawmaha</span></a>
-            <div class="racts"><a href="index.html#rung3">Analysis</a></div>
+            <a class="rmain" href="https://drawmaha.app/rung3"><b>3</b><span>Mini-Drawmaha</span></a>
+            <div class="racts"><a href="https://drawmaha.app/rung3">Analysis</a><a href="https://drawmaha.app/rung3#play">Trainer</a></div>
           </div>
           <div class="rcell todo" style="--i:0;--j:4">
             <a class="rmain" href="index.html#rung4"><b>4</b><span>Full Drawmaha</span></a>
@@ -380,7 +380,7 @@ footer a:hover{color:var(--ivory)}
         </div>
       </div>
     </nav>
-    <a class="btn primary" href="https://drawmaha.app/rung2">Open the solver →</a>
+    <a class="btn primary" href="https://drawmaha.app/rung3#play">Play the solver →</a>
   </div>
 </header>
 
@@ -604,12 +604,12 @@ footer a:hover{color:var(--ivory)}
       </div>
     </div>
     <div class="sizes reveal" id="sizes">
-      <div class="row h"><span>Game</span><span>Information sets per player, log scale</span><span style="text-align:right">count</span></div>
+      <div class="row h"><span>Game</span><span>Information sets, log scale</span><span style="text-align:right">count</span></div>
       <div class="row"><span class="g">Kuhn poker<small>rung 1 · passed</small></span><span class="bar"><i data-w="0.17"></i></span><span class="v"><b>12</b></span></div>
       <div class="row"><span class="g">Leduc poker<small>rung 2 · passed</small></span><span class="bar"><i data-w="0.40"></i></span><span class="v"><b>288</b></span></div>
-      <div class="row"><span class="g">Mini-Drawmaha<small>rung 3 · in progress</small></span><span class="bar y"><i data-w="1"></i></span><span class="v"><b>1.57M</b> · the deck gate</span></div>
-      <div class="row"><span class="g">The ledger table<small>rung 3 · every spot, written out</small></span><span class="bar p"><i data-w="1"></i></span><span class="v"><b>3.1M spots</b> · 1.77 GB</span></div>
-      <div class="note">Mini-Drawmaha is the last rung whose regret tables fit on disk. Full Drawmaha does not enumerate: <b>Deep CFR</b> replaces the tables with nets, and rung 3 is where the sampled learner (external-sampling MCCFR, graded on Leduc first) earns the right to try.</div>
+      <div class="row"><span class="g">Mini-Drawmaha<small>rung 3 · passed</small></span><span class="bar y"><i data-w="1"></i></span><span class="v"><b>6.22M</b> · sampled, never walked</span></div>
+      <div class="row"><span class="g">The frozen answer<small>rung 3 · LCFR’s average at 20M hands per seat</small></span><span class="bar p"><i data-w="1"></i></span><span class="v"><b>14.25M probabilities</b> · 18 MB</span></div>
+      <div class="note">Mini-Drawmaha is the last rung whose regret tables fit on disk. Full Drawmaha does not enumerate: <b>Deep CFR</b> replaces the tables with nets, and rung 3 is where the sampled learner (lockstep MCCFR, four regret rules raced, graded by an exact best response) earned the right to try: LCFR’s average is exploitable for 6 chips per hundred hands. <a href="https://drawmaha.app/rung3">Read the research →</a></div>
     </div>
   </div>
 </section>
@@ -622,7 +622,7 @@ footer a:hover{color:var(--ivory)}
       <p class="lede" style="margin-top:12px">Three rungs are live today. Open the explorer to read the rung 2 ledger spot by spot, or go back to the ladder to see how far up the climb has got.</p>
     </div>
     <div class="btns">
-      <a class="btn pink" href="https://drawmaha.app/rung2">Open the solver</a>
+      <a class="btn pink" href="https://drawmaha.app/rung3#play">Play the solver</a>
       <a class="btn" href="index.html#ladder">The ladder</a>
       <a class="btn" href="index.html#explorer">The explorer</a>
     </div>
@@ -631,7 +631,7 @@ footer a:hover{color:var(--ivory)}
 <footer>
   <div class="wrap">
     <a class="chip-end" href="https://drawmaha.app" aria-label="Drawmaha home"><canvas data-chip data-font="4" data-speed="0.32"></canvas></a>
-    <div class="links"><a href="index.html">Home</a><a href="https://drawmaha.app/rung0">/rung0</a><a href="https://drawmaha.app/rung1">/rung1</a><a href="https://drawmaha.app/rung2">/rung2</a><a href="https://drawmaha.app">drawmaha.app</a></div>
+    <div class="links"><a href="index.html">Home</a><a href="https://drawmaha.app/rung0">/rung0</a><a href="https://drawmaha.app/rung1">/rung1</a><a href="https://drawmaha.app/rung2">/rung2</a><a href="https://drawmaha.app/rung3">/rung3</a><a href="https://drawmaha.app">drawmaha.app</a></div>
   </div>
 </footer>
 

@@ -24,6 +24,10 @@
       "destination": "/rung2/index.html"
     },
     {
+      "source": "/rung3",
+      "destination": "/rung3/index.html"
+    },
+    {
       "source": "/hero",
       "destination": "/hero/index.html"
     }

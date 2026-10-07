@@ -490,9 +490,9 @@ footer a:hover{color:var(--ivory)}
             <a class="rmain" href="https://drawmaha.app/rung2"><b>2</b><span>Leduc</span></a>
             <div class="racts"><a href="https://drawmaha.app/rung2">Analysis</a><a href="https://drawmaha.app/rung2#walk">Solver</a><a href="https://drawmaha.app/rung2#play">Trainer</a></div>
           </div>
-          <div class="rcell now" style="--i:1;--j:3">
-            <a class="rmain" href="#rung3"><b>3</b><span>Mini-Drawmaha</span></a>
-            <div class="racts"><a href="#rung3">Analysis</a></div>
+          <div class="rcell done" style="--i:1;--j:3">
+            <a class="rmain" href="https://drawmaha.app/rung3"><b>3</b><span>Mini-Drawmaha</span></a>
+            <div class="racts"><a href="https://drawmaha.app/rung3">Analysis</a><a href="https://drawmaha.app/rung3#play">Trainer</a></div>
           </div>
           <div class="rcell todo" style="--i:0;--j:4">
             <a class="rmain" href="#rung4"><b>4</b><span>Full Drawmaha</span></a>
@@ -501,7 +501,7 @@ footer a:hover{color:var(--ivory)}
         </div>
       </div>
     </nav>
-    <a class="btn primary" href="https://drawmaha.app/rung2">Open the solver →</a>
+    <a class="btn primary" href="https://drawmaha.app/rung3#play">Play the solver →</a>
   </div>
 </header>
 
@@ -510,13 +510,13 @@ footer a:hover{color:var(--ivory)}
   <div class="wrap">
     <div class="hero-grid">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="dot"></span>Deep CFR · rung 3 of 4 in progress</p>
+        <p class="eyebrow"><span class="dot done"></span>Deep CFR · rungs 0–3 checked, rung 4 next</p>
         <h1>The solver Drawmaha <em>never had.</em></h1>
         <svg class="squig" viewBox="0 0 190 12" aria-hidden="true"><path d="M2 7 C 12 1, 20 12, 30 7 S 48 1, 58 7 S 76 12, 86 7 S 104 1, 114 7 S 132 12, 142 7 S 160 1, 170 7 S 184 12, 188 7"/></svg>
         <p class="lede">Drawmaha is a split-pot draw/Omaha hybrid nobody has solved. We are building the solver one rung at a time: <b>every rung is a smaller game whose answer is already known</b>, and nothing moves up until the solver reproduces it.</p>
         <div class="cta">
           <a class="btn primary" href="https://drawmaha.app/rung2">Open the explorer</a>
-          <a class="btn" href="https://drawmaha.app/rung2">Play heads-up Leduc <span class="k">/rung2</span></a>
+          <a class="btn" href="https://drawmaha.app/rung3#play">Play mini-Drawmaha <span class="k">/rung3</span></a>
         </div>
         <a class="rules-link" href="rules.html">How Drawmaha is played →</a>
       </div>
@@ -668,7 +668,7 @@ footer a:hover{color:var(--ivory)}
       <div class="copy">
         <p class="eyebrow">Solve</p>
         <h3>Regret matching, climbing.</h3>
-        <p>The same idea at every scale: keep a ledger of how much you regret not having taken each action, and next time play in proportion to the regrets. Rock-paper-scissors needs a three-line ledger. Kuhn needs twelve. Leduc needs 288. Mini-Drawmaha needs 3.1 million spots and 1.77 GB, and full Drawmaha needs a net to hold it.</p>
+        <p>The same idea at every scale: keep a ledger of how much you regret not having taken each action, and next time play in proportion to the regrets. Rock-paper-scissors needs a three-line ledger. Kuhn needs twelve. Leduc needs 288. Mini-Drawmaha needs 6.2 million spots, too many to walk so they are sampled, and full Drawmaha needs a net to hold it.</p>
         <p>On the right, the shape of that settling: the average strategy rolls in from a corner of the triangle and circles down into the centre like a ball in a bowl, where rung 0 lands at (0.334, 0.333, 0.333) after 100,000 iterations. The exact run ticks in the console at the top of the page.</p>
         <a class="btn" href="https://drawmaha.app/rung0">Rung 0: the triangle, live →</a>
       </div>
@@ -809,23 +809,24 @@ footer a:hover{color:var(--ivory)}
         <p>Leduc has six cards. Drawmaha has fifty-two, five per hand, and a draw. Even the cut-down version is too big for a table that lists every decision, so the next rung <b>samples</b>: it visits a slice of the game each iteration, and is graded on Leduc before it is trusted with the real deck.</p>
       </div>
 
-      <article class="rung reveal now" id="rung3">
+      <article class="rung reveal" id="rung3">
         <div class="obj">
-          <div class="num">3<small>in progress</small></div>
-          <canvas data-icon="deck" aria-label="The deck, one card lifted through the gate"></canvas>
+          <div class="num">3<small>climbed</small></div>
+          <canvas data-icon="cigar" aria-label="A lit cigar on the felt, ash at its tip and smoke rising"></canvas>
         </div>
         <div class="words">
           <h3 class="name">Mini-Drawmaha</h3>
-          <div class="method"><span><b>External-sampling MCCFR</b> · being built</span><span class="st prog"><i></i>In progress</span></div>
-          <p>The deck gate: <b>1.57M infosets</b> per player. The ledger table: 3.1M spots, 1.77 GB. The sampled learner, graded on Leduc before it touches the real deck.</p>
+          <div class="method"><span><b>Lockstep MCCFR</b> · four regret rules · 20M hands per seat</span><span class="st pass"><i></i>Passed</span></div>
+          <p>No referee exists for this game, so the grader is an exact best-response walk. Four regret rules raced on Modal; <b>the two that keep negative regret won by 3–4×</b>, and LCFR’s average is the answer: exploitable for 0.061 chips a hand. Read the race, then sit down against it with the coach watching.</p>
           <dl class="nums">
-            <div><dt>The gate</dt><dd>1.57M infosets per player</dd></div>
-            <div><dt>The ledger</dt><dd><b>3.1M spots, 1.77 GB</b> · sampler graded on Leduc</dd></div>
+            <div><dt>Known answer</dt><dd>none exists · graded by an exact best response over 6.22M information sets</dd></div>
+            <div><dt>Solver's answer</dt><dd><b>LCFR 6.1 chips/100 hands</b> · vanilla 8.6 · CFR+ 24.8 · DCFR 25.0 · P0 worth −0.091</dd></div>
           </dl>
+          <a class="go" href="https://drawmaha.app/rung3">Read the race, then take a seat at rung 3 <span class="arrow">→</span></a>
         </div>
         <div class="fig">
-          <svg id="fig-size" viewBox="0 0 560 300" aria-label="Bar chart on a log scale: the number of information sets per player grows from 12 in Kuhn to 288 in Leduc to 1.57 million in mini-Drawmaha."></svg>
-          <p class="cap"><b>How big the game gets.</b> Decision points per player, log scale: <i>12</i> in Kuhn, <i>288</i> in Leduc, <i>1.57M</i> in mini-Drawmaha, whose ledger of 3.1M spots weighs 1.77 GB. The full game does not fit on this axis.</p>
+          <svg id="fig-size" viewBox="0 0 560 300" aria-label="Bar chart on a log scale: the number of information sets grows from 12 in Kuhn to 288 in Leduc to 6.22 million in mini-Drawmaha."></svg>
+          <p class="cap"><b>How big the game gets.</b> Information sets, log scale: <i>12</i> in Kuhn, <i>288</i> in Leduc, <i>6.22M</i> in mini-Drawmaha, which no walk crosses, so the learner samples ten hands a seat per iteration. The full game does not fit on this axis.</p>
         </div>
       </article>
       <div class="between">
@@ -858,10 +859,11 @@ footer a:hover{color:var(--ivory)}
   <div class="wrap">
     <div>
       <h2>Open the ledger. <em>Read what it believes.</em></h2>
-      <p class="lede" style="margin-top:12px">Three rungs are live today. Start at the triangle, check the Kuhn curves, then sit down against the Leduc bot with the coach watching.</p>
+      <p class="lede" style="margin-top:12px">Four rungs are live today. Start at the triangle, check the Kuhn curves, walk the Leduc line, then sit down against the mini-Drawmaha solver with the coach watching.</p>
     </div>
     <div class="btns">
-      <a class="btn pink" href="https://drawmaha.app/rung2">Open the explorer</a>
+      <a class="btn pink" href="https://drawmaha.app/rung3#play">Play the solver</a>
+      <a class="btn" href="https://drawmaha.app/rung2">Rung 2</a>
       <a class="btn" href="https://drawmaha.app/rung1">Rung 1</a>
       <a class="btn" href="https://drawmaha.app/rung0">Rung 0</a>
     </div>
@@ -870,7 +872,7 @@ footer a:hover{color:var(--ivory)}
 <footer>
   <div class="wrap">
     <a class="chip-end" href="https://drawmaha.app" aria-label="Drawmaha home"><canvas data-chip data-font="4" data-speed="0.32"></canvas></a>
-    <div class="links"><a href="https://drawmaha.app/rung0">/rung0</a><a href="https://drawmaha.app/rung1">/rung1</a><a href="https://drawmaha.app/rung2">/rung2</a><a href="https://drawmaha.app">drawmaha.app</a></div>
+    <div class="links"><a href="https://drawmaha.app/rung0">/rung0</a><a href="https://drawmaha.app/rung1">/rung1</a><a href="https://drawmaha.app/rung2">/rung2</a><a href="https://drawmaha.app/rung3">/rung3</a><a href="https://drawmaha.app">drawmaha.app</a></div>
   </div>
 </footer>
 
@@ -1855,13 +1857,13 @@ function tableLoop(now) {
   else setTimeout(() => requestAnimationFrame(tableLoop), 70);
 }
 
-/* ---- the rung objects: chip, cards, table, deck, stack; one small raymarcher ---- */
+/* ---- the rung objects: chip, cards, table, cigar, stack; one small raymarcher. materials: 1 body, 2 accent, 3/4 felt+rail, 5 card edge, 6 wrapper, 7 ash, 8 char, 9 ember (gold), 10 smoke (shadow ink) ---- */
 const chipSD = (x, y, z, R, H, RB = 0.05) => { const r = Math.hypot(x, z); const dx = r - R + RB, dy = Math.abs(y) - H / 2 + RB; return Math.min(Math.max(dx, dy), 0) + Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) - RB; };
 const rbox = (x, y, z, hx, hy, hz, rr) => { const ax = Math.abs(x) - hx + rr, ay = Math.abs(y) - hy + rr, az = Math.abs(z) - hz + rr; return Math.min(Math.max(ax, ay, az), 0) + Math.hypot(Math.max(ax, 0), Math.max(ay, 0), Math.max(az, 0)) - rr; };
 const rot2 = (x, z, a) => { const c = Math.cos(a), s = Math.sin(a); return [c * x + s * z, -s * x + c * z]; };
 const chipPat = (x, z, R) => { const rn = Math.hypot(x, z) / R, a = Math.atan2(z, x); const ph = (a / 6.2832 + 2) * 8, fr = ph - Math.floor(ph); return (fr < 0.36 && rn > 0.8) || (rn > 0.5 && rn < 0.56) ? 1 : 0; };
 const cardPat = (lx, lz, hx, hz) => { const ax = Math.abs(lx), az = Math.abs(lz); const bo = Math.max(ax - (hx - 0.09), az - (hz - 0.09)); if (bo > -0.02 && bo < 0.02) return 1; if (ax * 1.15 + az * 0.9 < 0.16) return 1; return 0; };
-let im = 0;
+let im = 0, tNow = 0, solidOnly = false;
 const ICONS = {
   chip: { elev: 0.6, dist: 3.3, look: [0.15, 0.1, -0.2], yaw0: 0.3, sdf(x, y, z) {
     /* one chip lying on the felt, a second leaning on it */
@@ -1899,13 +1901,19 @@ const ICONS = {
       if (q < d) { d = q; im = chipPat(x - cx, z - cz, CR) ? 2 : 1; }
     }
     return d; } },
-  deck: { elev: 0.5, dist: 4.1, look: [0.1, 0.5, 0], yaw0: 0.35, sdf(x, y, z) {
-    /* the deck as a block of cards, one card lifted through the gate */
-    const [lx, lz] = rot2(x, z, 0.3);
-    let d = rbox(lx, y - 0.4, lz, 0.72, 0.4, 1.0, 0.06); im = Math.abs(y - 0.4) < 0.39 && (Math.abs(Math.abs(lx) - 0.72) < 0.03 || Math.abs(Math.abs(lz) - 1.0) < 0.03) ? 5 : 1;
-    const th = 0.55; const cx = x - 0.35, cy = y - 1.35, cz = z + 0.2;
-    const ry = Math.cos(th) * cy - Math.sin(th) * cz, rz = Math.sin(th) * cy + Math.cos(th) * cz; const [ex, ez] = rot2(cx, rz, 0.15);
-    const d2 = rbox(ex, ry, ez, 0.72, 0.03, 1.0, 0.08); if (d2 < d) { d = d2; im = ry > 0.02 && cardPat(ex, ez, 0.72, 1.0) ? 2 : 1; }
+  cigar: { elev: 0.44, dist: 5.0, look: [0, 0.5, 0], yaw0: 2.3, sdf(x, y, z) {
+    /* a lit cigar on the felt: the band in the accent two fingers from the head; at the foot the wrapper chars to black, the ember glows in the gold, and a finger of pale pitted ash with red flecks in its cracks; a ribbon of smoke wavers up off the tip and casts no shadow */
+    const R = 0.33, L = 2.0; const [u, w] = rot2(x, z, 0.42); const v = y - R; const rad = Math.hypot(v, w), ang = Math.atan2(w, v);
+    const hu = clamp(u, -L + R, L); let d = Math.hypot(u - hu, rad) - R; if (u > L - 0.02) d = Math.max(d, u - L); im = 6;
+    if (u > -L + 0.62 && u < -L + 0.9) im = Math.abs(u + L - 0.76) < 0.035 ? 1 : 2;
+    if (im === 6) d += 0.005 * Math.sin(11 * u + 2 * ang);
+    const A0 = L - 0.78; if (u > A0 - 0.1 && u <= A0) im = 8; if (u > A0 && u <= A0 + 0.09) im = 9;
+    if (u > A0 + 0.09) { im = 7; const pit = 0.03 * Math.sin(21 * u) * Math.sin(17 * ang + 5 * u); const taper = 0.06 * clamp((u - A0 - 0.35) / 0.5, 0, 1); d += 0.015 + pit + taper; if (pit < -0.018 && u < A0 + 0.5) im = 2; }
+    if (solidOnly) return d;
+    const tipX = Math.cos(-0.42) * L, tipZ = Math.sin(0.42) * L; let ds = 1e9;
+    for (let k = 0; k < 13; k++) { const h = 0.1 + k * 0.15, ph = tNow * 0.7 + k * 0.55; const sx = tipX - 0.1 + 0.06 * k * Math.sin(ph) + 0.015 * k, sz = tipZ + 0.05 * k * Math.cos(ph * 0.8), sr = 0.05 + 0.011 * k; const dk = Math.hypot(x - sx, y - (R + h), z - sz) - sr; if (dk < ds) ds = dk; }
+    ds += 0.02 * Math.sin(13 * x + tNow) * Math.sin(15 * y - 1.1 * tNow) * Math.sin(12 * z);
+    if (ds < d) { d = ds; im = 10; }
     return d; } },
   stack: { elev: 0.36, dist: 4.9, look: [0.5, 0.85, 0.3], yaw0: 0.2, sdf(x, y, z) {
     let d = 1e9;
@@ -1914,8 +1922,8 @@ const ICONS = {
     return d; } },
 };
 const IRAMP = " .:-+*%@";
-function renderIcon(g, sc, yaw) {
-  const { cols, rows } = g; if (!cols) return;
+function renderIcon(g, sc, yaw, t = 0) {
+  const { cols, rows } = g; if (!cols) return; tNow = t;
   g.chb.fill(0); g.cob.fill(0);
   const ce = Math.cos(sc.elev), se = Math.sin(sc.elev);
   const eye = [sc.look[0] + sc.dist * ce * Math.sin(yaw), sc.look[1] + sc.dist * se, sc.look[2] + sc.dist * ce * Math.cos(yaw)];
@@ -1944,23 +1952,25 @@ function renderIcon(g, sc, yaw) {
       const m = im, e = 0.006;
       const nx = sc.sdf(px + e, py, pz) - sc.sdf(px - e, py, pz), ny = sc.sdf(px, py + e, pz) - sc.sdf(px, py - e, pz), nz = sc.sdf(px, py, pz + e) - sc.sdf(px, py, pz - e);
       const nl = Math.hypot(nx, ny, nz) || 1; const n = [nx / nl, ny / nl, nz / nl];
-      const ao = clamp(sc.sdf(px + n[0] * 0.12, py + n[1] * 0.12, pz + n[2] * 0.12) / 0.12, 0.3, 1);
+      solidOnly = true; const ao = clamp(sc.sdf(px + n[0] * 0.12, py + n[1] * 0.12, pz + n[2] * 0.12) / 0.12, 0.3, 1);
       const diff = Math.max(0, n[0] * L[0] + n[1] * L[1] + n[2] * L[2]);
-      let sh = 1; { let tt = 0.04; for (let k = 0; k < 18; k++) { const d = sc.sdf(px + L[0] * tt, py + L[1] * tt, pz + L[2] * tt); if (d < 0.003) { sh = 0.25; break; } tt += Math.max(0.03, d); if (tt > 3) break; } }
+      let sh = 1; { let tt = 0.04; for (let k = 0; k < 18; k++) { const d = sc.sdf(px + L[0] * tt, py + L[1] * tt, pz + L[2] * tt); if (d < 0.003) { sh = 0.25; break; } tt += Math.max(0.03, d); if (tt > 3) break; } } solidOnly = false;
       let hx = L[0] - dx, hy = L[1] - dy, hz = L[2] - dz; const hl = Math.hypot(hx, hy, hz); hx /= hl; hy /= hl; hz /= hl;
       const spec = Math.pow(Math.max(0, n[0] * hx + n[1] * hy + n[2] * hz), 26);
       const ndv = -(n[0] * dx + n[1] * dy + n[2] * dz);
       const rim = Math.pow(1 - Math.max(0, ndv), 3) * Math.max(0, n[0] * L2[0] + n[1] * L2[1] + n[2] * L2[2]);
       let alb = 1.0;
-      if (m === 3) alb = 0.42; else if (m === 4) alb = 0.22; else if (m === 5) alb = 0.7;
-      I = alb * (0.07 * ao + 0.10 * Math.max(0, ndv) * ao + 1.0 * diff * sh + 0.35 * spec * sh) + 0.5 * rim * ao;
+      if (m === 3) alb = 0.42; else if (m === 4) alb = 0.22; else if (m === 5) alb = 0.7; else if (m === 6) alb = 0.3; else if (m === 7) alb = 1.0; else if (m === 8) alb = 0.08;
+      const matte = m === 6 || m === 7 || m === 8;
+      I = alb * ((m === 7 ? 0.3 : 0.07) * ao + 0.10 * Math.max(0, ndv) * ao + 1.0 * diff * sh + (matte ? 0.05 : 0.35) * spec * sh) + (m === 6 ? 0.15 : m === 8 ? 0 : 0.5) * rim * ao;
       I = 1 - Math.exp(-2.1 * I);
       cls = m === 2 ? 2 : 1;
+      if (m === 9) { I = 0.75 + 0.25 * Math.sin(tNow * 2.3 + px * 9); cls = 4; } else if (m === 10) { I = clamp(0.28 + 0.18 * Math.max(0, ndv) - 0.1 * py + 0.08 * Math.sin(9 * py - 2 * tNow), 0.06, 0.45); cls = 3; }
     } else if (tg < 1e8) {
       const gx = eye[0] + dx * tg, gz = eye[2] + dz * tg;
       const rr = Math.hypot(gx - sc.look[0], gz - sc.look[2]) / 2.4;
       if (rr < 1) {
-        let sh = 1; { let tt = 0.05; for (let k = 0; k < 18; k++) { const d = sc.sdf(gx + L[0] * tt, L[1] * tt, gz + L[2] * tt); if (d < 0.003) { sh = 0.1; break; } tt += Math.max(0.03, d); if (tt > 4) break; } }
+        let sh = 1; solidOnly = true; { let tt = 0.05; for (let k = 0; k < 18; k++) { const d = sc.sdf(gx + L[0] * tt, L[1] * tt, gz + L[2] * tt); if (d < 0.003) { sh = 0.1; break; } tt += Math.max(0.03, d); if (tt > 4) break; } } solidOnly = false;
         const fall = 1 - rr; I = 0.11 * fall * fall * sh; cls = 3;
       }
     }
@@ -1970,18 +1980,18 @@ function renderIcon(g, sc, yaw) {
     if (lv === 0) { if (cls === 3) continue; lv = 1; }
     if (cls === 2 && lv < 2) lv = 2;
     g.chb[cy * cols + cx] = g.CIDX[IRAMP[lv]];
-    g.cob[cy * cols + cx] = cls === 2 ? 1 : cls === 3 ? 2 : 0;
+    g.cob[cy * cols + cx] = cls === 2 ? 1 : cls === 3 ? 2 : cls === 4 ? 3 : 0;
   }
   g.draw();
 }
 const icons = [];
 $$('canvas[data-icon]').forEach((cv) => {
   const sc = ICONS[cv.dataset.icon]; if (!sc) return;
-  const g = makeGrid(cv, 4, [C.ivory, '#c23553', 'rgba(245,240,230,.42)']);
+  const g = makeGrid(cv, 4, [C.ivory, '#c23553', 'rgba(245,240,230,.42)', C.yellow || '#e9b862']);
   const ic = { g, sc, cv, yaw: sc.yaw0, hover: false, raf: 0, last: 0 };
   icons.push(ic);
   const row = cv.closest('.rung');
-  const loop = (now) => { if (!ic.hover) { ic.raf = 0; return; } const dt = Math.min(0.05, (now - ic.last) / 1000); ic.last = now; ic.yaw += dt * 0.9; renderIcon(g, sc, ic.yaw); ic.raf = requestAnimationFrame(loop); };
+  const loop = (now) => { if (!ic.hover) { ic.raf = 0; return; } const dt = Math.min(0.05, (now - ic.last) / 1000); ic.last = now; ic.yaw += dt * 0.9; renderIcon(g, sc, ic.yaw, now / 1000); ic.raf = requestAnimationFrame(loop); };
   if (!REDUCED && row) {
     row.addEventListener('mouseenter', () => { ic.hover = true; ic.last = performance.now(); if (!ic.raf) ic.raf = requestAnimationFrame(loop); });
     row.addEventListener('mouseleave', () => { ic.hover = false; });
@@ -2368,11 +2378,11 @@ function ladderFigs() {
   (function sizeFig() {
     const svg = $('#fig-size'); if (!svg) return;
     const W = 560, H = 300, m = { l: 150, r: 120, t: 26, b: 34 };
-    const rows = [['Kuhn', 12, '12'], ['Leduc', 288, '288'], ['mini-Drawmaha', 1570000, '1.57M'], ['full Drawmaha', 0, 'does not fit']];
+    const rows = [['Kuhn', 12, '12'], ['Leduc', 288, '288'], ['mini-Drawmaha', 6220050, '6.22M'], ['full Drawmaha', 0, 'does not fit']];
     const X = (v) => m.l + (Math.log10(v) / 7) * (W - m.l - m.r);
     const g = svgEl('g', {}, svg); const rh = (H - m.t - m.b) / rows.length;
     for (let p = 0; p <= 7; p++) { const x = X(Math.pow(10, p)); svgEl('line', { class: 'grid', x1: x, x2: x, y1: m.t, y2: H - m.b }, g); svgTxt(g, x, H - m.b + 18, '10' + sup(p), '', 'middle'); }
-    svgTxt(g, W - m.r, H - m.b + 34, 'information sets per player', '', 'end');
+    svgTxt(g, W - m.r, H - m.b + 34, 'information sets', '', 'end');
     const host = svg.closest('.rung');
     rows.forEach((r, i) => {
       const y = m.t + rh * i + rh / 2;
@@ -2404,7 +2414,7 @@ function ladderFigs() {
       }
     }
     svgEl('line', { class: 'grid', x1: tx, x2: tx + cols * cw, y1: ty + rows * rhh, y2: ty + rows * rhh }, g);
-    svgTxt(g, tx + cols * cw / 2, ty + rows * rhh + 22, '… × 3.1M spots, 1.77 GB', '', 'middle');
+    svgTxt(g, tx + cols * cw / 2, ty + rows * rhh + 22, '… × 6.2M spots', '', 'middle');
     svgEl('path', { d: `M${tx + cols * cw + 30} 140 H 300`, class: 'base' }, g);
     svgEl('path', { d: 'M292 134 L300 140 L292 146', class: 'base', fill: 'none' }, g);
     svgTxt(g, 250, 128, 'rung 4', 'r', 'middle');

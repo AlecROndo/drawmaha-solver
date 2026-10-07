@@ -34,7 +34,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 
-APPS = ("rung0-viz", "rung1-viz", "rung2-viz")
+APPS = ("rung0-viz", "rung1-viz", "rung2-viz", "rung3-viz")
 PAGES = ("index.html", "rules.html", "cover.html")
 
 TOKENS = ("--ease-out", "--ease-in-out", "--t-press")
@@ -65,7 +65,7 @@ EXPLANATORY = {
     ".st i": "the in-progress status dot's pulse",
     ".st.prog i": "the ladder's in-progress badge pulse",
     ".st::before": "the Cover ladder's in-progress dot pulse",
-    ".sweep": "rung 2's chips crossing 58 px of felt to the pot, one-shot, 400 ms",
+    ".sweep": "rungs 2 and 3's chips crossing 58 px of felt to the pot, one-shot, 400 ms",
     ".rungs-menu": "the Rungs menu animates width on purpose: it pushes Rules aside",
     ".card": "the Rules tab's worked-hand cards, highlighted once by the reading",
 }
@@ -77,6 +77,8 @@ PRESSABLES = {
     "rung0-viz": (".mode-tabs button",),
     "rung1-viz": (".locks button.unlock",),
     "rung2-viz": (".tl button.stn", ".next button", ".lockbtn"),
+    # rung 3's buttons are all the theme's .btn; the race chart is hovered, not pressed
+    "rung3-viz": (),
     "index.html": (
         ".btn",
         ".navbtn",

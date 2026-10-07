@@ -13,7 +13,7 @@
 # fine and then never get served.
 set -euo pipefail
 
-rungs=(rung0 rung1 rung2)
+rungs=(rung0 rung1 rung2 rung3)
 
 for rung in "${rungs[@]}"; do
   (cd "web/$rung-viz" && npm ci && npm run build)

@@ -1,0 +1,620 @@
+/*
+ * Rung 3's own figures, on top of the shared theme (theme.css): the identity
+ * inks for the four regret rules and the actions, the race and the bar
+ * charts, the stacked category bars, the prose rows, the oval table with
+ * three cards a seat and two on the board, and the decision sidebar.
+ * Everything here reads the theme's tokens and moves the way web/DESIGN.md
+ * says: the only motion this sheet owns is the swept chips, one-shot, 400 ms,
+ * allowlisted in the standard's test as `.sweep`.
+ */
+
+:root {
+  /* The four rules, held across every figure: the winner is the yellow (the
+     thing you are pointing at), vanilla plain ivory, and the two rules that
+     discard negative regret share the pink — CFR+ solid, DCFR dashed, because
+     the finding is that they became one rule. */
+  --rule-vanilla: var(--ivory);
+  --rule-lcfr: var(--yellow);
+  --rule-cfrplus: var(--pink);
+  --rule-dcfr: var(--ox-lit);
+
+  /* Action identity, as on rung 2: the bet is the aggressive act and takes
+     the pink, the check the yellow, the fold the quiet ink. At the draw,
+     standing pat is the quiet choice (yellow) and the three throws are the
+     pink at three depths, low to top. */
+  --act-check: var(--yellow);
+  --act-bet: var(--pink);
+  --act-fold: var(--iv-45);
+  --throw-low: rgba(216, 86, 111, 0.45);
+  --throw-mid: rgba(216, 86, 111, 0.7);
+  --throw-top: var(--pink);
+
+  /* the two seats in Fig. 3 */
+  --seat-p0: var(--ivory);
+  --seat-p1: var(--yellow);
+
+  /* your hand on the hand: the roll */
+  --lock: var(--ivory);
+  --win: var(--yellow);
+  --loss: var(--pink);
+}
+
+.block {
+  margin-top: 26px;
+}
+
+/* ---------- charts -------------------------------------------------------- */
+
+.chart {
+  margin-top: 12px;
+}
+
+.chart.race:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.legend .item small {
+  color: var(--iv-45);
+}
+
+.legend .swatch.dcfr {
+  background: repeating-linear-gradient(90deg, var(--ox-lit) 0 4px, transparent 4px 7px) !important;
+}
+
+.legend .swatch.col-linear {
+  background: var(--iv-80);
+}
+
+.legend .swatch.col-uniform {
+  background: var(--iv-30);
+}
+
+.legend .swatch.col-quadratic {
+  background: repeating-linear-gradient(90deg, var(--iv-60) 0 3px, transparent 3px 5px);
+}
+
+/* the checkpoint readout's rule names wear the rule's ink */
+.panel .stat dt[style] {
+  opacity: 0.9;
+}
+
+/* ---------- the LCFR run, as a small table under Fig. 3 ------------------- */
+
+.rows.run {
+  margin-top: 18px;
+  font: 400 11.5px/1.4 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.rows.run th {
+  text-align: right;
+  font: 400 9.5px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  padding: 0 0 8px;
+}
+
+.rows.run th:first-child,
+.rows.run td:first-child {
+  text-align: left;
+}
+
+.rows.run td {
+  text-align: right;
+  padding: 7px 0;
+  color: var(--iv-80);
+}
+
+.rows.run tr:first-child td {
+  border-top: 1px solid var(--iv-16);
+}
+
+.rows.run tr:last-child td {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+/* ---------- the prose rows ------------------------------------------------ */
+
+.rows.prose .g {
+  width: 320px;
+  font-size: 20px;
+}
+
+.rows.prose .p {
+  font-family: var(--sans);
+}
+
+.rows.prose .p i {
+  font-style: italic;
+}
+
+.rows.prose .p b {
+  color: var(--ivory);
+  font-weight: 600;
+}
+
+/* a formula on its own line, in the mono voice, inside a prose cell */
+.eq {
+  display: block;
+  margin: 10px 0 10px 18px;
+  font: 500 13px/1.6 var(--mono);
+  color: var(--ivory);
+  letter-spacing: 0.01em;
+}
+
+/* ---------- figs. 4–5: stacked category bars ------------------------------ */
+
+.spots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 26px;
+  margin-top: 6px;
+}
+
+.spot .k {
+  display: block;
+  font: 400 10px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  margin-bottom: 10px;
+}
+
+.catbars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.catbars li {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--iv-06);
+}
+
+.catbars .cat {
+  font: 400 11px/1.3 var(--mono);
+  color: var(--iv-60);
+}
+
+.catbars .mix {
+  display: flex;
+  height: 18px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--well);
+}
+
+.catbars .mix i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  min-width: 0;
+}
+
+.catbars .mix i small {
+  font: 500 10px/1 var(--mono);
+  color: var(--field);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- the caveats window ------------------------------------------- */
+
+.fields.caveats li {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  font-size: 11.5px;
+}
+
+.fields.caveats li span:last-child {
+  color: var(--iv-80);
+}
+
+/* ---------- fig. 7: the oval table --------------------------------------- */
+
+.table {
+  position: relative;
+  max-width: 560px;
+  margin: 22px auto 0;
+}
+
+.table .felt {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: var(--iv-60);
+}
+
+.seat-spot {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.seat-spot.villain {
+  top: 7%;
+}
+
+.seat-spot.centre {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.seat-spot.you {
+  bottom: 7%;
+}
+
+.seat-spot .who {
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--iv-60);
+  white-space: nowrap;
+}
+
+.seat-spot .cards {
+  display: flex;
+  gap: 6px;
+}
+
+.seat-spot .pot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 11.5px/1.4 var(--mono);
+  color: var(--iv-60);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The playing cards, as the homepage draws them: a face is ivory paper with
+   the rank in oxblood and the suit glyph under it, a back is oxblood
+   pinstripe, a board card is a transparent frame with ivory ink. */
+.pcard {
+  width: 46px;
+  height: 64px;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: var(--ivory);
+  color: var(--ox);
+  flex: none;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.6);
+}
+
+.pcard b {
+  font: 600 24px/1 var(--display);
+}
+
+.pcard i {
+  font-style: normal;
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* the suits: the heart keeps the oxblood, the diamond and the club are told
+   apart by glyph and a quieter ink */
+.pcard.s0 {
+  color: #2a2426;
+}
+
+.pcard.s1 {
+  color: #8a5a12;
+}
+
+.pcard.back {
+  background: repeating-linear-gradient(45deg, var(--ox) 0 2px, transparent 2px 6px) var(--well);
+  border: 1px solid var(--ox-lit);
+}
+
+.seat-spot.centre .pcard {
+  background: transparent;
+  border: 1px solid var(--iv-30);
+  color: var(--ivory);
+  box-shadow: none;
+}
+
+.pcard.empty {
+  border: 1px dashed var(--iv-16);
+  background: transparent;
+  box-shadow: none;
+}
+
+.pcard.small {
+  width: 22px;
+  height: 30px;
+  border-radius: 3px;
+  box-shadow: none;
+  gap: 0;
+}
+
+.pcard.small b {
+  font-size: 12px;
+}
+
+.pcard.small i {
+  font-size: 8px;
+}
+
+.play-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 22px;
+  min-height: 40px;
+  align-items: center;
+}
+
+.play-buttons .waiting {
+  font: 400 11.5px/1 var(--mono);
+  color: var(--iv-45);
+}
+
+.playpanel .stat {
+  justify-content: center;
+}
+
+.playpanel .stat dd.seat {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---------- the decision sidebar ----------------------------------------- */
+
+.playwrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 312px;
+  gap: 30px;
+  align-items: start;
+  margin-top: 8px;
+}
+
+.playside .k {
+  display: block;
+  margin-bottom: 4px;
+  font: 400 10px/1.4 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+}
+
+.playside ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.side-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--iv-10);
+}
+
+.side-who {
+  font: 500 9.5px/1.6 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+}
+
+.side-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font: 400 12px/1.5 var(--mono);
+}
+
+.side-main b {
+  font: 600 13px/1.4 var(--mono);
+}
+
+.side-main b small {
+  font-weight: 400;
+  color: var(--iv-60);
+}
+
+.side-main b .note-drew {
+  color: var(--yellow);
+}
+
+.side-mix {
+  display: flex;
+  gap: 10px;
+  font-size: 10.5px;
+  color: var(--iv-60);
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+}
+
+.side-mix .chosen {
+  color: var(--ivory);
+  font-weight: 600;
+}
+
+.side-row.board {
+  align-items: center;
+}
+
+.side-grade {
+  grid-column: 2;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin-top: 4px;
+  font: 400 11px/1.4 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The roll is an instruction, so it wears the lock's ink: your hand on the hand. */
+.side-grade .roll {
+  border: 1px solid var(--lock);
+  color: var(--lock);
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-weight: 600;
+}
+
+.side-grade .ok {
+  color: var(--win);
+  font-weight: 600;
+}
+
+.side-grade .bad {
+  color: var(--loss);
+  font-weight: 500;
+}
+
+.side-row.live {
+  border-left: 2px solid var(--lock);
+  padding-left: 10px;
+  margin-left: -12px;
+}
+
+.side-row.verdict .side-main {
+  color: var(--iv-80);
+  font-size: 11.5px;
+}
+
+.side-total {
+  margin: 12px 0 0;
+  font: 400 11.5px/1.5 var(--mono);
+  color: var(--iv-60);
+  font-variant-numeric: tabular-nums;
+}
+
+.side-total b {
+  color: var(--ivory);
+}
+
+.seat-spot .did {
+  font: 400 11px/1 var(--mono);
+  color: var(--iv-60);
+  min-height: 11px;
+}
+
+/* chips: monoline plates, the amount beside them */
+.chipstack {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--iv-80);
+}
+
+.chipstack svg {
+  width: 26px;
+  height: 22px;
+  display: block;
+}
+
+.chipstack b {
+  font: 600 11.5px/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ivory);
+}
+
+/* A closed round's chips slide to the pile. The tokens are transient: they
+   spawn at the seat, glide to the middle, fade, and unmount. They leave fast
+   and settle (ease-out): a chip pushed across felt does not accelerate. */
+.sweep {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.sweep.from-villain {
+  top: 30%;
+  animation: sweep-down 0.4s var(--ease-out) forwards;
+}
+
+.sweep.from-you {
+  bottom: 30%;
+  animation: sweep-up 0.4s var(--ease-out) forwards;
+}
+
+@keyframes sweep-down {
+  to {
+    transform: translateX(-50%) translateY(58px);
+    opacity: 0;
+  }
+}
+
+@keyframes sweep-up {
+  to {
+    transform: translateX(-50%) translateY(-58px);
+    opacity: 0;
+  }
+}
+
+/* Under reduced motion the chips do not travel, but they must still leave:
+   the token unmounts on animationend, so `animation: none` would strand it
+   on the felt. It fades in place for the same 400 ms instead. */
+@keyframes sweep-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ---------- narrow -------------------------------------------------------- */
+
+@media (max-width: 1080px) {
+  .playwrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .spots {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rows.prose .g {
+    width: 220px;
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 640px) {
+  .rows.prose tr {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .rows.prose .g,
+  .rows.prose .p {
+    width: auto;
+    grid-column: 2;
+    padding-left: 0;
+  }
+
+  .rows.prose .p {
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
+/* Reduced motion (web/DESIGN.md): this figure owns no pressables of its own
+   (the buttons are the theme's .btn), and the swept chips fade where they
+   are instead of crossing the felt. */
+@media (prefers-reduced-motion: reduce) {
+  .sweep.from-villain,
+  .sweep.from-you {
+    animation-name: sweep-fade;
+  }
+}

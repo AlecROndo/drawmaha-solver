@@ -1,7 +1,7 @@
 # The UI standard for drawmaha.app
 
 Every page of the site — the homepage, the Rules tab, the Cover and the
-three rung visualizers — is held to this document. It is the design
+four rung visualizers — is held to this document. It is the design
 engineering stance in Emil Kowalski's sense: taste is a set of decisions
 made the same way every time, most of which nobody consciously notices, and
 which compound into software that feels right. The visual theme (field,
@@ -16,12 +16,12 @@ stylesheet in `web/`; the judgement half is the review table at the end.
 
 | Surface | File | Notes |
 | --- | --- | --- |
-| Shared chrome (top bar, Rungs menu, buttons, hero, windows, views, footer) | `web/rung{0,1,2}-viz/src/theme.css` | Byte-identical in all three apps; edit rung 0's and `cp` across (`tests/test_shared_chrome.py`) |
-| Each rung's own figures | `web/rung{0,1,2}-viz/src/index.css` | On top of the theme; reads its tokens |
+| Shared chrome (top bar, Rungs menu, buttons, hero, windows, views, footer) | `web/rung{0,1,2,3}-viz/src/theme.css` | Byte-identical in all four apps; edit rung 0's and `cp` across (`tests/test_shared_chrome.py`) |
+| Each rung's own figures | `web/rung{0,1,2,3}-viz/src/index.css` | On top of the theme; reads its tokens |
 | Homepage, Rules, Cover | `web/cover/{index,rules,cover}.html` | Each inlines its own copy of the chrome CSS, minified, one rule per line |
 
 A rule that belongs to the chrome therefore lands in **four** places: the
-theme (then copied twice) and each of the three pages. The tokens below are
+theme (then copied three times) and each of the three pages. The tokens below are
 declared in all four `:root` blocks and the test checks they agree.
 
 ## The motion tokens
@@ -71,7 +71,7 @@ hard-codes a curve.
 | --- | --- | --- | --- |
 | Everything pressable shrinks to `scale(0.97)` for 160 ms on `:active` | `.btn`, `.navbtn`, `.view`, the rungs in the menu, the mode tabs, the timeline stations, the lock buttons, the console and seat buttons had hover colour and nothing on press | one `:active` rule per pressable, `transform var(--t-press) var(--ease-out)` added to its transition | the page confirms it heard the press before anything else happens; one value everywhere so the whole site presses alike |
 | A disabled control does not answer a press | — | `.btn:active:not(:disabled)`, `.seg button:active:not([disabled])` | feedback on a dead button is a lie |
-| Entrances use `--ease-out`, never `ease-in` | rung 2's chips swept to the pot with `0.55s ease-in` | `0.4s var(--ease-out)` | a chip pushed across felt leaves fast and settles; ease-in made it hesitate then lurch |
+| Entrances use `--ease-out`, never `ease-in` | rung 2's chips (and rung 3's) swept to the pot with `0.55s ease-in` | `0.4s var(--ease-out)` | a chip pushed across felt leaves fast and settles; ease-in made it hesitate then lurch |
 | Chrome motion stays under 300 ms per declaration | Rungs menu: width 500 ms, rope 550 ms, cells 340 ms with a 75 ms stagger (last cell lands at 640 ms) | width 300 ms, rope 300 ms, cells 240 ms with a 40 ms stagger (settled by 400 ms) | a 180 ms dropdown feels more responsive than a 400 ms one, at the same frame rate |
 | Exits are faster than entrances | cells closed in 140 ms | 120 ms, menu's visibility delay matched to it | the user has decided; the page just answers |
 | Stagger 30–80 ms between siblings, never blocking | 75 ms (wide) / 55 ms (narrow) | 40 ms / 35 ms | a cascade reads as one gesture, not a queue |
@@ -112,7 +112,7 @@ or not animated at all (rung 0's `.bar-fill`).
 - A new entrance over 300 ms, a figure with its own curve, or a width
   animation is an exception: add the selector to `EXPLANATORY` in the test
   with a one-line reason, the way the existing ones are.
-- A chrome change goes into the theme, is copied to the other two apps, and
+- A chrome change goes into the theme, is copied to the other three apps, and
   is made again in each of the three pages' inline `<style>`.
 - Review it the next day, at 4× slow motion in DevTools (Animations panel),
   and on a phone over the LAN for anything touched.
