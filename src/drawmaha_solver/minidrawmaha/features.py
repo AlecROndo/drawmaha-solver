@@ -44,8 +44,11 @@ from functools import cache
 import numpy as np
 
 from drawmaha_solver.minidrawmaha.cards import DECK, N_RANKS, N_SUITS, Card
-from drawmaha_solver.minidrawmaha.enumeration import private_keys
-from drawmaha_solver.minidrawmaha.game import Action
+from drawmaha_solver.minidrawmaha.enumeration import (
+    private_keys,
+    public_decision_points,
+)
+from drawmaha_solver.minidrawmaha.game import STACK, Action, DrawSignal, chip_state
 
 # ---------------------------------------------------------------------------
 # The widths
@@ -108,3 +111,75 @@ def private_features(*, board_cards: int, discards: int) -> np.ndarray:
         table[position] = private_row(hole, discarded, board)
     table.setflags(write=False)
     return table
+
+# ---------------------------------------------------------------------------
+# The public half: draws, betting, chips, seat and stage
+# ---------------------------------------------------------------------------
+
+def public_row(
+    *,
+    draws: tuple[DrawSignal, ...],
+    betting: tuple[tuple[Action, ...], ...],
+    player: int,
+    is_draw: bool,
+) -> np.ndarray:
+    """A public point's 44 floats: draw signals, betting slots, chips, seat, stage.
+
+    Draw signals: per seat, one-hot over {not drawn yet, threw 0, threw 1}.
+    Betting: per round, five slots, each a one-hot over {fold, check/call,
+    pot} for the action in that slot and zeros past the line's end — so the
+    ORDER of the line is in the vector, not just which actions it holds.
+    Chips: the pot and each seat's chips behind, over the 26-chip stack.
+    Stage: round 1, the draw, round 2.
+    """
+    row = np.zeros(PUBLIC_WIDTH, dtype=np.float32)
+    for seat in (0, 1):
+        state = 1 + draws[seat].count if len(draws) > seat else 0
+        row[seat * _DRAW_STATES + state] = 1.0
+    at = DRAW_WIDTH
+    for round_index in range(2):
+        line = betting[round_index] if round_index < len(betting) else ()
+        for slot, action in enumerate(line):
+            row[at + (round_index * LINE_SLOTS + slot) * _BETTING_ACTIONS + int(action)] = 1.0
+    at += BETTING_WIDTH
+    chips = chip_state(betting)
+    row[at : at + CHIP_WIDTH] = (
+        chips.pot / STACK,
+        chips.behind[0] / STACK,
+        chips.behind[1] / STACK,
+    )
+    at += CHIP_WIDTH
+    row[at + player] = 1.0
+    stage = 1 if is_draw else (len(betting) - 1) * 2
+    row[at + 2 + stage] = 1.0
+    return row
+
+@cache
+def public_features() -> np.ndarray:
+    """Every public decision point as a row, in walk order; read-only, built once."""
+    points = public_decision_points()
+    table = np.empty((len(points), PUBLIC_WIDTH), dtype=np.float32)
+    for index, point in enumerate(points):
+        table[index] = public_row(
+            draws=point.draws,
+            betting=point.betting,
+            player=point.player,
+            is_draw=point.is_draw_decision,
+        )
+    table.setflags(write=False)
+    return table
+
+# ---------------------------------------------------------------------------
+# The gather: which head columns a ledger's columns are
+# ---------------------------------------------------------------------------
+
+@cache
+def legal_gather() -> np.ndarray:
+    """Per public point, the head column of each ledger column, −1 past the ledger's width."""
+    points = public_decision_points()
+    gather = np.full((len(points), MAX_WIDTH), NO_ACTION, dtype=np.int8)
+    for index, point in enumerate(points):
+        for column, action in enumerate(point.actions):
+            gather[index, column] = int(action)
+    gather.setflags(write=False)
+    return gather
