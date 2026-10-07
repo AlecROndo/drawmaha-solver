@@ -6,8 +6,9 @@
  *      thing you are pointing at (the average, the call), pink is the
  *      aggressive act (the bet, the current iterate, the head of a trail).
  *      Oxblood is the brand: the chip's pattern and the squiggle, never ink.
- *   2. Three type voices — Instrument Serif for headlines, Instrument Sans
- *      for prose, IBM Plex Mono for the UI and every number.
+ *   2. Three type voices — Plus Jakarta Sans at 600 for headlines and every
+ *      display numeral, Instrument Sans for prose, IBM Plex Mono for the UI
+ *      and every number in a figure.
  *   3. The chip is the mark: an ASCII chip turning in the top bar and again
  *      at the foot of the page, and each rung opens on its own ASCII object,
  *      the same one that stands for it in the cover's ladder.
@@ -53,7 +54,7 @@
   --panel-hair: var(--iv-10);
   --panel-border: var(--iv-16);
 
-  --serif: 'Instrument Serif', Georgia, serif;
+  --display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
   --sans: 'Instrument Sans', system-ui, -apple-system, sans-serif;
 
@@ -151,9 +152,11 @@ button {
 }
 
 .chip-home .word {
-  font-family: var(--serif);
+  font-family: var(--display);
+  font-weight: 600;
   font-size: 24px;
   line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 .chip-home .word small {
@@ -311,8 +314,8 @@ button {
 }
 
 .rmain b {
-  font-family: var(--serif);
-  font-weight: 400;
+  font-family: var(--display);
+  font-weight: 600;
   font-size: 21px;
   line-height: 1;
   min-width: 11px;
@@ -565,15 +568,15 @@ main {
 h1,
 h2,
 h3 {
-  font-weight: 400;
+  font-weight: 600;
   margin: 0;
 }
 
 h1 {
-  font-family: var(--serif);
+  font-family: var(--display);
   font-size: clamp(40px, 4.4vw, 64px);
-  line-height: 0.98;
-  letter-spacing: -0.015em;
+  line-height: 1;
+  letter-spacing: -0.03em;
   text-wrap: balance;
   margin-top: 18px;
   max-width: 16ch;
@@ -586,10 +589,10 @@ h2 em {
 }
 
 h2 {
-  font-family: var(--serif);
+  font-family: var(--display);
   font-size: clamp(32px, 3.1vw, 44px);
   line-height: 1.04;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.025em;
   max-width: 22ch;
 }
 
@@ -783,7 +786,7 @@ section.stop {
 
 .titlebar .no {
   margin-left: auto;
-  font-family: var(--serif);
+  font-family: var(--display);
   font-size: 18px;
   color: var(--iv-45);
   line-height: 1;
@@ -796,10 +799,10 @@ section.stop {
 }
 
 .panel h3 {
-  font-family: var(--serif);
+  font-family: var(--display);
   font-size: 26px;
   line-height: 1.12;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   margin: 0;
   max-width: 34ch;
   text-wrap: balance;
@@ -934,7 +937,7 @@ section.stop {
 }
 
 .rows .g {
-  font-family: var(--serif);
+  font-family: var(--display);
   font-size: 22px;
   line-height: 1.2;
   width: 300px;
@@ -1066,7 +1069,8 @@ footer .chip-end canvas {
 footer .tag {
   display: block;
   margin-top: 14px;
-  font-family: var(--serif);
+  font-family: var(--display);
+  font-weight: 600;
   font-style: italic;
   font-size: 19px;
   color: var(--iv-80);

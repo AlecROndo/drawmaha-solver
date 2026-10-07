@@ -198,9 +198,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The board card is the one serif mark on the strip — a card, not a word. */
+/* The board card is the one display-face mark on the strip — a card, not a word. */
 .tl li.board-stn .act {
-  font-family: var(--serif);
+  font-family: var(--display);
   font-size: 22px;
   font-weight: 400;
 }
@@ -671,7 +671,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 400 32px/1 var(--serif);
+  font: 600 32px/1 var(--display);
   background: var(--ivory);
   flex: none;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.6);
@@ -780,7 +780,7 @@
 }
 
 .side-row.board .side-act {
-  font: 400 19px/1 var(--serif);
+  font: 600 19px/1 var(--display);
 }
 
 .side-grade {

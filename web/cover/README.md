@@ -64,11 +64,11 @@ The pages load eight woff2 files from `/fonts/`, all named the @fontsource
 way (`<family>-latin-<weight>-<style>.woff2`), and they reach `public/fonts/`
 by two routes:
 
-- `scripts/vercel_build.sh` copies IBM Plex Mono 400/500/600 and Instrument
-  Serif 400 regular out of rung 0's `@fontsource` packages with `copy_font`.
-  Those are **not** duplicated here.
-- The other four — Instrument Sans 400/500/600 (the prose voice) and
-  Instrument Serif 400 italic — live in `fonts/` in this directory, and the
+- `scripts/vercel_build.sh` copies IBM Plex Mono 400/500/600 and Plus
+  Jakarta Sans 600 regular (the display voice) out of rung 0's `@fontsource`
+  packages with `copy_font`. Those are **not** duplicated here.
+- The other four — Instrument Sans 400/500/600 (the prose voice) and Plus
+  Jakarta Sans 600 italic — live in `fonts/` in this directory, and the
   build copies them beside the rest. (The visualizers bundle their own copies
   of all eight into their `assets/`; `/fonts/` serves only these pages.)
 
@@ -109,7 +109,7 @@ mkdir "$tmp/fonts"
 cp web/cover/fonts/*.woff2 "$tmp/fonts/"
 # the four the build copies from @fontsource (after an npm ci in web/rung0-viz):
 f=web/rung0-viz/node_modules/@fontsource
-cp $f/instrument-serif/files/instrument-serif-latin-400-normal.woff2 "$tmp/fonts/"
+cp $f/plus-jakarta-sans/files/plus-jakarta-sans-latin-600-normal.woff2 "$tmp/fonts/"
 for w in 400 500 600; do cp $f/ibm-plex-mono/files/ibm-plex-mono-latin-$w-normal.woff2 "$tmp/fonts/"; done
 (cd "$tmp" && python3 -m http.server 8790)
 ```

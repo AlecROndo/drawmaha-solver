@@ -6,8 +6,8 @@
 <title>The rules of Drawmaha — Drawmaha Solver</title>
 <meta name="description" content="What Drawmaha is and how a hand is played: five cards, five streets, one draw, and a pot split between the best Omaha hand and the best five-card draw hand.">
 <style>
-@font-face{font-family:'Instrument Serif';font-style:normal;font-weight:400;src:url('/fonts/instrument-serif-latin-400-normal.woff2') format('woff2');font-display:swap}
-@font-face{font-family:'Instrument Serif';font-style:italic;font-weight:400;src:url('/fonts/instrument-serif-latin-400-italic.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:600;src:url('/fonts/plus-jakarta-sans-latin-600-normal.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Plus Jakarta Sans';font-style:italic;font-weight:600;src:url('/fonts/plus-jakarta-sans-latin-600-italic.woff2') format('woff2');font-display:swap}
 @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;src:url('/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');font-display:block}
 @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;src:url('/fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2');font-display:block}
 @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;src:url('/fonts/ibm-plex-mono-latin-600-normal.woff2') format('woff2');font-display:block}
@@ -34,7 +34,7 @@
   --yellow-20:rgba(233,184,98,.2);
   --pink:#d8566f;
   --pink-20:rgba(216,86,111,.2);
-  --serif:'Instrument Serif',Georgia,serif;
+  --display:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
   --sans:'Instrument Sans',system-ui,-apple-system,sans-serif;
   --max:1312px;
@@ -57,10 +57,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--iv-60);display:flex;align-items:center;gap:10px}
 .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--pink);box-shadow:0 0 0 3px var(--pink-20)}
 h1,h2,h3{font-weight:400;margin:0}
-h1{font-family:var(--serif);font-size:clamp(44px,4.9vw,72px);line-height:.98;letter-spacing:-.015em;text-wrap:balance}
+h1{font-family:var(--display);font-weight:600;font-size:clamp(44px,4.9vw,72px);line-height:1;letter-spacing:-.03em;text-wrap:balance}
 h1 em,h2 em{font-style:italic;color:var(--yellow)}
-h2{font-family:var(--serif);font-size:clamp(34px,3.2vw,46px);line-height:1.04;letter-spacing:-.01em;text-wrap:balance}
-h3{font-family:var(--serif);font-size:30px;line-height:1.1}
+h2{font-family:var(--display);font-weight:600;font-size:clamp(34px,3.2vw,46px);line-height:1.04;letter-spacing:-.025em;text-wrap:balance}
+h3{font-family:var(--display);font-weight:600;letter-spacing:-.02em;font-size:30px;line-height:1.1}
 p{margin:0}
 .lede{font-size:18px;line-height:1.5;color:var(--iv-80);max-width:52ch}
 .lede b{color:var(--ivory);font-weight:500}
@@ -81,7 +81,7 @@ p{margin:0}
 .top .wrap{display:flex;align-items:center;gap:20px;height:var(--topbar)}
 .chip-home{display:flex;align-items:center;gap:12px;text-decoration:none}
 .chip-home canvas{width:56px;height:56px;display:block}
-.chip-home .word{font-family:var(--serif);font-size:24px;line-height:1}
+.chip-home .word{font-family:var(--display);font-weight:600;font-size:24px;line-height:1;letter-spacing:-.02em}
 .chip-home .word small{display:block;white-space:nowrap;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--iv-45);margin-top:3px}
 /*@NAVCSS@*/
 .nav{margin-left:auto;display:flex;align-items:center;gap:2px;font-family:var(--mono);font-size:13px}
@@ -103,7 +103,7 @@ p{margin:0}
 .rcell::after{content:'';position:absolute;left:0;right:0;top:100%;height:14px}
 .rmain{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border:1px solid var(--iv-30);border-radius:4px;text-decoration:none;color:var(--ivory);white-space:nowrap;transition:background .15s,border-color .15s,transform var(--t-press) var(--ease-out)}
 .rmain:active{transform:scale(.97)}
-.rmain b{font-family:var(--serif);font-weight:400;font-size:21px;line-height:1;min-width:11px;text-align:center}
+.rmain b{font-family:var(--display);font-weight:600;font-size:21px;line-height:1;min-width:11px;text-align:center}
 .rmain span{font-size:11px;letter-spacing:.02em;color:var(--iv-60)}
 .rmain:hover,.rcell:focus-within .rmain{background:var(--iv-06);border-color:var(--iv-60)}
 .rcell.now .rmain{border-color:rgba(216,86,111,.35)} .rcell.now .rmain b{color:var(--pink)} .rcell.now .rmain span{color:var(--iv-45)}
@@ -129,7 +129,7 @@ p{margin:0}
 .order-list .t b{color:var(--iv-80);font-weight:500;letter-spacing:.04em;text-transform:none}
 .order-list .row{display:grid;grid-template-columns:34px 92px 1fr;gap:12px;align-items:baseline;padding:9px 16px;border-bottom:1px solid var(--iv-06)}
 .order-list .row:last-child{border-bottom:0}
-.order-list .row .n{font-family:var(--serif);font-size:18px;color:var(--iv-45);line-height:1}
+.order-list .row .n{font-family:var(--display);font-size:18px;color:var(--iv-45);line-height:1}
 .order-list .row .s{font-size:12.5px;font-weight:500;color:var(--ivory)}
 .order-list .row .d{font-size:11px;color:var(--iv-60);line-height:1.4}
 .order-list .row.b{background:var(--iv-03);padding:6px 16px}
@@ -156,7 +156,7 @@ section{padding:112px 0 0}
 .beat{min-height:76vh;padding:0 0 8vh;max-width:440px;opacity:.36;transition:opacity .45s ease}
 .beat.on{opacity:1}
 .beat .street{display:flex;align-items:baseline;gap:14px;margin-bottom:12px}
-.beat .street .n{font-family:var(--serif);font-size:46px;line-height:1;letter-spacing:-.02em;color:var(--ivory)}
+.beat .street .n{font-family:var(--display);font-size:46px;line-height:1;letter-spacing:-.02em;color:var(--ivory)}
 .beat .street .k{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--pink)}
 .beat h3{font-size:31px;line-height:1.12;margin:0 0 14px;text-wrap:balance}
 .beat p{font-size:16.5px;line-height:1.55;color:var(--iv-80);margin:0 0 12px}
@@ -205,7 +205,7 @@ section{padding:112px 0 0}
 .readings .lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45);margin-bottom:8px;display:flex;justify-content:space-between;gap:12px}
 .readings .lbl b{color:var(--iv-80);font-weight:500;letter-spacing:.04em;text-transform:none}
 .cards{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
-.card{width:50px;height:70px;border-radius:5px;background:var(--ivory);color:#1a1214;display:flex;flex-direction:column;justify-content:space-between;padding:5px 6px;font-family:var(--serif);font-size:22px;line-height:.9;position:relative;box-shadow:0 3px 0 rgba(0,0,0,.6);transition:box-shadow .2s}
+.card{width:50px;height:70px;border-radius:5px;background:var(--ivory);color:#1a1214;display:flex;flex-direction:column;justify-content:space-between;padding:5px 6px;font-family:var(--display);font-size:22px;line-height:.9;position:relative;box-shadow:0 3px 0 rgba(0,0,0,.6);transition:box-shadow .2s}
 .card.r{color:var(--ox)}
 .card .s{font-size:16px;align-self:flex-end}
 .card.dim{opacity:.32}
@@ -222,7 +222,7 @@ section{padding:112px 0 0}
 .read .who.y{color:var(--yellow)} .read .who.p{color:var(--pink)}
 .read .hand{font-size:13px;color:var(--ivory);font-weight:500;line-height:1.5}
 .read .hand small{display:block;font-weight:400;color:var(--iv-60);font-size:11px;margin-top:2px}
-.read .res{margin-top:10px;font-family:var(--serif);font-size:22px;line-height:1.1;color:var(--ivory)}
+.read .res{margin-top:10px;font-family:var(--display);font-size:22px;line-height:1.1;color:var(--ivory)}
 .read .res small{display:block;font-family:var(--mono);font-size:11px;color:var(--iv-60);margin-top:6px;line-height:1.5}
 .readings .split{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:11px;color:var(--iv-60)}
 .readings .split>div{display:flex;align-items:center;gap:10px}
@@ -240,14 +240,14 @@ section{padding:112px 0 0}
 .who .stand h3{font-size:34px;margin:8px 0 16px}
 .figures{display:grid;grid-template-columns:repeat(3,auto);gap:32px;margin-top:34px;justify-content:start}
 .figures div{border-top:1px solid var(--iv-16);padding-top:12px;min-width:120px}
-.figures .n{font-family:var(--serif);font-size:32px;line-height:1;margin-bottom:8px;color:var(--yellow)}
+.figures .n{font-family:var(--display);font-size:32px;line-height:1;margin-bottom:8px;color:var(--yellow)}
 .figures .n small{font-family:var(--mono);font-size:11px;color:var(--iv-45);margin-left:4px}
 .figures .k{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45)}
 
 /* ---------- why nobody has solved it: the numbers ---------- */
 .why{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:40px}
 .why>div{border-top:1px solid var(--iv-16);padding-top:16px}
-.why .n{font-family:var(--serif);font-size:40px;line-height:1;color:var(--ivory);font-variant-numeric:tabular-nums}
+.why .n{font-family:var(--display);font-size:40px;line-height:1;color:var(--ivory);font-variant-numeric:tabular-nums}
 .why .n small{font-family:var(--mono);font-size:11px;color:var(--iv-45);margin-left:6px;letter-spacing:.04em}
 .why .k{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--yellow);margin:10px 0 8px}
 .why p{font-size:15px;color:var(--iv-80);max-width:36ch}
@@ -273,7 +273,7 @@ section{padding:112px 0 0}
 footer{padding:64px 0 56px;font-family:var(--mono);font-size:12px;color:var(--iv-60);text-align:center}
 footer .chip-end{display:inline-block;width:132px;height:132px}
 footer .chip-end canvas{width:132px;height:132px;display:block}
-footer .tag{display:block;margin-top:14px;font-family:var(--serif);font-style:italic;font-size:19px;color:var(--iv-80)}
+footer .tag{display:block;margin-top:14px;font-family:var(--display);font-weight:600;font-style:italic;font-size:19px;color:var(--iv-80)}
 footer .links{margin-top:18px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap}
 footer a{text-decoration:none}
 footer a:hover{color:var(--ivory)}
