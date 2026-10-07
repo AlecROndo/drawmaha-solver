@@ -13,5 +13,8 @@ follows the site's theme by copying its tokens, not by importing them.
   each as inner (five hole cards) and outer (two hole + three board) with draw
   flags, and writes `data.js`. The composition is exact to sampling error; the
   action mix is an illustrative function of the two equities, because rung 4
-  is not trained. `uv run python research/range-ui-studies/compose.py 200000`.
-- `data.js` — the generated data the page reads.
+  is not trained. `uv run python research/range-ui-studies/compose.py 200000`,
+  from the repo root.
+- `data.js` — the generated data the page reads. The sampler is seeded
+  (`random.seed(7)`), so re-running the command above rewrites the file
+  byte-identically; the committed copy is that output.

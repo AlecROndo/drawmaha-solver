@@ -9,8 +9,13 @@
  * policy first lifts each equity by a bonus for the half's draw flags
  * (four-flush, four-straight; flush draw, straight draw), blends the two into
  * `eq`, and reads the pot, fold and call probabilities off logistic curves of
- * `eq` and of the scoop chance `pI × pO` — the same curves as the Python
- * study's `policy()`, so the two agree. A *node* is where the hand acts:
+ * `eq` and of the *scoop proxy* `pI × pO` — the same curves as the Python
+ * study's `policy()`, so the two agree. The proxy is not a scoop probability:
+ * `pI` and `pO` are percentiles against a uniform sample, not win chances
+ * against a betting range, and the two halves are built from the same five
+ * cards, so they are positively correlated and the product understates how
+ * often a strong-both-ways hand scoops. It is a feature the curves read, and
+ * is named a proxy wherever it is drawn. A *node* is where the hand acts:
  * `'facing'` a pot bet (fold / call / pot) or `'open'` first to act (check /
  * pot, fold = 0). The throw rule is a fixed distribution over how many cards
  * to throw at the draw, keyed on the inner class and the draw flags.
@@ -46,10 +51,14 @@ interface Flags {
  * The mix for one hand from its two equities and draw flags. Draws lift the
  * equity of their half (a four-flush most, a gutshot least) because the
  * showdown-now percentile undercounts a hand that will usually improve; the
- * pot curve turns on at eq ≈ 0.74 and the scoop curve at pI × pO ≈ 0.55; big
- * combined outer draws semi-bluff in proportion to how weak the inner is;
- * the fold curve turns on below eq ≈ 0.47 and only over what is not potted,
- * so the three always sum to one.
+ * pot curve turns on at eq ≈ 0.74 and the scoop curve at the proxy
+ * pI × pO ≈ 0.55 (independence assumed, see the module note); big combined
+ * outer draws semi-bluff in proportion to how weak the inner is; the fold
+ * curve turns on below eq ≈ 0.47 and only over what is not potted, so the
+ * three always sum to one. The `'open'` node reuses the facing-node pot
+ * curve as its bet curve: opening and raising are different decisions and a
+ * trained policy would put the threshold elsewhere, but the illustration
+ * has one curve and says so here.
  */
 function mixFrom(pI: number, pO: number, flags: Flags, node: Node): { f: number; c: number; p: number; eq: number } {
   const pI2 = Math.min(1, pI + (flags.fourFlush ? 0.14 : 0) + (flags.fourStraight === 2 ? 0.06 : flags.fourStraight === 1 ? 0.03 : 0))
@@ -121,10 +130,13 @@ export function mixOfHand(hole: readonly Card[], board: readonly Card[], s: Rang
 }
 
 /**
- * P(throw k), k = 0..5, for one hand. Made hands stand pat; two pair and
- * trips mostly break for one; a four-flush or open four-straight throws its
- * odd card; a pair throws three (or two, keeping a kicker); nothing keeps a
- * flush draw's two or throws three or four.
+ * P(throw k), k = 0..5, for one hand. Made hands (a straight or better)
+ * stand pat; two pair and trips share one rule, standing pat 45 % and
+ * breaking for one 55 % — a simplification for trips, which a draw-poker
+ * player would usually break for two, kept so the inner class alone decides
+ * the count; a four-flush or open four-straight throws its odd card; a pair
+ * throws three (or two, keeping a kicker); nothing keeps a flush draw's two
+ * or throws three or four.
  */
 function throwRule(innerCat: number, flags: Flags): number[] {
   if (innerCat >= 4) return [1, 0, 0, 0, 0, 0]

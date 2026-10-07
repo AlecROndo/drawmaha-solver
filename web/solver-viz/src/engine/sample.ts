@@ -43,9 +43,14 @@ export interface RangeSample {
 }
 
 /**
- * Sorting keys are packed as `value × n + index` into a Float64Array so the
- * engine can use the typed array's native numeric sort; this is the largest
- * n for which score × n + index stays an exact double.
+ * The largest sample the engine will draw: a memory cap, not an exactness
+ * limit. Sorting keys are packed as `score × n + index` into a Float64Array
+ * so the engine can use the typed array's native numeric sort, and the pack
+ * is exact as long as it stays below 2⁵³: every score is below 9 × 13⁵
+ * (`evaluate.ts`: category ≤ 8, tiebreak < 13⁵), which is under 2²², so at
+ * n = 2²³ the key is below 2²² × 2²³ + 2²³ < 2⁴⁶ — seven binary orders of
+ * magnitude of headroom (`sample.test.ts` pins this). A 2²³-hand sample is
+ * about 250 MB of typed arrays, which is where the cap really comes from.
  */
 export const MAX_N = 2 ** 23
 

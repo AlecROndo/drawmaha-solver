@@ -1,7 +1,9 @@
 /**
  * The strength ribbon, stood on end: every holding in the filtered range
  * sorted by one number (total equity, the inner half, the outer half, or
- * the scoop chance), weakest at the bottom, strongest at the top, each
+ * the scoop proxy inner × outer — a feature, not a scoop probability, since
+ * the two halves share the hand's cards), weakest at the bottom, strongest
+ * at the top, each
  * slice a thin horizontal bar whose bands are the mix. Polarisation is a
  * shape you can see: pink at both ends, yellow in the middle. When five
  * cards are placed, the held hand's percentile is a line across the strip.

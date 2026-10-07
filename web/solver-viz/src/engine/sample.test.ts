@@ -4,9 +4,23 @@ import { classifyInner, classifyOuter } from './classify'
 import { innerRow, outerCol } from './regions'
 import { gridView } from './aggregate'
 import { equitiesOfHand, policyFor } from './policy'
-import { exactRange, mulberry32, percentileRanks, sampleRange } from './sample'
+import { CATEGORY_BASE, score5 } from './evaluate'
+import { MAX_N, exactRange, mulberry32, percentileRanks, sampleRange } from './sample'
 
 const FLOP = parseBoard('Ks 9s 4d')
+
+describe('MAX_N', () => {
+  it('keeps score × n + index an exact double: every score is below 9 × 13⁵ < 2²², so the key stays under 2⁴⁶', () => {
+    const scoreBound = 9 * CATEGORY_BASE
+    expect(scoreBound).toBeLessThan(2 ** 22)
+    // the highest hand there is: a royal flush
+    expect(score5('As Ks Qs Js Ts'.split(' ').map(parseCard))).toBeLessThan(scoreBound)
+    const largestKey = (scoreBound - 1) * MAX_N + (MAX_N - 1)
+    expect(largestKey).toBeLessThan(2 ** 46)
+    expect(Number.isSafeInteger(largestKey)).toBe(true)
+    expect(Number.isSafeInteger(largestKey + 1)).toBe(true)
+  })
+})
 
 describe('mulberry32', () => {
   it('is deterministic and lands in [0, 1)', () => {

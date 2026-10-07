@@ -2,10 +2,11 @@
  * Both seats: the other seat's range beside yours, theirs already filtered
  * by what they did on the flop (their betting range when they bet, their
  * checking range when they checked), and in the middle your hovered
- * region's equity against their whole range, split into the two halves and
- * the scoop chance. Under it the filmstrip: the lead-up as a strip of range
- * thumbnails, one per event, so the hand so far reads as two ranges
- * shrinking.
+ * region's showdown-now equity against their whole range, split into the two
+ * halves and the scoop proxy (inner × outer, the halves treated as
+ * independent — they are not, so it is a proxy and is labelled one). Under
+ * it the filmstrip: the lead-up as a strip of range thumbnails, one per
+ * event, so the hand so far reads as two ranges shrinking.
  *
  * Card removal between the seats is ignored: each seat's range is sampled
  * from the same 49 cards. The page says so.
@@ -99,7 +100,7 @@ export function Versus({
           <div className="eq">
             <span className="dimmer">{hover ? `${INNER_ROWS[hover.row].label} × ${OUTER_COLS[hover.col].label}` : 'hover a cell on your side'}</span>
             <b>{eq ? pct0(eq.total) : '—'}</b>
-            <span className="dimmer">total equity vs their range</span>
+            <span className="dimmer">showdown-now equity vs their range</span>
             <div className="two">
               <span>
                 inner <b>{eq ? pct0(eq.inner) : '—'}</b>
@@ -117,7 +118,7 @@ export function Versus({
               </span>
             </div>
           </div>
-          <span className="dimmer small">card removal between the seats is ignored</span>
+          <span className="dimmer small">no draws realised · scoop = inner × outer as if independent · card removal between the seats is ignored</span>
         </div>
         <div className="side">
           <div className="lbl">

@@ -9,10 +9,17 @@
  * The other seat's range is its own sample on the same board (a second
  * seed) with a weight per hand — the probability the *illustrative policy*
  * (`policy.ts`) bets it, say. Equity here is showdown-now: the weighted share
- * of the other range a hand's score beats, ties at half. Card removal between
- * the two seats is ignored on purpose: both samples are drawn from the same
- * 49 unseen cards, so two "opposing" hands may share a card. The error is
- * small and the page says so.
+ * of the other range a hand's score beats, ties at half, with no draw
+ * realised — which is why `policy.ts` adds draw bonuses before reading its
+ * curves. Card removal between the two seats is ignored on purpose: both
+ * samples are drawn from the same 49 unseen cards, so two "opposing" hands
+ * may share a card (about 43 % of pairs do: 1 − C(44,5)/C(49,5)). The error
+ * that leaves in the numbers the page shows is small: measured by comparing
+ * against only the disjoint pairs on K♠ 9♠ 4♦ with 3,000-hand samples, the
+ * whole range's total moves by under 1 point against a betting, checking or
+ * uniform range and each inner row's by about 1 point; a single hand's can
+ * move up to 9 points, so the per-cell readout is the coarsest number here.
+ * `equity.test.ts` pins the first two bounds, and the page says so.
  */
 
 import type { Policy } from './policy'
@@ -69,10 +76,18 @@ const cdfCache = new WeakMap<Float32Array, { other: RangeSample; inner: Weighted
  * For the hands of `s` in `mask` (null = every hand), the mean probability of
  * beating a hand drawn from `other` with probability ∝ `weights` (one weight
  * per hand of `other`, not all zero), on the inner and outer halves; `total`
- * is their average; `scoop` is the mean over hands of P(win inner) ×
- * P(win outer) and `scooped` the mean of P(lose inner) × P(lose outer), both
- * treating the two halves as independent draws. Card removal between the
- * seats is ignored (see the module note). Throws when the mask holds no hand.
+ * is their average — the showdown-now pot share, half the pot to each half,
+ * no draw realised; `scoop` is the mean over hands of P(win inner) ×
+ * P(win outer) and `scooped` the mean of P(lose inner) × P(lose outer). Both
+ * are independence-assumed proxies, not probabilities: the two halves of one
+ * hand share its five cards and are positively correlated, so the product
+ * understates both scooping and being scooped for hands strong (or weak) on
+ * both halves. Card removal between the seats is ignored (see the module
+ * note). The weighted CDF of `other` is cached on the identity of the
+ * `weights` array, so a weights array is treated as immutable once passed:
+ * mutating it in place and calling again reads the stale CDF (`weightsForBet`
+ * returns a fresh copy, and the page never mutates a policy's arrays). Throws
+ * when the mask holds no hand.
  */
 export function equityAgainst(
   s: RangeSample, mask: Uint8Array | null, other: RangeSample, weights: Float32Array,

@@ -51,3 +51,65 @@ describe('equityAgainst', () => {
     expect(() => equityAgainst(s, new Uint8Array(s.n), s, uniform)).toThrow(/mask|hand/)
   })
 })
+
+describe('ignoring card removal between the seats', () => {
+  // Brute force, per hand of `mine`: the weighted total equity over every hand
+  // of `theirs`, and over only the hands that share no card with it. The
+  // module note's "the error is small" is this difference.
+  const mine = sampleRange(FLOP, 2000, 21)
+  const theirs = sampleRange(FLOP, 2000, 22)
+  const theirPolicy = policyFor(theirs, 'open')
+  const sharesACard = (i: number, j: number): boolean => {
+    for (let x = 0; x < 5; x++) for (let y = 0; y < 5; y++) if (mine.cards[i * 5 + x] === theirs.cards[j * 5 + y]) return true
+    return false
+  }
+  const beat = (a: number, b: number): number => (a > b ? 1 : a === b ? 0.5 : 0)
+  const totals = (w: Float32Array): { all: Float64Array; disjoint: Float64Array } => {
+    const all = new Float64Array(mine.n)
+    const disjoint = new Float64Array(mine.n)
+    for (let i = 0; i < mine.n; i++) {
+      let wA = 0
+      let wD = 0
+      let winA = 0
+      let winD = 0
+      for (let j = 0; j < theirs.n; j++) {
+        const win = w[j] * (beat(mine.innerScore[i], theirs.innerScore[j]) + beat(mine.outerScore[i], theirs.outerScore[j])) / 2
+        wA += w[j]
+        winA += win
+        if (!sharesACard(i, j)) {
+          wD += w[j]
+          winD += win
+        }
+      }
+      all[i] = winA / wA
+      disjoint[i] = winD / wD
+    }
+    return { all, disjoint }
+  }
+  const mean = (v: Float64Array, keep: (i: number) => boolean): number => {
+    let sum = 0
+    let m = 0
+    for (let i = 0; i < v.length; i++) if (keep(i)) {
+      sum += v[i]
+      m++
+    }
+    return sum / m
+  }
+
+  for (const [name, weights] of [
+    ['their betting range', theirPolicy.p],
+    ['their checking range', theirPolicy.c],
+    ['their whole range', new Float32Array(theirs.n).fill(1)],
+  ] as const) {
+    it(`moves the whole range's total by under 1 point and each inner row's by under 2 against ${name}`, () => {
+      const { all, disjoint } = totals(weights)
+      const everything = () => true
+      expect(Math.abs(mean(all, everything) - mean(disjoint, everything))).toBeLessThan(0.01)
+      expect(mean(all, everything)).toBeCloseTo(equityAgainst(mine, null, theirs, weights).total, 6)
+      for (let cat = 0; cat <= 3; cat++) {
+        const inRow = (i: number) => mine.innerCat[i] === cat
+        expect(Math.abs(mean(all, inRow) - mean(disjoint, inRow))).toBeLessThan(0.02)
+      }
+    })
+  }
+})
