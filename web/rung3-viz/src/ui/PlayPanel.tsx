@@ -364,7 +364,7 @@ export function PlayPanel({
       </dl>
       <p className="side-total">
         {pack.manifest
-          ? `${pack.manifest.deals} pre-dealt hands in the pack (seed ${pack.manifest.seed}) — the same ${pack.manifest.deals} for every visitor, reshuffled each sitting, the seats alternating and the coach's roll drawn live — ${Math.min(pack.loaded, pack.manifest.chunks.length) * pack.manifest.chunk} loaded; the strategy's digest is ${pack.manifest.strategy.sha256.slice(0, 12)}…. `
+          ? `${pack.manifest.deals} pre-dealt hands in the pack (seed ${pack.manifest.seed}) — the same ${pack.manifest.deals} for every visitor, reshuffled each sitting, the seats alternating and the coach's roll drawn live — ${Math.min(pack.manifest.deals, pack.loaded * pack.manifest.chunk)} loaded; the strategy's digest is ${pack.manifest.strategy.sha256.slice(0, 12)}…. `
           : ''}
         {pack.error && pack.manifest
           ? `A later chunk was refused (${pack.error}), so play goes on with the hands already in and comes round to them again. `

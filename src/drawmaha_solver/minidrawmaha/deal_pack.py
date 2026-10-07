@@ -263,7 +263,8 @@ def write_pack(
     the manifest on disk, old or new, never names a chunk that is missing.
     The swap is a run of renames and not one atomic step: killed inside it,
     the directory holds one whole manifest and every chunk it names, but the
-    chunks may be a mix of the two exports until the run is repeated.
+    chunks may be a mix of the two exports until the run is repeated. One
+    writer at a time: both sweeps of `*.tmp` assume the stage is this run's.
 
     An empty export or a non-positive chunk is refused here: the browser's
     `checkManifest` would refuse the manifest anyway, and the place to learn
