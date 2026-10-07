@@ -598,9 +598,15 @@ h2 {
 
 .squig {
   display: block;
-  height: 12px;
+  height: auto;
   width: 190px;
   margin-top: 12px;
+}
+
+/* under the h1 the squiggle keeps the h2 proportion: ~4.5x the type size, so
+   it grows with the headline (h1 is clamp(40px, 4.4vw, 64px)) */
+h1 + .squig {
+  width: clamp(190px, 19.8vw, 288px);
 }
 
 .squig path {
