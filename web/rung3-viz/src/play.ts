@@ -113,6 +113,11 @@ const isVector = (v: unknown, width: number): v is number[] =>
 const sameCards = (a: CardIndex[] | undefined, b: CardIndex[]): boolean =>
   Array.isArray(a) && ascending(a).join() === ascending(b).join()
 
+// The grammar is the same for every deal, so it is grown once: round 1, and
+// round 2 after each of the seven lines that reach the draw.
+const ROUND1 = roundTree([])
+const ROUND2 = new Map(ROUND1.closed.map((line) => [line, roundTree([line])]))
+
 /**
  * Why `deal` cannot be played, or null when it is whole. Every node the
  * betting grammar can reach must carry a vector of the right width, every
@@ -124,20 +129,19 @@ const sameCards = (a: CardIndex[] | undefined, b: CardIndex[]): boolean =>
 export function validateDeal(deal: Deal): string | null {
   const deck = deal.deck
   const whole = Array.from({ length: DECK_SIZE }, (_, i) => i)
-  if (!sameCards(deck, whole) || deck.length !== DECK_SIZE) return 'the deck is not a permutation of the fifteen cards'
+  if (!sameCards(deck, whole)) return 'the deck is not a permutation of the fifteen cards'
   for (const seat of [0, 1] as const) {
     if (!sameCards(deal.order?.[seat], deck.slice(3 * seat, 3 * seat + 3))) return `P${seat}'s draw order is not their three cards`
   }
-  const round1 = roundTree([])
-  for (const node of round1.nodes) {
+  for (const node of ROUND1.nodes) {
     if (!isVector(deal.r1?.[node], legalBets([node]).length)) return `round 1 at '${node}' is missing or malformed`
   }
-  for (const line of round1.closed) {
+  for (const line of ROUND1.closed) {
     if (!isVector(deal.d0?.[line], THROWS.length)) return `P0's draw after ${line} is missing or malformed`
     for (const drew of ['0', '1']) {
       if (!isVector(deal.d1?.[line]?.[drew], THROWS.length)) return `P1's draw after ${line} (P0 drew ${drew}) is missing or malformed`
     }
-    const round2 = roundTree([line])
+    const round2 = ROUND2.get(line)!
     for (const combo of COMBOS) {
       for (const node of round2.nodes) {
         if (!isVector(deal.r2?.[line]?.[combo]?.[node], legalBets([line, node]).length)) {

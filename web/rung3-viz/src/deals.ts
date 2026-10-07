@@ -38,7 +38,23 @@ export function checkChunk(manifest: Manifest, index: number, deals: Deal[]): vo
 export async function loadManifest(fetcher: typeof fetch = fetch): Promise<Manifest> {
   const response = await fetcher(`${BASE}index.json`)
   if (!response.ok) throw new Error(`the deal pack's manifest did not load (${response.status})`)
-  return (await response.json()) as Manifest
+  const manifest = (await response.json()) as Manifest
+  checkManifest(manifest)
+  return manifest
+}
+
+/**
+ * Refuse a manifest whose own arithmetic does not close: `deals` in chunks
+ * of `chunk` must name exactly ceil(deals / chunk) chunks, and at least one.
+ * `expectedDeals` divides by this, so it is checked before anything is.
+ */
+export function checkManifest(manifest: Manifest): void {
+  const { deals, chunk, chunks } = manifest
+  const named = Array.isArray(chunks) ? chunks.length : 0
+  const whole = Number.isInteger(deals) && deals > 0 && Number.isInteger(chunk) && chunk > 0
+  if (!whole || named !== Math.ceil(deals / chunk)) {
+    throw new Error(`the manifest describes ${deals} deals in chunks of ${chunk} but names ${named} chunks`)
+  }
 }
 
 export async function loadChunk(name: string, fetcher: typeof fetch = fetch): Promise<Deal[]> {

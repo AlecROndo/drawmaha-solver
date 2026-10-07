@@ -264,8 +264,8 @@ export function ResearchTab() {
                 <span>the trainer</span>
                 <span>
                   plays one seeded pack of 600 pre-dealt hands with the frozen mix at every node — every visitor meets the
-                  same 600 deals, reshuffled each sitting, not fresh draws; the browser reimplements the betting grammar
-                  and nothing about the key
+                  same 600 deals, reshuffled each sitting with the seats alternating and the coach's roll drawn live, not
+                  fresh draws; the browser reimplements the betting grammar and nothing about the key
                 </span>
               </li>
               <li>

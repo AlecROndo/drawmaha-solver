@@ -6,10 +6,12 @@ A stand-in profile plays here (uniform, or a pure one), so nothing needs the
 
 import json
 from collections.abc import Mapping
+from pathlib import Path
 
 import numpy as np
 import pytest
 
+from drawmaha_solver.minidrawmaha import deal_pack
 from drawmaha_solver.minidrawmaha.cards import DECK, parse_cards
 from drawmaha_solver.minidrawmaha.deal_pack import (
     CHOP,
@@ -161,7 +163,7 @@ def test_the_draw_order_is_canonical_not_the_dealt_order(deal):
     assert [DECK[i] for i in deal["order"][0]] != sorted(root.holes[0])
 
 
-def test_p1_s_draw_infoset_sees_how_many_cards_p0_threw_and_not_which():
+def test_p1_draw_infoset_sees_how_many_cards_p0_threw_and_not_which():
     """What `d1` keyed by count rests on: the three single throws are one P1 infoset."""
     closed = deal_from_deck(DECK_ORDER).apply(Action.CHECK_CALL).apply(Action.CHECK_CALL)
     after = {}
@@ -178,6 +180,23 @@ def test_p1_s_draw_infoset_sees_how_many_cards_p0_threw_and_not_which():
 def test_a_profile_whose_p1_draw_depends_on_the_thrown_card_is_refused():
     with pytest.raises(ValueError, match="which card P0 threw"):
         export_deal(DECK_ORDER, Drifting())
+
+
+def test_a_showdown_that_changes_between_lines_is_refused(monkeypatch):
+    """The export banks each combo's showdown once and checks every later line against
+    it. The game cannot make them differ, so the guard is exercised by a showdown that
+    answers differently once the first line's sixteen worlds are banked."""
+    real = deal_pack.showdown
+    calls = []
+
+    def drifting(state):
+        calls.append(state)
+        shown = real(state)
+        return shown if len(calls) <= 16 else {**shown, "inner": (shown["inner"] + 1) % 3}
+
+    monkeypatch.setattr(deal_pack, "showdown", drifting)
+    with pytest.raises(ValueError, match="differs between lines"):
+        export_deal(DECK_ORDER, Uniform())
 
 
 @pytest.mark.parametrize("line", sorted(DRAW_LINES))
@@ -242,3 +261,31 @@ def test_the_pack_is_chunked_with_a_manifest_and_stale_chunks_are_removed(tmp_pa
     chunks = [json.loads((out / name).read_text()) for name in manifest["chunks"]]
     assert [len(c) for c in chunks] == [2, 2, 1]
     assert chunks[0][0] == deal
+
+
+def test_an_export_that_dies_while_staging_leaves_the_previous_pack_whole(tmp_path, deal, monkeypatch):
+    out = tmp_path / "deals"
+    before = write_pack([deal] * 5, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32)
+    (out / "pack-09.json.tmp").write_text("left by an earlier crash")
+    real = Path.write_text
+
+    def dies_on_the_manifest(self, text, *args, **kwargs):
+        if self.name == "index.json.tmp":
+            raise OSError("disk full")
+        return real(self, text, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", dies_on_the_manifest)
+    with pytest.raises(OSError, match="disk full"):
+        write_pack([deal], out, chunk=1, seed=10, info=INFO, sha256="cd" * 32)
+    assert json.loads((out / "index.json").read_text()) == before
+    assert sorted(p.name for p in out.iterdir()) == ["index.json", "pack-00.json", "pack-01.json", "pack-02.json"]
+    assert len(json.loads((out / "pack-00.json").read_text())) == 2
+
+
+def test_a_shorter_export_keeps_the_chunks_it_names_and_removes_the_rest(tmp_path, deal):
+    out = tmp_path / "deals"
+    write_pack([deal] * 5, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32)
+    manifest = write_pack([deal] * 3, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32)
+    assert manifest["chunks"] == ["pack-00.json", "pack-01.json"]
+    assert sorted(p.name for p in out.iterdir()) == ["index.json", "pack-00.json", "pack-01.json"]
+    assert len(json.loads((out / "pack-01.json").read_text())) == 1

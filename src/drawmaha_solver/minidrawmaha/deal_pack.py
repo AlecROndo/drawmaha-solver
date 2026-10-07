@@ -256,21 +256,51 @@ def write_pack(
 ) -> dict[str, object]:
     """Write `deals` in chunks of `chunk` under `out`, with the manifest; returns the manifest.
 
-    Every file is written beside its final name as `*.tmp` and renamed into
-    place only once all of them exist, the manifest last — so an export that
-    dies halfway leaves the previous pack whole, and the manifest never names
-    a chunk that is not there. Earlier `pack-*.json` files are removed at the
-    swap, so a shorter export cannot leave a stale chunk behind.
+    Every file is staged beside its final name as `*.tmp`; a failure while
+    staging removes the stage and leaves the previous pack untouched. Then
+    the swap: the chunks are renamed in, the manifest after them, and last
+    the `pack-*.json` files the new manifest does not name are removed — so
+    the manifest on disk, old or new, never names a chunk that is missing.
+    The swap is a run of renames and not one atomic step: killed inside it,
+    the directory holds one whole manifest and every chunk it names, but the
+    chunks may be a mix of the two exports until the run is repeated.
     """
     out.mkdir(parents=True, exist_ok=True)
+    for orphan in out.glob("*.tmp"):
+        orphan.unlink()
     names = []
-    for number, start in enumerate(range(0, len(deals), chunk)):
-        name = f"pack-{number:02d}.json"
-        (out / f"{name}.tmp").write_text(
-            json.dumps(deals[start : start + chunk], separators=(",", ":"))
-        )
-        names.append(name)
-    manifest = {
+    try:
+        for number, start in enumerate(range(0, len(deals), chunk)):
+            name = f"pack-{number:02d}.json"
+            (out / f"{name}.tmp").write_text(
+                json.dumps(deals[start : start + chunk], separators=(",", ":"))
+            )
+            names.append(name)
+        manifest = _manifest(deals, names, chunk=chunk, seed=seed, info=info, sha256=sha256)
+        (out / "index.json.tmp").write_text(json.dumps(manifest, indent=1))
+    except BaseException:
+        for staged in out.glob("*.tmp"):
+            staged.unlink()
+        raise
+    for name in names:
+        (out / f"{name}.tmp").replace(out / name)
+    (out / "index.json.tmp").replace(out / "index.json")
+    for stale in out.glob("pack-*.json"):
+        if stale.name not in names:
+            stale.unlink()
+    return manifest
+
+def _manifest(
+    deals: list[Deal],
+    names: list[str],
+    *,
+    chunk: int,
+    seed: int,
+    info: StrategyInfo,
+    sha256: str,
+) -> dict[str, object]:
+    """What the browser reads first: the pack's shape and where its strategy came from."""
+    return {
         "seed": seed,
         "deals": len(deals),
         "chunk": chunk,
@@ -284,12 +314,6 @@ def write_pack(
             "seed": info.seed,
         },
     }
-    (out / "index.json.tmp").write_text(json.dumps(manifest, indent=1))
-    for stale in out.glob("pack-*.json"):
-        stale.unlink()
-    for name in [*names, "index.json"]:
-        (out / f"{name}.tmp").replace(out / name)
-    return manifest
 
 def main(argv: list[str] | None = None) -> None:
     """Export a deal pack for the browser from the release strategy, or `--strategy PATH`."""

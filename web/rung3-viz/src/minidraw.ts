@@ -184,11 +184,11 @@ const halfShares = (side: Side): [number, number] =>
 
 /**
  * Net chips to P0 at a finished hand (P1's are the negation), measured
- * against what P0 put in. A fold hands the folder's own stake, ante
- * included, to the other seat: P0 folding costs P0 `committed[0]`, P1
- * folding pays P0 `committed[1]`, which is why the two branches differ in
- * sign. A showdown pays each half of the pot on its own side and nets off
- * what P0 put in.
+ * against what P0 put in. A fold forfeits the folder's OWN stake, ante
+ * included, to the other seat — so the two branches read different stakes
+ * and carry different signs: P0 folding costs P0 `committed[0]`, P1 folding
+ * pays P0 `committed[1]`. A showdown pays each half of the pot on its own
+ * side and nets off what P0 put in.
  */
 export function settle(lines: Line[], inner: Side | null, outer: Side | null): number {
   const chips = replay(lines)
