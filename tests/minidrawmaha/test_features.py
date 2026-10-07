@@ -38,6 +38,7 @@ from drawmaha_solver.minidrawmaha.features import (
     CARD_GROUP,
     FEATURE_WIDTH,
     HEAD_WIDTH,
+    LINE_SLOTS,
     MAX_WIDTH,
     NO_ACTION,
     PRIVATE_WIDTH,
@@ -96,7 +97,9 @@ def test_private_features_follow_private_keys_order(shape):
     keys = private_keys(board_cards=shape[0], discards=shape[1])
     assert table.shape == (len(keys), PRIVATE_WIDTH) and table.dtype == np.float32
     assert not table.flags.writeable
-    for position in (0, len(keys) // 2, len(keys) - 1):
+    # Every row for the two small shapes; the 100,400-row shape is sampled.
+    positions = range(len(keys)) if len(keys) < 20_000 else (0, len(keys) // 2, len(keys) - 1)
+    for position in positions:
         assert np.array_equal(table[position], private_row(*keys[position]))
 
 def test_private_rows_are_distinct_within_a_shape():
@@ -178,6 +181,30 @@ def test_public_features_follow_the_public_points():
 def test_public_rows_are_distinct_across_points():
     assert len(np.unique(public_features(), axis=0)) == len(public_decision_points())
 
+def test_the_longest_line_in_the_game_fills_the_slots_exactly():
+    # The widths are pinned to the game, not assumed: a longer line would
+    # spill into the next round's slots, so the encoder refuses it instead.
+    points = public_decision_points()
+    assert max(len(line) for point in points for line in point.betting) == LINE_SLOTS
+    assert max(len(point.betting) for point in points) == 2
+    assert max(point.width for point in points) == MAX_WIDTH
+    six = ((Action.CHECK_CALL, Action.POT, Action.POT, Action.POT, Action.POT, Action.CHECK_CALL),)
+    with pytest.raises(ValueError):
+        public_row(draws=(), betting=six, player=0, is_draw=False)
+
+def test_the_stage_follows_the_draws_at_every_point():
+    # Round 1 is before either draw, round 2 after both; the stage is read
+    # off the line count, so this pins that the two agree everywhere.
+    table = public_features()
+    for index, point in enumerate(public_decision_points()):
+        stage = table[index, 41:44].tolist()
+        if point.is_draw_decision:
+            assert stage == [0, 1, 0]
+        elif len(point.draws) == 0:
+            assert stage == [1, 0, 0]
+        else:
+            assert len(point.draws) == 2 and stage == [0, 0, 1]
+
 # ---------------------------------------------------------------------------
 # The gather: a ledger's columns inside the 7-wide head
 # ---------------------------------------------------------------------------
@@ -201,14 +228,27 @@ def test_legal_gather_matches_each_points_actions():
 # The reference encoder and the row layout
 # ---------------------------------------------------------------------------
 
+def point_of(key):
+    return (len(key.board), key.draws, key.betting)
+
 @pytest.fixture(scope="module")
 def sampled_keys():
-    # 4,000 keys spread over the whole enumeration, every public point touched.
-    return [key for index, key in enumerate(all_infosets()) if index % 1555 == 0]
+    # 4,000 keys spread over the whole enumeration, plus the first key of
+    # every public point, so the small points the stride skips are covered.
+    seen = set()
+    keys = []
+    for index, key in enumerate(all_infosets()):
+        if index % 1555 == 0 or point_of(key) not in seen:
+            seen.add(point_of(key))
+            keys.append(key)
+    return keys
 
 @pytest.fixture(scope="module")
 def whole_table():
     return PackedTable.whole_game()
+
+def test_sampled_keys_touch_every_public_point(sampled_keys):
+    assert len({point_of(key) for key in sampled_keys}) == len(public_decision_points()) == 141
 
 def test_encode_is_the_private_row_beside_the_public_row(sampled_keys):
     key = sampled_keys[3]
@@ -260,6 +300,13 @@ def test_locate_rows_refuses_rows_past_the_end():
         built.locate_rows(np.array([built.row_offset[-1]]))
     with pytest.raises(IndexError):
         built.locate_rows(np.array([-1]))
+
+def test_rows_of_columns_refuses_columns_past_the_end():
+    built = layout()
+    with pytest.raises(IndexError):
+        built.rows_of_columns(np.array([built.column_offset[-1]]))
+    with pytest.raises(IndexError):
+        built.rows_of_columns(np.array([-1]))
 
 # ---------------------------------------------------------------------------
 # Torch is an optional extra

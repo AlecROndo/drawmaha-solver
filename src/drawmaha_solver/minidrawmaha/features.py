@@ -11,11 +11,12 @@ and nothing in the vector says which row of the table the key sits in.
 **One group of cards is 23 floats.** A multi-hot over the 15-card deck (which
 cards), the count of each of the five ranks (a pair is a 2, trips a 3), and
 the count of each of the three suits (two of a suit is a 2). The counts are
-redundant with the multi-hot and deliberately so: they are the one-hot
-analogue of Brown et al.'s rank and suit embeddings, and let the net carry
-what it learns about "any pair" across cards instead of relearning it per
-card. Suits are already canonical in the key, so suit 0 means the same thing
-in every row.
+redundant with the multi-hot and deliberately so: they are a hand-built,
+unlearned stand-in for Brown et al.'s rank and suit embeddings (which Deep
+CFR learns and sums per card), and they hand the net "any pair" as a feature
+a single unit can read directly, where the multi-hot alone would need a
+nonlinearity to find it card by card. Suits are already canonical in the key,
+so suit 0 means the same thing in every row.
 
 **The vector splits where the key splits.** The enumerator builds a key from
 a private half — `(hole, discarded, board)`, one of three cached shapes — and
@@ -50,7 +51,17 @@ from drawmaha_solver.minidrawmaha.enumeration import (
     private_keys,
     public_decision_points,
 )
-from drawmaha_solver.minidrawmaha.game import STACK, Action, DrawSignal, InfoSet, chip_state
+from drawmaha_solver.minidrawmaha.game import (
+    BETTING_ACTIONS,
+    DRAW_ACTIONS,
+    N_ROUNDS,
+    STACK,
+    THROW_CAP,
+    Action,
+    DrawSignal,
+    InfoSet,
+    chip_state,
+)
 
 # ---------------------------------------------------------------------------
 # The widths
@@ -61,13 +72,18 @@ CARD_GROUP = len(DECK) + N_RANKS + N_SUITS  # 23
 # Hole, discard, board card 1, board card 2.
 PRIVATE_WIDTH = 4 * CARD_GROUP  # 92
 
-# Per seat: has not drawn yet / threw 0 / threw 1.
-_DRAW_STATES = 3
+# Per seat: has not drawn yet, then one state per throw count 0..THROW_CAP.
+_DRAW_STATES = THROW_CAP + 2  # 3
 DRAW_WIDTH = 2 * _DRAW_STATES  # 6
-# The longest betting line is five actions (bet, raise, raise, raise, call).
+# The longest betting line is five actions — check, bet, raise, raise (the
+# all-in), call — which the stack fixes, not a raise cap: pot-limit from the
+# 2-chip ante pot runs 2 -> 8 -> 26 and 25 behind truncates the third raise to
+# a shove, so nothing deeper exists. `public_row` refuses a longer line rather
+# than spilling it into the next round's slots, and the tests pin the maximum
+# over every public point.
 LINE_SLOTS = 5
-_BETTING_ACTIONS = 3
-BETTING_WIDTH = 2 * LINE_SLOTS * _BETTING_ACTIONS  # 30
+_BETTING_ACTIONS = len(BETTING_ACTIONS)  # 3
+BETTING_WIDTH = N_ROUNDS * LINE_SLOTS * _BETTING_ACTIONS  # 30
 # Pot, P0's chips behind, P1's chips behind, each over the stack.
 CHIP_WIDTH = 3
 # Seat to act (2) and stage: round 1, the draw, round 2 (3).
@@ -79,7 +95,7 @@ FEATURE_WIDTH = PRIVATE_WIDTH + PUBLIC_WIDTH  # 136
 # The net's head: one output per Action, indexed by the Action's value.
 HEAD_WIDTH = len(Action)  # 7
 # No ledger is wider than the draw's four throws.
-MAX_WIDTH = 4
+MAX_WIDTH = max(len(BETTING_ACTIONS), len(DRAW_ACTIONS))  # 4
 # The gather's padding for a ledger narrower than MAX_WIDTH.
 NO_ACTION = -1
 
@@ -134,12 +150,14 @@ def public_row(
     Chips: the pot and each seat's chips behind, over the 26-chip stack.
     Stage: round 1, the draw, round 2.
     """
+    if any(len(line) > LINE_SLOTS for line in betting):
+        raise ValueError(f"a betting line is longer than {LINE_SLOTS} actions: {betting}")
     row = np.zeros(PUBLIC_WIDTH, dtype=np.float32)
     for seat in (0, 1):
         state = 1 + draws[seat].count if len(draws) > seat else 0
         row[seat * _DRAW_STATES + state] = 1.0
     at = DRAW_WIDTH
-    for round_index in range(2):
+    for round_index in range(N_ROUNDS):
         line = betting[round_index] if round_index < len(betting) else ()
         for slot, action in enumerate(line):
             row[at + (round_index * LINE_SLOTS + slot) * _BETTING_ACTIONS + int(action)] = 1.0
@@ -152,6 +170,9 @@ def public_row(
     )
     at += CHIP_WIDTH
     row[at + player] = 1.0
+    # The line count says which round a betting decision is in: round 2's
+    # line is opened (empty) the moment the draw ends, so one line means
+    # round 1 and two means round 2, and the draw sits between with one line.
     stage = 1 if is_draw else (len(betting) - 1) * 2
     row[at + 2 + stage] = 1.0
     return row
@@ -226,7 +247,7 @@ class Layout:
     column_offset: np.ndarray  # (142,) int64: where each point's columns start, then the end
     width: np.ndarray  # (141,) int64
     private_offset: np.ndarray  # (141,) int64: where each point's shape starts in `private`
-    private: np.ndarray  # (111,540, 92) float32: the three shapes end to end
+    private: np.ndarray  # (sum of the shapes' key counts, 92) float32: the three shapes end to end
     public: np.ndarray  # (141, 44) float32
 
     def locate_rows(self, rows: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -243,8 +264,15 @@ class Layout:
         return point, rows - self.row_offset[point]
 
     def rows_of_columns(self, columns: np.ndarray) -> np.ndarray:
-        """The row that owns each column start — what a walk's strategy record carries."""
+        """The row that owns each column start — what a walk's strategy record carries.
+
+        Raises `IndexError` for a column outside the table, for the same
+        reason `locate_rows` does: past the end would read a phantom point's
+        width, and a negative column would wrap onto the last point's tail.
+        """
         columns = np.asarray(columns, dtype=np.int64)
+        if columns.size and (columns.min() < 0 or columns.max() >= self.column_offset[-1]):
+            raise IndexError(f"a column is outside the table's {self.column_offset[-1]:,} columns")
         point = np.searchsorted(self.column_offset, columns, side="right") - 1
         return self.row_offset[point] + (columns - self.column_offset[point]) // self.width[point]
 
