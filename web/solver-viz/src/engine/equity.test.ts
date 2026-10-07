@@ -88,7 +88,7 @@ describe('ignoring card removal between the seats', () => {
     }
     return { all, disjoint }
   }
-  // Fails loudly on an empty row (a NaN mean is silent), so the seed is pinned by name.
+  // An empty row would give a NaN mean, which fails the bound below with no hint why; this names the cause.
   const mean = (v: Float64Array, keep: (i: number) => boolean): number => {
     let sum = 0
     let m = 0
