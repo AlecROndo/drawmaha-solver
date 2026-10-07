@@ -154,6 +154,17 @@ caveat that it is one seed. Identity colour inside the figures: the four rules
 get four inks held across every figure; the categories use the theme's
 sequential ramp.
 
+## The rung's object
+
+The hero's raymarched object for rung 3 is a lit cigar (the deck it replaced
+read as a box): a long dark capsule on the felt, the band in the accent two
+fingers from the head, and at the foot the wrapper charring to black, the
+ember glowing in the theme's gold, and a finger of pale pitted ash with red
+flecks in its cracks. A ribbon of smoke wavers up off the tip, drifts with
+time, and casts no shadow (the shadow and occlusion marches skip it). The
+engine grew a fourth palette entry (the gold) and a clock for the smoke; the
+homepage's inline copy of the engine carries the same scene.
+
 ## Chrome and site plumbing
 
 - `site.tsx`: rung 3 is `done` with Analysis and Trainer acts; the top bar's

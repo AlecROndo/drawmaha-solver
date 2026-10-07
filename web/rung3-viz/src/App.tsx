@@ -57,8 +57,8 @@ export default function App() {
               Keeping negative regret wins, <em>by three to four times.</em>
             </>
           }
-          icon="deck"
-          iconLabel="The deck, one card lifted through the gate, drawn in ASCII"
+          icon="cigar"
+          iconLabel="A lit cigar resting on a chip, ash at its tip and smoke rising, drawn in ASCII"
         >
           <p className="lede">
             Mini-drawmaha is the first game on this ladder with no referee and no whole-tree walk:{' '}

@@ -1,5 +1,5 @@
 /**
- * The rung objects: a chip, a fan of cards, the oval table, the deck, the
+ * The rung objects: a chip, a fan of cards, the oval table, the cigar, the
  * stack. One small raymarcher over signed-distance fields, shaded into a
  * character ramp with a Bayer dither and blitted as glyphs. A port of the
  * homepage's ladder icons, so the object a rung page opens on is the object
@@ -157,10 +157,20 @@ const cardPat = (lx: number, lz: number, hx: number, hz: number) => {
   return 0
 }
 
-/** The material the last sdf() call hit: 1 body, 2 pattern (the accent colour), 3/4 felt and rail, 5 the deck's edge. */
+/**
+ * The material the last sdf() call hit: 1 body, 2 pattern (the accent colour),
+ * 3/4 felt and rail, 5 a card edge, 6 the cigar's wrapper, 7 its ash, 8 the
+ * char ring, 9 the ember (lit, in the gold), 10 smoke (faint, in the shadow ink).
+ */
 let im = 0
 
-export type IconName = 'chip' | 'cards' | 'table' | 'deck' | 'stack'
+/** Seconds the object has been turning: the smoke's clock, read by the cigar's sdf. */
+let tNow = 0
+
+/** True while a shadow or occlusion ray is being marched: smoke is not a solid and casts none. */
+let solidOnly = false
+
+export type IconName = 'chip' | 'cards' | 'table' | 'cigar' | 'stack'
 
 interface Scene {
   elev: number
@@ -261,31 +271,62 @@ const ICONS: Record<IconName, Scene> = {
       return d
     },
   },
-  deck: {
-    elev: 0.5,
-    dist: 4.1,
-    look: [0.1, 0.5, 0],
-    yaw0: 0.35,
+  cigar: {
+    elev: 0.44,
+    dist: 5.0,
+    look: [0, 0.5, 0],
+    yaw0: 2.3,
     sdf(x, y, z) {
-      /* the deck as a block of cards, one card lifted through the gate */
-      const [lx, lz] = rot2(x, z, 0.3)
-      let d = rbox(lx, y - 0.4, lz, 0.72, 0.4, 1.0, 0.06)
-      im =
-        Math.abs(y - 0.4) < 0.39 &&
-        (Math.abs(Math.abs(lx) - 0.72) < 0.03 || Math.abs(Math.abs(lz) - 1.0) < 0.03)
-          ? 5
-          : 1
-      const th = 0.55
-      const cx = x - 0.35
-      const cy = y - 1.35
-      const cz = z + 0.2
-      const ry = Math.cos(th) * cy - Math.sin(th) * cz
-      const rz = Math.sin(th) * cy + Math.cos(th) * cz
-      const [ex, ez] = rot2(cx, rz, 0.15)
-      const d2 = rbox(ex, ry, ez, 0.72, 0.03, 1.0, 0.08)
-      if (d2 < d) {
-        d = d2
-        im = ry > 0.02 && cardPat(ex, ez, 0.72, 1.0) ? 2 : 1
+      /* A lit cigar on the felt: a long capsule, the head (cap end) to the
+         left, a band of the accent colour two fingers in, and at the foot the
+         wrapper charring to black, the ember glowing in the gold, and a
+         finger of pale, pitted ash. A thin ribbon of smoke wavers up off the
+         tip and thins as it climbs; it drifts with time and casts no shadow. */
+      const R = 0.33
+      const L = 2.0
+      const [u, w] = rot2(x, z, 0.42)
+      const v = y - R
+      const rad = Math.hypot(v, w)
+      const ang = Math.atan2(w, v)
+      /* the body, its head rounded to the cap, its foot cut square under the ash */
+      const hu = clamp(u, -L + R, L)
+      let d = Math.hypot(u - hu, rad) - R
+      if (u > L - 0.02) d = Math.max(d, u - L)
+      im = 6
+      /* the band: the accent with an ivory pinstripe, two fingers from the head */
+      if (u > -L + 0.62 && u < -L + 0.9) im = Math.abs(u + L - 0.76) < 0.035 ? 1 : 2
+      /* the wrapper's spiral seam reads as leaf under the dither */
+      if (im === 6) d += 0.005 * Math.sin(11 * u + 2 * ang)
+      /* the lit end: char, ember, ash */
+      const A0 = L - 0.78
+      if (u > A0 - 0.1 && u <= A0) im = 8
+      if (u > A0 && u <= A0 + 0.09) im = 9
+      if (u > A0 + 0.09) {
+        im = 7
+        const pit = 0.03 * Math.sin(21 * u) * Math.sin(17 * ang + 5 * u)
+        const taper = 0.06 * clamp((u - A0 - 0.35) / 0.5, 0, 1)
+        d += 0.015 + pit + taper
+        /* the cracks nearest the coal still glow: red flecks in the grey */
+        if (pit < -0.018 && u < A0 + 0.5) im = 2
+      }
+      if (solidOnly) return d
+      /* smoke: a thin ribbon of spheres above the tip, thinning as it climbs */
+      const tipX = Math.cos(-0.42) * L
+      const tipZ = Math.sin(0.42) * L
+      let ds = 1e9
+      for (let k = 0; k < 13; k++) {
+        const h = 0.1 + k * 0.15
+        const ph = tNow * 0.7 + k * 0.55
+        const sx = tipX - 0.1 + 0.06 * k * Math.sin(ph) + 0.015 * k
+        const sz = tipZ + 0.05 * k * Math.cos(ph * 0.8)
+        const sr = 0.05 + 0.011 * k
+        const dk = Math.hypot(x - sx, y - (R + h), z - sz) - sr
+        if (dk < ds) ds = dk
+      }
+      ds += 0.02 * Math.sin(13 * x + tNow) * Math.sin(15 * y - 1.1 * tNow) * Math.sin(12 * z)
+      if (ds < d) {
+        d = ds
+        im = 10
       }
       return d
     },
@@ -334,9 +375,10 @@ const ICONS: Record<IconName, Scene> = {
 
 const IRAMP = ' .:-+*%@'
 
-function renderIcon(g: CharGrid, sc: Scene, yaw: number) {
+function renderIcon(g: CharGrid, sc: Scene, yaw: number, t = 0) {
   const { cols, rows } = g
   if (!cols) return
+  tNow = t
   g.chb.fill(0)
   g.cob.fill(0)
   const ce = Math.cos(sc.elev)
@@ -413,6 +455,7 @@ function renderIcon(g: CharGrid, sc: Scene, yaw: number) {
         const nz = sc.sdf(px, py, pz + e) - sc.sdf(px, py, pz - e)
         const nl = Math.hypot(nx, ny, nz) || 1
         const n = [nx / nl, ny / nl, nz / nl]
+        solidOnly = true
         const ao = clamp(sc.sdf(px + n[0] * 0.12, py + n[1] * 0.12, pz + n[2] * 0.12) / 0.12, 0.3, 1)
         const diff = Math.max(0, n[0] * L[0] + n[1] * L[1] + n[2] * L[2])
         let sh = 1
@@ -428,6 +471,7 @@ function renderIcon(g: CharGrid, sc: Scene, yaw: number) {
             if (tt > 3) break
           }
         }
+        solidOnly = false
         let hx = L[0] - dx
         let hy = L[1] - dy
         let hz = L[2] - dz
@@ -443,17 +487,31 @@ function renderIcon(g: CharGrid, sc: Scene, yaw: number) {
         if (m === 3) alb = 0.42
         else if (m === 4) alb = 0.22
         else if (m === 5) alb = 0.7
+        else if (m === 6) alb = 0.3 /* the wrapper: a dark leaf, matte */
+        else if (m === 7) alb = 1.0 /* ash: pale, matte, lit from within by its own paleness */
+        else if (m === 8) alb = 0.08 /* char: near black */
+        const matte = m === 6 || m === 7 || m === 8
         I =
-          alb * (0.07 * ao + 0.1 * Math.max(0, ndv) * ao + 1.0 * diff * sh + 0.35 * spec * sh) +
-          0.5 * rim * ao
+          alb * ((m === 7 ? 0.3 : 0.07) * ao + 0.1 * Math.max(0, ndv) * ao + 1.0 * diff * sh + (matte ? 0.05 : 0.35) * spec * sh) +
+          (m === 6 ? 0.15 : m === 8 ? 0 : 0.5) * rim * ao
         I = 1 - Math.exp(-2.1 * I)
         cls = m === 2 ? 2 : 1
+        if (m === 9) {
+          /* the ember is lit, not shaded: it glows and breathes */
+          I = 0.75 + 0.25 * Math.sin(tNow * 2.3 + px * 9)
+          cls = 4
+        } else if (m === 10) {
+          /* smoke: faint, in the shadow ink, thinner the higher it has risen */
+          I = clamp(0.28 + 0.18 * Math.max(0, ndv) - 0.1 * py + 0.08 * Math.sin(9 * py - 2 * tNow), 0.06, 0.45)
+          cls = 3
+        }
       } else if (tg < 1e8) {
         const gx = eye[0] + dx * tg
         const gz = eye[2] + dz * tg
         const rr = Math.hypot(gx - sc.look[0], gz - sc.look[2]) / 2.4
         if (rr < 1) {
           let sh = 1
+          solidOnly = true
           {
             let tt = 0.05
             for (let k = 0; k < 18; k++) {
@@ -466,6 +524,7 @@ function renderIcon(g: CharGrid, sc: Scene, yaw: number) {
               if (tt > 4) break
             }
           }
+          solidOnly = false
           const fall = 1 - rr
           I = 0.11 * fall * fall * sh
           cls = 3
@@ -480,7 +539,7 @@ function renderIcon(g: CharGrid, sc: Scene, yaw: number) {
       }
       if (cls === 2 && lv < 2) lv = 2
       g.chb[cy * cols + cx] = g.CIDX[IRAMP[lv]]
-      g.cob[cy * cols + cx] = cls === 2 ? 1 : cls === 3 ? 2 : 0
+      g.cob[cy * cols + cx] = cls === 2 ? 1 : cls === 3 ? 2 : cls === 4 ? 3 : 0
     }
   g.draw()
 }
@@ -490,8 +549,8 @@ export interface ObjectOptions {
   font?: number
   /** rad/s while the page is quiet; the object spins ~3x faster under the mouse */
   speed?: number
-  /** glyph colours: the body, the pattern, the floor shadow */
-  palette?: [string, string, string]
+  /** glyph colours: the body, the pattern, the floor shadow (and smoke), the ember's gold */
+  palette?: [string, string, string, string]
 }
 
 /**
@@ -503,8 +562,12 @@ export interface ObjectOptions {
 export function mountObject(canvas: HTMLCanvasElement, icon: IconName, opts: ObjectOptions = {}): () => void {
   const sc = ICONS[icon]
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-  const g = makeGrid(canvas, opts.font ?? 4, opts.palette ?? ['#f5f0e6', '#c23553', 'rgba(245,240,230,.42)'])
-  const st = { yaw: sc.yaw0, hover: false, visible: true, last: 0, drawn: false }
+  const g = makeGrid(
+    canvas,
+    opts.font ?? 4,
+    opts.palette ?? ['#f5f0e6', '#c23553', 'rgba(245,240,230,.42)', '#e9b862'],
+  )
+  const st = { yaw: sc.yaw0, hover: false, visible: true, last: 0, drawn: false, t: 0 }
   const speed = opts.speed ?? 0.35
 
   const onEnter = () => {
@@ -525,14 +588,14 @@ export function mountObject(canvas: HTMLCanvasElement, icon: IconName, opts: Obj
   io.observe(canvas)
   const ro = new ResizeObserver(() => {
     if (g.resize()) {
-      renderIcon(g, sc, st.yaw)
+      renderIcon(g, sc, st.yaw, st.t)
       st.drawn = true
     }
   })
   ro.observe(canvas)
   if (document.fonts?.ready)
     document.fonts.ready.then(() => {
-      if (g.resize()) renderIcon(g, sc, st.yaw)
+      if (g.resize()) renderIcon(g, sc, st.yaw, st.t)
     })
 
   let timer = 0
@@ -545,7 +608,8 @@ export function mountObject(canvas: HTMLCanvasElement, icon: IconName, opts: Obj
       st.last = now
       if (!reduced) {
         st.yaw += dt * (st.hover ? speed * 3 : speed)
-        renderIcon(g, sc, st.yaw)
+        st.t += dt
+        renderIcon(g, sc, st.yaw, st.t)
       } else if (!st.drawn) {
         renderIcon(g, sc, st.yaw)
         st.drawn = true
