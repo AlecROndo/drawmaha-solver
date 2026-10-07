@@ -134,14 +134,17 @@ class Rule:
         )
 
 
-def _rules(css: str) -> list[Rule]:
+def _rules(css: str, keyframes: dict[str, str] | None = None) -> list[Rule]:
     """Every `selector { body }` with the @media it sits in, comments stripped.
 
-    `@keyframes` blocks are skipped: their `from` / `to` / `50%` steps are not
-    rules, and the duration that matters is on the `animation` that uses them.
+    `@keyframes` blocks are not rules: their `from` / `to` / `50%` steps are
+    kept aside in `keyframes` by name, so a reduced-motion check can read
+    what a keyframe moves, and the duration that matters stays on the
+    `animation` that uses it.
     """
     css = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
     out: list[Rule] = []
+    frames = keyframes if keyframes is not None else {}
 
     def walk(s: str, media: str | None) -> None:
         i = 0
@@ -158,7 +161,7 @@ def _rules(css: str) -> list[Rule]:
             if head.startswith(("@media", "@supports")):
                 walk(body, head)
             elif head.startswith("@keyframes"):
-                pass
+                frames[head.split()[-1]] = body
             else:
                 out.append(Rule(media, head, body))
             i = k
@@ -168,7 +171,8 @@ def _rules(css: str) -> list[Rule]:
     return out
 
 
-RULES = {name: _rules(css) for name, css in SHEETS.items()}
+KEYFRAMES: dict[str, dict[str, str]] = {name: {} for name in SHEETS}
+RULES = {name: _rules(css, KEYFRAMES[name]) for name, css in SHEETS.items()}
 
 
 def _durations_ms(value: str) -> list[float]:
@@ -364,38 +368,90 @@ def _parts(selector: str) -> set[str]:
     return {re.sub(r"\s+", " ", s.strip()) for s in selector.split(",")}
 
 
+TRAVEL_PROPS = ("transform", "translate", "scale", "rotate")
+
+
+def _travels(rule: Rule) -> list[str]:
+    """The transition parts of a rule that move it, the press excepted."""
+    parts = [p for v in rule.declarations("transition") for p in v.split(",")]
+    parts += [p for v in rule.declarations("transition-property") for p in v.split(",")]
+    out = []
+    for part in parts:
+        words = part.strip().split()
+        if words and words[0] in TRAVEL_PROPS and "--t-press" not in part:
+            out.append(part.strip())
+    return out
+
+
+def _quiets_a_pulse(rule: Rule, frames: dict[str, str]) -> bool:
+    """`animation: none`, or a one-shot keyframe defined in this sheet that only fades.
+
+    A looping animation is a pulse however gentle its keyframe, so `infinite`
+    (or an iteration count above one) never counts as quiet.
+    """
+    loops = any(
+        "infinite" in v or re.search(r"(?<![\d.])([2-9]|\d{2,}|1\.\d*[1-9])(?![\d.])", v)
+        for v in rule.declarations("animation-iteration-count")
+    )
+    for value in rule.declarations("animation") + rule.declarations("animation-name"):
+        name = value.strip().split()[0]
+        if name == "none":
+            return True
+        if loops or "infinite" in value:
+            continue
+        body = frames.get(name)
+        if body is not None and not re.search(r"\b(transform|translate|scale|rotate)\s*:", body):
+            return True
+    return False
+
+
+def _quiets_a_travel(rule: Rule) -> bool:
+    """`transform: none`, or a transition that no longer lists a travel."""
+    if any(v.strip() == "none" for v in rule.declarations("transform")):
+        return True
+    transitions = rule.declarations("transition")
+    return bool(transitions) and not _travels(rule)
+
+
 @pytest.mark.parametrize("name", sorted(SHEETS))
 def test_every_pulse_and_travel_is_quieted_under_reduced_motion(name: str) -> None:
     """Reduced motion is by name, so every name has to be there.
 
-    A rule that animates, or transitions `transform` for anything other than
-    the press, needs a reduced-motion rule for the same selector that touches
-    the same thing: `animation` / `animation-name` for a pulse (`none`, or a
-    gentler keyframe where the code waits on `animationend`), and
-    `transition` or `transform` for a travel.
+    A rule that animates, or transitions a transform for anything other than
+    the press, needs a reduced-motion rule for the same selector that
+    actually quiets it: `animation: none`, or a keyframe this sheet defines
+    with no transform in it (for a token the code waits on via
+    `animationend`); `transform: none`, or a transition with the travel
+    taken out.
     """
     rules = RULES[name]
+    frames = KEYFRAMES[name]
     reduced = [r for r in rules if r.media and "prefers-reduced-motion" in r.media]
-    quiet_anim = {s for r in reduced for s in _parts(r.selector) if r.declarations("animation") or r.declarations("animation-name")}
-    quiet_move = {s for r in reduced for s in _parts(r.selector) if r.declarations("transition") or r.declarations("transform")}
+    quiet_anim = {
+        sel for r in reduced if _quiets_a_pulse(r, frames) for sel in _parts(r.selector)
+    }
+    quiet_move = {
+        sel for r in reduced if _quiets_a_travel(r) for sel in _parts(r.selector)
+    }
     for rule in rules:
         if rule.media and "prefers-reduced-motion" in rule.media:
             continue
-        pulses = [v for v in rule.declarations("animation") + rule.declarations("animation-name") if v.strip() != "none"]
-        travels = [
-            part
-            for v in rule.declarations("transition")
-            for part in v.split(",")
-            if part.strip().startswith("transform") and "--t-press" not in part
+        pulses = [
+            v
+            for v in rule.declarations("animation") + rule.declarations("animation-name")
+            if v.strip() != "none"
         ]
+        travels = _travels(rule)
         for sel in _parts(rule.selector):
             if pulses:
                 assert sel in quiet_anim, (
-                    f"{name}: {sel} animates (`{pulses[0]}`) with no reduced-motion rule; "
-                    "turn it off by name, or swap in a keyframe that only fades"
+                    f"{name}: {sel} animates (`{pulses[0]}`) and no reduced-motion rule "
+                    "quiets it; set `animation: none` by name, or swap in a keyframe "
+                    "that only fades"
                 )
             if travels:
                 assert sel in quiet_move, (
-                    f"{name}: {sel} travels (`{travels[0].strip()}`) with no reduced-motion "
-                    "rule; set its transition or transform to none by name"
+                    f"{name}: {sel} travels (`{travels[0]}`) and no reduced-motion rule "
+                    "quiets it; set its transform to none, or its transition to none "
+                    "or to the non-moving properties, by name"
                 )
