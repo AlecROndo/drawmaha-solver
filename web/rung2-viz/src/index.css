@@ -902,10 +902,34 @@
   }
 }
 
+/* Under reduced motion the chips do not travel, but they must still leave:
+   the token unmounts on animationend, so `animation: none` would strand it
+   on the felt. It fades in place for the same 400 ms instead. */
+@keyframes sweep-fade {
+  to {
+    opacity: 0;
+  }
+}
+
 /* ---------- narrow -------------------------------------------------------- */
 
 @media (max-width: 1080px) {
   .playwrap {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Reduced motion (web/DESIGN.md): the presses this figure owns go quiet, and
+   the swept chips fade where they are instead of crossing the felt. */
+@media (prefers-reduced-motion: reduce) {
+  .tl button.stn:active,
+  .next button:active,
+  .lockbtn:active {
+    transform: none;
+  }
+
+  .sweep.from-villain,
+  .sweep.from-you {
+    animation-name: sweep-fade;
   }
 }

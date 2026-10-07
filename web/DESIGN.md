@@ -61,7 +61,9 @@ hard-codes a curve.
    `linear`.
 4. **How long?** Press 160 ms. Hover colour 150 ms. Popover and menu
    150–250 ms, with the whole menu settled by 400 ms. Nothing in the chrome
-   over 300 ms per declaration. Exits faster than entrances.
+   over 300 ms per declaration — and the test reads every time in the
+   declaration, delays included, because a 300 ms delay is a wait the user
+   feels just as a 300 ms slide is. Exits faster than entrances.
 
 ## The rules, each with the site's own before and after
 
@@ -76,6 +78,8 @@ hard-codes a curve.
 | Scroll reveals are entrances too | `.reveal`: 700 ms `ease` on opacity and travel | opacity 450 ms `ease`, travel 550 ms `--ease-out` | `ease` starts slow; a section arriving should start fast and settle |
 | Hover transforms only where a pointer can hover | the ladder's arrow nudged 4 px on `:hover`, which a tap leaves stuck out | wrapped in `@media (hover: hover) and (pointer: fine)` | touch fires hover on tap and never un-fires it |
 | Reduced motion means fewer and gentler, not none | `* { animation: none !important; transition: none !important }` in the theme | the travel, scale and pulse are removed by name; colour and opacity transitions stay | a state change still has to be legible to someone who turned motion off |
+| Reduced motion names the state's own selector, not just the base one | — | `.rungs-menu, .rungs.open .rungs-menu { transition: none }` | `.rungs.open .rungs-menu` outranks `.rungs-menu`, so quieting only the base rule leaves the open slide in place |
+| A one-shot that the code waits on still ends under reduced motion | — | rung 2's chips switch to a fade-only keyframe of the same length | the token unmounts on `animationend`; `animation: none` would strand it on the felt |
 | Popovers come from their trigger; modals stay centred | the rung's action strip translates down 4 px from under its rung | kept, with `--ease-out` | spatial consistency: the thing came from where you were pointing |
 | Nothing appears from `scale(0)` | — | the one `scaleX(0)` on the site is the menu's rope **drawing** across, a line reveal, not an element popping | things in the world have a shape before they arrive |
 | Transitions for interruptible UI, keyframes only for one-shot tokens and the live pulse | — | the menu is all transitions (hover in, hover out mid-open retargets); the swept chips and the blink are keyframes | keyframes restart from zero when interrupted |
@@ -95,8 +99,10 @@ or not animated at all (rung 0's `.bar-fill`).
 
 - Read the token, do not write a curve: `var(--ease-out)`, `var(--t-press)`.
 - A new pressable gets its `:active` rule in the same commit as its `:hover`
-  rule, and `transform var(--t-press) var(--ease-out)` in its transition
-  list. Add its selector to `PRESSABLES` in the test.
+  rule, `transform var(--t-press) var(--ease-out)` in its transition list,
+  and `transform: none` for its `:active` in the same stylesheet's
+  reduced-motion block — the theme only knows its own pressables. Add its
+  selector to `PRESSABLES` in the test.
 - A new entrance over 300 ms, a figure with its own curve, or a width
   animation is an exception: add the selector to `EXPLANATORY` in the test
   with a one-line reason, the way the existing ones are.

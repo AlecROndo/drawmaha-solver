@@ -13,7 +13,11 @@ kind of thing a reviewer reads past. What is checked, per stylesheet:
 - every pressable has a press (`scale(0.97)` on `:active`, with `transform`
   in its transition), and a press is always between 0.95 and 0.98;
 - a hover that moves something is gated behind `(hover: hover)`;
-- the reduced-motion block exists and is not the nuclear `* { none }`.
+- the reduced-motion block exists, is not the nuclear `* { none }`, and
+  turns off every pressable's press by name.
+
+Durations are read as every `<n>s` / `<n>ms` in a declaration, delays
+included: a 300 ms delay is a wait the user feels just as a 300 ms slide is.
 
 Adding motion that breaks a rule on purpose means adding its selector to
 `EXPLANATORY` with a one-line reason, the way the existing ones are.
@@ -45,7 +49,8 @@ PRESS_RANGE = (0.95, 0.98)
 # Selectors whose motion is explanatory rather than chrome: a figure drawing
 # itself, a section arriving on scroll, a status pulse. Each is allowed to
 # exceed 300 ms, to own a curve, or to animate a layout property — and each
-# says why. Matched as a substring of the rule's selector.
+# says why. Matched inside the rule's selector at a selector boundary, so
+# `.card` covers `.card.lit` and `.card .n` but not `.cardinal`.
 EXPLANATORY = {
     ".reveal": "a section arriving on scroll, seen once per visit; 550 ms travel",
     ".beat": "the Rules hand's current beat lights as it reaches mid-screen",
@@ -123,11 +128,17 @@ class Rule:
 
     @property
     def explanatory(self) -> bool:
-        return any(key in self.selector for key in EXPLANATORY)
+        return any(
+            re.search(rf"{re.escape(key)}(?![\w-])", self.selector) for key in EXPLANATORY
+        )
 
 
 def _rules(css: str) -> list[Rule]:
-    """Every `selector { body }` with the @media it sits in, comments stripped."""
+    """Every `selector { body }` with the @media it sits in, comments stripped.
+
+    `@keyframes` blocks are skipped: their `from` / `to` / `50%` steps are not
+    rules, and the duration that matters is on the `animation` that uses them.
+    """
     css = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
     out: list[Rule] = []
 
@@ -145,6 +156,8 @@ def _rules(css: str) -> list[Rule]:
             body = s[j + 1 : k - 1]
             if head.startswith(("@media", "@supports")):
                 walk(body, head)
+            elif head.startswith("@keyframes"):
+                pass
             else:
                 out.append(Rule(media, head, body))
             i = k
@@ -241,13 +254,14 @@ def test_only_transform_and_opacity_move_in_the_chrome(name: str) -> None:
     for rule in RULES[name]:
         if rule.explanatory:
             continue
-        for value in rule.declarations("transition"):
-            for part in value.split(","):
-                prop = part.strip().split()[0] if part.strip() else ""
-                assert prop not in LAYOUT_PROPS, (
-                    f"{name}: {rule!r} animates `{prop}`, which lays out and paints; "
-                    "move it with transform, or allowlist it in EXPLANATORY"
-                )
+        parts = [p for v in rule.declarations("transition") for p in v.split(",")]
+        parts += [p for v in rule.declarations("transition-property") for p in v.split(",")]
+        for part in parts:
+            prop = part.strip().split()[0] if part.strip() else ""
+            assert prop not in LAYOUT_PROPS, (
+                f"{name}: {rule!r} animates `{prop}`, which lays out and paints; "
+                "move it with transform, or allowlist it in EXPLANATORY"
+            )
 
 
 # --------------------------------------------------------------- the press
@@ -290,7 +304,7 @@ def test_every_pressable_answers_a_press(name: str) -> None:
 def test_a_press_is_subtle(name: str) -> None:
     lo, hi = PRESS_RANGE
     for rule in RULES[name]:
-        if ":active" not in rule.selector or rule.media is not None:
+        if ":active" not in rule.selector:
             continue
         scale = _press_scale(rule.body)
         if scale is None:
@@ -320,7 +334,7 @@ def test_a_hover_that_moves_something_is_gated_on_a_real_pointer(name: str) -> N
 # ------------------------------------------------------- reduced motion
 
 
-@pytest.mark.parametrize("name", ["theme", *PAGES])
+@pytest.mark.parametrize("name", sorted(SHEETS))
 def test_reduced_motion_is_fewer_and_gentler_not_none(name: str) -> None:
     reduced = [
         r for r in RULES[name] if r.media and "prefers-reduced-motion" in r.media
@@ -332,7 +346,14 @@ def test_reduced_motion_is_fewer_and_gentler_not_none(name: str) -> None:
                 f"{name}: reduced motion is `* {{ none !important }}`; remove the "
                 "travel and the pulse by name and keep colour and opacity"
             )
-    # the press is one of the things that goes quiet
-    assert any(":active" in r.selector and "none" in r.body for r in reduced), (
-        f"{name}: the press scale is not turned off under reduced motion"
-    )
+    # the press is one of the things that goes quiet, for every pressable
+    quiet = [
+        s.strip()
+        for r in reduced
+        if re.search(r"transform\s*:\s*none", r.body)
+        for s in r.selector.split(",")
+    ]
+    for sel in PRESSABLES[name]:
+        assert any(
+            re.fullmatch(rf"{re.escape(sel)}:active(:not\([^)]*\))?", q) for q in quiet
+        ), f"{name}: {sel}'s press is not turned off under reduced motion"

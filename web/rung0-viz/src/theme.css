@@ -1254,7 +1254,10 @@ footer a:hover {
     scroll-behavior: auto;
   }
 
+  /* the open state's own transition (`.rungs.open .rungs-menu`) outranks a
+     bare `.rungs-menu`, so it is named here too or the width still slides */
   .rungs-menu,
+  .rungs.open .rungs-menu,
   .rungs-menu::before {
     transition: none;
   }

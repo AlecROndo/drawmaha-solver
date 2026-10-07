@@ -442,3 +442,11 @@ kbd {
     display: none;
   }
 }
+
+/* The press is one of the things reduced motion turns off (web/DESIGN.md);
+   the theme only knows its own pressables, so this figure's are named here. */
+@media (prefers-reduced-motion: reduce) {
+  .mode-tabs button:active {
+    transform: none;
+  }
+}
