@@ -31,14 +31,17 @@ cp -r web/hero-studies public/hero
 # Both visualizers bundle the same @fontsource files, so either copy serves the
 # site; rung 0's is the one that has always been here.
 #
-# Two of the site's three voices come from here: the serif is display only
-# and ships at one upright weight, mono is the UI and every number so it needs
-# three. (The visualizers bundle their own copies of these plus Instrument
-# Sans, so /fonts/ serves only the static pages.)
+# Two of the site's three voices come from here: the display face (Plus
+# Jakarta Sans) ships at one upright weight, mono is the UI and every number so
+# it needs three. (The visualizers bundle their own copies of these plus
+# Instrument Sans, so /fonts/ serves only the static pages.) Instrument Serif
+# is no longer a voice of the site; it is copied for the hero studies at /hero,
+# which are kept as they were, and rung 0 keeps the package for that reason.
 fontsource=web/rung0-viz/node_modules/@fontsource
 copy_font() {
   cp "$fontsource/$1/files/$1-latin-$2-normal.woff2" public/fonts/
 }
+copy_font plus-jakarta-sans 600
 copy_font instrument-serif 400
 for weight in 400 500 600; do copy_font ibm-plex-mono "$weight"; done
 
@@ -48,7 +51,7 @@ for weight in 400 500 600; do copy_font ibm-plex-mono "$weight"; done
 # are copied as-is to the root of public/, where Vercel serves index.html at /
 # with no rewrite and /rules and /cover are rewritten to their files.
 #
-# They add a fourth voice, Instrument Sans for prose, and the serif's italic.
+# They add a fourth voice, Instrument Sans for prose, and the display face's italic.
 # copy_font above cannot reach those (the visualizers bundle them into their
 # own assets rather than /fonts/), so the four files are checked in beside the
 # pages and land next to the rest. Their names follow the @fontsource pattern

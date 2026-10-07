@@ -53,6 +53,14 @@
   color: var(--iv-60);
   padding: 8px 10px;
   border-radius: 3px;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.mode-tabs button:active {
+  transform: scale(0.97);
 }
 
 .mode-tabs button:hover {
@@ -432,5 +440,13 @@ kbd {
 
   .ledger-arrow {
     display: none;
+  }
+}
+
+/* The press is one of the things reduced motion turns off (web/DESIGN.md);
+   the theme only knows its own pressables, so this figure's are named here. */
+@media (prefers-reduced-motion: reduce) {
+  .mode-tabs button:active {
+    transform: none;
   }
 }

@@ -118,6 +118,13 @@
 
 .tl button.stn {
   cursor: pointer;
+  transition:
+    background 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.tl button.stn:active {
+  transform: scale(0.97);
 }
 
 .tl button.stn:hover {
@@ -191,9 +198,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The board card is the one serif mark on the strip — a card, not a word. */
+/* The board card is the one display-face mark on the strip — a card, not a word. */
 .tl li.board-stn .act {
-  font-family: var(--serif);
+  font-family: var(--display);
   font-size: 22px;
   font-weight: 400;
 }
@@ -256,7 +263,12 @@
   align-items: center;
   transition:
     border-color 0.15s,
-    background 0.15s;
+    background 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.next button:active {
+  transform: scale(0.97);
 }
 
 .next button:hover {
@@ -417,6 +429,14 @@
   padding: 5px;
   line-height: 1;
   border-radius: 3px;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.lockbtn:active {
+  transform: scale(0.97);
 }
 
 .lockbtn:hover {
@@ -651,7 +671,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 400 32px/1 var(--serif);
+  font: 600 32px/1 var(--display);
   background: var(--ivory);
   flex: none;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.6);
@@ -760,7 +780,7 @@
 }
 
 .side-row.board .side-act {
-  font: 400 19px/1 var(--serif);
+  font: 600 19px/1 var(--display);
 }
 
 .side-grade {
@@ -849,7 +869,8 @@
 }
 
 /* A closed round's chips slide to the pile. The tokens are transient: they
-   spawn at the seat, glide to the middle, fade, and unmount. */
+   spawn at the seat, glide to the middle, fade, and unmount. They leave fast
+   and settle (ease-out): a chip pushed across felt does not accelerate. */
 .sweep {
   position: absolute;
   left: 50%;
@@ -859,12 +880,12 @@
 
 .sweep.from-villain {
   top: 30%;
-  animation: sweep-down 0.55s ease-in forwards;
+  animation: sweep-down 0.4s var(--ease-out) forwards;
 }
 
 .sweep.from-you {
   bottom: 30%;
-  animation: sweep-up 0.55s ease-in forwards;
+  animation: sweep-up 0.4s var(--ease-out) forwards;
 }
 
 @keyframes sweep-down {
@@ -881,10 +902,34 @@
   }
 }
 
+/* Under reduced motion the chips do not travel, but they must still leave:
+   the token unmounts on animationend, so `animation: none` would strand it
+   on the felt. It fades in place for the same 400 ms instead. */
+@keyframes sweep-fade {
+  to {
+    opacity: 0;
+  }
+}
+
 /* ---------- narrow -------------------------------------------------------- */
 
 @media (max-width: 1080px) {
   .playwrap {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Reduced motion (web/DESIGN.md): the presses this figure owns go quiet, and
+   the swept chips fade where they are instead of crossing the felt. */
+@media (prefers-reduced-motion: reduce) {
+  .tl button.stn:active,
+  .next button:active,
+  .lockbtn:active {
+    transform: none;
+  }
+
+  .sweep.from-villain,
+  .sweep.from-you {
+    animation-name: sweep-fade;
   }
 }

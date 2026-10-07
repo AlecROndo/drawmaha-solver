@@ -211,6 +211,13 @@
 .locks button.unlock {
   font: 400 16px/1 var(--mono);
   color: var(--iv-60);
+  transition:
+    color 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.locks button.unlock:active {
+  transform: scale(0.97);
 }
 
 .locks button.unlock:hover {
@@ -254,7 +261,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 400 34px/1 var(--serif);
+  font: 600 34px/1 var(--display);
   flex: none;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.6);
 }
@@ -309,5 +316,13 @@
   .locks .w {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+}
+
+/* The press is one of the things reduced motion turns off (web/DESIGN.md);
+   the theme only knows its own pressables, so this figure's are named here. */
+@media (prefers-reduced-motion: reduce) {
+  .locks button.unlock:active {
+    transform: none;
   }
 }
