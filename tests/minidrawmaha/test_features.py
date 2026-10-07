@@ -22,19 +22,38 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import tomllib
+from pathlib import Path
 
 import numpy as np
 import pytest
 
 from drawmaha_solver.minidrawmaha.cards import DECK, Card
-from drawmaha_solver.minidrawmaha.enumeration import private_keys
+from drawmaha_solver.minidrawmaha.enumeration import (
+    all_infosets,
+    private_keys,
+    public_decision_points,
+)
 from drawmaha_solver.minidrawmaha.features import (
     CARD_GROUP,
+    FEATURE_WIDTH,
+    HEAD_WIDTH,
+    MAX_WIDTH,
+    NO_ACTION,
     PRIVATE_WIDTH,
+    PUBLIC_WIDTH,
+    Layout,
     card_group,
+    encode,
+    layout,
+    legal_gather,
     private_features,
     private_row,
+    public_features,
+    public_row,
 )
+from drawmaha_solver.minidrawmaha.game import Action, DrawSignal, chip_state
+from drawmaha_solver.minidrawmaha.packed_table import PackedTable
 
 # ---------------------------------------------------------------------------
 # One group of cards: multi-hot, rank counts, suit counts
@@ -96,18 +115,6 @@ def test_the_encoder_never_imports_torch():
 # ---------------------------------------------------------------------------
 # The public half: draws, betting, chips, seat and stage
 # ---------------------------------------------------------------------------
-
-from drawmaha_solver.minidrawmaha.enumeration import public_decision_points  # noqa: E402
-from drawmaha_solver.minidrawmaha.features import (  # noqa: E402
-    HEAD_WIDTH,
-    MAX_WIDTH,
-    NO_ACTION,
-    PUBLIC_WIDTH,
-    legal_gather,
-    public_features,
-    public_row,
-)
-from drawmaha_solver.minidrawmaha.game import Action, DrawSignal, chip_state  # noqa: E402
 
 def test_public_row_after_a_bet_and_a_raise():
     # Ante 1 each (pot 2); P0 bets the pot (2), P1 raises (2 to call + 6 = 8):
@@ -194,10 +201,6 @@ def test_legal_gather_matches_each_points_actions():
 # The reference encoder and the row layout
 # ---------------------------------------------------------------------------
 
-from drawmaha_solver.minidrawmaha.enumeration import all_infosets  # noqa: E402
-from drawmaha_solver.minidrawmaha.features import FEATURE_WIDTH, Layout, encode, layout  # noqa: E402
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable  # noqa: E402
-
 @pytest.fixture(scope="module")
 def sampled_keys():
     # 4,000 keys spread over the whole enumeration, every public point touched.
@@ -261,9 +264,6 @@ def test_locate_rows_refuses_rows_past_the_end():
 # ---------------------------------------------------------------------------
 # Torch is an optional extra
 # ---------------------------------------------------------------------------
-
-import tomllib  # noqa: E402
-from pathlib import Path  # noqa: E402
 
 def test_torch_is_an_optional_extra_named_deep():
     pyproject = tomllib.loads((Path(__file__).parents[2] / "pyproject.toml").read_text())
