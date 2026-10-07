@@ -8,6 +8,13 @@ dependencies = [
     "matplotlib>=3.9",
 ]
 
+[project.optional-dependencies]
+# Rung 4's nets. Optional so the tabular rungs, and the default test suite,
+# never install torch; `uv sync --extra deep` brings it in.
+deep = [
+    "torch>=2.4",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

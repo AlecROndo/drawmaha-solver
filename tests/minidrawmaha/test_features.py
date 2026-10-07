@@ -257,3 +257,16 @@ def test_locate_rows_refuses_rows_past_the_end():
         built.locate_rows(np.array([built.row_offset[-1]]))
     with pytest.raises(IndexError):
         built.locate_rows(np.array([-1]))
+
+# ---------------------------------------------------------------------------
+# Torch is an optional extra
+# ---------------------------------------------------------------------------
+
+import tomllib  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+def test_torch_is_an_optional_extra_named_deep():
+    pyproject = tomllib.loads((Path(__file__).parents[2] / "pyproject.toml").read_text())
+    deep = pyproject["project"]["optional-dependencies"]["deep"]
+    assert any(spec.startswith("torch") for spec in deep)
+    assert not any(spec.startswith("torch") for spec in pyproject["project"]["dependencies"])
