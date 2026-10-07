@@ -103,6 +103,12 @@ or not animated at all (rung 0's `.bar-fill`).
   and `transform: none` for its `:active` in the same stylesheet's
   reduced-motion block — the theme only knows its own pressables. Add its
   selector to `PRESSABLES` in the test.
+- Anything that pulses (`animation`) or travels (a `transform` transition
+  other than the press) gets, in the same stylesheet's reduced-motion block,
+  a rule for the same selector: `animation: none`, or a fade-only keyframe
+  where the code waits on `animationend`; `transition: none` or
+  `transform: none` for a travel. The test refuses a pulse or a travel it
+  cannot find there by name.
 - A new entrance over 300 ms, a figure with its own curve, or a width
   animation is an exception: add the selector to `EXPLANATORY` in the test
   with a one-line reason, the way the existing ones are.

@@ -13,8 +13,9 @@ kind of thing a reviewer reads past. What is checked, per stylesheet:
 - every pressable has a press (`scale(0.97)` on `:active`, with `transform`
   in its transition), and a press is always between 0.95 and 0.98;
 - a hover that moves something is gated behind `(hover: hover)`;
-- the reduced-motion block exists, is not the nuclear `* { none }`, and
-  turns off every pressable's press by name.
+- the reduced-motion block exists, is not the nuclear `* { none }`, turns
+  off every pressable's press by name, and names every rule that pulses
+  (`animation`) or travels (a `transform` transition that is not the press).
 
 Durations are read as every `<n>s` / `<n>ms` in a declaration, delays
 included: a 300 ms delay is a wait the user feels just as a 300 ms slide is.
@@ -357,3 +358,44 @@ def test_reduced_motion_is_fewer_and_gentler_not_none(name: str) -> None:
         assert any(
             re.fullmatch(rf"{re.escape(sel)}:active(:not\([^)]*\))?", q) for q in quiet
         ), f"{name}: {sel}'s press is not turned off under reduced motion"
+
+
+def _parts(selector: str) -> set[str]:
+    return {re.sub(r"\s+", " ", s.strip()) for s in selector.split(",")}
+
+
+@pytest.mark.parametrize("name", sorted(SHEETS))
+def test_every_pulse_and_travel_is_quieted_under_reduced_motion(name: str) -> None:
+    """Reduced motion is by name, so every name has to be there.
+
+    A rule that animates, or transitions `transform` for anything other than
+    the press, needs a reduced-motion rule for the same selector that touches
+    the same thing: `animation` / `animation-name` for a pulse (`none`, or a
+    gentler keyframe where the code waits on `animationend`), and
+    `transition` or `transform` for a travel.
+    """
+    rules = RULES[name]
+    reduced = [r for r in rules if r.media and "prefers-reduced-motion" in r.media]
+    quiet_anim = {s for r in reduced for s in _parts(r.selector) if r.declarations("animation") or r.declarations("animation-name")}
+    quiet_move = {s for r in reduced for s in _parts(r.selector) if r.declarations("transition") or r.declarations("transform")}
+    for rule in rules:
+        if rule.media and "prefers-reduced-motion" in rule.media:
+            continue
+        pulses = [v for v in rule.declarations("animation") + rule.declarations("animation-name") if v.strip() != "none"]
+        travels = [
+            part
+            for v in rule.declarations("transition")
+            for part in v.split(",")
+            if part.strip().startswith("transform") and "--t-press" not in part
+        ]
+        for sel in _parts(rule.selector):
+            if pulses:
+                assert sel in quiet_anim, (
+                    f"{name}: {sel} animates (`{pulses[0]}`) with no reduced-motion rule; "
+                    "turn it off by name, or swap in a keyframe that only fades"
+                )
+            if travels:
+                assert sel in quiet_move, (
+                    f"{name}: {sel} travels (`{travels[0].strip()}`) with no reduced-motion "
+                    "rule; set its transition or transform to none by name"
+                )
