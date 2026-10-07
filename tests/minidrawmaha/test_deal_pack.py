@@ -56,6 +56,20 @@ class Pot(Uniform):
         return np.array([1.0 if a is Action.POT else 0.0 for a in legal])
 
 
+class Drifting(Uniform):
+    """Answers differently every time it is asked, so a node read twice disagrees with itself."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def __getitem__(self, key):
+        self.calls += 1
+        legal = key.legal_actions()
+        vector = np.zeros(len(legal))
+        vector[self.calls % len(legal)] = 1.0
+        return vector
+
+
 # A deck order chosen so P0's draw order is not the sorted order: the board is
 # a heart and P0 holds two fours of which one is a heart, so the canonical
 # labels, not the physical suit numbers, decide which four is "mid".
@@ -147,15 +161,38 @@ def test_the_draw_order_is_canonical_not_the_dealt_order(deal):
     assert [DECK[i] for i in deal["order"][0]] != sorted(root.holes[0])
 
 
-def test_the_showdown_consumes_the_stub_in_draw_order_and_matches_pot_shares(deal):
+def test_p1_s_draw_infoset_sees_how_many_cards_p0_threw_and_not_which():
+    """What `d1` keyed by count rests on: the three single throws are one P1 infoset."""
+    closed = deal_from_deck(DECK_ORDER).apply(Action.CHECK_CALL).apply(Action.CHECK_CALL)
+    after = {}
+    for throw in DRAW_ACTIONS:
+        state = closed.apply(throw)
+        if len(state.holes[0]) < 3:
+            state = state.apply_chance((DECK_ORDER[STUB],))
+        after[throw] = state.infoset()
+    singles = {after[t] for t in (Action.THROW_LOW, Action.THROW_MID, Action.THROW_TOP)}
+    assert len(singles) == 1
+    assert after[Action.THROW_NONE] not in singles
+
+
+def test_a_profile_whose_p1_draw_depends_on_the_thrown_card_is_refused():
+    with pytest.raises(ValueError, match="which card P0 threw"):
+        export_deal(DECK_ORDER, Drifting())
+
+
+@pytest.mark.parametrize("line", sorted(DRAW_LINES))
+def test_the_showdown_consumes_the_stub_in_draw_order_and_matches_pot_shares(deal, line):
+    """Replayed by hand off the stub from every line that reaches the draw: the
+    showdown is the cards' alone, so each line must land on the one banked."""
     deck = DECK_ORDER
-    root = deal_from_deck(deck)
+    closed = deal_from_deck(deck)
+    for letter in line:
+        closed = closed.apply(Action.POT if letter == "p" else Action.CHECK_CALL)
     for first in DRAW_ACTIONS:
         for second in DRAW_ACTIONS:
             combo = THROW_CODE[first] + THROW_CODE[second]
             shown = deal["show"][combo]
-            # check round 1 through, then replay the two draws by hand off the stub
-            state = root.apply(Action.CHECK_CALL).apply(Action.CHECK_CALL).apply(first)
+            state = closed.apply(first)
             stub = STUB
             if len(state.holes[0]) < 3:
                 state = state.apply_chance((deck[stub],))
@@ -200,6 +237,7 @@ def test_the_pack_is_chunked_with_a_manifest_and_stale_chunks_are_removed(tmp_pa
     assert manifest["strategy"]["sha256"] == "ab" * 32
     assert manifest["strategy"]["rule"] == "test"
     assert not (out / "pack-07.json").exists()
+    assert not list(out.glob("*.tmp"))
     assert json.loads((out / "index.json").read_text()) == manifest
     chunks = [json.loads((out / name).read_text()) for name in manifest["chunks"]]
     assert [len(c) for c in chunks] == [2, 2, 1]

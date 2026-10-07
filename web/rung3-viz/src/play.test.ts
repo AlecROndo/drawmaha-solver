@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { sym } from './minidraw'
+import { THROWS, legalBets, roundTree, sym, type Act, type Throw } from './minidraw'
 import {
+  COMBOS,
   addDeals,
+  board1,
+  board2,
   dealHand,
   freshSession,
   holeOf,
@@ -15,6 +18,7 @@ import {
   runningLow,
   spotOf,
   toMix,
+  validateDeal,
   verdictOf,
   type Deal,
   type Showdown,
@@ -24,50 +28,47 @@ import {
 const c = (s: string): number => '23456'.indexOf(s[0]) * 3 + 'cdh'.indexOf(s[1])
 const cards = (s: string): number[] => s.trim().split(/\s+/).map(c)
 
+/** A pure per-mille vector over `legal`: all of it on `act`. */
+const pure = (legal: Act[], act: Act): number[] => legal.map((a) => (a === act ? 1000 : 0))
+
 /**
  * A hand-built deal: P0 holds 2c 3d 4h, P1 holds 5c 5d 6h, board 1 is 2d, and
- * the stub is 3c 4c 5h 6c 2h 3h 4d 6d in that order. The strategy is pure
- * wherever the scripted hands go — check/call at every betting node, stand
- * pat at every draw — unless a test overrides a node.
+ * the stub is 3c 4c 5h 6c 2h 3h 4d 6d in that order. Its nodes are grown from
+ * the grammar, as the Python export grows them, so it has exactly the shape
+ * `validateDeal` demands. The strategy is pure wherever the scripted hands go
+ * — check/call at every betting node, stand pat at every draw — unless a test
+ * overrides a node. The showdowns are invented (P1 takes both halves) except
+ * `ln`, the world the first scripted hand reaches, where the outer is chopped.
  */
 function fixture(over: Partial<Deal> = {}): Deal {
   const deck = cards('2c 3d 4h  5c 5d 6h  2d  3c 4c 5h 6c 2h 3h 4d 6d')
-  // ledger order is fold, check/call, pot: [check, bet] with nothing owed,
-  // [fold, call, raise] facing a bet, [fold, call] facing the all-in
-  const check = [1000, 0]
-  const call3 = [0, 1000, 0]
-  const call2 = [0, 1000]
-  const r1: Record<string, number[]> = {
-    '': check, x: check, p: call3, xp: call3, pp: call3, xpp: call3, ppp: call2, xppp: call2,
-  }
-  const pat = [1000, 0, 0, 0]
-  const lines = ['xx', 'xpc', 'xppc', 'xpppc', 'pc', 'ppc', 'pppc']
-  const d0 = Object.fromEntries(lines.map((l) => [l, pat]))
-  const d1 = Object.fromEntries(lines.map((l) => [l, { '0': pat, '1': pat }]))
+  const round1 = roundTree([])
+  const r1 = Object.fromEntries(round1.nodes.map((n) => [n, pure(legalBets([n]), 'c')]))
+  const pat = pure(THROWS, 'n')
+  const d0 = Object.fromEntries(round1.closed.map((l) => [l, pat]))
+  const d1 = Object.fromEntries(round1.closed.map((l) => [l, { '0': pat, '1': pat }]))
   const r2: Deal['r2'] = {}
-  for (const l of lines) {
-    r2[l] = {}
-    for (const a of 'nlmt') for (const b of 'nlmt') r2[l][a + b] = { ...r1 }
+  for (const l of round1.closed) {
+    const nodes = roundTree([l]).nodes
+    r2[l] = Object.fromEntries(
+      COMBOS.map((combo) => [combo, Object.fromEntries(nodes.map((n) => [n, pure(legalBets([l, n]), 'c')]))]),
+    )
   }
+  const partial: Deal = { deck, order: [cards('2c 3d 4h'), cards('5c 5d 6h')], r1, d0, d1, r2, show: {} }
   const show: Record<string, Showdown> = {}
-  for (const a of 'nlmt')
-    for (const b of 'nlmt')
-      show[a + b] = {
-        holes: [cards('2c 3d 4h'), cards('5c 5d 6h')],
-        board: [c('2d'), c('3c')],
-        inner: 1,
-        outer: 1,
-        cats: [['straight', 'pair'], ['pair', 'two pair']],
-      }
-  // the one world the first scripted hand reaches: P0 threw low (2c), drew 3c; P1 pat; board 2 is 4c
-  show.ln = {
-    holes: [cards('3c 3d 4h'), cards('5c 5d 6h')],
-    board: [c('2d'), c('4c')],
-    inner: 1,
-    outer: 2,
-    cats: [['pair', 'two pair'], ['pair', 'two pair']],
+  for (const combo of COMBOS) {
+    const throws = [combo[0], combo[1]] as [Throw, Throw]
+    show[combo] = {
+      holes: [holeOf(partial, 0, throws), holeOf(partial, 1, throws)],
+      board: [board1(partial), board2(partial, throws)],
+      inner: 1,
+      outer: 1,
+      cats: [['straight', 'pair'], ['pair', 'two pair']],
+    }
   }
-  return { deck, order: [cards('2c 3d 4h'), cards('5c 5d 6h')], r1, d0, d1, r2, show, ...over }
+  // P0 threw low (2c) and drew 3c; P1 stood pat; board 2 is 4c: a pair of threes against fives, outer chopped
+  show.ln = { ...show.ln, outer: 2, cats: [['pair', 'two pair'], ['pair', 'two pair']] }
+  return { ...partial, show, ...over }
 }
 
 const never = () => {
@@ -88,10 +89,53 @@ describe('the cards', () => {
   })
 })
 
+describe('the pack’s shape', () => {
+  it('passes a deal with every reachable node and the showdowns on the dealt cards', () => {
+    const deal = fixture()
+    expect(validateDeal(deal)).toBeNull()
+    expect(deal.show.ln.holes[0].map(sym)).toEqual(['3c', '3d', '4h'])
+    expect(deal.show.ln.board.map(sym)).toEqual(['2d', '4c'])
+  })
+
+  it('names the node a pack is missing, or has the wrong width or sum at', () => {
+    const missing = fixture()
+    delete missing.r1['xp']
+    expect(validateDeal(missing)).toBe("round 1 at 'xp' is missing or malformed")
+    const wide = fixture()
+    wide.r2['pc']['nn']['pp'] = [0, 1000, 0] // facing the all-in only fold/call are legal: two wide
+    expect(validateDeal(wide)).toBe("round 2 after pc/nn at 'pp' is missing or malformed")
+    const short = fixture()
+    short.d1['xx']['1'] = [500, 500, 0, 0]
+    expect(validateDeal(short)).toBeNull()
+    short.d1['xx']['1'] = [500, 499, 0, 0]
+    expect(validateDeal(short)).toBe("P1's draw after xx (P0 drew 1) is missing or malformed")
+  })
+
+  it('refuses a showdown on cards the deck did not deal, and a deck that is not the fifteen', () => {
+    const swapped = fixture()
+    swapped.show.nn = { ...swapped.show.nn, holes: [swapped.show.nn.holes[1], swapped.show.nn.holes[0]] }
+    expect(validateDeal(swapped)).toBe('the showdown of nn holds cards P0 does not')
+    const board = fixture()
+    board.show.ln = { ...board.show.ln, board: [c('2d'), c('3c')] }
+    expect(validateDeal(board)).toBe('the showdown of ln is on the wrong board')
+    const deck = fixture()
+    deck.deck = [...deck.deck.slice(0, 14), deck.deck[0]]
+    expect(validateDeal(deck)).toBe('the deck is not a permutation of the fifteen cards')
+  })
+})
+
 describe('the mix and the roll', () => {
-  it('reads per-mille over the legal actions and falls back to uniform', () => {
-    expect(toMix(['c', 'p'], [250, 750])).toEqual({ c: 0.25, p: 0.75 })
-    expect(toMix(['f', 'c', 'p'], undefined)).toEqual({ f: 1 / 3, c: 1 / 3, p: 1 / 3 })
+  it('reads per-mille over the legal actions and refuses a missing or mis-sized vector', () => {
+    expect(toMix(['c', 'p'], [250, 750], 'here')).toEqual({ c: 0.25, p: 0.75 })
+    expect(() => toMix(['f', 'c', 'p'], undefined, "round 1 'xp'")).toThrow("no vector at round 1 'xp'")
+    expect(() => toMix(['f', 'c'], [0, 1000, 0], 'there')).toThrow('no vector at there')
+  })
+
+  it('a hand that reaches a node the pack lacks fails loudly, in the strategy’s name', () => {
+    const deal = fixture()
+    delete deal.r1['x'] // the solver's node once you check
+    const s = freshSession([deal], always(0.5))
+    expect(() => playAct(s, 'c', always(0.5))).toThrow("the deal pack has no vector at round 1 'x'")
   })
 
   it('stacks aggression first: a low roll bets, and a deviation is graded by depth', () => {

@@ -129,6 +129,29 @@ export function costOf(lines: Line[], bet: Bet): number {
 
 const facingBet = (line: Line): boolean => line.endsWith('p')
 
+/**
+ * The betting round that `prior` leaves open, grown from the grammar: every
+ * line a player decides at (`nodes`) and every line that closes the round
+ * without a fold (`closed`). `prior` is the rounds already played — `[]`
+ * for round 1, `[l1]` for round 2 — and it is what sets the pot and the
+ * stacks, so round 2 after an all-in has no nodes and closes at once.
+ */
+export function roundTree(prior: Line[]): { nodes: Line[]; closed: Line[] } {
+  const nodes: Line[] = []
+  const closed: Line[] = []
+  const grow = (line: Line) => {
+    if (isFold(line)) return
+    if (isClosed(line, replay([...prior, line]).behind)) {
+      closed.push(line)
+      return
+    }
+    nodes.push(line)
+    for (const bet of legalBets([...prior, line])) grow(line + betSymbol(bet, line))
+  }
+  grow('')
+  return { nodes, closed }
+}
+
 /** The letter a betting action writes into the line here. */
 export const betSymbol = (bet: Bet, line: Line): string =>
   bet === 'c' ? (facingBet(line) ? 'c' : 'x') : bet
@@ -160,9 +183,12 @@ const halfShares = (side: Side): [number, number] =>
   side === CHOP ? [0.25, 0.25] : side === 0 ? [0.5, 0] : [0, 0.5]
 
 /**
- * Net chips to P0 at a finished hand (P1's are the negation). A fold hands
- * the folder's own stake to the other seat; a showdown pays each half of the
- * pot on its own side and nets off what each seat put in.
+ * Net chips to P0 at a finished hand (P1's are the negation), measured
+ * against what P0 put in. A fold hands the folder's own stake, ante
+ * included, to the other seat: P0 folding costs P0 `committed[0]`, P1
+ * folding pays P0 `committed[1]`, which is why the two branches differ in
+ * sign. A showdown pays each half of the pot on its own side and nets off
+ * what P0 put in.
  */
 export function settle(lines: Line[], inner: Side | null, outer: Side | null): number {
   const chips = replay(lines)

@@ -7,9 +7,33 @@
 
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 
-import { addDeals, freshSession, runningLow, type Deal, type Manifest, type Session } from './play'
+import { addDeals, freshSession, runningLow, validateDeal, type Deal, type Manifest, type Session } from './play'
 
 const BASE = `${import.meta.env.BASE_URL}deals/`
+
+/** The deals chunk `index` must hold: `chunk` each, the last one whatever is left. */
+export function expectedDeals(manifest: Manifest, index: number): number {
+  const full = manifest.chunks.length - 1
+  return index < full ? manifest.chunk : manifest.deals - manifest.chunk * full
+}
+
+/**
+ * Refuse a chunk the manifest did not describe, or a deal the grammar cannot
+ * play. The manifest and the chunks are separate files, so a cache can hand
+ * the browser one export's manifest with another's chunks; the count catches
+ * a re-export of a different size, and `validateDeal` catches a node the
+ * export missed. Neither can tell two same-sized exports apart — that is what
+ * the digest in the manifest is for, and it is shown, not checked.
+ */
+export function checkChunk(manifest: Manifest, index: number, deals: Deal[]): void {
+  const name = manifest.chunks[index]
+  const expected = expectedDeals(manifest, index)
+  if (deals.length !== expected) throw new Error(`${name} holds ${deals.length} deals; the manifest says ${expected}`)
+  deals.forEach((deal, i) => {
+    const why = validateDeal(deal)
+    if (why) throw new Error(`${name}, deal ${i}: ${why}`)
+  })
+}
 
 export async function loadManifest(fetcher: typeof fetch = fetch): Promise<Manifest> {
   const response = await fetcher(`${BASE}index.json`)
@@ -40,6 +64,18 @@ export function useSession(): [Session, Dispatch<SetStateAction<Session>>, PackS
   const [session, setSession] = useState<Session>(() => freshSession([]))
   const [pack, setPack] = useState<PackState>({ manifest: null, loaded: 0, error: null })
   const fetching = useRef(false)
+  // Whether the panel is still on the page when a fetch lands. A ref rather
+  // than a per-effect `cancelled` flag because the fetch below is keyed by
+  // `fetching`, not by the effect run that started it: under StrictMode the
+  // first run's fetch is the one that completes, and it must still count.
+  const mounted = useRef(true)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -47,6 +83,7 @@ export function useSession(): [Session, Dispatch<SetStateAction<Session>>, PackS
       .then(async (manifest) => {
         const first = await loadChunk(manifest.chunks[0])
         if (cancelled) return
+        checkChunk(manifest, 0, first)
         setSession(() => freshSession(first))
         setPack({ manifest, loaded: 1, error: null })
       })
@@ -63,13 +100,17 @@ export function useSession(): [Session, Dispatch<SetStateAction<Session>>, PackS
     const manifest = pack.manifest
     if (!manifest || !low || fetching.current || pack.loaded >= manifest.chunks.length) return
     fetching.current = true
-    const name = manifest.chunks[pack.loaded]
-    loadChunk(name)
+    const index = pack.loaded
+    loadChunk(manifest.chunks[index])
       .then((deals) => {
+        if (!mounted.current) return
+        checkChunk(manifest, index, deals)
         setSession((s) => addDeals(s, deals))
         setPack((p) => ({ ...p, loaded: p.loaded + 1 }))
       })
-      .catch((error: Error) => setPack((p) => ({ ...p, error: error.message })))
+      .catch((error: Error) => {
+        if (mounted.current) setPack((p) => ({ ...p, error: error.message }))
+      })
       .finally(() => {
         fetching.current = false
       })
