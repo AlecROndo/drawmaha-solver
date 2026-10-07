@@ -51,6 +51,13 @@ ported into the source, a re-export would silently put the old code back;
 the new code has, so the revert fails the suite instead. Port the edits and
 re-export to retire that test.
 
+The UI standard (`web/DESIGN.md`) was likewise applied to the exported pages
+by hand: the motion tokens in `:root`, the `:active` press on every
+pressable, the tightened Rungs menu, the `--ease-out` scroll reveal and the
+hover gate on the ladder's arrow. `tests/test_ui_standard.py` checks all of
+that on the inline `<style>` blocks, so a re-export from the stale source
+fails there too.
+
 ## The font rule
 
 The pages load eight woff2 files from `/fonts/`, all named the @fontsource

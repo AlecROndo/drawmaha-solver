@@ -118,6 +118,13 @@
 
 .tl button.stn {
   cursor: pointer;
+  transition:
+    background 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.tl button.stn:active {
+  transform: scale(0.97);
 }
 
 .tl button.stn:hover {
@@ -256,7 +263,12 @@
   align-items: center;
   transition:
     border-color 0.15s,
-    background 0.15s;
+    background 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.next button:active {
+  transform: scale(0.97);
 }
 
 .next button:hover {
@@ -417,6 +429,14 @@
   padding: 5px;
   line-height: 1;
   border-radius: 3px;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.lockbtn:active {
+  transform: scale(0.97);
 }
 
 .lockbtn:hover {
@@ -849,7 +869,8 @@
 }
 
 /* A closed round's chips slide to the pile. The tokens are transient: they
-   spawn at the seat, glide to the middle, fade, and unmount. */
+   spawn at the seat, glide to the middle, fade, and unmount. They leave fast
+   and settle (ease-out): a chip pushed across felt does not accelerate. */
 .sweep {
   position: absolute;
   left: 50%;
@@ -859,12 +880,12 @@
 
 .sweep.from-villain {
   top: 30%;
-  animation: sweep-down 0.55s ease-in forwards;
+  animation: sweep-down 0.4s var(--ease-out) forwards;
 }
 
 .sweep.from-you {
   bottom: 30%;
-  animation: sweep-up 0.55s ease-in forwards;
+  animation: sweep-up 0.4s var(--ease-out) forwards;
 }
 
 @keyframes sweep-down {

@@ -59,6 +59,14 @@
 
   --max: 1312px;
   --gutter: clamp(18px, 3.6vw, 48px);
+
+  /* motion (see web/DESIGN.md): one curve for anything entering or settling,
+     one for a thing that moves while on screen, and the press. The built-in
+     keywords are too weak to read as intended; `ease` is kept only for a
+     colour changing under the pointer. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --t-press: 160ms;
 }
 
 * {
@@ -182,7 +190,8 @@ button {
   cursor: pointer;
   transition:
     background 0.15s,
-    color 0.15s;
+    color 0.15s,
+    transform var(--t-press) var(--ease-out);
 }
 
 .navbtn:hover {
@@ -223,14 +232,14 @@ button {
   overflow-y: visible;
   visibility: hidden;
   transition:
-    width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
-    visibility 0s linear 0.16s;
+    width 0.26s var(--ease-out),
+    visibility 0s linear 0.14s;
 }
 
 .rungs.open .rungs-menu {
   visibility: visible;
   transition:
-    width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.3s var(--ease-out),
     visibility 0s;
 }
 
@@ -245,7 +254,7 @@ button {
   background: repeating-linear-gradient(90deg, var(--iv-45) 0 3px, var(--iv-10) 3px 6px);
   transform: scaleX(0);
   transform-origin: right center;
-  transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 0.3s var(--ease-out);
 }
 
 .rungs.open .rungs-menu::before {
@@ -259,9 +268,9 @@ button {
   opacity: 0;
   transform: translateX(26px);
   transition:
-    opacity 0.26s ease,
-    transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
-  transition-delay: calc(var(--i) * 75ms);
+    opacity 0.2s ease,
+    transform 0.24s var(--ease-out);
+  transition-delay: calc(var(--i) * 40ms);
 }
 
 .rungs.open .rcell {
@@ -269,9 +278,10 @@ button {
   transform: none;
 }
 
+/* closing is quicker than opening: the user has decided, the page just answers */
 .rungs:not(.open) .rcell {
   transition-delay: 0s;
-  transition-duration: 0.14s;
+  transition-duration: 0.12s;
 }
 
 .rcell::after {
@@ -296,7 +306,8 @@ button {
   white-space: nowrap;
   transition:
     background 0.15s,
-    border-color 0.15s;
+    border-color 0.15s,
+    transform var(--t-press) var(--ease-out);
 }
 
 .rmain b {
@@ -371,7 +382,7 @@ button {
   transform: translateY(-4px);
   transition:
     opacity 0.15s,
-    transform 0.15s,
+    transform 0.15s var(--ease-out),
     visibility 0s linear 0.15s;
 }
 
@@ -391,6 +402,10 @@ button {
   text-decoration: none;
   color: var(--iv-60);
   white-space: nowrap;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    transform var(--t-press) var(--ease-out);
 }
 
 .racts a:hover,
@@ -421,7 +436,8 @@ button {
   transition:
     border-color 0.15s,
     background 0.15s,
-    color 0.15s;
+    color 0.15s,
+    transform var(--t-press) var(--ease-out);
 }
 
 .btn:hover:not(:disabled) {
@@ -485,6 +501,21 @@ button {
 
 .top .btn {
   padding: 9px 14px;
+}
+
+/* ---------- pressing ----------------------------------------------------- */
+
+/* Every pressable thing on the site shrinks under the finger: 3%, 160 ms,
+   the strong ease-out. It is the page saying "heard you" before anything
+   else happens, and it is the same on a nav button, a figure's button and a
+   rung in the menu so the whole site presses alike. A disabled button does
+   not answer. */
+.btn:active:not(:disabled),
+.navbtn:active,
+.view:active,
+.rmain:active,
+.racts a:active {
+  transform: scale(0.97);
 }
 
 /* ---------- the hero ----------------------------------------------------- */
@@ -968,7 +999,9 @@ section.stop {
   padding: 10px 14px;
   border-radius: 4px;
   color: inherit;
-  transition: background 0.15s;
+  transition:
+    background 0.15s,
+    transform var(--t-press) var(--ease-out);
 }
 
 .view:hover {
@@ -1079,7 +1112,7 @@ footer a:hover {
     border-radius: 6px;
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
     overflow: visible;
-    transition: visibility 0s linear 0.3s;
+    transition: visibility 0s linear 0.2s;
   }
 
   .rungs-menu::before {
@@ -1090,7 +1123,7 @@ footer a:hover {
     display: block;
     background: none;
     transform: translateY(-8px);
-    transition-delay: calc(var(--j) * 55ms);
+    transition-delay: calc(var(--j) * 35ms);
   }
 
   .rcell::after {
@@ -1213,13 +1246,41 @@ footer a:hover {
   }
 }
 
+/* Reduced motion means fewer and gentler, not none: colour and opacity still
+   change so a state change is still legible; nothing travels, scales or
+   pulses. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
-  * {
-    animation: none !important;
-    transition: none !important;
+  .rungs-menu,
+  .rungs-menu::before {
+    transition: none;
+  }
+
+  .rcell {
+    transform: none;
+    transition: opacity 0.2s ease;
+    transition-delay: 0s;
+  }
+
+  .racts {
+    transform: none;
+    transition:
+      opacity 0.15s,
+      visibility 0s linear 0.15s;
+  }
+
+  .btn:active:not(:disabled),
+  .navbtn:active,
+  .view:active,
+  .rmain:active,
+  .racts a:active {
+    transform: none;
+  }
+
+  .titlebar .live i {
+    animation: none;
   }
 }
