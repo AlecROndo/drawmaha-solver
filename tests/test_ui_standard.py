@@ -160,7 +160,7 @@ def _rules(css: str, keyframes: dict[str, str] | None = None) -> list[Rule]:
             body = s[j + 1 : k - 1]
             if head.startswith(("@media", "@supports")):
                 walk(body, head)
-            elif head.startswith("@keyframes"):
+            elif head.startswith(("@keyframes", "@-webkit-keyframes")):
                 frames[head.split()[-1]] = body
             else:
                 out.append(Rule(media, head, body))
@@ -173,6 +173,11 @@ def _rules(css: str, keyframes: dict[str, str] | None = None) -> list[Rule]:
 
 KEYFRAMES: dict[str, dict[str, str]] = {name: {} for name in SHEETS}
 RULES = {name: _rules(css, KEYFRAMES[name]) for name, css in SHEETS.items()}
+
+
+def _reduced(rule: Rule) -> bool:
+    """Inside `@media (prefers-reduced-motion: reduce)`, not `no-preference`."""
+    return bool(rule.media and re.search(r"prefers-reduced-motion\s*:\s*reduce", rule.media))
 
 
 def _durations_ms(value: str) -> list[float]:
@@ -341,9 +346,7 @@ def test_a_hover_that_moves_something_is_gated_on_a_real_pointer(name: str) -> N
 
 @pytest.mark.parametrize("name", sorted(SHEETS))
 def test_reduced_motion_is_fewer_and_gentler_not_none(name: str) -> None:
-    reduced = [
-        r for r in RULES[name] if r.media and "prefers-reduced-motion" in r.media
-    ]
+    reduced = [r for r in RULES[name] if _reduced(r)]
     assert reduced, f"{name}: no @media (prefers-reduced-motion: reduce) block"
     for rule in reduced:
         if rule.selector.strip() == "*":
@@ -369,38 +372,70 @@ def _parts(selector: str) -> set[str]:
 
 
 TRAVEL_PROPS = ("transform", "translate", "scale", "rotate")
+MOVING_IN_KEYFRAMES = TRAVEL_PROPS + LAYOUT_PROPS
+TIME = re.compile(r"^\d*\.?\d+m?s$")
+EASING = re.compile(r"^(ease(-in|-out|-in-out)?|linear|step-(start|end)|steps\(|cubic-bezier\(|var\()")
+PLAYBACK = {"normal", "reverse", "alternate", "alternate-reverse", "none", "forwards", "backwards", "both", "running", "paused"}
 
 
-def _travels(rule: Rule) -> list[str]:
-    """The transition parts of a rule that move it, the press excepted."""
+def _travels(rule: Rule, press_is_quiet: bool = True) -> list[str]:
+    """The transition parts of a rule that move it.
+
+    The press (`transform var(--t-press) ...`) is excepted when reading a
+    base rule, because the per-pressable check owns it; it is a travel like
+    any other when reading the rule that is supposed to quiet one.
+    """
     parts = [p for v in rule.declarations("transition") for p in v.split(",")]
     parts += [p for v in rule.declarations("transition-property") for p in v.split(",")]
     out = []
     for part in parts:
         words = part.strip().split()
-        if words and words[0] in TRAVEL_PROPS and "--t-press" not in part:
-            out.append(part.strip())
+        if not words or words[0] not in TRAVEL_PROPS:
+            continue
+        if press_is_quiet and "--t-press" in part:
+            continue
+        out.append(part.strip())
     return out
+
+
+def _animation_name_and_loops(value: str) -> tuple[str, bool]:
+    """From an `animation` shorthand (or `animation-name`), the keyframe name
+    and whether it loops. The name is the one token that is not a time, a
+    curve, a playback keyword or a count; the count is a bare number, and
+    anything above one loops."""
+    name, loops = "", False
+    for word in value.replace(",", " ").split():
+        if word == "infinite":
+            loops = True
+        elif TIME.match(word) or EASING.match(word) or word in PLAYBACK and word != "none":
+            continue
+        elif re.fullmatch(r"\d*\.?\d+", word):
+            loops = loops or float(word) > 1
+        elif not name:
+            name = word
+    return name, loops
 
 
 def _quiets_a_pulse(rule: Rule, frames: dict[str, str]) -> bool:
     """`animation: none`, or a one-shot keyframe defined in this sheet that only fades.
 
     A looping animation is a pulse however gentle its keyframe, so `infinite`
-    (or an iteration count above one) never counts as quiet.
+    (or an iteration count above one, in the shorthand or the longhand)
+    never counts as quiet; a keyframe that moves anything — a transform or
+    a layout property — is not a fade.
     """
     loops = any(
-        "infinite" in v or re.search(r"(?<![\d.])([2-9]|\d{2,}|1\.\d*[1-9])(?![\d.])", v)
-        for v in rule.declarations("animation-iteration-count")
+        _animation_name_and_loops(v)[1] for v in rule.declarations("animation-iteration-count")
     )
     for value in rule.declarations("animation") + rule.declarations("animation-name"):
-        name = value.strip().split()[0]
+        name, loops_here = _animation_name_and_loops(value)
         if name == "none":
             return True
-        if loops or "infinite" in value:
+        if loops or loops_here:
             continue
         body = frames.get(name)
-        if body is not None and not re.search(r"\b(transform|translate|scale|rotate)\s*:", body):
+        moving = "|".join(MOVING_IN_KEYFRAMES)
+        if body is not None and not re.search(rf"(?:^|[;{{\s])({moving})\s*:", body):
             return True
     return False
 
@@ -410,7 +445,7 @@ def _quiets_a_travel(rule: Rule) -> bool:
     if any(v.strip() == "none" for v in rule.declarations("transform")):
         return True
     transitions = rule.declarations("transition")
-    return bool(transitions) and not _travels(rule)
+    return bool(transitions) and not _travels(rule, press_is_quiet=False)
 
 
 @pytest.mark.parametrize("name", sorted(SHEETS))
@@ -426,7 +461,7 @@ def test_every_pulse_and_travel_is_quieted_under_reduced_motion(name: str) -> No
     """
     rules = RULES[name]
     frames = KEYFRAMES[name]
-    reduced = [r for r in rules if r.media and "prefers-reduced-motion" in r.media]
+    reduced = [r for r in rules if _reduced(r)]
     quiet_anim = {
         sel for r in reduced if _quiets_a_pulse(r, frames) for sel in _parts(r.selector)
     }
@@ -434,7 +469,7 @@ def test_every_pulse_and_travel_is_quieted_under_reduced_motion(name: str) -> No
         sel for r in reduced if _quiets_a_travel(r) for sel in _parts(r.selector)
     }
     for rule in rules:
-        if rule.media and "prefers-reduced-motion" in rule.media:
+        if _reduced(rule):
             continue
         pulses = [
             v
