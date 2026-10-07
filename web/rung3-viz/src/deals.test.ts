@@ -4,10 +4,18 @@ import { readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
-import { checkChunk, checkManifest, expectedDeals } from './deals'
+import { checkChunk, checkManifest, expectedDeals, loadFirst, loadNext } from './deals'
 import type { Deal, Manifest } from './play'
 
 const read = (name: string) => JSON.parse(readFileSync(new URL(`../public/deals/${name}`, import.meta.url), 'utf8'))
+
+/** A `fetch` over a handful of named files: a JSON body for each, 404 for the rest. */
+const serving = (files: Record<string, unknown>): typeof fetch =>
+  (async (url: string | URL | Request) => {
+    const name = String(url).split('/').pop() ?? ''
+    const body = files[name]
+    return body === undefined ? new Response(null, { status: 404 }) : new Response(JSON.stringify(body), { status: 200 })
+  }) as typeof fetch
 
 describe('a chunk against the manifest', () => {
   const manifest: Manifest = {
@@ -52,5 +60,39 @@ describe('the committed pack', () => {
     for (const [index, name] of manifest.chunks.entries()) {
       expect(() => checkChunk(manifest, index, read(name) as Deal[])).not.toThrow()
     }
+  })
+})
+
+describe('loading the pack', () => {
+  const manifest = read('index.json') as Manifest
+  const first = read('pack-00.json') as Deal[]
+
+  it('sits down on the manifest and a checked chunk 0', async () => {
+    const got = await loadFirst(serving({ 'index.json': manifest, 'pack-00.json': first }))
+    expect(got.manifest).toEqual(manifest)
+    expect(got.deals.length).toBe(100)
+  })
+
+  it('refuses to sit down on a missing manifest, one that does not add up, or a chunk 0 that disagrees with it', async () => {
+    await expect(loadFirst(serving({}))).rejects.toThrow("the deal pack's manifest did not load (404)")
+    await expect(loadFirst(serving({ 'index.json': { ...manifest, deals: 601 } }))).rejects.toThrow('names 6 chunks')
+    await expect(loadFirst(serving({ 'index.json': manifest }))).rejects.toThrow('deal chunk pack-00.json did not load (404)')
+    await expect(loadFirst(serving({ 'index.json': manifest, 'pack-00.json': first.slice(0, 99) }))).rejects.toThrow(
+      'pack-00.json holds 99 deals; the manifest says 100',
+    )
+  })
+
+  it('refuses a later chunk the manifest did not describe, or with a deal the grammar cannot play', async () => {
+    const third = read('pack-03.json') as Deal[]
+    expect(await loadNext(manifest, 3, serving({ 'pack-03.json': third }))).toEqual(third)
+    await expect(loadNext(manifest, 3, serving({ 'pack-03.json': third.slice(1) }))).rejects.toThrow(
+      'pack-03.json holds 99 deals; the manifest says 100',
+    )
+    const broken = third.map((deal) => ({ ...deal, r1: { ...deal.r1 } }))
+    delete broken[7].r1['xp']
+    await expect(loadNext(manifest, 3, serving({ 'pack-03.json': broken }))).rejects.toThrow(
+      "pack-03.json, deal 7: round 1 at 'xp' is missing or malformed",
+    )
+    await expect(loadNext(manifest, 5, serving({}))).rejects.toThrow('deal chunk pack-05.json did not load (404)')
   })
 })

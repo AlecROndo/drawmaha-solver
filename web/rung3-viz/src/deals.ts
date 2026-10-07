@@ -24,6 +24,8 @@ export function expectedDeals(manifest: Manifest, index: number): number {
  * a re-export of a different size, and `validateDeal` catches a node the
  * export missed. Neither can tell two same-sized exports apart — that is what
  * the digest in the manifest is for, and it is shown, not checked.
+ * `checkManifest` only holds the manifest to its own arithmetic; whether the
+ * files on the wire match it is this check's job, chunk by chunk.
  */
 export function checkChunk(manifest: Manifest, index: number, deals: Deal[]): void {
   const name = manifest.chunks[index]
@@ -63,6 +65,26 @@ export async function loadChunk(name: string, fetcher: typeof fetch = fetch): Pr
   return (await response.json()) as Deal[]
 }
 
+/**
+ * What sitting down needs: the manifest, and chunk 0 checked against it.
+ * The `useSession` effects are thin wrappers over this and `loadNext`, so
+ * the whole load-and-refuse path runs under a fake fetcher in tests and the
+ * hook's own job is only to route the result or the error into state.
+ */
+export async function loadFirst(fetcher: typeof fetch = fetch): Promise<{ manifest: Manifest; deals: Deal[] }> {
+  const manifest = await loadManifest(fetcher)
+  const deals = await loadChunk(manifest.chunks[0], fetcher)
+  checkChunk(manifest, 0, deals)
+  return { manifest, deals }
+}
+
+/** Chunk `index`, checked against the manifest, for a queue that is running low. */
+export async function loadNext(manifest: Manifest, index: number, fetcher: typeof fetch = fetch): Promise<Deal[]> {
+  const deals = await loadChunk(manifest.chunks[index], fetcher)
+  checkChunk(manifest, index, deals)
+  return deals
+}
+
 export interface PackState {
   manifest: Manifest | null
   /** how many chunks have been folded into the session */
@@ -95,12 +117,10 @@ export function useSession(): [Session, Dispatch<SetStateAction<Session>>, PackS
 
   useEffect(() => {
     let cancelled = false
-    loadManifest()
-      .then(async (manifest) => {
-        const first = await loadChunk(manifest.chunks[0])
+    loadFirst()
+      .then(({ manifest, deals }) => {
         if (cancelled) return
-        checkChunk(manifest, 0, first)
-        setSession(() => freshSession(first))
+        setSession(() => freshSession(deals))
         setPack({ manifest, loaded: 1, error: null })
       })
       .catch((error: Error) => {
@@ -117,10 +137,9 @@ export function useSession(): [Session, Dispatch<SetStateAction<Session>>, PackS
     if (!manifest || !low || fetching.current || pack.loaded >= manifest.chunks.length) return
     fetching.current = true
     const index = pack.loaded
-    loadChunk(manifest.chunks[index])
+    loadNext(manifest, index)
       .then((deals) => {
         if (!mounted.current) return
-        checkChunk(manifest, index, deals)
         setSession((s) => addDeals(s, deals))
         setPack((p) => ({ ...p, loaded: p.loaded + 1 }))
       })
