@@ -44,7 +44,7 @@ const RUNGS = [
   { n: 4, name: 'Full Drawmaha', href: `${HOME}/#rung4`, state: 'todo', acts: [['Analysis', `${HOME}/#rung4`]] },
 ] as const
 
-/** The chip, turning. `font` is the cell size: 3 for the mark in the bar, 4 for the one that closes the page. */
+/** The chip, turning. `font` is the cell size in px: 1.5 both in the bar and where it closes the page, fine enough that the sectors read. */
 export function Mark({ font, speed }: { font: number; speed?: number }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
@@ -182,7 +182,7 @@ export function TopBar({ here }: { here: number }) {
     <header className="top">
       <div className="wrap">
         <a className="chip-home" href={HOME} aria-label="Drawmaha home">
-          <Mark font={3} />
+          <Mark font={1.5} />
           <span className="word">
             Drawmaha<small>Solver · Deep CFR</small>
           </span>
@@ -213,7 +213,7 @@ export function Footer() {
     <footer>
       <div className="wrap">
         <a className="chip-end" href={HOME} aria-label="Drawmaha home">
-          <Mark font={4} speed={0.32} />
+          <Mark font={1.5} speed={0.32} />
         </a>
         <span className="tag">Each rung is checked against a known answer before we climb.</span>
         <div className="links">
