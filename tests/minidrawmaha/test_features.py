@@ -189,3 +189,71 @@ def test_legal_gather_matches_each_points_actions():
         else:
             assert all(0 <= column < 3 for column in head)
     assert gather.max() == HEAD_WIDTH - 1
+
+# ---------------------------------------------------------------------------
+# The reference encoder and the row layout
+# ---------------------------------------------------------------------------
+
+from drawmaha_solver.minidrawmaha.enumeration import all_infosets  # noqa: E402
+from drawmaha_solver.minidrawmaha.features import FEATURE_WIDTH, Layout, encode, layout  # noqa: E402
+from drawmaha_solver.minidrawmaha.packed_table import PackedTable  # noqa: E402
+
+@pytest.fixture(scope="module")
+def sampled_keys():
+    # 4,000 keys spread over the whole enumeration, every public point touched.
+    return [key for index, key in enumerate(all_infosets()) if index % 1555 == 0]
+
+@pytest.fixture(scope="module")
+def whole_table():
+    return PackedTable.whole_game()
+
+def test_encode_is_the_private_row_beside_the_public_row(sampled_keys):
+    key = sampled_keys[3]
+    vector = encode(key)
+    assert vector.shape == (FEATURE_WIDTH,) and vector.dtype == np.float32
+    assert np.array_equal(vector[:92], private_row(key.hole, key.discarded, key.board))
+    assert np.array_equal(
+        vector[92:],
+        public_row(
+            draws=key.draws, betting=key.betting, player=key.player, is_draw=key.is_draw_decision()
+        ),
+    )
+
+def test_layout_counts_the_whole_game(whole_table):
+    built = layout()
+    assert isinstance(built, Layout)
+    assert built.row_offset[-1] == len(whole_table) == 6_220_050
+    assert built.column_offset[-1] == int(whole_table.widths().sum())
+    assert len(built.points) == 141
+
+def test_layout_locates_every_sampled_row_where_the_table_puts_it(sampled_keys, whole_table):
+    built = layout()
+    rows = np.array([whole_table.row_of(key) for key in sampled_keys])
+    point, position = built.locate_rows(rows)
+    for key, p, q in zip(sampled_keys, point, position, strict=True):
+        at = built.points[p]
+        assert (at.board_cards, at.draws, at.betting) == (len(key.board), key.draws, key.betting)
+        shape = private_keys(board_cards=at.board_cards, discards=at.discards)
+        assert shape[q] == (key.hole, key.discarded, key.board)
+
+def test_layout_recovers_rows_from_column_starts(sampled_keys, whole_table):
+    built = layout()
+    slots = [whole_table.slot_of(key) for key in sampled_keys]
+    starts = np.array([start for _, start, _ in slots])
+    rows = np.array([row for row, _, _ in slots])
+    assert np.array_equal(built.rows_of_columns(starts), rows)
+
+def test_features_of_rows_equal_the_reference_encoder(sampled_keys, whole_table):
+    built = layout()
+    rows = np.array([whole_table.row_of(key) for key in sampled_keys])
+    batch = built.features(rows)
+    assert batch.shape == (len(rows), FEATURE_WIDTH) and batch.dtype == np.float32
+    expected = np.stack([encode(key) for key in sampled_keys])
+    assert np.array_equal(batch, expected)
+
+def test_locate_rows_refuses_rows_past_the_end():
+    built = layout()
+    with pytest.raises(IndexError):
+        built.locate_rows(np.array([built.row_offset[-1]]))
+    with pytest.raises(IndexError):
+        built.locate_rows(np.array([-1]))

@@ -39,16 +39,18 @@ without the optional `deep` extra, and a net is somebody else's module.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import cache
 
 import numpy as np
 
 from drawmaha_solver.minidrawmaha.cards import DECK, N_RANKS, N_SUITS, Card
 from drawmaha_solver.minidrawmaha.enumeration import (
+    PublicPoint,
     private_keys,
     public_decision_points,
 )
-from drawmaha_solver.minidrawmaha.game import STACK, Action, DrawSignal, chip_state
+from drawmaha_solver.minidrawmaha.game import STACK, Action, DrawSignal, InfoSet, chip_state
 
 # ---------------------------------------------------------------------------
 # The widths
@@ -183,3 +185,100 @@ def legal_gather() -> np.ndarray:
             gather[index, column] = int(action)
     gather.setflags(write=False)
     return gather
+
+# ---------------------------------------------------------------------------
+# One key, for reference
+# ---------------------------------------------------------------------------
+
+def encode(key: InfoSet) -> np.ndarray:
+    """One infoset's 136 floats, built from the key alone: what the batch path must equal."""
+    return np.concatenate(
+        [
+            private_row(key.hole, key.discarded, key.board),
+            public_row(
+                draws=key.draws,
+                betting=key.betting,
+                player=key.player,
+                is_draw=key.is_draw_decision(),
+            ),
+        ]
+    )
+
+# ---------------------------------------------------------------------------
+# From a row number to its two halves
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class Layout:
+    """Where every row of the whole-game table sits: which point, which position.
+
+    The same arithmetic `PackedTable`'s whole-game index runs forward, run
+    backward: rows are laid out point by point in walk order, each point's
+    rows in its shape's `private_keys` order, so a row's point is the last
+    `row_offset` at or below it and its position is the remainder. Columns
+    the same way, each row `width[point]` wide. The private table is the
+    three shapes end to end (`private_offset[point]` is where a point's
+    shape starts in it), so a batch is one gather on each half.
+    """
+
+    points: tuple[PublicPoint, ...]
+    row_offset: np.ndarray  # (142,) int64: where each point's rows start, then the end
+    column_offset: np.ndarray  # (142,) int64: where each point's columns start, then the end
+    width: np.ndarray  # (141,) int64
+    private_offset: np.ndarray  # (141,) int64: where each point's shape starts in `private`
+    private: np.ndarray  # (111,540, 92) float32: the three shapes end to end
+    public: np.ndarray  # (141, 44) float32
+
+    def locate_rows(self, rows: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Each row's public point and its position in that point's shape.
+
+        Raises `IndexError` for a row outside the table: past the end would
+        land on a phantom 142nd point, and a negative one on the last point's
+        tail, both silently.
+        """
+        rows = np.asarray(rows, dtype=np.int64)
+        if rows.size and (rows.min() < 0 or rows.max() >= self.row_offset[-1]):
+            raise IndexError(f"a row is outside the table's {self.row_offset[-1]:,} rows")
+        point = np.searchsorted(self.row_offset, rows, side="right") - 1
+        return point, rows - self.row_offset[point]
+
+    def rows_of_columns(self, columns: np.ndarray) -> np.ndarray:
+        """The row that owns each column start — what a walk's strategy record carries."""
+        columns = np.asarray(columns, dtype=np.int64)
+        point = np.searchsorted(self.column_offset, columns, side="right") - 1
+        return self.row_offset[point] + (columns - self.column_offset[point]) // self.width[point]
+
+    def features(self, rows: np.ndarray) -> np.ndarray:
+        """The 136 floats of each row, gathered from the two halves; (n, 136) float32."""
+        point, position = self.locate_rows(rows)
+        private = self.private[self.private_offset[point] + position]
+        return np.concatenate([private, self.public[point]], axis=1)
+
+@cache
+def layout() -> Layout:
+    """The whole game's layout, built once from the enumerator's two halves."""
+    points = public_decision_points()
+    shapes = sorted({(point.board_cards, point.discards) for point in points})
+    tables = {shape: private_features(board_cards=shape[0], discards=shape[1]) for shape in shapes}
+    private = np.concatenate([tables[shape] for shape in shapes])
+    private.setflags(write=False)
+    shape_start = {}
+    start = 0
+    for shape in shapes:
+        shape_start[shape] = start
+        start += len(tables[shape])
+    sizes = [len(tables[(point.board_cards, point.discards)]) for point in points]
+    widths = [point.width for point in points]
+    return Layout(
+        points=points,
+        row_offset=np.concatenate([[0], np.cumsum(sizes)]).astype(np.int64),
+        column_offset=np.concatenate(
+            [[0], np.cumsum([size * width for size, width in zip(sizes, widths, strict=True)])]
+        ).astype(np.int64),
+        width=np.asarray(widths, dtype=np.int64),
+        private_offset=np.asarray(
+            [shape_start[(point.board_cards, point.discards)] for point in points], dtype=np.int64
+        ),
+        private=private,
+        public=public_features(),
+    )
