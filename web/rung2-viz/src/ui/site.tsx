@@ -31,7 +31,16 @@ const RUNGS = [
       ['Trainer', `${HOME}/rung2#play`],
     ],
   },
-  { n: 3, name: 'Mini-Drawmaha', href: `${HOME}/#rung3`, state: 'now', acts: [['Analysis', `${HOME}/#rung3`]] },
+  {
+    n: 3,
+    name: 'Mini-Drawmaha',
+    href: `${HOME}/rung3`,
+    state: 'done',
+    acts: [
+      ['Analysis', `${HOME}/rung3`],
+      ['Trainer', `${HOME}/rung3#play`],
+    ],
+  },
   { n: 4, name: 'Full Drawmaha', href: `${HOME}/#rung4`, state: 'todo', acts: [['Analysis', `${HOME}/#rung4`]] },
 ] as const
 
@@ -167,7 +176,7 @@ function RungsMenu({ here }: { here: number }) {
   )
 }
 
-/** The top bar: the chip as the way home, the site nav, one way into the product. */
+/** The top bar: the chip as the way home, the site nav, one way into the product — the newest trainer. */
 export function TopBar({ here }: { here: number }) {
   return (
     <header className="top">
@@ -184,13 +193,13 @@ export function TopBar({ here }: { here: number }) {
           </a>
           <RungsMenu here={here} />
         </nav>
-        {here === 2 ? (
+        {here === 2 || here === 3 ? (
           <a className="btn primary" href="#play">
             Play the solver →
           </a>
         ) : (
-          <a className="btn primary" href={`${HOME}/rung2`}>
-            Open the solver →
+          <a className="btn primary" href={`${HOME}/rung3#play`}>
+            Play the solver →
           </a>
         )}
       </div>
@@ -214,6 +223,7 @@ export function Footer() {
           <a href={`${HOME}/rung0`}>/rung0</a>
           <a href={`${HOME}/rung1`}>/rung1</a>
           <a href={`${HOME}/rung2`}>/rung2</a>
+          <a href={`${HOME}/rung3`}>/rung3</a>
         </div>
       </div>
     </footer>

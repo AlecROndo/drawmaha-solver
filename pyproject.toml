@@ -24,6 +24,7 @@ leduc-play = "drawmaha_solver.leduc.play:main"
 leduc-exploit-server = "drawmaha_solver.leduc.exploit_server:main"
 minidraw-analysis = "drawmaha_solver.minidrawmaha.analysis:main"
 minidraw-play = "drawmaha_solver.minidrawmaha.play:main"
+minidraw-deals = "drawmaha_solver.minidrawmaha.deal_pack:main"
 
 [build-system]
 requires = ["hatchling"]

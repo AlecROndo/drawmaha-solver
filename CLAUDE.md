@@ -12,9 +12,9 @@ afterwards — the standard is enforced, not advisory.
 
 Two structural facts it depends on:
 
-- The three visualizers each carry a byte-identical copy of the chrome
+- The four visualizers each carry a byte-identical copy of the chrome
   (`src/theme.css`, `src/main.tsx`, `src/ui/{site.tsx,mark.ts,ascii.ts}`).
-  Edit rung 0's copy, `cp` it to rungs 1 and 2, `cmp` them.
+  Edit rung 0's copy, `cp` it to rungs 1, 2 and 3, `cmp` them.
 - The homepage, Rules and Cover (`web/cover/*.html`) each inline their own
   copy of the chrome CSS. A chrome change is made in all three as well. See
   `web/cover/README.md` for the font rule and the hand-edit pins.

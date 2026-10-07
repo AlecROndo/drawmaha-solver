@@ -295,17 +295,31 @@ uv run minidraw-play                             # deal yourself in against the 
 
 `minidraw-play` deals hands against the frozen strategy, alternating seats. At the draw the prompt names each throw by the position the solver's ledgers use (low, mid, top) and shows the physical card it would throw. The bot's draw is reported only as the table sees it: whether it drew, never what. Every hand ends by revealing both holdings and who took each half of the pot.
 
+### Seeing it
+
+`web/rung3-viz`, served at `/rung3` — the research as a page. It opens on **The research**: the race (Fig. 1, hover or arrow a checkpoint to read the four rules' numbers at that column), the averaging columns, the two seats' best responses on a number line (a perfect P0 still loses, because the seat is worth a tenth of an ante to P1), round-1 betting and the draw by inner category, how big the game is on a log axis, and between the figures the prose: the game, external sampling, lockstep, the four regret rules with their update formulas, why CFR+ and DCFR coincide under sampling, and what is and is not settled. Every number is read from `figures/rung3/grades.json` and `answer_sheet.json`, copied into `src/data/`.
+
+```bash
+cd web/rung3-viz && npm install && npm run dev
+```
+
+### Playing it in the browser
+
+The **Play the solver** tab (`/rung3#play`) is the trainer: your three cards face up, the solver's face down, two board frames mid-table, the draw as buttons that name the physical card each throw discards, and a showdown that says who took each half and with what. Rung 2's coach watches: a roll drawn before each of your decisions, the solver's mix at your spot, and a grade for the deviation.
+
+The browser never looks the strategy up. The table is 6.2M rows behind a joint canonical suit relabelling, which is the one routine this repo most wants to exist exactly once, and the site runs no Python. So `uv run minidraw-deals` deals 600 hands as fixed deck orders and records, for each, the frozen strategy's mix at every decision either player can reach (about 480 nodes a deal), the canonical low/mid/top order of each player's cards, and the showdown of all 16 post-draw worlds — `web/rung3-viz/public/deals/`, six chunks of 100 fetched as the queue runs low, with a manifest pinning the seed and the strategy's digest. The page follows the path it is on and reads the vector; `deal_pack.py` is tested with a stand-in profile so the suite never needs the 18 MB file. Only the pot-limit betting grammar is transcribed to TypeScript, and `minidraw.test.ts` pins it against the same thirteen round-1 lines the Python suite pins.
+
 ## The site
 
-Six surfaces: the homepage at `/`, its Rules tab at `/rules` and the Cover at `/cover` (three self-contained static pages in `web/cover/` — the first two designed outside the repo and exported, the Cover authored here; see `web/cover/README.md`) and the three visualizers at `/rung0`, `/rung1` and `/rung2`.
+Seven surfaces: the homepage at `/`, its Rules tab at `/rules` and the Cover at `/cover` (three self-contained static pages in `web/cover/` — the first two designed outside the repo and exported, the Cover authored here; see `web/cover/README.md`) and the four visualizers at `/rung0`, `/rung1`, `/rung2` and `/rung3`.
 
-Every surface is set in the theme the homepage established. The visualizers carry it in five files that are byte-identical across the three apps — `src/theme.css`, `src/main.tsx`, `src/ui/site.tsx`, `src/ui/mark.ts`, `src/ui/ascii.ts` — deliberately copied rather than extracted to a package, and held identical by `tests/test_shared_chrome.py`. A near-black field and ivory ink, with two data colours: **yellow** is the thing you are pointing at (the average, the call), **pink** is the aggressive act (the bet, the current iterate, the head of a trail). Oxblood is the brand — the chip's pattern and the squiggle, never ink. The **chip is the mark**: an ASCII poker chip turning in the top bar and again at the foot of the page, beside a Rungs menu that lists the five rungs and where the climb stands; each rung page opens on its own raymarched ASCII object, the same one that stands for it in the cover's ladder. Figures sit in windows — a title bar with the figure's number and field, then the pane — and anything tabular is hairline rows, never cards.
+Every surface is set in the theme the homepage established. The visualizers carry it in five files that are byte-identical across the four apps — `src/theme.css`, `src/main.tsx`, `src/ui/site.tsx`, `src/ui/mark.ts`, `src/ui/ascii.ts` — deliberately copied rather than extracted to a package, and held identical by `tests/test_shared_chrome.py`. A near-black field and ivory ink, with two data colours: **yellow** is the thing you are pointing at (the average, the call), **pink** is the aggressive act (the bet, the current iterate, the head of a trail). Oxblood is the brand — the chip's pattern and the squiggle, never ink. The **chip is the mark**: an ASCII poker chip turning in the top bar and again at the foot of the page, beside a Rungs menu that lists the five rungs and where the climb stands; each rung page opens on its own raymarched ASCII object, the same one that stands for it in the cover's ladder. Figures sit in windows — a title bar with the figure's number and field, then the pane — and anything tabular is hairline rows, never cards.
 
 Three type voices with no overlap: **Plus Jakarta Sans** for headlines, **Instrument Sans** for prose, and **IBM Plex Mono** for the UI and every number.
 
-Identity colour lives *inside* a figure, where it carries an action's or a card's identity across every figure on the page: at rung 0 rock is plain ivory, paper the yellow, scissors the pink; at rungs 1 and 2 the queen is ivory, the king the yellow and the jack — the card that bluffs — the pink, and the action mix splits the same way, bet in pink, check in yellow. The chrome never uses either colour for decoration.
+Identity colour lives *inside* a figure, where it carries an action's or a card's identity across every figure on the page: at rung 0 rock is plain ivory, paper the yellow, scissors the pink; at rungs 1 and 2 the queen is ivory, the king the yellow and the jack — the card that bluffs — the pink, and the action mix splits the same way, bet in pink, check in yellow; at rung 3 the four regret rules keep four inks across every figure, the winner in yellow. The chrome never uses either colour for decoration.
 
-`npm run dev` in a visualizer serves that app alone, without the static pages. To see all six wired the way Vercel wires them:
+`npm run dev` in a visualizer serves that app alone, without the static pages. To see all seven wired the way Vercel wires them:
 
 ```bash
 bash scripts/vercel_build.sh          # builds public/
@@ -318,6 +332,6 @@ Rungs 0 and 1 complete. Rung 1 solves Kuhn to its closed-form equilibrium, repro
 
 Rung 2's solver is complete and checked against an outside referee: it reaches the sequence-form LP's −0.08561 game value, drives exploitability to 0.011 chips/hand, and holds a committed OpenSpiel fixture that pins the tree's shape, the payoff ladder and the exact answer — none of which any closed form could supply. It ships the analysis pipeline, three figures, `leduc-play`, and the `/rung2` action-timeline visualizer over a committed solve. Still open at rung 2: an exploit mode — lock a range and watch a Leduc best-responder punish it, the rung-1 exploit tab's equivalent.
 
-Rung 3 is solved tabularly. Four regret rules raced to 20M hands per seat on Modal, and LCFR won at 0.061 chips/hand by the exact grader. Its average is frozen as a release asset, and the rung ships `minidraw-analysis`, four figures and `minidraw-play`. Next: rung 4, Deep CFR. Its first target is mini-drawmaha itself, where the exact grader and this tabular answer measure what the networks give up.
+Rung 3 is solved tabularly. Four regret rules raced to 20M hands per seat on Modal, and LCFR won at 0.061 chips/hand by the exact grader. Its average is frozen as a release asset, and the rung ships `minidraw-analysis`, four figures, `minidraw-play`, and the `/rung3` page: the research with its figures and the browser trainer over a pre-dealt pack. Next: rung 4, Deep CFR. Its first target is mini-drawmaha itself, where the exact grader and this tabular answer measure what the networks give up.
 
 One gap worth naming: **CI runs no tests.** The only workflow is an automated code review, so the 500-plus-test suite is run by hand rather than enforced on a pull request. Next: a test job.
