@@ -32,7 +32,7 @@ with a manifest that records the seed, the strategy's digest and provenance.
 The browser checks each chunk's deal count against the manifest and every
 deal's shape against its own betting grammar; the digest is what it can SAY
 about the strategy it is playing, so a re-export shows up as a changed digest
-rather than passing for the old one.
+or seed rather than passing for the old one.
 """
 
 from __future__ import annotations
@@ -264,7 +264,15 @@ def write_pack(
     The swap is a run of renames and not one atomic step: killed inside it,
     the directory holds one whole manifest and every chunk it names, but the
     chunks may be a mix of the two exports until the run is repeated.
+
+    An empty export or a non-positive chunk is refused here: the browser's
+    `checkManifest` would refuse the manifest anyway, and the place to learn
+    that is the export, not the page.
     """
+    if not deals:
+        raise ValueError("a pack needs at least one deal")
+    if chunk <= 0:
+        raise ValueError(f"a chunk holds a positive number of deals, not {chunk}")
     out.mkdir(parents=True, exist_ok=True)
     for orphan in out.glob("*.tmp"):
         orphan.unlink()

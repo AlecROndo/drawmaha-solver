@@ -38,6 +38,15 @@ describe('a chunk against the manifest', () => {
     expect(() => checkManifest({ ...manifest, deals: 0, chunks: [] })).toThrow()
   })
 
+  it('holds every chunk name to pack-NN.json before it goes into a URL', () => {
+    const odd = (name: unknown) => ({ ...manifest, chunks: ['pack-00.json', 'pack-01.json', name as string] })
+    expect(() => checkManifest(odd('../index.json'))).toThrow('not a pack-NN.json: ../index.json')
+    expect(() => checkManifest(odd('pack-2.json'))).toThrow('not a pack-NN.json: pack-2.json')
+    expect(() => checkManifest(odd('https://elsewhere/pack-02.json'))).toThrow('not a pack-NN.json')
+    expect(() => checkManifest(odd(2))).toThrow('not a pack-NN.json: 2')
+    expect(() => checkManifest(odd('pack-02.json'))).not.toThrow()
+  })
+
   it('refuses a count the manifest did not describe, and names a malformed deal', () => {
     expect(() => checkChunk(manifest, 0, [])).toThrow('pack-00.json holds 0 deals; the manifest says 2')
     expect(() => checkChunk(manifest, 2, [{} as Deal])).toThrow('pack-02.json, deal 0: the deck is not a permutation')

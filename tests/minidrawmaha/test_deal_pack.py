@@ -282,6 +282,17 @@ def test_an_export_that_dies_while_staging_leaves_the_previous_pack_whole(tmp_pa
     assert len(json.loads((out / "pack-00.json").read_text())) == 2
 
 
+def test_an_empty_export_or_a_non_positive_chunk_is_refused_before_anything_is_written(tmp_path, deal):
+    out = tmp_path / "deals"
+    with pytest.raises(ValueError, match="at least one deal"):
+        write_pack([], out, chunk=2, seed=0, info=INFO, sha256="ab" * 32)
+    with pytest.raises(ValueError, match="positive number of deals"):
+        write_pack([deal], out, chunk=0, seed=0, info=INFO, sha256="ab" * 32)
+    with pytest.raises(ValueError, match="positive number of deals"):
+        write_pack([deal], out, chunk=-1, seed=0, info=INFO, sha256="ab" * 32)
+    assert not out.exists()
+
+
 def test_a_shorter_export_keeps_the_chunks_it_names_and_removes_the_rest(tmp_path, deal):
     out = tmp_path / "deals"
     write_pack([deal] * 5, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32)

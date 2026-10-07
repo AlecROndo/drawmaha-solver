@@ -45,10 +45,14 @@ export async function loadManifest(fetcher: typeof fetch = fetch): Promise<Manif
   return manifest
 }
 
+/** What `write_pack` names a chunk, and all a chunk name is allowed to be before it goes into a URL. */
+const CHUNK_NAME = /^pack-\d{2}\.json$/
+
 /**
  * Refuse a manifest whose own arithmetic does not close: `deals` in chunks
- * of `chunk` must name exactly ceil(deals / chunk) chunks, and at least one.
- * `expectedDeals` divides by this, so it is checked before anything is.
+ * of `chunk` must name exactly ceil(deals / chunk) chunks, and at least one,
+ * each a plain `pack-NN.json`. `expectedDeals` divides by this and
+ * `loadChunk` fetches by it, so it is checked before anything is.
  */
 export function checkManifest(manifest: Manifest): void {
   const { deals, chunk, chunks } = manifest
@@ -57,6 +61,8 @@ export function checkManifest(manifest: Manifest): void {
   if (!whole || named !== Math.ceil(deals / chunk)) {
     throw new Error(`the manifest describes ${deals} deals in chunks of ${chunk} but names ${named} chunks`)
   }
+  const odd = chunks.find((name) => typeof name !== 'string' || !CHUNK_NAME.test(name))
+  if (odd !== undefined) throw new Error(`the manifest names a chunk that is not a pack-NN.json: ${String(odd)}`)
 }
 
 export async function loadChunk(name: string, fetcher: typeof fetch = fetch): Promise<Deal[]> {
