@@ -58,13 +58,13 @@ export function Ledger({
         {openRow !== null && (
           <>
             <i>›</i>
-            <span>{INNER_ROWS[openRow].long}</span>
+            <span>{INNER_ROWS[openRow].label}</span>
           </>
         )}
         {pin && (
           <>
             <i>›</i>
-            <span className="on">{OUTER_COLS[pin.col].long}</span>
+            <span className="on">{OUTER_COLS[pin.col].label}</span>
           </>
         )}
         {sort && <em>sorted by {actionWord(sort, node)}</em>}
@@ -83,7 +83,9 @@ export function Ledger({
           <div key={i} className="group">
             <button type="button" className={`lrow l1 ${open ? 'open' : ''}`} onClick={() => onPin(open ? null : { row: i, col: firstCol(view, i) })} aria-expanded={open}>
               <span className="tog">{open ? '▾' : '▸'}</span>
-              <span className="name">{INNER_ROWS[i].long}</span>
+              <span className="name">
+                <b>{INNER_ROWS[i].label}</b> <small>{INNER_ROWS[i].long}</small>
+              </span>
               <span className="share">
                 <b>{pct(r.share)}</b>
               </span>
@@ -99,7 +101,9 @@ export function Ledger({
                   <div key={j}>
                     <button type="button" className={`lrow l2 ${open2 ? 'open' : ''}`} onClick={() => onPin(open2 ? { row: i, col: -1 } : { row: i, col: j })} aria-expanded={open2}>
                       <span className="tog">{open2 ? '▾' : '▸'}</span>
-                      <span className="name">outer: {c.long}</span>
+                      <span className="name">
+                        <b>{c.label}</b> <small>with the board · {c.long}</small>
+                      </span>
                       <span className="share">
                         <b>{pct(cell.share)}</b>
                       </span>

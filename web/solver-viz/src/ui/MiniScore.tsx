@@ -3,10 +3,10 @@
  * column per street — board card 1, round 1, the draw, board card 2,
  * round 2 — with the board along the top and the pot along the bottom.
  * Every chip is a decision that was made; clicking one rewinds the hand to
- * just before it. The board cells are pickers: click one and the fifteen
- * cards fan out beneath the score. Under the score sits the "next" strip:
- * the actions legal at the current decision, each with the share of the
- * actor's range that takes it under the strategy.
+ * just before it. The decision on screen is the yellow cell: the actor's
+ * legal actions as buttons, each with the share of that seat's range that
+ * takes it under the strategy; clicking one plays it. The board cells are
+ * pickers: click one and the fifteen cards fan out beneath the score.
  *
  * The line is the public record only — what each seat did, how many cards
  * each threw, which board cards came — never anybody's cards; that is what
@@ -51,7 +51,7 @@ export function decisionOf(line: MiniLine): Decision {
 
 export const linesOf = (line: MiniLine): string[] => (line.board2 === null ? [line.r1] : [line.r1, line.r2])
 
-/** The next-strip options at a decision: a bet's letters, or the two throw counts. */
+/** The options at a decision: a bet's letters, or the two throw counts. */
 export function nextOptions(line: MiniLine): { key: string; word: string }[] {
   const d = decisionOf(line)
   if (d.kind === 'bet') {
@@ -121,12 +121,7 @@ export function MiniScore({
       )
     }
     if (d.kind === 'bet' && d.round === round && d.player === seat) {
-      items.push(
-        <span key="now" className="act you" aria-current="step">
-          to act
-          <small>{legalBets(linesOf(line)).map((b) => betWord(b, letters)).join(' / ')}</small>
-        </span>,
-      )
+      items.push(<ToAct key="now" options={nextOptions(line)} shares={shares} onPlay={(k) => onLine(advance(line, k))} />)
     }
     return items.length ? items : <span className="none">·</span>
   }
@@ -141,12 +136,7 @@ export function MiniScore({
       )
     }
     if (d.kind === 'draw' && d.player === seat) {
-      return (
-        <span className="act you" aria-current="step">
-          to draw
-          <small>stand pat / throw one</small>
-        </span>
-      )
+      return <ToAct options={nextOptions(line)} shares={shares} onPlay={(k) => onLine(advance(line, k))} />
     }
     return <span className="none">·</span>
   }
@@ -238,17 +228,31 @@ export function MiniScore({
         </div>
       )}
 
-      <div className="next">
-        <span className="lab">{d.kind === 'over' ? (d.why === 'fold' ? 'the hand ended on a fold — click a chip to rewind' : 'showdown — click a chip to rewind') : d.kind === 'board2' ? 'pick board card 2' : 'next'}</span>
-        {nextOptions(line).map((o) => (
-          <button key={o.key} type="button" className="hbtn nextbtn" onClick={() => onLine(advance(line, o.key))}>
-            {o.word}
-            {shares && shares[o.key] !== undefined && <b>{Math.round(shares[o.key] * 100)}%</b>}
-          </button>
-        ))}
-        {d.kind !== 'over' && d.kind !== 'board2' && <span className="hint">the share of the actor's range that takes each action</span>}
-      </div>
+      <p className="legend-line scorehint">
+        {d.kind === 'over'
+          ? d.why === 'fold'
+            ? 'the hand ended on a fold · click a played chip to rewind to it'
+            : 'showdown · click a played chip to rewind to it'
+          : d.kind === 'board2'
+            ? 'pick board card 2 to open round 2'
+            : 'the yellow cell is the decision on screen: click an action to play it (the number is how much of that seat’s range takes it) · click a played chip to rewind · click a board card to change it'}
+      </p>
     </div>
+  )
+}
+
+/** The decision on screen: its legal actions as buttons, each with the share of the seat's range that takes it. */
+function ToAct({ options, shares, onPlay }: { options: { key: string; word: string }[]; shares: Record<string, number> | null; onPlay: (key: string) => void }) {
+  return (
+    <span className="toact" aria-current="step">
+      <span className="toact-lab">to act</span>
+      {options.map((o) => (
+        <button key={o.key} type="button" className={`act play ${o.key === 'p' || o.key === '1' ? 'p' : o.key === 'f' ? 'd' : 'c'}`} onClick={() => onPlay(o.key)} aria-label={`play ${o.word}`}>
+          {o.word}
+          {shares && shares[o.key] !== undefined && <b>{Math.round(shares[o.key] * 100)}%</b>}
+        </button>
+      ))}
+    </span>
   )
 }
 
