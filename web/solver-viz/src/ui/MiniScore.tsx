@@ -63,6 +63,15 @@ export function nextOptions(line: MiniLine): { key: string; word: string }[] {
   return []
 }
 
+/**
+ * The colour of an action's chip or button, by its key. Pink is the action
+ * that changes the hand — a pot bet or raise ('p'), or throwing a card ('1');
+ * a fold ('f') is the quiet ink; a check, call or stand pat is the yellow of
+ * the hand going on as it was. One rule for the played chips and the to-act
+ * buttons, so they agree.
+ */
+export const toneOf = (key: string): 'p' | 'd' | 'c' => (key === 'p' || key === '1' ? 'p' : key === 'f' ? 'd' : 'c')
+
 /** The line after taking `key` at its current decision. */
 export function advance(line: MiniLine, key: string): MiniLine {
   const d = decisionOf(line)
@@ -113,9 +122,8 @@ export function MiniScore({
       if (actorOf(letters.slice(0, k)) !== seat) continue
       const sym = letters[k]
       const word = sym === 'x' ? 'check' : sym === 'c' ? 'call' : sym === 'f' ? 'fold' : letters.slice(0, k).endsWith('p') ? 'raise' : 'bet'
-      const cls = sym === 'p' ? 'p' : sym === 'f' ? 'd' : 'c'
       items.push(
-        <button key={k} type="button" className={`act ${cls}`} onClick={() => (round === 1 ? rewindR1(k) : rewindR2(k))} aria-label={`rewind to before seat ${seat}'s ${word}`}>
+        <button key={k} type="button" className={`act ${toneOf(sym)}`} onClick={() => (round === 1 ? rewindR1(k) : rewindR2(k))} aria-label={`rewind to before seat ${seat}'s ${word}`}>
           {word}
         </button>,
       )
@@ -247,7 +255,7 @@ function ToAct({ options, shares, onPlay }: { options: { key: string; word: stri
     <span className="toact" aria-current="step">
       <span className="toact-lab">to act</span>
       {options.map((o) => (
-        <button key={o.key} type="button" className={`act play ${o.key === 'p' || o.key === '1' ? 'p' : o.key === 'f' ? 'd' : 'c'}`} onClick={() => onPlay(o.key)} aria-label={`play ${o.word}`}>
+        <button key={o.key} type="button" className={`act play ${toneOf(o.key)}`} onClick={() => onPlay(o.key)} aria-label={`play ${o.word}`}>
           {o.word}
           {shares && shares[o.key] !== undefined && <b>{Math.round(shares[o.key] * 100)}%</b>}
         </button>
