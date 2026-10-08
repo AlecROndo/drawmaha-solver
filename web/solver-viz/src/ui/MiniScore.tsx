@@ -63,14 +63,25 @@ export function nextOptions(line: MiniLine): { key: string; word: string }[] {
   return []
 }
 
+/** A chip's colour: pink for the action that pushes, the quiet ink for giving up, yellow for going along. */
+export type Tone = 'p' | 'd' | 'c'
+
 /**
- * The colour of an action's chip or button, by its key. Pink is the action
- * that changes the hand — a pot bet or raise ('p'), or throwing a card ('1');
- * a fold ('f') is the quiet ink; a check, call or stand pat is the yellow of
- * the hand going on as it was. One rule for the played chips and the to-act
- * buttons, so they agree.
+ * The colour of an action's chip or button, by its key — one rule for the
+ * played chips and the to-act buttons, so they agree. Pink is the action that
+ * pushes: a pot bet or raise ('p') puts chips in, a throw ('1') changes the
+ * cards. The quiet ink is giving up ('f'). Yellow is going along with the hand
+ * as it stands: a check or call ('x', 'c') or standing pat ('0'). The map is
+ * closed on purpose: a key it has never heard of — a new bet size, a
+ * throw-two — is refused rather than quietly coloured as "going along".
  */
-export const toneOf = (key: string): 'p' | 'd' | 'c' => (key === 'p' || key === '1' ? 'p' : key === 'f' ? 'd' : 'c')
+const TONES: Readonly<Record<string, Tone>> = { p: 'p', '1': 'p', f: 'd', x: 'c', c: 'c', '0': 'c' }
+
+export function toneOf(key: string): Tone {
+  const tone = TONES[key]
+  if (tone === undefined) throw new Error(`no colour for the action key ${JSON.stringify(key)}`)
+  return tone
+}
 
 /** The line after taking `key` at its current decision. */
 export function advance(line: MiniLine, key: string): MiniLine {
