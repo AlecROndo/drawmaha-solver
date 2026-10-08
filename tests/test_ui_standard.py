@@ -34,7 +34,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 
-APPS = ("rung0-viz", "rung1-viz", "rung2-viz", "rung3-viz")
+APPS = ("rung0-viz", "rung1-viz", "rung2-viz", "rung3-viz", "solver-viz")
 PAGES = ("index.html", "rules.html", "cover.html")
 
 TOKENS = ("--ease-out", "--ease-in-out", "--t-press")
@@ -79,6 +79,9 @@ PRESSABLES = {
     "rung2-viz": (".tl button.stn", ".next button", ".lockbtn"),
     # rung 3's buttons are all the theme's .btn; the race chart is hovered, not pressed
     "rung3-viz": (),
+    # the range interface: the score's chips, the header's controls, the filter
+    # chips, the grid's cells, the ledger's rows, the ribbon's keys, the deck
+    "solver-viz": (".score .act", ".hbtn", ".seg button", ".cell", ".lrow", ".key", ".dcard", ".pickcard"),
     "index.html": (
         ".btn",
         ".navbtn",

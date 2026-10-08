@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ten ways to look at a Drawmaha range — UI studies</title>
+<style>
+@font-face{font-family:'Plus Jakarta Sans';font-weight:600;src:url(../../web/rung0-viz/node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-weight:600;font-style:italic;src:url(../../web/cover/fonts/plus-jakarta-sans-latin-600-italic.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:400;src:url(../../web/rung0-viz/node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:500;src:url(../../web/rung0-viz/node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:600;src:url(../../web/rung0-viz/node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Instrument Sans';font-weight:400;src:url(../../web/cover/fonts/instrument-sans-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Instrument Sans';font-weight:500;src:url(../../web/cover/fonts/instrument-sans-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Instrument Sans';font-weight:600;src:url(../../web/cover/fonts/instrument-sans-latin-600-normal.woff2) format('woff2')}
+
+:root{
+  color-scheme:dark;
+  --field:#0c0a0b;--panel:#131011;--well:#0a0809;
+  --ivory:#f5f0e6;--iv-80:rgba(245,240,230,.8);--iv-60:rgba(245,240,230,.6);--iv-45:rgba(245,240,230,.45);
+  --iv-30:rgba(245,240,230,.3);--iv-16:rgba(245,240,230,.16);--iv-10:rgba(245,240,230,.1);--iv-06:rgba(245,240,230,.06);--iv-03:rgba(245,240,230,.035);
+  --ox:#8e2038;--ox-lit:#b52a4c;--yellow:#e9b862;--yellow-20:rgba(233,184,98,.2);--pink:#d8566f;--pink-20:rgba(216,86,111,.2);
+  --fold:var(--iv-45);--call:var(--yellow);--pot:var(--pink);
+  --display:'Plus Jakarta Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;--sans:'Instrument Sans',system-ui,sans-serif;
+  --max:1280px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--field);color:var(--ivory);font-family:var(--sans);font-size:15px;line-height:1.5}
+a{color:inherit}
+.wrap{max-width:var(--max);margin:0 auto;padding:48px 32px 96px}
+.eyebrow{font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--iv-60)}
+h1{font:600 56px/1.02 var(--display);letter-spacing:-.03em;margin:14px 0 18px}
+h1 em{font-style:italic;color:var(--yellow)}
+.lede{max-width:760px;color:var(--iv-80);font-size:17px}
+.lede b{color:var(--ivory);font-weight:600}
+.caveat{margin:26px 0 0;padding:14px 18px;border:1px solid var(--iv-16);border-left:3px solid var(--yellow);border-radius:6px;background:var(--panel);font:400 12.5px/1.6 var(--mono);color:var(--iv-80);max-width:900px}
+.caveat b{color:var(--yellow);font-weight:600}
+.spotline{margin:28px 0 0;display:flex;gap:28px;align-items:center;flex-wrap:wrap;font:400 12px/1 var(--mono);color:var(--iv-60)}
+.spotline .cards{display:flex;gap:6px}
+.card{display:inline-flex;align-items:center;justify-content:center;width:34px;height:46px;border-radius:5px;background:var(--ivory);color:#111;font:600 15px/1 var(--mono);box-shadow:0 1px 0 var(--iv-30) inset,0 8px 18px rgba(0,0,0,.45)}
+.card.red{color:#b5203a}
+.card.sm{width:26px;height:36px;font-size:12px;border-radius:4px}
+.card.back{background:repeating-linear-gradient(45deg,#1d1416 0 3px,#2a1a1f 3px 6px);color:transparent;border:1px solid var(--iv-16)}
+.card.ghost{background:transparent;border:1px dashed var(--iv-30);color:var(--iv-45)}
+
+/* ---- sections */
+section.part{margin-top:84px;border-top:1px solid var(--iv-16);padding-top:28px}
+section.part>.eyebrow{margin-bottom:10px}
+h2{font:600 34px/1.1 var(--display);letter-spacing:-.025em;margin:0 0 10px}
+h2 .no{color:var(--iv-30);margin-right:14px;font-variant-numeric:tabular-nums}
+.part .intro{max-width:780px;color:var(--iv-80);margin:0 0 24px}
+.study{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+.study.full{grid-template-columns:1fr}
+.notes{font-size:14px;color:var(--iv-80)}
+.notes h4{font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45);margin:18px 0 6px}
+.notes h4:first-child{margin-top:4px}
+.notes p{margin:0 0 6px}
+.notes .verdict{margin-top:18px;padding:12px 14px;border:1px solid var(--iv-16);border-radius:6px;background:var(--panel);font:400 12.5px/1.55 var(--mono);color:var(--ivory)}
+.notes .verdict b{color:var(--yellow)}
+
+/* ---- windows */
+.panel{background:var(--panel);border:1px solid var(--iv-16);border-radius:8px;box-shadow:0 24px 70px rgba(0,0,0,.5),0 1px 0 var(--iv-06) inset;overflow:hidden}
+.titlebar{display:flex;align-items:center;gap:12px;height:34px;padding:0 14px;border-bottom:1px solid var(--iv-10);font:400 11px/1 var(--mono);color:var(--iv-60);letter-spacing:.04em}
+.titlebar .dots{display:flex;gap:5px}.titlebar .dots i{width:9px;height:9px;border-radius:50%;border:1px solid var(--iv-30);display:block}
+.titlebar .k{text-transform:uppercase;letter-spacing:.12em}
+.titlebar .no{margin-left:auto;font:600 13px/1 var(--display);color:var(--iv-45)}
+.titlebar .tabs{display:flex;gap:2px;margin-left:8px}
+.titlebar .tabs span{padding:5px 9px;border-radius:4px;color:var(--iv-60)}
+.titlebar .tabs span.on{background:var(--iv-10);color:var(--ivory)}
+.pane{padding:18px 20px 20px}
+.pane.tight{padding:12px 14px 14px}
+.lbl{font:500 10.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45);margin:0 0 8px}
+.mono{font-family:var(--mono)}
+.num{font-variant-numeric:tabular-nums}
+.dim{color:var(--iv-60)}
+.dimmer{color:var(--iv-45)}
+.hair{border-top:1px solid var(--iv-10)}
+
+/* the fixed header every range view shares: the spot + the whole-range mix */
+.spothead{display:grid;grid-template-columns:auto 1fr auto;gap:22px;align-items:center;padding:0 0 14px;border-bottom:1px solid var(--iv-10);margin-bottom:16px}
+.spothead .who{font:600 20px/1.1 var(--display);letter-spacing:-.01em}
+.spothead .who small{display:block;font:400 11.5px/1.4 var(--mono);color:var(--iv-60);margin-top:4px;letter-spacing:.02em}
+.mixbar{display:flex;height:10px;border-radius:3px;overflow:hidden;gap:2px;background:transparent}
+.mixbar i{display:block;height:100%}
+.mixbar .f{background:var(--fold)}.mixbar .c{background:var(--call)}.mixbar .p{background:var(--pot)}
+.mixkey{display:flex;gap:16px;font:400 11px/1 var(--mono);color:var(--iv-60);margin-top:8px}
+.mixkey b{color:var(--ivory);font-weight:500}
+.mixkey i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:-0.5px}
+.mixkey .f i{background:var(--fold)}.mixkey .c i{background:var(--call)}.mixkey .p i{background:var(--pot)}
+.count{font:400 11.5px/1.5 var(--mono);color:var(--iv-60);text-align:right}
+.count b{color:var(--ivory);font-weight:500;font-size:14px}
+
+/* filters strip */
+.filters{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin:0 0 16px}
+.seg{display:flex;gap:4px}
+.seg span{font:400 11px/1 var(--mono);padding:6px 9px;border:1px solid var(--iv-16);border-radius:4px;color:var(--iv-60);background:var(--well)}
+.seg span.on{color:var(--ivory);border-color:var(--iv-45);background:var(--iv-06)}
+.seg span.y{color:var(--yellow);border-color:var(--yellow)}
+.field{display:flex;align-items:center;gap:8px;font:400 11px/1 var(--mono);color:var(--iv-60);padding:6px 10px;border:1px solid var(--iv-16);border-radius:4px;background:var(--well);min-width:220px}
+.field .cur{display:inline-block;width:1px;height:12px;background:var(--yellow);animation:blink 1s steps(2) infinite}
+@keyframes blink{to{opacity:0}}
+
+/* ---------------- lead-up: the two-lane score */
+.score{display:grid;grid-template-columns:110px repeat(var(--n),minmax(0,1fr));font:400 12px/1.3 var(--mono)}
+.score>div{padding:10px 12px;border-bottom:1px solid var(--iv-10);min-height:44px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.score .h{font:500 10.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--iv-45);min-height:34px}
+.score .lane{color:var(--iv-60);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.score .lane b{color:var(--ivory);font-weight:500}
+.score .st{border-left:1px solid var(--iv-10)}
+.score .act{display:inline-flex;flex-direction:column;align-items:flex-start;gap:3px;white-space:nowrap;padding:6px 9px;border-radius:4px;border:1px solid var(--iv-16);color:var(--ivory);background:var(--well)}
+.score .act.p{border-color:var(--pink);color:var(--pink)}
+.score .act.c{border-color:var(--yellow-20);color:var(--yellow)}
+.score .act.d{color:var(--iv-80)}
+.score .act small{color:var(--iv-45);font-size:10.5px}
+.score .you{position:relative;border:1px dashed var(--yellow);color:var(--yellow);background:var(--yellow-20)}
+.score .pot{color:var(--iv-60);font-size:11px}
+.score .pot b{color:var(--ivory);font-weight:500}
+.score .board{gap:4px}
+.score .none{color:var(--iv-30)}
+
+/* lead-up: one line */
+.oneline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:400 12.5px/1 var(--mono)}
+.oneline .pill{padding:6px 9px;border:1px solid var(--iv-16);border-radius:4px;background:var(--well);color:var(--ivory);display:inline-flex;gap:6px;align-items:center}
+.oneline .pill.p{color:var(--pink);border-color:var(--pink-20)}
+.oneline .pill.c{color:var(--yellow)}
+.oneline .pill small{color:var(--iv-45)}
+.oneline .sep{color:var(--iv-30)}
+.oneline .here{border:1px dashed var(--yellow);color:var(--yellow);background:var(--yellow-20)}
+.oneline .cards{display:inline-flex;gap:3px}
+
+/* ---------------- 1. the two-half grid */
+.grid2{display:grid;gap:3px;font:400 10.5px/1.25 var(--mono)}
+.grid2 .corner{display:flex;align-items:flex-end;justify-content:flex-end;padding:0 8px 6px 0;color:var(--iv-45);text-align:right;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.grid2 .ch{display:flex;flex-direction:column;justify-content:flex-end;gap:4px;padding:0 6px 6px;color:var(--iv-60);text-align:center;border-bottom:1px solid var(--iv-16)}
+.grid2 .ch b{color:var(--ivory);font-weight:500;display:block}
+.grid2 .ch .mixbar{height:4px}
+.grid2 .ch .sh{color:var(--iv-45)}
+.grid2 .rh{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:0 10px 0 0;color:var(--iv-60);text-align:right;border-right:1px solid var(--iv-16)}
+.grid2 .rh b{color:var(--ivory);font-weight:500;display:block}
+.grid2 .rh .mixbar{height:4px;margin-top:2px}
+.grid2 .rh .sh{color:var(--iv-45)}
+.grid2 .cell{position:relative;background:var(--well);border:1px solid var(--iv-06);border-radius:3px;height:64px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.grid2 .cell.pin{border-color:var(--yellow)}
+.grid2 .cell .sq{display:flex;flex-direction:column;border-radius:2px;overflow:hidden}
+.grid2 .cell .sq i{display:block;width:100%}
+.grid2 .cell .pct{position:absolute;right:5px;bottom:3px;color:var(--iv-60);font-size:10px}
+.grid2 .cell.pin .pct{color:var(--yellow)}
+.grid2 .cell.empty{background:transparent;border-style:dashed}
+.grid2 .cell.empty:after{content:'—';color:var(--iv-16)}
+.grid2 .cell .dom{position:absolute;left:5px;top:3px;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
+.drill{margin-top:14px;padding-top:12px;border-top:1px solid var(--iv-10);display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.drill .lbl{margin-bottom:6px}
+.handrow{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:6px 0;border-bottom:1px solid var(--iv-06);font:400 11.5px/1 var(--mono)}
+.handrow .cards{display:flex;gap:3px}
+.handrow .mixbar{height:6px}
+.handrow .n{color:var(--iv-60);min-width:120px;text-align:right}
+.handrow .n b{color:var(--ivory);font-weight:500}
+
+/* ---------------- 2. the ribbon */
+.ribbon svg{display:block;width:100%;height:auto}
+.axis{font:400 10px/1 var(--mono);fill:var(--iv-45)}
+.brush{fill:rgba(233,184,98,.08);stroke:var(--yellow);stroke-dasharray:3 3}
+
+/* ---------------- 3. the scatter */
+.scatter svg{display:block;width:100%;height:auto}
+.quad{font:500 10px/1 var(--mono);fill:var(--iv-45);letter-spacing:.1em;text-transform:uppercase}
+
+/* ---------------- 4. the ledger */
+.ledger{font:400 12px/1.3 var(--mono)}
+.ledger .row{display:grid;grid-template-columns:22px 1fr 86px 240px 150px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--iv-10)}
+.ledger .row.head{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--iv-45);border-bottom:1px solid var(--iv-16);padding:4px 0 8px}
+.ledger .row.l1 .name{color:var(--ivory);font-weight:500}
+.ledger .row.l2{background:var(--iv-03)}
+.ledger .row.l2 .name{padding-left:18px;color:var(--iv-80)}
+.ledger .row.l3 .name{padding-left:38px;color:var(--iv-60)}
+.ledger .row.l3{font-size:11.5px}
+.ledger .tog{color:var(--iv-45);text-align:center}
+.ledger .row.open .tog{color:var(--yellow)}
+.ledger .share{text-align:right;color:var(--iv-60)}
+.ledger .share b{color:var(--ivory);font-weight:500}
+.ledger .mixbar{height:8px}
+.ledger .nums{color:var(--iv-60);font-size:11px;display:flex;gap:10px;justify-content:flex-end}
+.ledger .nums b{color:var(--ivory);font-weight:500}
+.ledger .marimekko .mixbar{height:var(--h)}
+.crumbs{display:flex;gap:8px;align-items:center;font:400 11px/1 var(--mono);color:var(--iv-45);margin-bottom:12px}
+.crumbs span{padding:4px 8px;border:1px solid var(--iv-16);border-radius:3px;color:var(--iv-80);background:var(--well)}
+.crumbs span.on{border-color:var(--yellow);color:var(--yellow)}
+.crumbs .sep{border:0;padding:0;color:var(--iv-30)}
+
+/* ---------------- 5. three panes */
+.panes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.panes .one{background:var(--well);border:1px solid var(--iv-10);border-radius:6px;padding:12px}
+.panes .one .lbl{display:flex;justify-content:space-between}
+.panes .one .lbl b{font-weight:500}
+.panes .one .lbl.f b{color:var(--fold)}.panes .one .lbl.c b{color:var(--call)}.panes .one .lbl.p b{color:var(--pot)}
+.mini{display:grid;gap:2px}
+.mini i{display:block;aspect-ratio:1;border-radius:1.5px;background:var(--iv-06)}
+.toplist{margin-top:10px;border-top:1px solid var(--iv-10);padding-top:8px;font:400 11px/1.6 var(--mono);color:var(--iv-80)}
+.toplist div{display:flex;justify-content:space-between;gap:8px}
+.toplist span.v{color:var(--iv-60)}
+
+/* ---------------- 6. the deck */
+.deck{display:grid;grid-template-columns:28px repeat(13,1fr);gap:4px;font:400 11px/1 var(--mono)}
+.deck .sh{color:var(--iv-45);display:flex;align-items:center;justify-content:center;font-size:14px}
+.deck .sh.red{color:var(--pink)}
+.deck .rh{color:var(--iv-45);display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px}
+.deck .c{position:relative;aspect-ratio:3/4;border-radius:4px;background:var(--well);border:1px solid var(--iv-10);display:flex;align-items:center;justify-content:center;color:var(--iv-60);font-weight:500}
+.deck .c.board{background:var(--ivory);color:#111;border-color:var(--ivory)}
+.deck .c.board.red{color:#b5203a}
+.deck .c.held{border:2px solid var(--yellow);color:var(--yellow)}
+.deck .c .bar{position:absolute;left:3px;right:3px;bottom:3px;height:3px;border-radius:2px;background:var(--iv-10);overflow:hidden}
+.deck .c .bar i{display:block;height:100%;background:var(--pot)}
+.deckside{display:grid;grid-template-columns:1fr 280px;gap:22px;align-items:start}
+.holding{display:flex;gap:6px;align-items:center;min-height:52px}
+.holding .arrow{color:var(--iv-30);margin:0 6px}
+
+/* ---------------- 7. the draw board */
+.drawb{display:grid;grid-template-columns:200px repeat(6,1fr) 80px;gap:3px;font:400 11px/1.3 var(--mono)}
+.drawb .h{color:var(--iv-45);text-align:center;padding:0 0 6px;border-bottom:1px solid var(--iv-16);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+.drawb .rh{color:var(--iv-80);display:flex;align-items:center;justify-content:space-between;padding-right:10px;border-right:1px solid var(--iv-16)}
+.drawb .rh small{color:var(--iv-45)}
+.drawb .cell{background:var(--well);border:1px solid var(--iv-06);border-radius:3px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--iv-60);position:relative;overflow:hidden}
+.drawb .cell i{position:absolute;inset:0;background:var(--yellow);opacity:var(--o)}
+.drawb .cell span{position:relative}
+.drawb .cell.top span{color:var(--field);font-weight:600}
+.drawb .mode{display:flex;align-items:center;justify-content:center;color:var(--iv-60)}
+.throwhand{display:flex;gap:10px;align-items:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid var(--iv-10)}
+.throwhand .slot{display:flex;flex-direction:column;align-items:center;gap:6px;font:400 10.5px/1 var(--mono);color:var(--iv-60)}
+.throwhand .slot .t{height:40px;width:6px;background:var(--iv-10);border-radius:3px;position:relative;overflow:hidden}
+.throwhand .slot .t i{position:absolute;left:0;right:0;bottom:0;background:var(--pink)}
+.throwhand .slot.keep .t i{background:var(--yellow)}
+.throwhand .say{margin-left:auto;font:400 11.5px/1.6 var(--mono);color:var(--iv-60);max-width:300px}
+.throwhand .say b{color:var(--ivory);font-weight:500}
+
+/* ---------------- 8. the funnel */
+.funnel{display:grid;grid-template-columns:repeat(5,1fr);gap:0;font:400 11.5px/1.4 var(--mono);position:relative}
+.funnel .stage{padding:0 14px 0 0;border-right:1px solid var(--iv-10);margin-right:14px;min-height:260px;position:relative}
+.funnel .stage:last-child{border-right:0;margin-right:0;padding-right:0}
+.funnel .stage .lbl{margin-bottom:10px}
+.funnel .stage .n{font:600 30px/1 var(--display);letter-spacing:-.02em;margin:2px 0 2px}
+.funnel .stage .of{color:var(--iv-45);font-size:10.5px;margin-bottom:10px}
+.funnel .stage .mixbar{height:8px;margin:0 0 6px}
+.funnel .pick{display:flex;flex-direction:column;gap:4px;margin-top:12px}
+.funnel .pick span{padding:5px 8px;border:1px solid var(--iv-10);border-radius:3px;color:var(--iv-60);display:flex;justify-content:space-between}
+.funnel .pick span.on{border-color:var(--yellow);color:var(--yellow);background:var(--yellow-20)}
+.funnel .pick span small{color:var(--iv-45)}
+.funnel .delta{margin-top:10px;font-size:10.5px;color:var(--iv-45)}
+.funnel .delta b{color:var(--pink);font-weight:500}
+.funnel .width{height:3px;background:var(--iv-10);border-radius:2px;margin:6px 0 10px;overflow:hidden}
+.funnel .width i{display:block;height:100%;background:var(--ivory)}
+
+/* ---------------- 9. range vs range */
+.vs{display:grid;grid-template-columns:1fr 150px 1fr;gap:16px;align-items:start}
+.vs .side .lbl{display:flex;justify-content:space-between}
+.vs .mid{display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:28px;font:400 11px/1.4 var(--mono);color:var(--iv-60);text-align:center}
+.vs .mid .vsn{font:600 26px/1 var(--display);color:var(--iv-30)}
+.vs .mid .eq{padding:10px 12px;border:1px solid var(--iv-16);border-radius:6px;background:var(--well);width:100%}
+.vs .mid .eq b{display:block;font:600 22px/1 var(--display);color:var(--ivory);margin:4px 0}
+.vs .mid .eq .two{display:flex;justify-content:space-between;color:var(--iv-60);font-size:10.5px;margin-top:6px}
+.vs .mid .eq .two b{font:500 12px/1 var(--mono);display:inline;color:var(--ivory)}
+.vs .heat{display:grid;gap:2px}
+.vs .heat i{display:block;aspect-ratio:1;border-radius:2px;background:var(--iv-06);position:relative}
+.vs .heat i.hov{outline:1px solid var(--yellow);outline-offset:1px}
+
+/* ---------------- 10. the filmstrip */
+.film{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;font:400 11px/1.4 var(--mono)}
+.film .frame{background:var(--well);border:1px solid var(--iv-10);border-radius:6px;padding:10px;position:relative}
+.film .frame.now{border-color:var(--yellow)}
+.film .frame .who{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--iv-45);display:flex;justify-content:space-between}
+.film .frame .what{color:var(--ivory);margin:4px 0 8px;min-height:32px}
+.film .frame .what b{font-weight:500}
+.film .frame .what.p b{color:var(--pink)}.film .frame .what.c b{color:var(--yellow)}
+.film .frame .mini{margin-bottom:8px}
+.film .frame .kept{color:var(--iv-60);font-size:10.5px;display:flex;justify-content:space-between}
+.film .frame .kept b{color:var(--ivory);font-weight:500}
+.film .frame.now .kept b{color:var(--yellow)}
+.film .link{position:absolute;right:-8px;top:50%;width:6px;height:1px;background:var(--iv-30)}
+
+/* ---------------- comparison */
+table.cmp{width:100%;border-collapse:collapse;font:400 12px/1.45 var(--mono)}
+table.cmp th{font:500 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--iv-45);text-align:left;padding:0 10px 10px 0;border-bottom:1px solid var(--iv-16)}
+table.cmp td{padding:10px 10px 10px 0;border-bottom:1px solid var(--iv-10);vertical-align:top;color:var(--iv-80)}
+table.cmp td:first-child{color:var(--ivory);white-space:nowrap}
+table.cmp td.y{color:var(--yellow)}
+table.cmp td.n{color:var(--iv-30)}
+.reco{margin-top:28px;padding:22px 26px;border:1px solid var(--iv-16);border-radius:8px;background:var(--panel);max-width:900px}
+.reco h3{font:600 24px/1.15 var(--display);letter-spacing:-.02em;margin:0 0 12px}
+.reco ol{margin:0;padding-left:20px;color:var(--iv-80)}
+.reco li{margin-bottom:8px}
+.reco li b{color:var(--ivory);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">drawmaha.app · the solver's interface · design studies · 2026-10-07</div>
+  <h1>Ten ways to look at a <em>range</em>, and a lead-up that is not a rail.</h1>
+  <p class="lede">The question every view has to answer is the one you ask at the table: <b>here is the spot; here is everything I could be holding; what does the solver do with each of them, and what does it do with mine?</b> Every study below is drawn over the same spot and the same range, so the differences are differences of form, not of data. The leaf of every study is the same: one hand, its two halves named, its mix.</p>
+  <div class="caveat"><b>What is real and what is not.</b> The range composition is real: 200,000 five-card holdings sampled from the 49 unseen cards on this flop, each scored twice (the inner hand from the five hole cards; the outer hand from exactly two hole cards and the three board cards), with draw flags. The <b>action mix is illustrative</b>: rung 4 is not trained, so a smooth function of each hand's two showdown-now equities stands in for the policy. Shapes, counts and the dimensionality are honest; the percentages are not solver output.</div>
+  <div class="spotline">
+    <span>THE SPOT</span>
+    <span class="cards"><span class="card">K♠</span><span class="card">9♠</span><span class="card red">4♦</span></span>
+    <span>bomb pot · 1 bb ante each · pot 2 → seat 0 bets pot (2) → <b style="color:var(--yellow);font-weight:500">you, seat 1, to act</b> · facing 2 into 4 · fold / call / pot (8)</span>
+    <span class="dim">1,906,884 holdings · 134,459 after suit relabelling</span>
+  </div>
+
+  <!-- ===================================================== LEAD-UP -->
+  <section class="part" id="leadup">
+    <div class="eyebrow">Part one · the lead-up</div>
+    <h2>The hand so far is a scorecard, not a railway.</h2>
+    <p class="intro">The station rail treats every event as the same kind of thing: a box on a line with "P0" above and "pot 2" below. But a hand of Drawmaha has two players doing things <em>in turn</em> across streets that have <em>cards</em>, and the draw is an event with a size and a face-up card. A scorecard already knows this shape: one lane per seat, one column per street, the board along the top, the pot along the bottom. You read it the way you read a box score. Three forms below, strongest first.</p>
+
+    <div class="study" id="s-score">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">Lead-up A · the two-lane score</span><span class="no">A</span></div>
+        <div class="pane">
+          <div class="score" id="score" style="--n:5"></div>
+          <p class="dim mono" style="font-size:11px;margin:12px 0 0">Click any cell to rewind to the decision it records. The board row holds the cards; a draw column holds how many each seat threw and the face-up card when there was one. The cursor is the only yellow thing on the sheet.</p>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Why a score beats a rail</h4>
+        <p>The rail flattens two players into one sequence and makes you read "P0 · check · P1 · check" to find out who did what. Lanes answer that without reading: your lane is the bottom one, always.</p>
+        <p>Streets become columns, so the board cards sit where the street is, and the draw gets a real column with a real payload (counts, the face-up card, kept or rejected) instead of a station labelled "draw".</p>
+        <h4>What it costs</h4>
+        <p>It is wider than the rail for long lines (bet, raise, re-raise in one street stacks chips inside one cell). A cell can hold two chips; past that, the cell scrolls or abbreviates.</p>
+        <div class="verdict"><b>Build this.</b> It is the lead-up for every range study below; the one-line form (B) is its collapsed state for the window title bar.</div>
+      </div>
+    </div>
+
+    <div class="study" id="s-oneline" style="margin-top:28px">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">Lead-up B · the line, as notation</span><span class="no">B</span></div>
+        <div class="pane">
+          <div class="oneline" id="oneline"></div>
+          <p class="dim mono" style="font-size:11px;margin:14px 0 0">The same hand as one line of poker notation with the board inline. Hovering a pill shows the pot after it; clicking rewinds. This is what the score collapses to when the range view needs the whole window.</p>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>When to use it</h4>
+        <p>The range grid wants the whole window. The line fits in 40 px above it and still carries everything: who did what, the cards, the draw sizes, where you are.</p>
+        <h4>Where it fails</h4>
+        <p>Nobody can rewind a 14-pill line with confidence; past about eight events it should expand back into the score on hover.</p>
+        <div class="verdict"><b>Build as the collapsed form</b> of A, not as its own thing.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== THE TEN -->
+  <section class="part" id="ten">
+    <div class="eyebrow">Part two · ten range views</div>
+    <h2>Ten forms for "everything I could have here".</h2>
+    <p class="intro">Each is drawn from the same 200,000 holdings on K♠ 9♠ 4♦, facing a pot bet. The first five are <em>maps</em> of the range (where the mass is, what each region does); the next three are <em>paths</em> to a hand (ways to narrow 1.9 million holdings to one); the last two put the spot in <em>context</em> (the other seat, the hand's history). The notes beside each say how it answers "what do I do?", how it narrows to a hand, and what it cannot show.</p>
+
+    <!-- 1 -->
+    <div class="study" id="s1">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">01 · the two-half grid</span><span class="tabs"><span class="on">Range</span><span>Hand</span></span><span class="no">01</span></div>
+        <div class="pane">
+          <div class="spothead" data-spothead></div>
+          <div class="filters">
+            <div><div class="lbl">inner · the five in hand</div><div class="seg"><span class="on">all</span><span>no pair</span><span>pair</span><span>two pair+</span><span>4-flush</span><span>4-straight</span></div></div>
+            <div><div class="lbl">outer · with the board</div><div class="seg"><span class="on">all</span><span>nothing</span><span>pair</span><span>two pair+</span><span>flush draw</span><span>straight draw</span></div></div>
+            <div><div class="lbl">a hand</div><div class="field">A♠ A♦ Q♠ 7♠ 3♠<span class="cur"></span></div></div>
+          </div>
+          <div class="grid2" id="grid2"></div>
+          <div class="drill" id="drill1"></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>The idea</h4>
+        <p>Drawmaha's hold'em grid. Rows are what the five cards in your hand make on their own; columns are what two of them make with the board. A cell is one region of the range: its <b>area is how much of the range lives there</b>, its fill is what that region does (fold grey, call yellow, pot pink), the margins carry each row's and column's own mix.</p>
+        <h4>What do I do?</h4>
+        <p>Read the row you are in, then the column; the cell's bands are your answer and the neighbours say how robust it is. The margins answer the coarser question ("what does a pair in hand do here, regardless of the board?") for free.</p>
+        <h4>Narrowing to a hand</h4>
+        <p>Click a cell → the hands in it, sorted by share, in the drill strip below; type a hand → its cell pins and the drill lists its suit-variants.</p>
+        <h4>Cannot show</h4>
+        <p>Order inside a cell (which two-pair hands call and which fold) and anything about the opponent. On a flop with no straight or flush possible the made-hand columns collapse to four, so the columns must be made-hand × draw composites or the grid is empty on the right.</p>
+        <div class="verdict"><b>The home view.</b> Everything else is a lens on it or a path out of it.</div>
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="study" id="s2" style="margin-top:44px">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">02 · the strength ribbon</span><span class="tabs"><span class="on">by total equity</span><span>by inner</span><span>by outer</span><span>by scoop</span></span><span class="no">02</span></div>
+        <div class="pane">
+          <div class="spothead" data-spothead></div>
+          <div class="ribbon" id="ribbon"></div>
+          <div class="hair" style="margin-top:14px;padding-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px" id="ribbon3"></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>The idea</h4>
+        <p>Throw away both category axes. Sort every holding by one number (total equity by default; the inner half, the outer half, or the scoop chance on the tabs) and lay them along a strip, weakest left, strongest right. Each sliver is one slice of the range; its stack is the mix. <b>Polarisation is a shape</b>: raises at both ends, calls in the middle.</p>
+        <h4>What do I do?</h4>
+        <p>Find your percentile (the hand field drops a marker on the strip) and read up. The three small strips underneath re-sort the same hands by inner, outer and scoop, so you see <em>which half</em> is making the solver act.</p>
+        <h4>Narrowing to a hand</h4>
+        <p>Brush a span of the strip → the hands in that span, as a list. Fast for "what are the worst hands that still call?".</p>
+        <h4>Cannot show</h4>
+        <p>Where the mass is by hand type: a 4-flush in hand and a pair with a flush draw can sit side by side and look alike. Needs the grid for names.</p>
+        <div class="verdict"><b>Build as the grid's second tab.</b> Same window, same filters, one toggle.</div>
+      </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="study" id="s3" style="margin-top:44px">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">03 · the two equities, as a plane</span><span class="no">03</span></div>
+        <div class="pane">
+          <div class="spothead" data-spothead></div>
+          <div class="scatter" id="scatter"></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>The idea</h4>
+        <p>A split-pot hand has two strengths, so plot them: across is the outer equity, up is the inner equity. Every holding is a point; density is drawn as cells so 1.9 million do not become soup. The corners have names: <b>scoop</b> (top right), <b>Omaha only</b> (bottom right), <b>hand only</b> (top left), <b>air</b> (bottom left). Colour is the mix.</p>
+        <h4>What do I do?</h4>
+        <p>Your hand is a dot you can see in relation to the whole cloud. The raise region should be a shape you can describe ("top right, plus a tongue along the bottom edge for the flush draws"), which is the kind of thing a person can remember.</p>
+        <h4>Narrowing to a hand</h4>
+        <p>Lasso a region → its hands. The weakest form here: a region of the plane is not a thing you can name, so you cannot come back to it.</p>
+        <h4>Cannot show</h4>
+        <p>Categories. Two hands at the same point can be different things; equity is a summary and this view trusts it completely.</p>
+        <div class="verdict"><b>Analysis chapter, not the UI.</b> One figure in the paper, maybe a third tab; never the home.</div>
+      </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="study" id="s4" style="margin-top:44px">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">04 · the ledger — hairline rows that open</span><span class="no">04</span></div>
+        <div class="pane">
+          <div class="spothead" data-spothead></div>
+          <div class="crumbs" id="crumbs"><span>all 1.9 M</span><i class="sep">›</i><span>pair in hand · 42%</span><i class="sep">›</i><span class="on">pair + flush draw with the board</span><i class="sep">›</i><span class="dimmer">…</span></div>
+          <div class="ledger" id="ledger"></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>The idea</h4>
+        <p>The site's own form for anything tabular: hairline rows. Each row is a region of the range with its share and its mix bar; a row opens into the rows beneath it (inner class → outer class → draw flags → suit patterns → the hand). The breadcrumb is the filter you have built by opening rows. <b>Nothing is hidden behind a hover</b>: every number is printed.</p>
+        <h4>What do I do?</h4>
+        <p>Open rows until the row is your hand; every row on the way down tells you how your answer differs from the class above it, which is the explanation of the answer.</p>
+        <h4>Narrowing to a hand</h4>
+        <p>This <em>is</em> narrowing; the view and the path are the same object. Best of the ten at reaching one hand with its context intact.</p>
+        <h4>Cannot show</h4>
+        <p>Where the mass is at a glance; a 50% row and a 0.2% row take the same height. The marimekko variant (row height ∝ share) fixes that and makes the rare rows unreadable; a toggle, not a default.</p>
+        <div class="verdict"><b>Build as the drill.</b> Clicking a grid cell opens the ledger at that row.</div>
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="study" id="s5" style="margin-top:44px">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">05 · one pane per action</span><span class="no">05</span></div>
+        <div class="pane">
+          <div class="spothead" data-spothead></div>
+          <div class="panes" id="panes"></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>The idea</h4>
+        <p>The homepage explorer's move: never mix three colours in one cell. Draw the same inner × outer map three times, each shaded by <b>one</b> action's frequency, and list each pane's heaviest hands beneath it. You compare panes instead of decoding bands.</p>
+        <h4>What do I do?</h4>
+        <p>Weaker at that question (your cell is in three places) but much stronger at its cousin: <em>"which hands raise here?"</em> is one pane, read directly.</p>
+        <h4>Narrowing to a hand</h4>
+        <p>The top-hands lists under each pane are a free drill: the pot pane's list is literally the raising range by example.</p>
+        <h4>Cannot show</h4>
+        <p>Mixes. A 50/50 cell looks like two half-shaded cells in two panes, which is correct and unmemorable.</p>
+        <div class="verdict"><b>Build as a shading mode</b> of the grid ("shade by: mix / fold / call / pot"), not as three windows.</div>
+      </div>
+    </div>
+
+    <!-- 6 -->
+    <div class="study" id="s6" style="margin-top:44px">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">06 · the deck is the filter</span><span class="no">06</span></div>
+        <div class="pane">
+          <div class="spothead" data-spothead></div>
+          <div class="deckside">
+            <div>
+              <div class="deck" id="deck"></div>
+              <div class="mixkey" style="margin-top:12px"><span class="p"><i></i>bar under a card: how over-represented it is in the <b>raising</b> range (toggle: calling, folding, thrown at the draw)</span></div>
+            </div>
+            <div>
+              <div class="lbl">your hand so far</div>
+              <div class="holding" id="holding"></div>
+              <div class="lbl" style="margin-top:14px">range left</div>
+              <div class="count" style="text-align:left"><b>16,215</b> of 1,906,884 holdings<br><span class="dim">two cards placed · three to go</span></div>
+              <div class="lbl" style="margin-top:14px">what they do</div>
+              <div class="mixbar" id="holdmix" style="height:10px"></div>
+              <div class="mixkey" id="holdkey"></div>
+              <p class="dim mono" style="font-size:11px;margin:14px 0 0">Every card you place removes a dimension; the header's mix re-aggregates over what is left. Five cards placed is a hand; zero is the range.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>The idea</h4>
+        <p>Instead of naming your hand, <b>build it</b>: the 49 live cards as a deck, the board cards already up. Tap cards; the range narrows live from 1.9 million to one. Each card wears a small bar for how much the current action wants it (here: how over-represented it is among raises), so the deck is also a map of what the solver likes.</p>
+        <h4>What do I do?</h4>
+        <p>After five taps, exactly. After two or three, honestly: "with A♠ A♦ and any three others" is a real region of the range, and the header's mix is its real answer.</p>
+        <h4>Narrowing to a hand</h4>
+        <p>The best path of the ten for someone holding real cards at a real table: no typing, no categories, same gesture as picking up the hand.</p>
+        <h4>Cannot show</h4>
+        <p>Structure. Card-level frequency is a weak signal (a K is good for everyone); the deck says little about <em>why</em>. Pairs with the grid, which lights the cells still alive as cards are placed.</p>
+        <div class="verdict"><b>Build as the hand input.</b> Replaces the text field in every other study.</div>
+      </div>
+    </div>
+
+    <!-- 7 -->
+    <div class="study" id="s7" style="margin-top:44px">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">07 · the draw board — the action is a throw</span><span class="no">07</span></div>
+        <div class="pane">
+          <div class="spothead" data-spothead="draw"></div>
+          <div class="drawb" id="drawb"></div>
+          <div class="throwhand" id="throwhand"></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>The idea</h4>
+        <p>At the draw the solver's action is not fold / call / pot, it is one of 32 subsets of your five cards. No fold-call-pot colouring survives that. So the draw gets its own board: <b>rows are inner classes, columns are how many you throw</b>, the cell is how often. Under it, your hand with a throw-probability under each card, which is the only honest per-hand answer.</p>
+        <h4>What do I do?</h4>
+        <p>Read your row for how many; read your hand's five bars for which. The two-pair row answering "stand pat 45% · throw one 55%" is a real Drawmaha lesson (the outer half wants the fifth card).</p>
+        <h4>Narrowing to a hand</h4>
+        <p>Same deck input as 06; the per-card bars <em>are</em> the single-hand solve.</p>
+        <h4>Cannot show</h4>
+        <p>Which card in the "throw one" cell. That lives only at the hand level, which is why the hand strip is part of this view and not a drill.</p>
+        <div class="verdict"><b>Build; it is not optional.</b> Every other study goes blank at the draw node without it.</div>
+      </div>
+    </div>
+
+    <!-- 8 -->
+    <div class="study" id="s8" style="margin-top:44px">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">08 · the funnel — filters you can see biting</span><span class="no">08</span></div>
+        <div class="pane">
+          <div class="spothead" data-spothead></div>
+          <div class="funnel" id="funnel"></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>The idea</h4>
+        <p>Make the filters the view. Five stages left to right: the whole range, the inner filter, the outer filter, the draw filter, the hand. Each stage shows what is left (count and width) and what it does (mix). <b>The change in the mix between stages is the explanation</b>: "adding the flush draw moved raise from 14% to 48%" is printed, not inferred.</p>
+        <h4>What do I do?</h4>
+        <p>The last stage is your hand. The four to its left are why.</p>
+        <h4>Narrowing to a hand</h4>
+        <p>Strongest of the ten at <em>teaching</em> the narrowing; weakest at doing it fast (five choices before an answer).</p>
+        <h4>Cannot show</h4>
+        <p>The range's shape. You see one path through it, never the whole.</p>
+        <div class="verdict"><b>Trainer mode.</b> Not the explorer: too slow for a lookup, exactly right for a lesson.</div>
+      </div>
+    </div>
+
+    <!-- 9 -->
+    <div class="study" id="s9" style="margin-top:44px">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">09 · both seats — the range you are facing</span><span class="no">09</span></div>
+        <div class="pane">
+          <div class="spothead" data-spothead></div>
+          <div class="vs" id="vs"></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>The idea</h4>
+        <p>The rung-2 page's best instinct, scaled up: your map and theirs, side by side. Theirs is already filtered by what they did (this is the <b>betting</b> range of seat 0). Hover a cell on your side and the middle column prints your equity against their whole range, split into the two halves and the scoop chance.</p>
+        <h4>What do I do?</h4>
+        <p>Same as 01 on your side, plus the reason: the equity readout is the number the policy is responding to.</p>
+        <h4>Narrowing to a hand</h4>
+        <p>As 01. The middle column follows the hover down to a single hand.</p>
+        <h4>Cannot show</h4>
+        <p>Two maps halve the resolution of each; on a laptop this is two 9×8 grids of 44 px cells. Fine for reading, cramped for drilling.</p>
+        <div class="verdict"><b>Build as a toggle on 01</b> ("show their range"), with the equity readout appearing in the drill strip.</div>
+      </div>
+    </div>
+
+    <!-- 10 -->
+    <div class="study" id="s10" style="margin-top:44px">
+      <div class="panel">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="k">10 · the filmstrip — the lead-up as ranges</span><span class="no">10</span></div>
+        <div class="pane">
+          <div class="film" id="film"></div>
+          <p class="dim mono" style="font-size:11px;margin:14px 0 0">One frame per event. Each frame is the acting seat's range after the event, as a thumbnail of the two-half grid, with how much of the range survived. The frame you are in is the one with the yellow border; clicking any frame rewinds and opens it as the full grid.</p>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>The idea</h4>
+        <p>The lead-up and the range view are the same thing seen at two sizes. Every action in the hand <em>was</em> a range narrowing; show the lead-up as that: a strip of thumbnails, one per event, each the actor's range after it. <b>The hand so far becomes a story of two ranges shrinking.</b></p>
+        <h4>What do I do?</h4>
+        <p>Not directly; this is context. But the frame before yours is their betting range, and the frame after is yours, so the story reads as "they bet with this, so you call with this".</p>
+        <h4>Narrowing to a hand</h4>
+        <p>None here; a frame opens as 01.</p>
+        <h4>Cannot show</h4>
+        <p>Draw frames: a range after a draw is a range over (hole, discard) pairs, which the thumbnail cannot draw; here the draw frames show the throw-count distribution instead.</p>
+        <div class="verdict"><b>Build later, as the score's expanded state.</b> Hover a cell in the two-lane score and this is its popover.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== COMPARISON -->
+  <section class="part" id="compare">
+    <div class="eyebrow">Part three · what to build</div>
+    <h2>One window, four tabs, one input, one board.</h2>
+    <table class="cmp">
+      <thead><tr><th>Study</th><th>"What do I do?" at a glance</th><th>Narrows to one hand</th><th>Shows where the mass is</th><th>Survives the draw node</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td>01 two-half grid</td><td class="y">yes, your cell</td><td>via the drill</td><td class="y">yes, cell area</td><td class="n">no</td><td>home view</td></tr>
+        <tr><td>02 strength ribbon</td><td class="y">yes, your percentile</td><td>brush a span</td><td>as width only</td><td class="n">no</td><td>second tab</td></tr>
+        <tr><td>03 equity plane</td><td>yes, your dot</td><td class="n">lasso, unnameable</td><td class="y">yes, density</td><td class="n">no</td><td>paper figure</td></tr>
+        <tr><td>04 ledger</td><td>after opening rows</td><td class="y">yes, it is the path</td><td class="n">not by default</td><td>with a throw column</td><td>the drill</td></tr>
+        <tr><td>05 one pane per action</td><td>in three places</td><td>via top lists</td><td>yes, three times</td><td class="n">no</td><td>shading mode of 01</td></tr>
+        <tr><td>06 deck filter</td><td class="y">after five taps</td><td class="y">yes, by gesture</td><td class="n">no</td><td class="y">yes</td><td>the hand input</td></tr>
+        <tr><td>07 draw board</td><td class="y">yes, your row + bars</td><td class="y">yes, the bars</td><td>row share</td><td class="y">it is the draw node</td><td>the draw view</td></tr>
+        <tr><td>08 funnel</td><td>after five choices</td><td class="y">yes, slowly</td><td class="n">no</td><td>partly</td><td>trainer</td></tr>
+        <tr><td>09 both seats</td><td class="y">yes, plus why</td><td>via 01</td><td>yes, halved</td><td class="n">no</td><td>toggle on 01</td></tr>
+        <tr><td>10 filmstrip</td><td class="n">context only</td><td class="n">no</td><td>yes, small</td><td>as throw counts</td><td>popover on the score</td></tr>
+      </tbody>
+    </table>
+    <div class="reco">
+      <h3>The recommendation, in build order</h3>
+      <ol>
+        <li><b>The two-lane score (A)</b> replaces the station rail, with the one-line form (B) as its collapsed state in the window's title bar.</li>
+        <li><b>The two-half grid (01)</b> is the window. Its columns are made-hand × draw composites, because on most flops the made-hand axis alone is four columns wide. Cell area is share; cell fill is the mix; margins carry the marginal mixes. A shading-mode control gives study 05 for free.</li>
+        <li><b>The ledger (04)</b> opens under the grid when a cell is clicked and is the only way down to a single hand with its context; the breadcrumb is the filter state.</li>
+        <li><b>The deck (06)</b> is the hand input everywhere, replacing text entry; the grid lights the cells still alive as cards are placed.</li>
+        <li><b>The draw board (07)</b> replaces the grid when the spot is a draw node. Nothing else survives that node.</li>
+        <li><b>The ribbon (02)</b> as the grid's second tab, and <b>both seats (09)</b> as a toggle that adds the equity readout to the drill. The <b>filmstrip (10)</b> and <b>funnel (08)</b> wait for the trainer.</li>
+      </ol>
+    </div>
+  </section>
+</div>
+
+<script src="data.js"></script>
+<script>
+const R = window.RANGE;
+const pct = x => (x * 100).toFixed(x * 100 >= 10 ? 0 : 1) + '%';
+const pct0 = x => Math.round(x * 100) + '%';
+const fmtN = share => { const n = share * 1906884; return n >= 1e6 ? (n / 1e6).toFixed(2) + ' M' : n >= 1e3 ? Math.round(n / 1e3) + ' k' : Math.round(n).toString(); };
+const esc = s => s;
+const red = c => /[♥♦]/.test(c) ? ' red' : '';
+const cardEl = (c, cls = '') => `<span class="card${red(c)} ${cls}">${c}</span>`;
+const mixbar = (m, h) => `<div class="mixbar"${h ? ` style="height:${h}px"` : ''}><i class="f" style="width:${m.f * 100}%"></i><i class="c" style="width:${m.c * 100}%"></i><i class="p" style="width:${m.p * 100}%"></i></div>`;
+const mixkey = m => `<div class="mixkey"><span class="f"><i></i>fold <b>${pct0(m.f)}</b></span><span class="c"><i></i>call <b>${pct0(m.c)}</b></span><span class="p"><i></i>pot <b>${pct0(m.p)}</b></span></div>`;
+
+// ---------- composite axes
+const INNER = [
+  ['high card', 'no draw', 'nothing', 'high card, no draw'],
+  ['high card', '4-straight', 'nothing · 4-straight', 'four to a straight'],
+  ['high card', '4-flush', 'nothing · 4-flush', 'four to a flush'],
+  ['pair', 'no draw', 'pair', 'one pair, no draw'],
+  ['pair', '4-straight', 'pair · 4-straight', 'pair with four to a straight'],
+  ['pair', '4-flush', 'pair · 4-flush', 'pair with four to a flush'],
+  ['two pair', 'no draw', 'two pair', 'two pair'],
+  ['trips', 'no draw', 'trips', 'three of a kind'],
+  ['straight+', '*', 'straight or better', 'a made five-card hand'],
+];
+const OUTER = [
+  ['high card', 'no draw', 'nothing', 'no pair, no draw'],
+  ['high card', 'sd', 'nothing · str. draw', 'straight draw only'],
+  ['high card', 'fd', 'nothing · flush draw', 'flush draw (with or without a straight draw)'],
+  ['pair', 'no draw', 'pair', 'a pair with the board'],
+  ['pair', 'sd', 'pair · str. draw', 'pair with a straight draw'],
+  ['pair', 'fd', 'pair · flush draw', 'pair with a flush draw'],
+  ['two pair', '*', 'two pair', 'two pair (any draw)'],
+  ['trips', '*', 'trips', 'a set or trips (any draw)'],
+];
+const MADE5 = new Set(['straight', 'flush', 'full house', 'quads', 'straight flush']);
+function innerIdx(r) {
+  const cat = MADE5.has(r.inner) ? 'straight+' : r.inner;
+  for (let i = 0; i < INNER.length; i++) {
+    const [c, f] = INNER[i];
+    if (c === cat && (f === '*' || f === r.iflag)) return i;
+  }
+  return -1;
+}
+function outerIdx(r) {
+  const flag = r.oflag.includes('flush') ? 'fd' : (r.oflag.includes('straight') ? 'sd' : 'no draw');
+  for (let i = 0; i < OUTER.length; i++) {
+    const [c, f] = OUTER[i];
+    if (c === r.outer && (f === '*' || f === flag)) return i;
+  }
+  return -1;
+}
+// cells[i][j] = {share,f,c,p}
+const cells = INNER.map(() => OUTER.map(() => ({ share: 0, f: 0, c: 0, p: 0 })));
+const rowM = INNER.map(() => ({ share: 0, f: 0, c: 0, p: 0 }));
+const colM = OUTER.map(() => ({ share: 0, f: 0, c: 0, p: 0 }));
+for (const r of R.subrows) {
+  const i = innerIdx(r), j = outerIdx(r);
+  if (i < 0 || j < 0) continue;
+  for (const t of [cells[i][j], rowM[i], colM[j]]) { t.share += r.share; t.f += r.f * r.share; t.c += r.c * r.share; t.p += r.p * r.share; }
+}
+const norm = t => { if (t.share > 0) { t.f /= t.share; t.c /= t.share; t.p /= t.share; } return t; };
+cells.forEach(row => row.forEach(norm)); rowM.forEach(norm); colM.forEach(norm);
+const maxShare = Math.max(...cells.flat().map(c => c.share));
+const ALL = R.overall;
+
+// ---------- spot header, shared
+document.querySelectorAll('[data-spothead]').forEach(el => {
+  const draw = el.dataset.spothead === 'draw';
+  el.innerHTML = `
+    <div class="who">${draw ? 'Your draw' : 'You, seat 1, facing a pot bet'}<small>${R.flop.join(' ')} · ${draw ? 'you called 2 · pot 6 · seat 0 threw two' : 'pot 4 · 2 to call · raise is 8'}</small></div>
+    <div>${draw ? '' : mixbar(ALL, 10) + mixkey(ALL)}${draw ? '<div class="lbl" style="margin:0 0 6px">throw count over the whole range</div>' + throwBar(aggThrow()) : ''}</div>
+    <div class="count"><b>1,906,884</b> holdings<br>whole range · nothing filtered</div>`;
+});
+function aggThrow() {
+  const t = [0, 0, 0, 0, 0, 0]; let s = 0;
+  for (const k in R.draw) { const d = R.draw[k]; s += d.share; d.throw.forEach((v, i) => t[i] += v * d.share); }
+  return t.map(v => v / s);
+}
+function throwBar(t) {
+  return `<div class="mixbar" style="height:10px">${t.map((v, i) => `<i style="width:${v * 100}%;background:rgba(233,184,98,${0.25 + i * 0.15})"></i>`).join('')}</div><div class="mixkey">${t.map((v, i) => v > 0.004 ? `<span><i style="background:rgba(233,184,98,${0.25 + i * 0.15})"></i>${i === 0 ? 'pat' : 'throw ' + i} <b>${pct0(v)}</b></span>` : '').join('')}</div>`;
+}
+
+// ---------- lead-up A: the two-lane score
+(function () {
+  const el = document.getElementById('score');
+  const streets = [
+    { h: 'flop', board: ['K♠', '9♠', '4♦'], p0: { cls: 'p', t: 'bet', s: '2' }, p1: { cls: 'c', t: 'call', s: '2' }, pot: '2 → 6' },
+    { h: 'draw', board: null, p0: { cls: 'd', t: 'threw 2', s: '' }, p1: { cls: 'd', t: 'threw 1', s: '7♣ up · kept' }, pot: '6' },
+    { h: 'turn', board: ['2♥'], p0: { cls: '', t: 'check', s: '' }, p1: { you: true, t: 'to act', s: 'check / pot 6' }, pot: '6' },
+    { h: 'river', board: ['?'], p0: null, p1: null, pot: '' },
+    { h: 'showdown', board: null, p0: null, p1: null, pot: '' },
+  ];
+  let html = `<div class="h"></div>` + streets.map(s => `<div class="h st">${s.h}</div>`).join('');
+  html += `<div class="lane">board</div>` + streets.map(s => `<div class="st board">${s.board ? s.board.map(c => c === '?' ? cardEl('', 'sm ghost') : cardEl(c, 'sm')).join('') : '<span class="none">—</span>'}</div>`).join('');
+  const lane = (who, key) => `<div class="lane">${who}</div>` + streets.map(s => {
+    const a = s[key];
+    if (!a) return `<div class="st"><span class="none">·</span></div>`;
+    if (a.you) return `<div class="st"><span class="act you">${a.t}<small>${a.s}</small></span></div>`;
+    return `<div class="st"><span class="act ${a.cls}">${a.t}${a.s ? `<small>${a.s}</small>` : ''}</span></div>`;
+  }).join('');
+  html += lane('seat 0', 'p0') + lane('<b>you</b> · seat 1', 'p1');
+  html += `<div class="lane">pot</div>` + streets.map(s => `<div class="st pot">${s.pot ? '<b>' + s.pot + '</b>' : '<span class="none">·</span>'}</div>`).join('');
+  el.innerHTML = html;
+})();
+
+// ---------- lead-up B: one line
+(function () {
+  const el = document.getElementById('oneline');
+  el.innerHTML = `
+    <span class="cards">${cardEl('K♠', 'sm')}${cardEl('9♠', 'sm')}${cardEl('4♦', 'sm')}</span>
+    <span class="pill p">bet <small>2</small></span><span class="pill c">call <small>2</small></span>
+    <span class="sep">·</span>
+    <span class="pill">draw <small>2 / 1</small></span><span class="pill">${cardEl('7♣', 'sm')} <small>up · kept</small></span>
+    <span class="sep">·</span>
+    <span class="cards">${cardEl('2♥', 'sm')}</span>
+    <span class="pill">check</span>
+    <span class="pill here">you <small>pot 6</small></span>`;
+})();
+
+// ---------- 01 the grid
+(function () {
+  const el = document.getElementById('grid2');
+  el.style.gridTemplateColumns = `150px repeat(${OUTER.length}, minmax(0,1fr))`;
+  let html = `<div class="corner">inner ↓ · outer →</div>`;
+  html += OUTER.map((o, j) => `<div class="ch"><b>${o[2]}</b>${mixbar(colM[j])}<span class="sh">${pct(colM[j].share)}</span></div>`).join('');
+  const pinI = 5, pinJ = 5; // pair · 4-flush  ×  pair · flush draw  (KK 9 65 spades)
+  INNER.forEach((r, i) => {
+    html += `<div class="rh"><b>${r[2]}</b>${mixbar(rowM[i])}<span class="sh">${pct(rowM[i].share)}</span></div>`;
+    OUTER.forEach((o, j) => {
+      const c = cells[i][j];
+      if (c.share < 0.0002) { html += `<div class="cell empty"></div>`; return; }
+      const side = Math.max(10, Math.sqrt(c.share / maxShare) * 56);
+      const dom = c.p > c.c && c.p > c.f ? 'pot' : (c.f > c.c ? 'fold' : 'call');
+      const domCol = dom === 'pot' ? 'var(--pot)' : dom === 'fold' ? 'var(--fold)' : 'var(--call)';
+      html += `<div class="cell${i === pinI && j === pinJ ? ' pin' : ''}">
+        <span class="dom" style="color:${domCol}">${dom}</span>
+        <span class="sq" style="width:${side}px;height:${side}px"><i style="flex:${c.p};background:var(--pot)"></i><i style="flex:${c.c};background:var(--call)"></i><i style="flex:${c.f};background:var(--fold)"></i></span>
+        <span class="pct">${c.share >= 0.001 ? pct(c.share) : '<0.1%'}</span></div>`;
+    });
+  });
+  el.innerHTML = html;
+  // the drill strip: hands in the pinned cell
+  const d = document.getElementById('drill1');
+  const c = cells[pinI][pinJ];
+  const ex = (R.examples['1,1'] || []).filter(h => h.i4f && h.ofd).sort((a, b) => b.p - a.p).slice(0, 5);
+  const hands = ex.length ? ex : (R.examples['1,1'] || []).slice(0, 5);
+  d.innerHTML = `<div><div class="lbl">the cell · pair with four to a flush × pair with a flush draw · ${pct(c.share)} of the range</div>
+    ${mixbar(c, 8)}${mixkey(c)}
+    <p class="dim mono" style="font-size:11px;margin:10px 0 0">Both halves are drawing to the same suit: the inner four-flush and the outer flush draw are the same spades. One card scoops; the solver raises it as a draw with two ways to win.</p></div>
+    <div><div class="lbl">hands in this cell · by share</div>${hands.map(h => `<div class="handrow"><span class="cards">${h.cards.map(x => cardEl(x, 'sm')).join('')}</span>${mixbar(h, 6)}<span class="n">pot <b>${pct0(h.p)}</b> · call <b>${pct0(h.c)}</b></span></div>`).join('')}</div>`;
+})();
+
+// ---------- 02 the ribbon
+function ribbonSVG(cols, W, H, opts = {}) {
+  const n = cols.length, w = W / n;
+  let s = `<svg viewBox="0 0 ${W} ${H + 26}" xmlns="http://www.w3.org/2000/svg">`;
+  cols.forEach((c, i) => {
+    const [f, ca, p] = c; const x = i * w;
+    let y = 0;
+    s += `<rect x="${x}" y="${y}" width="${w + 0.3}" height="${p * H}" fill="var(--pot)"/>`; y += p * H;
+    s += `<rect x="${x}" y="${y}" width="${w + 0.3}" height="${ca * H}" fill="var(--call)"/>`; y += ca * H;
+    s += `<rect x="${x}" y="${y}" width="${w + 0.3}" height="${f * H}" fill="var(--fold)"/>`;
+  });
+  if (opts.marker != null) {
+    const x = opts.marker * W;
+    s += `<line x1="${x}" x2="${x}" y1="-2" y2="${H + 2}" stroke="var(--ivory)" stroke-width="1.5"/><text x="${x + 5}" y="${H - 6}" class="axis" style="fill:var(--ivory)">${opts.markerLabel || ''}</text>`;
+  }
+  if (opts.brush) { const [a, b] = opts.brush; s += `<rect class="brush" x="${a * W}" y="-1" width="${(b - a) * W}" height="${H + 2}"/>`; }
+  s += `<text x="0" y="${H + 16}" class="axis">${opts.left || 'weakest'}</text><text x="${W}" y="${H + 16}" class="axis" text-anchor="end">${opts.right || 'strongest'}</text>`;
+  if (opts.ticks) for (const t of [0.25, 0.5, 0.75]) s += `<text x="${t * W}" y="${H + 16}" class="axis" text-anchor="middle">${Math.round(t * 100)}%</text>`;
+  s += `</svg>`;
+  return s;
+}
+(function () {
+  document.getElementById('ribbon').innerHTML = `<div class="lbl">every holding, sorted by total equity · stack = the mix · x = share of the range</div>` + ribbonSVG(R.ribbons.total, 1000, 170, { marker: 0.905, markerLabel: 'A♠A♦ Q♠7♠3♠ · 91st pct', brush: [0.58, 0.72], ticks: true });
+  const three = document.getElementById('ribbon3');
+  three.innerHTML = [['inner', 'sorted by the inner half'], ['outer', 'sorted by the outer half'], ['total', 'sorted by scoop chance · drawn as total here']].map(([k, l]) => `<div><div class="lbl">${l}</div>${ribbonSVG(R.ribbons[k], 320, 54)}</div>`).join('');
+})();
+
+// ---------- 03 the plane
+(function () {
+  const W = 720, H = 440, pad = 44, B = 18;
+  const cw = (W - pad * 2) / B, ch = (H - pad * 2) / B;
+  const maxd = Math.max(...R.density.map(d => d.share));
+  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  s += `<line x1="${pad}" x2="${W - pad}" y1="${H - pad}" y2="${H - pad}" stroke="var(--iv-16)"/><line x1="${pad}" x2="${pad}" y1="${pad}" y2="${H - pad}" stroke="var(--iv-16)"/>`;
+  s += `<line x1="${pad + (W - 2 * pad) / 2}" x2="${pad + (W - 2 * pad) / 2}" y1="${pad}" y2="${H - pad}" stroke="var(--iv-10)"/><line x1="${pad}" x2="${W - pad}" y1="${pad + (H - 2 * pad) / 2}" y2="${pad + (H - 2 * pad) / 2}" stroke="var(--iv-10)"/>`;
+  for (const d of R.density) {
+    const x = pad + d.x * cw, y = H - pad - (d.y + 1) * ch;
+    const a = Math.pow(d.share / maxd, 0.45);
+    const col = d.p > 0.5 ? 'var(--pot)' : d.f > 0.5 ? 'var(--fold)' : 'var(--call)';
+    s += `<rect x="${x + 1}" y="${y + 1}" width="${cw - 2}" height="${ch - 2}" rx="2" fill="${col}" opacity="${(0.12 + 0.88 * a).toFixed(2)}"/>`;
+  }
+  s += `<text x="${W - pad}" y="${pad - 12}" class="quad" text-anchor="end">scoop · both halves</text><text x="${pad}" y="${pad - 12}" class="quad">hand only · inner</text>`;
+  s += `<text x="${W - pad}" y="${H - pad + 30}" class="quad" text-anchor="end">omaha only · outer</text><text x="${pad}" y="${H - pad + 30}" class="quad">air</text>`;
+  s += `<text x="${W / 2}" y="${H - 6}" class="axis" text-anchor="middle">outer equity, now →</text><text transform="translate(12 ${H / 2}) rotate(-90)" class="axis" text-anchor="middle">inner equity, now →</text>`;
+  // your hand
+  const hx = pad + 0.94 * (W - 2 * pad), hy = H - pad - 0.86 * (H - 2 * pad);
+  s += `<circle cx="${hx}" cy="${hy}" r="6" fill="none" stroke="var(--ivory)" stroke-width="2"/><text x="${hx - 12}" y="${hy + 4}" class="axis" text-anchor="end" style="fill:var(--ivory)">A♠A♦ Q♠7♠3♠</text>`;
+  // lasso
+  s += `<path class="brush" d="M ${pad + 0.62 * (W - 2 * pad)} ${H - pad - 0.05 * (H - 2 * pad)} C ${pad + 0.7 * (W - 2 * pad)} ${H - pad - 0.5 * (H - 2 * pad)}, ${W - pad - 10} ${H - pad - 0.5 * (H - 2 * pad)}, ${W - pad - 10} ${H - pad - 0.08 * (H - 2 * pad)} Z"/>`;
+  s += `</svg>`;
+  document.getElementById('scatter').innerHTML = `<div class="lbl">each cell: the holdings with these two equities · ink = how many · colour = what most of them do · dashed: a lasso</div>` + s;
+})();
+
+// ---------- 04 the ledger
+(function () {
+  const el = document.getElementById('ledger');
+  const row = (lvl, tog, name, m, open = false) => `<div class="row l${lvl}${open ? ' open' : ''}"><span class="tog">${tog}</span><span class="name">${name}</span><span class="share num"><b>${pct(m.share)}</b></span>${mixbar(m, 8)}<span class="nums num">f <b>${pct0(m.f)}</b> c <b>${pct0(m.c)}</b> p <b>${pct0(m.p)}</b></span></div>`;
+  let html = `<div class="row head"><span></span><span>region of the range</span><span style="text-align:right">share</span><span>mix · fold call pot</span><span></span></div>`;
+  // level 1: inner classes (merged)
+  const inner1 = [['high card', [0, 1, 2]], ['pair', [3, 4, 5]], ['two pair', [6]], ['trips', [7]], ['straight or better', [8]]];
+  for (const [name, idx] of inner1) {
+    const m = { share: 0, f: 0, c: 0, p: 0 };
+    idx.forEach(i => { m.share += rowM[i].share; m.f += rowM[i].f * rowM[i].share; m.c += rowM[i].c * rowM[i].share; m.p += rowM[i].p * rowM[i].share; }); norm(m);
+    const open = name === 'pair';
+    html += row(1, open ? '▾' : '▸', name + ' in hand', m, open);
+    if (open) {
+      // level 2: outer columns within pair rows
+      OUTER.forEach((o, j) => {
+        const mm = { share: 0, f: 0, c: 0, p: 0 };
+        idx.forEach(i => { const c = cells[i][j]; mm.share += c.share; mm.f += c.f * c.share; mm.c += c.c * c.share; mm.p += c.p * c.share; }); norm(mm);
+        if (mm.share < 0.001) return;
+        const open2 = j === 5;
+        html += row(2, open2 ? '▾' : '▸', 'outer: ' + o[3], mm, open2);
+        if (open2) {
+          const subs = [[3, 'pair in hand, no draw'], [4, 'pair in hand, four to a straight'], [5, 'pair in hand, four to a flush']];
+          for (const [i, nm] of subs) { const c = cells[i][j]; if (c.share > 0.0005) html += row(3, '▸', nm + ' → suit patterns…', c); }
+        }
+      });
+    }
+  }
+  el.innerHTML = html;
+})();
+
+// ---------- 05 three panes
+(function () {
+  const el = document.getElementById('panes');
+  const pane = (key, label) => {
+    let cellsHtml = '';
+    for (let i = INNER.length - 1; i >= 0; i--) for (let j = 0; j < OUTER.length; j++) {
+      const c = cells[i][j];
+      const v = c.share < 0.0002 ? 0 : c[key];
+      const col = key === 'f' ? '245,240,230' : key === 'c' ? '233,184,98' : '216,86,111';
+      cellsHtml += `<i style="background:rgba(${col},${(0.05 + v * (key === 'f' ? 0.5 : 0.95)).toFixed(2)})"></i>`;
+    }
+    const tops = [];
+    INNER.forEach((r, i) => OUTER.forEach((o, j) => { const c = cells[i][j]; if (c.share > 0.002) tops.push({ n: r[2] + ' × ' + o[2], v: c[key], s: c.share }); }));
+    tops.sort((a, b) => b.v - a.v);
+    const m = ALL[key];
+    return `<div class="one"><div class="lbl ${key}"><span>${label}</span><b>${pct0(m)} of the range</b></div>
+      <div class="mini" style="grid-template-columns:repeat(${OUTER.length},1fr)">${cellsHtml}</div>
+      <div class="toplist">${tops.slice(0, 5).map(t => `<div><span>${t.n}</span><span class="v">${pct0(t.v)}</span></div>`).join('')}</div></div>`;
+  };
+  el.innerHTML = pane('f', 'fold') + pane('c', 'call') + pane('p', 'pot');
+})();
+
+// ---------- 06 the deck
+(function () {
+  const el = document.getElementById('deck');
+  const ranks = 'A K Q J T 9 8 7 6 5 4 3 2'.split(' ');
+  const suits = [['♠', ''], ['♥', 'red'], ['♦', 'red'], ['♣', '']];
+  const board = new Set(R.flop);
+  const held = new Set(['A♠', 'A♦']);
+  let html = `<div></div>` + ranks.map(r => `<div class="rh">${r}</div>`).join('');
+  for (const [s, cls] of suits) {
+    html += `<div class="sh ${cls}">${s}</div>`;
+    for (const r of ranks) {
+      const c = r + s;
+      if (board.has(c)) { html += `<div class="c board ${cls}">${c}</div>`; continue; }
+      const st = R.deck[c] || { potShare: 1 };
+      const w = Math.max(0, Math.min(1, (st.potShare - 0.6) / 1.2));
+      html += `<div class="c${held.has(c) ? ' held' : ''}">${r}<span class="bar"><i style="width:${(w * 100).toFixed(0)}%"></i></span></div>`;
+    }
+  }
+  el.innerHTML = html;
+  document.getElementById('holding').innerHTML = cardEl('A♠') + cardEl('A♦') + cardEl('', 'ghost') + cardEl('', 'ghost') + cardEl('', 'ghost');
+  // mix over hands containing K K: approximate with the trips-in-outer column mix blended
+  const m = colM[3];
+  document.getElementById('holdmix').innerHTML = mixbar(m, 10).replace(/<\/?div[^>]*>/g, '');
+  document.getElementById('holdkey').innerHTML = mixkey(m).replace(/^<div class="mixkey">|<\/div>$/g, '');
+})();
+
+// ---------- 07 the draw board
+(function () {
+  const el = document.getElementById('drawb');
+  const order = ['high card', 'pair', 'two pair', 'trips', 'straight', 'flush', 'full house', 'quads'];
+  let html = `<div class="h" style="text-align:left">inner class · share</div>` + [0, 1, 2, 3, 4, 5].map(k => `<div class="h">${k === 0 ? 'stand pat' : 'throw ' + k}</div>`).join('') + `<div class="h">mode</div>`;
+  for (const k of order) {
+    const d = R.draw[k]; if (!d) continue;
+    const top = d.throw.indexOf(Math.max(...d.throw));
+    html += `<div class="rh"><span>${k}</span><small>${pct(d.share)}</small></div>`;
+    d.throw.forEach((v, i) => { html += `<div class="cell${i === top ? ' top' : ''}" style="--o:${(v * 0.95).toFixed(2)}"><i></i><span>${v > 0.004 ? pct0(v) : '·'}</span></div>`; });
+    html += `<div class="mode">${top === 0 ? 'pat' : 'throw ' + top}</div>`;
+  }
+  el.innerHTML = html;
+  const th = document.getElementById('throwhand');
+  const hand = [['A♠', 0.03, 'keep'], ['A♦', 0.64, ''], ['Q♠', 0.36, ''], ['7♠', 0.36, ''], ['3♠', 0.36, '']];
+  th.innerHTML = `<div class="lbl" style="width:100%;margin:0 0 4px">your hand · how often each card is thrown</div>` + hand.map(([c, p, k]) => `<div class="slot ${p < 0.5 ? 'keep' : ''}">${cardEl(c)}<span class="t"><i style="height:${p * 100}%"></i></span><span>${pct0(p)}</span></div>`).join('') + `<div class="say">the pair row says <b>throw three</b>, but this hand has four spades: <b>throw one (the A♦), 64%</b>, drawing to a flush that wins both halves; <b>throw three, 36%</b>, keeping the aces for the inner pair and the outer pair of aces. The row is the prior; the hand overrides it.</div>`;
+})();
+
+// ---------- 08 the funnel
+(function () {
+  const el = document.getElementById('funnel');
+  const st = [
+    { l: 'the range', n: '1.9 M', of: 'every holding', m: ALL, w: 1, pick: null },
+    { l: 'inner filter', n: fmtN(rowM[3].share + rowM[4].share + rowM[5].share), of: '42% · a pair in hand', m: norm({ share: rowM[3].share + rowM[4].share + rowM[5].share, f: rowM[3].f * rowM[3].share + rowM[4].f * rowM[4].share + rowM[5].f * rowM[5].share, c: rowM[3].c * rowM[3].share + rowM[4].c * rowM[4].share + rowM[5].c * rowM[5].share, p: rowM[3].p * rowM[3].share + rowM[4].p * rowM[4].share + rowM[5].p * rowM[5].share }), w: 0.42, pick: [['no pair', '50%'], ['pair', '42%', 1], ['two pair+', '7.6%']] },
+    { l: 'outer filter', n: fmtN(cells[3][5].share + cells[4][5].share + cells[5][5].share), of: pct(cells[3][5].share + cells[4][5].share + cells[5][5].share) + ' · pair + flush draw', m: norm({ share: cells[3][5].share + cells[4][5].share + cells[5][5].share, f: cells[3][5].f * cells[3][5].share + cells[4][5].f * cells[4][5].share + cells[5][5].f * cells[5][5].share, c: cells[3][5].c * cells[3][5].share + cells[4][5].c * cells[4][5].share + cells[5][5].c * cells[5][5].share, p: cells[3][5].p * cells[3][5].share + cells[4][5].p * cells[4][5].share + cells[5][5].p * cells[5][5].share }), w: 0.091, pick: [['pair', pct(cells[3][3].share + cells[4][3].share + cells[5][3].share)], ['pair + str. draw', pct(cells[3][4].share + cells[4][4].share + cells[5][4].share)], ['pair + flush draw', pct(cells[3][5].share + cells[4][5].share + cells[5][5].share), 1], ['two pair', pct(cells[3][6].share + cells[4][6].share + cells[5][6].share)], ['trips', pct(cells[3][7].share + cells[4][7].share + cells[5][7].share)]] },
+    { l: 'draw filter', n: fmtN(cells[5][5].share), of: pct(cells[5][5].share) + ' · four to a flush in hand', m: cells[5][5], w: 0.013, pick: [['no draw', pct(cells[3][5].share)], ['4-straight', pct(cells[4][5].share)], ['4-flush', pct(cells[5][5].share), 1]] },
+    { l: 'the hand', n: '1', of: 'A♠ A♦ Q♠ 7♠ 3♠', m: { f: 0.0, c: 0.38, p: 0.62 }, w: 0, pick: null },
+  ];
+  el.innerHTML = st.map((s, i) => {
+    const prev = st[i - 1];
+    const delta = prev ? `<div class="delta">pot ${pct0(prev.m.p)} → <b>${pct0(s.m.p)}</b> · fold ${pct0(prev.m.f)} → <b>${pct0(s.m.f)}</b></div>` : '';
+    return `<div class="stage"><div class="lbl">${i + 1} · ${s.l}</div><div class="n num">${s.n}</div><div class="of">${s.of}</div><div class="width"><i style="width:${Math.max(0.6, s.w * 100)}%"></i></div>${mixbar(s.m, 8)}${mixkey(s.m)}${delta}${s.pick ? `<div class="pick">${s.pick.map(p => `<span class="${p[2] ? 'on' : ''}">${p[0]}<small>${p[1]}</small></span>`).join('')}</div>` : (i === 4 ? `<div class="holding" style="margin-top:12px">${['A♠', 'A♦', 'Q♠', '7♠', '3♠'].map(c => cardEl(c, 'sm')).join('')}</div>` : '')}</div>`;
+  }).join('');
+})();
+
+// ---------- 09 both seats
+(function () {
+  const el = document.getElementById('vs');
+  const heat = (weight, hovI, hovJ) => {
+    let h = '';
+    for (let i = INNER.length - 1; i >= 0; i--) for (let j = 0; j < OUTER.length; j++) {
+      const c = cells[i][j]; const w = weight(c);
+      if (c.share < 0.0002) { h += `<i style="background:transparent"></i>`; continue; }
+      const a = Math.pow(w / maxShare, 0.5);
+      const col = c.p > c.c && c.p > c.f ? '216,86,111' : c.f > c.c ? '245,240,230' : '233,184,98';
+      h += `<i class="${i === hovI && j === hovJ ? 'hov' : ''}" style="background:rgba(${col},${(0.06 + 0.9 * Math.min(1, a)).toFixed(2)})"></i>`;
+    }
+    return `<div class="heat" style="grid-template-columns:repeat(${OUTER.length},1fr)">${h}</div>`;
+  };
+  // villain's betting range: weight each cell by its pot probability (their open spot ≈ same features)
+  const theirs = heat(c => c.share * (0.35 + c.p), -1, -1);
+  const mine = heat(c => c.share, 5, 5);
+  el.innerHTML = `
+    <div class="side"><div class="lbl"><span>seat 0 · their betting range</span><span class="dimmer">61% kept</span></div>${theirs}<p class="dim mono" style="font-size:10.5px;margin:8px 0 0">ink = how much of their range is here, after betting · colour = what they do next if raised</p></div>
+    <div class="mid"><div class="vsn">vs</div><div class="eq"><span class="dimmer">your cell against their range</span><b>58%</b><span class="dimmer">total equity</span><div class="two"><span>inner <b>71%</b></span><span>outer <b>45%</b></span></div><div class="two"><span>scoop <b>31%</b></span><span>scooped <b>12%</b></span></div></div><span class="dimmer" style="font-size:10.5px">hover any cell on your side</span></div>
+    <div class="side"><div class="lbl"><span>you · seat 1 · whole range</span><span class="dimmer">1.9 M</span></div>${mine}<p class="dim mono" style="font-size:10.5px;margin:8px 0 0">ink = share · colour = your mix · outlined: pair + four-flush × pair + flush draw</p></div>`;
+})();
+
+// ---------- 10 the filmstrip
+(function () {
+  const el = document.getElementById('film');
+  const thumb = (weight) => {
+    let h = '';
+    for (let i = INNER.length - 1; i >= 0; i--) for (let j = 0; j < OUTER.length; j++) {
+      const c = cells[i][j]; if (c.share < 0.0002) { h += `<i style="background:transparent"></i>`; continue; }
+      const a = Math.pow(weight(c) / maxShare, 0.5);
+      h += `<i style="background:rgba(245,240,230,${(0.05 + 0.85 * Math.min(1, a)).toFixed(2)})"></i>`;
+    }
+    return `<div class="mini" style="grid-template-columns:repeat(${OUTER.length},1fr)">${h}</div>`;
+  };
+  const throwThumb = (t) => `<div class="mixbar" style="height:46px;margin-bottom:8px;align-items:flex-end;background:var(--iv-03)">${t.map((v, i) => `<i style="width:16.6%;height:${Math.max(3, v * 100)}%;background:rgba(233,184,98,${0.3 + i * 0.13});align-self:flex-end"></i>`).join('')}</div>`;
+  const frames = [
+    { who: 'deal · flop', what: `${R.flop.join(' ')}`, th: thumb(c => c.share), kept: ['both ranges', '100%'] },
+    { who: 'seat 0', what: '<b>bets pot</b>', cls: 'p', th: thumb(c => c.share * (0.35 + c.p)), kept: ['their range kept', '61%'] },
+    { who: 'you', what: '<b>call</b>', cls: 'c', th: thumb(c => c.share * c.c), kept: ['your range kept', pct0(ALL.c)], now: true },
+    { who: 'seat 0 · draw', what: '<b>throws 2</b>', th: throwThumb(aggThrow()), kept: ['throw-count mix', ''] },
+    { who: 'you · draw', what: '<b>throw 1</b> · 7♣ up, kept', th: throwThumb([0.05, 0.3, 0.35, 0.22, 0.08, 0]), kept: ['throw-count mix', ''] },
+    { who: 'turn', what: '2♥ · seat 0 <b>checks</b>', th: `<div class="mini" style="grid-template-columns:repeat(8,1fr)">${'<i></i>'.repeat(72)}</div>`, kept: ['needs rung 4', '—'] },
+  ];
+  el.innerHTML = frames.map((f, i) => `<div class="frame${f.now ? ' now' : ''}"><div class="who"><span>${f.who}</span><span>${i + 1}</span></div><div class="what ${f.cls || ''}">${f.what}</div>${f.th}<div class="kept"><span>${f.kept[0]}</span><b>${f.kept[1]}</b></div>${i < frames.length - 1 ? '<span class="link"></span>' : ''}</div>`).join('');
+})();
+</script>
+</body>
+</html>

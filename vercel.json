@@ -20,6 +20,10 @@
       "destination": "/rung1/index.html"
     },
     {
+      "source": "/solver",
+      "destination": "/solver/index.html"
+    },
+    {
       "source": "/rung2",
       "destination": "/rung2/index.html"
     },

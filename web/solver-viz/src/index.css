@@ -1,0 +1,1623 @@
+/*
+ * The range interface's own figures, on top of the shared theme (theme.css):
+ * the two-lane score, the spot header and its controls, the two-half grid,
+ * the ledger, the ribbon and the plane, the three panes, the deck, the draw
+ * board, and the range-vs-range pair with its filmstrip. Everything reads
+ * the theme's tokens and moves the way web/DESIGN.md says: the only motion
+ * this sheet owns is the press on its pressables and a 150 ms colour change
+ * under the pointer; the sheet a header control opens fades in over 200 ms.
+ */
+
+:root {
+  /* Action identity, as on rungs 2 and 3: the bet is the aggressive act and
+     takes the pink, the check/call the yellow, the fold the quiet ink. */
+  --fold: var(--iv-45);
+  --call: var(--yellow);
+  --pot: var(--pink);
+}
+
+.block {
+  margin-top: 26px;
+}
+
+/* The range interface is the one page that wants the whole browser: a grid of
+   72 cells beside a ribbon and a plane does not fit the site's 1312 px column
+   without everything shrinking. The top bar, the hero and the footer widen
+   with it so the edges stay aligned. */
+.top .wrap,
+main.wrap,
+footer .wrap {
+  max-width: min(100vw - 2 * var(--gutter), 2200px);
+}
+
+.hero-copy {
+  max-width: 820px;
+}
+
+.lbl {
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  margin: 0 0 8px;
+}
+
+.dimmer {
+  color: var(--iv-45);
+}
+
+.legend-line {
+  font: 400 11px/1.6 var(--mono);
+  color: var(--iv-45);
+  margin: 12px 0 0;
+}
+
+/* ---------- the small shared marks ------------------------------------- */
+
+.hand {
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: middle;
+}
+
+.cf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 36px;
+  border-radius: 4px;
+  background: var(--ivory);
+  color: #111;
+  font: 600 12px/1 var(--mono);
+  box-shadow: 0 1px 0 var(--iv-30) inset;
+  flex: none;
+}
+
+.cf.red {
+  color: #b5203a;
+}
+
+.cf.lg {
+  width: 40px;
+  height: 54px;
+  font-size: 16px;
+  border-radius: 5px;
+  box-shadow:
+    0 1px 0 var(--iv-30) inset,
+    0 8px 18px rgba(0, 0, 0, 0.45);
+}
+
+.cf.ghost {
+  background: transparent;
+  border: 1px dashed var(--iv-30);
+  box-shadow: none;
+}
+
+.mixbar {
+  display: flex;
+  width: 100%;
+  border-radius: 3px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.mixbar i {
+  display: block;
+  height: 100%;
+}
+
+.mixbar .f {
+  background: var(--fold);
+}
+
+.mixbar .c {
+  background: var(--call);
+}
+
+.mixbar .p {
+  background: var(--pot);
+}
+
+.mixkey {
+  display: flex;
+  gap: 14px;
+  font: 400 11px/1 var(--mono);
+  color: var(--iv-60);
+  margin-top: 8px;
+}
+
+.mixkey b {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+.mixkey i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -0.5px;
+}
+
+.mixkey .f i {
+  background: var(--fold);
+}
+
+.mixkey .c i {
+  background: var(--call);
+}
+
+.mixkey .p i {
+  background: var(--pot);
+}
+
+/* ---------- the two-lane score ----------------------------------------- */
+
+.score {
+  display: grid;
+  grid-template-columns: 110px repeat(var(--n), minmax(0, 1fr));
+  font: 400 13px/1.3 var(--mono);
+}
+
+.score > div {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--iv-10);
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.score .h {
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  min-height: 34px;
+}
+
+.score .lane {
+  color: var(--iv-60);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.score .lane b {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+.score .st {
+  border-left: 1px solid var(--iv-10);
+}
+
+.score .board {
+  gap: 4px;
+}
+
+.score .act {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 6px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--iv-16);
+  color: var(--ivory);
+  background: var(--well);
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.score button.act:hover {
+  border-color: var(--iv-45);
+}
+
+.score .act:active {
+  transform: scale(0.97);
+}
+
+.score .act.p {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+
+.score .act.c {
+  border-color: var(--yellow-20);
+  color: var(--yellow);
+}
+
+.score .act.d {
+  color: var(--iv-80);
+}
+
+.score .act small {
+  color: var(--iv-45);
+  font-size: 10.5px;
+}
+
+.score .act.you {
+  border: 1px dashed var(--yellow);
+  color: var(--yellow);
+  background: var(--yellow-20);
+}
+
+.score .pot {
+  color: var(--iv-60);
+  font-size: 11px;
+}
+
+.score .pot b {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+.score .none {
+  color: var(--iv-30);
+}
+
+/* the score collapsed into the window's title bar */
+
+.oneline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+}
+
+.oneline .cf {
+  width: 18px;
+  height: 24px;
+  font-size: 9.5px;
+  border-radius: 3px;
+}
+
+.oneline .pill {
+  padding: 4px 7px;
+  border: 1px solid var(--iv-16);
+  border-radius: 3px;
+  background: var(--well);
+  color: var(--ivory);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.oneline .pill.p {
+  color: var(--pink);
+  border-color: var(--pink-20);
+}
+
+.oneline .pill.c {
+  color: var(--yellow);
+}
+
+.oneline .pill.here {
+  border: 1px dashed var(--yellow);
+  color: var(--yellow);
+  background: var(--yellow-20);
+}
+
+/* ---------- the range window ------------------------------------------- */
+
+.rangewin .pane {
+  padding: 18px 20px 20px;
+}
+
+.rangewin .statusbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--iv-10);
+  font: 400 11px/1.4 var(--mono);
+  color: var(--iv-45);
+}
+
+.rangewin .statusbar b {
+  color: var(--yellow);
+  font-weight: 500;
+}
+
+.rangewin .body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 28px;
+  align-items: start;
+  margin-top: 16px;
+}
+
+.rangewin .side {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+@media (max-width: 1000px) {
+  .rangewin .body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* the spot header */
+
+.spothead {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) auto;
+  gap: 22px;
+  align-items: start;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--iv-10);
+}
+
+.spothead .who {
+  font: 600 20px/1.1 var(--display);
+  letter-spacing: -0.01em;
+}
+
+.spothead .who small {
+  display: block;
+  font: 400 11.5px/1.4 var(--mono);
+  color: var(--iv-60);
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+}
+
+.boardfield {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  flex-wrap: wrap;
+}
+
+.boardfield input {
+  font: 400 12px/1 var(--mono);
+  color: var(--ivory);
+  background: var(--well);
+  border: 1px solid var(--iv-16);
+  border-radius: 4px;
+  padding: 7px 10px;
+  width: 130px;
+  letter-spacing: 0.04em;
+}
+
+.boardfield input:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 1px;
+}
+
+.boardfield .err {
+  font: 400 11px/1.3 var(--mono);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--pink);
+  font-style: normal;
+  width: 100%;
+}
+
+.spothead .mixblock {
+  padding-top: 4px;
+}
+
+.hbtn {
+  font: 400 11px/1 var(--mono);
+  color: var(--iv-80);
+  background: var(--well);
+  border: 1px solid var(--iv-16);
+  border-radius: 4px;
+  padding: 6px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.hbtn:hover {
+  border-color: var(--iv-45);
+}
+
+.hbtn:active {
+  transform: scale(0.97);
+}
+
+.hbtn.on {
+  border-color: var(--yellow);
+  color: var(--yellow);
+  background: var(--yellow-20);
+}
+
+.hbtn b {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+.hbtn i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.hbtn.act-f i {
+  background: var(--fold);
+}
+
+.hbtn.act-c i {
+  background: var(--call);
+}
+
+.hbtn.act-p i {
+  background: var(--pot);
+}
+
+.mixbtn {
+  display: flex;
+  width: 100%;
+  padding: 6px;
+}
+
+.mixbtn .mixbar {
+  width: 100%;
+}
+
+.spothead .acts {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.spothead .acts .hint {
+  font: 400 10.5px/1.3 var(--mono);
+  color: var(--iv-45);
+  margin-left: 4px;
+}
+
+.spothead .holdblock {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 6px 14px;
+  align-items: center;
+  justify-items: end;
+}
+
+.spothead .holding {
+  display: inline-flex;
+  gap: 4px;
+  grid-column: 1 / -1;
+}
+
+.heldcard {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.heldcard:hover .cf {
+  outline: 2px solid var(--pink);
+  outline-offset: 1px;
+}
+
+.spothead .count {
+  grid-column: 1 / -1;
+  font: 400 11px/1.5 var(--mono);
+  color: var(--iv-60);
+  text-align: right;
+}
+
+.spothead .count b {
+  color: var(--ivory);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* the held hand's own answer */
+
+.handanswer {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--yellow);
+  border-radius: 6px;
+  background: var(--yellow-20);
+  font: 400 11.5px/1 var(--mono);
+  color: var(--iv-80);
+}
+
+.handanswer .lbl {
+  margin: 0;
+  color: var(--yellow);
+}
+
+.handanswer .nums b {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+/* the sheet a header control opens */
+
+.sheet {
+  margin-top: 14px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--iv-16);
+  border-radius: 6px;
+  background: var(--well);
+  animation: sheet-in 0.2s var(--ease-out);
+}
+
+.sheet:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sheet-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.sheet-bar .lbl {
+  margin: 0;
+}
+
+/* ---------- 01 the two-half grid --------------------------------------- */
+
+.filters {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin: 0 0 14px;
+}
+
+.seg {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.seg button {
+  font: 400 11px/1 var(--mono);
+  padding: 6px 9px;
+  border: 1px solid var(--iv-16);
+  border-radius: 4px;
+  color: var(--iv-60);
+  background: var(--well);
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.seg button:hover {
+  border-color: var(--iv-45);
+  color: var(--ivory);
+}
+
+.seg button:active {
+  transform: scale(0.97);
+}
+
+.seg button.on {
+  color: var(--ivory);
+  border-color: var(--iv-45);
+  background: var(--iv-06);
+}
+
+.grid2 {
+  display: grid;
+  gap: 4px;
+  font: 400 11.5px/1.25 var(--mono);
+}
+
+.grid2 .corner {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 8px 6px 0;
+  color: var(--iv-45);
+  text-align: right;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.grid2 .ch {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 0 6px 6px;
+  color: var(--iv-60);
+  text-align: center;
+  border-bottom: 1px solid var(--iv-16);
+}
+
+.grid2 .ch b,
+.grid2 .rh b {
+  color: var(--ivory);
+  font-weight: 500;
+  display: block;
+}
+
+.grid2 .sh {
+  color: var(--iv-45);
+}
+
+.grid2 .rh {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 10px 0 0;
+  color: var(--iv-60);
+  text-align: right;
+  border-right: 1px solid var(--iv-16);
+}
+
+.grid2 .ch.off,
+.grid2 .rh.off {
+  opacity: 0.35;
+}
+
+.cell {
+  position: relative;
+  background: var(--well);
+  border: 1px solid var(--iv-06);
+  border-radius: 4px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  transition:
+    border-color 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.cell:hover {
+  border-color: var(--iv-45);
+}
+
+.cell:active {
+  transform: scale(0.97);
+}
+
+.cell.pin {
+  border-color: var(--yellow);
+}
+
+.cell.off {
+  opacity: 0.25;
+}
+
+.cell.empty {
+  background: transparent;
+  border-style: dashed;
+}
+
+.cell.empty::after {
+  content: '—';
+  color: var(--iv-16);
+}
+
+.cell .sq {
+  display: flex;
+  flex-direction: column;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.cell .sq i {
+  display: block;
+  width: 100%;
+}
+
+.cell .sq .p {
+  background: var(--pot);
+}
+
+.cell .sq .c {
+  background: var(--call);
+}
+
+.cell .sq .f {
+  background: var(--fold);
+}
+
+.cell .pct {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  color: var(--iv-60);
+  font-size: 11px;
+}
+
+.cell.pin .pct {
+  color: var(--yellow);
+}
+
+.cell .dom {
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cell .dom.f {
+  color: var(--fold);
+}
+
+.cell .dom.c {
+  color: var(--call);
+}
+
+.cell .dom.p {
+  color: var(--pot);
+}
+
+/* ---------- 04 the ledger ---------------------------------------------- */
+
+.ledger {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--iv-16);
+  font: 400 12px/1.3 var(--mono);
+}
+
+.crumbs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font: 400 11px/1 var(--mono);
+  color: var(--iv-45);
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.crumbs span {
+  padding: 4px 8px;
+  border: 1px solid var(--iv-16);
+  border-radius: 3px;
+  color: var(--iv-80);
+  background: var(--well);
+}
+
+.crumbs span.on {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+
+.crumbs i {
+  font-style: normal;
+  color: var(--iv-30);
+}
+
+.crumbs em {
+  font-style: normal;
+  margin-left: auto;
+  color: var(--iv-45);
+}
+
+.ledger .row,
+.lrow {
+  display: grid;
+  grid-template-columns: 22px minmax(220px, 1fr) 76px minmax(160px, 320px) 170px;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--iv-10);
+  width: 100%;
+}
+
+.ledger .row.head {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  border-bottom: 1px solid var(--iv-16);
+  padding: 4px 0 8px;
+}
+
+.lrow {
+  background: transparent;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  border-radius: 0;
+  transition:
+    background 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+button.lrow:hover {
+  background: var(--iv-03);
+}
+
+.lrow:active {
+  transform: scale(0.97);
+}
+
+.lrow .name b {
+  display: block;
+  color: var(--ivory);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.lrow .name small {
+  display: block;
+  color: var(--iv-45);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.lrow.l2 {
+  background: var(--iv-03);
+}
+
+.lrow.l2 .name {
+  padding-left: 18px;
+  color: var(--iv-80);
+}
+
+.lrow.l3 .name {
+  padding-left: 38px;
+  color: var(--iv-60);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lrow.l3 .name small {
+  color: var(--iv-45);
+  font-size: 10.5px;
+}
+
+.lrow .tog {
+  color: var(--iv-45);
+  text-align: center;
+}
+
+.lrow.open .tog {
+  color: var(--yellow);
+}
+
+.ledger .share {
+  text-align: right;
+  color: var(--iv-60);
+}
+
+.ledger .share b {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+.ledger .nums {
+  color: var(--iv-60);
+  font-size: 11px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.ledger .nums b {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+/* ---------- 02 the ribbon, 03 the plane -------------------------------- */
+
+.ribbon .lbl,
+.plane .lbl {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ribbon .keys {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.key {
+  font: 400 10.5px/1 var(--mono);
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--iv-45);
+  background: transparent;
+  letter-spacing: 0;
+  text-transform: none;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.key:hover {
+  color: var(--ivory);
+}
+
+.key:active {
+  transform: scale(0.97);
+}
+
+.key.on {
+  color: var(--yellow);
+  border-color: var(--yellow-20);
+  background: var(--yellow-20);
+}
+
+.ribbon-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ribbon svg {
+  display: block;
+  flex: none;
+  overflow: visible;
+  width: 300px;
+  height: 360px;
+}
+
+.ribbon-axis {
+  display: flex;
+  justify-content: space-between;
+  font: 400 10px/1 var(--mono);
+  color: var(--iv-45);
+}
+
+.ribbon-foot {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font: 400 10.5px/1.4 var(--mono);
+  color: var(--iv-45);
+  max-width: 220px;
+}
+
+.axis {
+  font: 400 10px/1 var(--mono);
+  fill: var(--iv-45);
+}
+
+.axis.lit {
+  fill: var(--ivory);
+}
+
+.plane svg {
+  display: block;
+  width: 300px;
+  height: 300px;
+}
+
+.quad {
+  font: 500 9.5px/1 var(--mono);
+  fill: var(--iv-45);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.plane-axis {
+  display: flex;
+  justify-content: space-between;
+  font: 400 10px/1 var(--mono);
+  color: var(--iv-45);
+  padding: 6px 14px 0;
+}
+
+/* ---------- 05 one pane per action ------------------------------------- */
+
+.panes {
+  display: grid;
+  gap: 14px;
+}
+
+.panes .one {
+  background: var(--panel);
+  border: 1px solid var(--iv-10);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.panes .one .lbl {
+  display: flex;
+  justify-content: space-between;
+}
+
+.panes .one .lbl b {
+  font-weight: 500;
+}
+
+.panes .one .lbl.f b {
+  color: var(--fold);
+}
+
+.panes .one .lbl.c b {
+  color: var(--call);
+}
+
+.panes .one .lbl.p b {
+  color: var(--pot);
+}
+
+.mini {
+  display: grid;
+  gap: 2px;
+}
+
+.mini i {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 1.5px;
+  background: var(--iv-06);
+}
+
+.toplist {
+  margin-top: 10px;
+  border-top: 1px solid var(--iv-10);
+  padding-top: 8px;
+  font: 400 11px/1.6 var(--mono);
+  color: var(--iv-80);
+}
+
+.toplist div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.toplist .v {
+  color: var(--iv-60);
+}
+
+/* ---------- 06 the deck ------------------------------------------------ */
+
+.deck {
+  display: grid;
+  grid-template-columns: 28px repeat(13, 1fr);
+  gap: 4px;
+  font: 400 11px/1 var(--mono);
+}
+
+.deck.compact {
+  max-width: 420px;
+}
+
+.deck .sh {
+  color: var(--iv-45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.deck .sh.red {
+  color: var(--pink);
+}
+
+.deck .rh {
+  color: var(--iv-45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4px;
+}
+
+.dcard {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: 4px;
+  background: var(--panel);
+  border: 1px solid var(--iv-10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--iv-60);
+  font: 500 12px/1 var(--mono);
+  padding: 0;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.dcard:hover:not(:disabled) {
+  border-color: var(--iv-45);
+  color: var(--ivory);
+}
+
+.dcard:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.dcard:disabled {
+  opacity: 0.4;
+}
+
+.dcard.board {
+  background: var(--ivory);
+  color: #111;
+  border-color: var(--ivory);
+}
+
+.dcard.board.red {
+  color: #b5203a;
+}
+
+.dcard.held {
+  border: 2px solid var(--yellow);
+  color: var(--yellow);
+}
+
+.dcard .bar {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--iv-10);
+  overflow: hidden;
+}
+
+.dcard .bar i {
+  display: block;
+  height: 100%;
+  background: var(--pot);
+}
+
+/* ---------- 07 the draw board ------------------------------------------ */
+
+.drawb {
+  display: grid;
+  grid-template-columns: 200px repeat(6, 1fr) 80px;
+  gap: 3px;
+  font: 400 11px/1.3 var(--mono);
+}
+
+.drawb .h {
+  color: var(--iv-45);
+  text-align: center;
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--iv-16);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.drawb .h.left {
+  text-align: left;
+}
+
+.drawb .rh {
+  color: var(--iv-80);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 10px;
+  border-right: 1px solid var(--iv-16);
+}
+
+.drawb .rh.all {
+  color: var(--ivory);
+  border-top: 1px solid var(--iv-16);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.drawb .rh small {
+  color: var(--iv-45);
+}
+
+.drawb .cell {
+  height: 40px;
+  color: var(--iv-60);
+}
+
+.drawb .cell i {
+  position: absolute;
+  inset: 0;
+  background: var(--yellow);
+  opacity: var(--o);
+}
+
+.drawb .cell span {
+  position: relative;
+}
+
+.drawb .cell.top span {
+  color: var(--field);
+  font-weight: 600;
+}
+
+.drawb .mode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--iv-60);
+}
+
+.throwhand {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--iv-10);
+}
+
+.throwhand .slots {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.throwhand .slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font: 400 10.5px/1 var(--mono);
+  color: var(--iv-60);
+}
+
+.throwhand .slot .t {
+  height: 40px;
+  width: 6px;
+  background: var(--iv-10);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+}
+
+.throwhand .slot .t i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--pink);
+}
+
+.throwhand .slot.keep .t i {
+  background: var(--yellow);
+}
+
+.throwhand .say {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: 400 11.5px/1.4 var(--mono);
+  color: var(--iv-60);
+}
+
+.throwhand .say b {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+/* ---------- 09 both seats, 10 the filmstrip ---------------------------- */
+
+.vs {
+  display: grid;
+  grid-template-columns: 1fr 170px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.vs .side .lbl {
+  display: flex;
+  justify-content: space-between;
+}
+
+.vs .mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 28px;
+  font: 400 11px/1.4 var(--mono);
+  color: var(--iv-60);
+  text-align: center;
+}
+
+.vs .mid .vsn {
+  font: 600 26px/1 var(--display);
+  color: var(--iv-30);
+}
+
+.vs .mid .eq {
+  padding: 10px 12px;
+  border: 1px solid var(--iv-16);
+  border-radius: 6px;
+  background: var(--well);
+  width: 100%;
+}
+
+.vs .mid .eq > b {
+  display: block;
+  font: 600 24px/1 var(--display);
+  color: var(--ivory);
+  margin: 6px 0 4px;
+}
+
+.vs .mid .eq .two {
+  display: flex;
+  justify-content: space-between;
+  color: var(--iv-60);
+  font-size: 10.5px;
+  margin-top: 6px;
+}
+
+.vs .mid .eq .two b {
+  font: 500 12px/1 var(--mono);
+  color: var(--ivory);
+}
+
+.vs .mid .small {
+  font-size: 10px;
+}
+
+.heat {
+  display: grid;
+  gap: 2px;
+}
+
+.heat i {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--iv-06);
+}
+
+.heat i.void {
+  background: transparent;
+}
+
+.heat i.hov {
+  outline: 1px solid var(--yellow);
+  outline-offset: 1px;
+}
+
+.film {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  font: 400 11px/1.4 var(--mono);
+}
+
+.film .frame {
+  background: var(--well);
+  border: 1px solid var(--iv-10);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.film .frame.now {
+  border-color: var(--yellow);
+}
+
+.film .frame .who {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+}
+
+.film .frame .what {
+  color: var(--ivory);
+  margin: 4px 0 8px;
+  min-height: 18px;
+}
+
+.film .frame .what b {
+  font-weight: 500;
+}
+
+.film .frame .what.p b {
+  color: var(--pink);
+}
+
+.film .frame .what.c b {
+  color: var(--yellow);
+}
+
+.film .frame .kept {
+  color: var(--iv-60);
+  font-size: 10.5px;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.film .frame .kept b {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+.film .frame.now .kept b {
+  color: var(--yellow);
+}
+
+.throwbars {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  height: 60px;
+  background: var(--iv-03);
+  border-radius: 3px;
+  padding: 2px;
+}
+
+.throwbars i {
+  display: block;
+  flex: 1;
+  border-radius: 1px;
+}
+
+/* ---------- reduced motion --------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .score .act:active,
+  .hbtn:active,
+  .seg button:active,
+  .cell:active,
+  .lrow:active,
+  .key:active,
+  .pickcard:active,
+  .dcard:active:not(:disabled) {
+    transform: none;
+  }
+
+  .sheet {
+    animation: none;
+  }
+}
+
+/* ---------- mini-drawmaha: the score's pickers and the next strip ------ */
+
+.views.games {
+  margin-top: 26px;
+  border-bottom: 0;
+  padding-bottom: 4px;
+}
+
+.views.games + .views {
+  margin-top: 0;
+  border-top: 0;
+}
+
+.score .chips {
+  gap: 6px;
+  flex-wrap: wrap;
+  white-space: normal;
+}
+
+.score .act.boardpick {
+  padding: 4px;
+}
+
+.score .act.boardpick .pickword {
+  padding: 8px 6px;
+  color: var(--iv-60);
+}
+
+.picker {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 12px 0 2px;
+  border-bottom: 1px solid var(--iv-10);
+}
+
+.pickcard {
+  padding: 3px;
+  border: 1px solid var(--iv-16);
+  border-radius: 6px;
+  background: var(--well);
+  transition:
+    border-color 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.pickcard:hover {
+  border-color: var(--iv-45);
+}
+
+.pickcard:active {
+  transform: scale(0.97);
+}
+
+.pickcard.on {
+  border-color: var(--yellow);
+}
+
+.toact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px dashed var(--yellow);
+  border-radius: 6px;
+  background: var(--yellow-20);
+}
+
+.toact-lab {
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--yellow);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.score .act.play {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-color: var(--iv-30);
+}
+
+.score .act.play b {
+  color: var(--yellow);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.score .act.play.p {
+  border-color: var(--pink);
+}
+
+.scorehint {
+  margin-top: 14px;
+}
+
+.spothead.mini .who .err {
+  display: block;
+  font: 400 11px/1.3 var(--mono);
+  color: var(--pink);
+  font-style: normal;
+  margin-top: 8px;
+}
