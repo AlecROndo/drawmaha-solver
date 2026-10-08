@@ -8,6 +8,7 @@ and that is the cost worth paying once, not per test.
 
 import gzip
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -44,11 +45,13 @@ from drawmaha_solver.minidrawmaha.range_export import (
     SCALE,
     encode_keys,
     main,
+    point_meta,
     quantise,
     shape_name,
     write_fixtures,
 )
 from drawmaha_solver.minidrawmaha.strategy import (
+    STRATEGY_SHA256,
     FrozenStrategy,
     StrategyInfo,
     average_rows,
@@ -56,6 +59,9 @@ from drawmaha_solver.minidrawmaha.strategy import (
 )
 
 INFO = StrategyInfo(rule="test", column="linear", iteration=1, seed=0, workers=1)
+
+# The export of the release strategy as committed for `/solver`.
+COMMITTED = Path(__file__).resolve().parents[2] / "web" / "solver-viz" / "public" / "mini"
 
 # The rows the stand-in pins away from uniform: (which point, which key, the mix).
 ROOT_MIX = (0.3, 0.7)
@@ -104,6 +110,7 @@ def exported(tmp_path_factory):
     out = root / "mini"
     out.mkdir()
     (out / "point-999.bin.gz").write_bytes(b"stale")
+    (out / "keys-b1d1.bin").write_bytes(b"stale")
     fixtures = root / "fixtures.json"
     main(["--strategy", str(saved), "--out", str(out), "--fixtures", str(fixtures)])
     return out, fixtures, strategy
@@ -136,6 +143,20 @@ def test_a_scale_a_byte_cannot_hold_is_refused():
         quantise(np.array([[1.0]]), scale=256)
     with pytest.raises(ValueError, match="0"):
         quantise(np.array([[1.0]]), scale=0)
+
+
+def test_a_row_that_is_not_a_distribution_is_refused_by_its_index():
+    good = [0.5, 0.5]
+    with pytest.raises(ValueError, match="row 1 is not a probability distribution"):
+        quantise(np.array([good, [1.2, -0.2]]), scale=250)
+    with pytest.raises(ValueError, match="row 2 is not a probability distribution"):
+        quantise(np.array([good, good, [np.nan, 1.0]]), scale=250)
+    with pytest.raises(ValueError, match="row 0 is not a probability distribution"):
+        quantise(np.array([[np.inf, 0.0], good]), scale=250)
+    with pytest.raises(ValueError, match="row 1 sums to 0.0"):
+        quantise(np.array([good, [0.0, 0.0]]), scale=250)
+    with pytest.raises(ValueError, match="block of rows"):
+        quantise(np.array(good), scale=250)
 
 
 # ---------------------------------------------------------------------------
@@ -260,10 +281,12 @@ def test_every_chunk_inflates_to_n_by_width_with_rows_summing_to_the_scale(expor
         assert (sums == manifest["scale"]).all(), meta["file"]
 
 
-def test_stale_chunks_are_deleted_and_only_the_141_remain(exported):
+def test_stale_chunks_and_key_tables_are_deleted_and_only_the_named_remain(exported):
     out, _, _ = exported
     assert not (out / "point-999.bin.gz").exists()
+    assert not (out / "keys-b1d1.bin").exists()
     assert len(list(out.glob("point-*.bin.gz"))) == 141
+    assert len(list(out.glob("keys-*.bin"))) == len(EXPECTED_SHAPES)
 
 
 def test_the_pinned_rows_round_to_the_expected_bytes(exported, manifest):
@@ -291,6 +314,57 @@ def test_a_draw_point_s_uniform_rows_quantise_to_63_63_62_62(exported, manifest)
     draw = next(meta for meta in manifest["points"] if meta["draw"])
     rows = _chunk(out, draw)
     assert (rows == np.array([63, 63, 62, 62], dtype=np.uint8)).all()
+
+
+# ---------------------------------------------------------------------------
+# The committed export
+# ---------------------------------------------------------------------------
+#
+# Everything about the committed export that does not depend on the strategy's
+# numbers is pinned here, so a change to the manifest's layout, the point
+# walk, the key order or the byte format cannot drift away from the files
+# under `web/solver-viz/public/mini/` without a re-export. The numbers
+# themselves need the 18 MB release file and are not re-derived.
+
+
+@pytest.fixture(scope="module")
+def committed():
+    assert COMMITTED.is_dir(), f"the committed export is missing at {COMMITTED}"
+    return json.loads((COMMITTED / "index.json").read_text())
+
+
+def test_the_committed_manifest_names_the_release_strategy_at_this_scale(committed):
+    assert committed["strategy"]["sha256"] == STRATEGY_SHA256
+    assert committed["scale"] == SCALE
+    assert committed["deck"] == {"ranks": "23456", "suits": "cdh"}
+
+
+def test_the_committed_manifest_is_the_current_point_walk(committed):
+    points = public_decision_points()
+    assert committed["points"] == [
+        point_meta(point, index).as_json() for index, point in enumerate(points)
+    ]
+
+
+def test_the_committed_key_tables_are_the_current_private_keys(committed):
+    assert set(committed["shapes"]) == set(EXPECTED_SHAPES)
+    for name, shape in committed["shapes"].items():
+        board_cards, discards = int(name[1]), int(name[3])
+        expected = encode_keys(private_keys(board_cards=board_cards, discards=discards))
+        assert (shape["n"], shape["stride"]) == expected.shape
+        assert (COMMITTED / shape["file"]).read_bytes() == expected.tobytes(), name
+    assert sorted(path.name for path in COMMITTED.glob("keys-*.bin")) == sorted(
+        shape["file"] for shape in committed["shapes"].values()
+    )
+
+
+def test_every_committed_chunk_is_well_formed_and_none_is_stale(committed):
+    for meta in committed["points"]:
+        sums = _chunk(COMMITTED, meta).sum(axis=1, dtype=np.int64)
+        assert (sums == committed["scale"]).all(), meta["file"]
+    assert sorted(path.name for path in COMMITTED.glob("point-*.bin.gz")) == sorted(
+        meta["file"] for meta in committed["points"]
+    )
 
 
 # ---------------------------------------------------------------------------

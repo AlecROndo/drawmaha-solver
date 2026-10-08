@@ -23,9 +23,12 @@ that factorisation on disk:
   decision: 970 keys at `b1d0`, 10,170 at `b2d0`, 100,400 at `b2d1`.
 * the **scale** turns a float32 row into bytes: each probability becomes
   `round(p * scale)` by largest remainder, so a row sums to exactly `scale`
-  and a byte holds it. At 250 the resolution is 0.4%, finer than the solve's
-  own convergence, and the whole strategy is 14 MB raw, ~4 MB gzipped —
-  against 57 MB of float32.
+  and a byte holds it. At 250 each entry is within 1/250 (0.4%) of the
+  strategy's own number — an action taken under 0.2% of the time rounds to
+  a zero byte — and the whole strategy is 14 MB raw, ~4 MB gzipped, against
+  57 MB of float32. What the browser builds from the bytes is exact to that
+  rounding and no further: a state's reach is a product of up to five
+  entries, so the rounding compounds along the line.
 
 The second thing written is `fixtures.json`: a few hundred random pictures
 with Python's answers beside them — the canonical key, the relabelling behind
@@ -89,6 +92,10 @@ SCALE = 250
 
 # A byte holds 0..255, so a row can sum to at most that.
 MAX_SCALE = 255
+
+# What an export owns under `--out`, and so deletes before writing: a point's
+# chunk and a shape's key table. `index.json` is overwritten, not globbed.
+STALE_PATTERNS = ("point-*.bin.gz", "keys-*.bin")
 
 # The chunks are committed and fetched once per visit; the slowest level buys
 # a few percent on files that are mostly runs of near-pure rows.
@@ -339,16 +346,18 @@ def export_ranges(
 ) -> Manifest:
     """Write `index.json`, one key table per shape and one chunk per point under `out`.
 
-    `out` is emptied of earlier `point-*.bin.gz` files first, as the deal pack
-    empties its chunks, so a point that moved cannot leave a stale chunk the
-    manifest no longer names. Only the shapes a decision point stands on get
-    a key table; the chunks are gzipped at `GZIP_LEVEL` with no timestamp, so
+    `out` is emptied of earlier `point-*.bin.gz` and `keys-*.bin` files first,
+    as the deal pack empties its chunks, so a point that moved or a shape no
+    longer written cannot leave a stale file the manifest does not name. Only
+    the shapes a decision point stands on get a key table; the chunks are
+    gzipped at `GZIP_LEVEL` with no timestamp, so
     the same strategy exports to the same bytes and a re-export shows up in
     git only when the numbers moved.
     """
     out.mkdir(parents=True, exist_ok=True)
-    for stale in out.glob("point-*.bin.gz"):
-        stale.unlink()
+    for pattern in STALE_PATTERNS:
+        for stale in out.glob(pattern):
+            stale.unlink()
     points = public_decision_points()
 
     shapes = []
