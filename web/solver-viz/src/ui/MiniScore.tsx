@@ -74,13 +74,13 @@ export type Tone = 'p' | 'd' | 'c'
  * as it stands: a check or call ('x', 'c') or standing pat ('0'). The map is
  * closed on purpose: a key it has never heard of — a new bet size, a
  * throw-two — is refused rather than quietly coloured as "going along".
+ * Own keys only, so a name the object inherits ('constructor') is refused too.
  */
 const TONES: Readonly<Record<string, Tone>> = { p: 'p', '1': 'p', f: 'd', x: 'c', c: 'c', '0': 'c' }
 
 export function toneOf(key: string): Tone {
-  const tone = TONES[key]
-  if (tone === undefined) throw new Error(`no colour for the action key ${JSON.stringify(key)}`)
-  return tone
+  if (!Object.hasOwn(TONES, key)) throw new Error(`no colour for the action key ${JSON.stringify(key)}`)
+  return TONES[key]
 }
 
 /** The line after taking `key` at its current decision. */

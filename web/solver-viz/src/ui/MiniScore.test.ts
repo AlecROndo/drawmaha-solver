@@ -35,9 +35,12 @@ describe('toneOf', () => {
     expect(() => toneOf('')).toThrow(/no colour/)
   })
 
+  it('refuses a name the map only inherits, so the map is closed and not just populated', () => {
+    for (const key of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) expect(() => toneOf(key)).toThrow(/no colour/)
+  })
+
   it('has a colour for every option the score can offer and every chip it can have played', () => {
     const lines = everyLine()
-    expect(lines.length).toBeGreaterThan(100)
     let options = 0
     for (const line of lines) {
       for (const o of nextOptions(line)) {
@@ -46,7 +49,8 @@ describe('toneOf', () => {
       }
       for (const sym of line.r1 + line.r2) expect(() => toneOf(sym)).not.toThrow()
     }
-    expect(options).toBeGreaterThan(100)
+    // Exact, so a grammar change shows up here before it shows up as a missing colour.
+    expect([lines.length, options]).toEqual([347, 318])
   })
 
   it('agrees with the grammar: a played chip is the bet symbol of the option that played it', () => {
