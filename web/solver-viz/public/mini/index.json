@@ -1,0 +1,3126 @@
+{
+ "strategy": {
+  "sha256": "d49f0f3792627cd5b0279956c7b67690af1507b5beec264cbf5e4606f437b6b8",
+  "rule": "lcfr",
+  "column": "linear",
+  "iteration": 2000000,
+  "workers": 10,
+  "seed": 0
+ },
+ "deck": {
+  "ranks": "23456",
+  "suits": "cdh"
+ },
+ "scale": 250,
+ "shapes": {
+  "b1d0": {
+   "file": "keys-b1d0.bin",
+   "n": 970,
+   "stride": 4
+  },
+  "b2d0": {
+   "file": "keys-b2d0.bin",
+   "n": 10170,
+   "stride": 5
+  },
+  "b2d1": {
+   "file": "keys-b2d1.bin",
+   "n": 100400,
+   "stride": 6
+  }
+ },
+ "points": [
+  {
+   "id": 0,
+   "player": 0,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    ""
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b1d0",
+   "file": "point-000.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 1,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "x"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b1d0",
+   "file": "point-001.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 2,
+   "player": 0,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "xx"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-002.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 3,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    0
+   ],
+   "lines": [
+    "xx"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-003.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 4,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xx",
+    ""
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-004.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 5,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xx",
+    "x"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-005.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 6,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xx",
+    "xp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-006.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 7,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xx",
+    "xpp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-007.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 8,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xx",
+    "xppp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-008.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 9,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xx",
+    "p"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-009.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 10,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xx",
+    "pp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-010.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 11,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xx",
+    "ppp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-011.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 12,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xx",
+    ""
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-012.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 13,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xx",
+    "x"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-013.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 14,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xx",
+    "xp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-014.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 15,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xx",
+    "xpp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-015.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 16,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xx",
+    "xppp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-016.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 17,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xx",
+    "p"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-017.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 18,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xx",
+    "pp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-018.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 19,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xx",
+    "ppp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-019.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 20,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    1
+   ],
+   "lines": [
+    "xx"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-020.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 21,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xx",
+    ""
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-021.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 22,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xx",
+    "x"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-022.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 23,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xx",
+    "xp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-023.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 24,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xx",
+    "xpp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-024.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 25,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xx",
+    "xppp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-025.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 26,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xx",
+    "p"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-026.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 27,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xx",
+    "pp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-027.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 28,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xx",
+    "ppp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-028.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 29,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xx",
+    ""
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-029.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 30,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xx",
+    "x"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-030.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 31,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xx",
+    "xp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-031.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 32,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xx",
+    "xpp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-032.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 33,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xx",
+    "xppp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-033.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 34,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xx",
+    "p"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-034.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 35,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xx",
+    "pp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-035.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 36,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xx",
+    "ppp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-036.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 37,
+   "player": 0,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "xp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b1d0",
+   "file": "point-037.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 38,
+   "player": 0,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "xpc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-038.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 39,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    0
+   ],
+   "lines": [
+    "xpc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-039.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 40,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xpc",
+    ""
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-040.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 41,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xpc",
+    "x"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-041.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 42,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xpc",
+    "xp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-042.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 43,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xpc",
+    "xpp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-043.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 44,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xpc",
+    "p"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-044.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 45,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xpc",
+    "pp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-045.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 46,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xpc",
+    ""
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-046.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 47,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xpc",
+    "x"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-047.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 48,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xpc",
+    "xp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-048.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 49,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xpc",
+    "xpp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-049.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 50,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xpc",
+    "p"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-050.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 51,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xpc",
+    "pp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-051.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 52,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    1
+   ],
+   "lines": [
+    "xpc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-052.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 53,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xpc",
+    ""
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-053.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 54,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xpc",
+    "x"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-054.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 55,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xpc",
+    "xp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-055.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 56,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xpc",
+    "xpp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-056.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 57,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xpc",
+    "p"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-057.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 58,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xpc",
+    "pp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-058.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 59,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xpc",
+    ""
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-059.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 60,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xpc",
+    "x"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-060.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 61,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xpc",
+    "xp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-061.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 62,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xpc",
+    "xpp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-062.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 63,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xpc",
+    "p"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-063.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 64,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xpc",
+    "pp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-064.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 65,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "xpp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b1d0",
+   "file": "point-065.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 66,
+   "player": 0,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "xppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-066.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 67,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    0
+   ],
+   "lines": [
+    "xppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-067.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 68,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xppc",
+    ""
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-068.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 69,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xppc",
+    "x"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-069.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 70,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xppc",
+    "xp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-070.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 71,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "xppc",
+    "p"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-071.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 72,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xppc",
+    ""
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-072.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 73,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xppc",
+    "x"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-073.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 74,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xppc",
+    "xp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-074.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 75,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "xppc",
+    "p"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-075.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 76,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    1
+   ],
+   "lines": [
+    "xppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-076.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 77,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xppc",
+    ""
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-077.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 78,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xppc",
+    "x"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-078.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 79,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xppc",
+    "xp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-079.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 80,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "xppc",
+    "p"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-080.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 81,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xppc",
+    ""
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-081.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 82,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xppc",
+    "x"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-082.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 83,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xppc",
+    "xp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-083.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 84,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "xppc",
+    "p"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-084.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 85,
+   "player": 0,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "xppp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b1d0",
+   "file": "point-085.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 86,
+   "player": 0,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "xpppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-086.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 87,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    0
+   ],
+   "lines": [
+    "xpppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-087.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 88,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    1
+   ],
+   "lines": [
+    "xpppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-088.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 89,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "p"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b1d0",
+   "file": "point-089.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 90,
+   "player": 0,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "pc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-090.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 91,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    0
+   ],
+   "lines": [
+    "pc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-091.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 92,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "pc",
+    ""
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-092.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 93,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "pc",
+    "x"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-093.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 94,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "pc",
+    "xp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-094.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 95,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "pc",
+    "xpp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-095.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 96,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "pc",
+    "p"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-096.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 97,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "pc",
+    "pp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-097.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 98,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "pc",
+    ""
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-098.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 99,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "pc",
+    "x"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-099.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 100,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "pc",
+    "xp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-100.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 101,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "pc",
+    "xpp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-101.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 102,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "pc",
+    "p"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-102.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 103,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "pc",
+    "pp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-103.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 104,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    1
+   ],
+   "lines": [
+    "pc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-104.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 105,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "pc",
+    ""
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-105.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 106,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "pc",
+    "x"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-106.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 107,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "pc",
+    "xp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-107.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 108,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "pc",
+    "xpp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-108.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 109,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "pc",
+    "p"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-109.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 110,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "pc",
+    "pp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-110.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 111,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "pc",
+    ""
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-111.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 112,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "pc",
+    "x"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-112.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 113,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "pc",
+    "xp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-113.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 114,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "pc",
+    "xpp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-114.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 115,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "pc",
+    "p"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-115.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 116,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "pc",
+    "pp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-116.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 117,
+   "player": 0,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "pp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c",
+    "p"
+   ],
+   "shape": "b1d0",
+   "file": "point-117.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 118,
+   "player": 0,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "ppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-118.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 119,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    0
+   ],
+   "lines": [
+    "ppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-119.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 120,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "ppc",
+    ""
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-120.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 121,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "ppc",
+    "x"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-121.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 122,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "ppc",
+    "xp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-122.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 123,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    0
+   ],
+   "lines": [
+    "ppc",
+    "p"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-123.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 124,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "ppc",
+    ""
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-124.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 125,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "ppc",
+    "x"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-125.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 126,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "ppc",
+    "xp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-126.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 127,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    0,
+    1
+   ],
+   "lines": [
+    "ppc",
+    "p"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-127.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 128,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    1
+   ],
+   "lines": [
+    "ppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-128.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 129,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "ppc",
+    ""
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-129.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 130,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "ppc",
+    "x"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d0",
+   "file": "point-130.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 131,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "ppc",
+    "xp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-131.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 132,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    0
+   ],
+   "lines": [
+    "ppc",
+    "p"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d0",
+   "file": "point-132.bin.gz",
+   "n": 10170
+  },
+  {
+   "id": 133,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "ppc",
+    ""
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-133.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 134,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "ppc",
+    "x"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "c",
+    "p"
+   ],
+   "shape": "b2d1",
+   "file": "point-134.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 135,
+   "player": 0,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "ppc",
+    "xp"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-135.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 136,
+   "player": 1,
+   "boardCards": 2,
+   "draws": [
+    1,
+    1
+   ],
+   "lines": [
+    "ppc",
+    "p"
+   ],
+   "discards": 1,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b2d1",
+   "file": "point-136.bin.gz",
+   "n": 100400
+  },
+  {
+   "id": 137,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "ppp"
+   ],
+   "discards": 0,
+   "draw": false,
+   "actions": [
+    "f",
+    "c"
+   ],
+   "shape": "b1d0",
+   "file": "point-137.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 138,
+   "player": 0,
+   "boardCards": 1,
+   "draws": [],
+   "lines": [
+    "pppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-138.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 139,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    0
+   ],
+   "lines": [
+    "pppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-139.bin.gz",
+   "n": 970
+  },
+  {
+   "id": 140,
+   "player": 1,
+   "boardCards": 1,
+   "draws": [
+    1
+   ],
+   "lines": [
+    "pppc"
+   ],
+   "discards": 0,
+   "draw": true,
+   "actions": [
+    "n",
+    "l",
+    "m",
+    "t"
+   ],
+   "shape": "b1d0",
+   "file": "point-140.bin.gz",
+   "n": 970
+  }
+ ]
+}
