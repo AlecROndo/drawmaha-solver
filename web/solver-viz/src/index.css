@@ -1099,6 +1099,10 @@ button.lrow:hover {
   font: 400 11px/1 var(--mono);
 }
 
+.deck.compact {
+  max-width: 420px;
+}
+
 .deck .sh {
   color: var(--iv-45);
   display: flex;
@@ -1477,6 +1481,7 @@ button.lrow:hover {
   .cell:active,
   .lrow:active,
   .key:active,
+  .pickcard:active,
   .dcard:active:not(:disabled) {
     transform: none;
   }
@@ -1484,4 +1489,103 @@ button.lrow:hover {
   .sheet {
     animation: none;
   }
+}
+
+/* ---------- mini-drawmaha: the score's pickers and the next strip ------ */
+
+.views.games {
+  margin-top: 26px;
+  border-bottom: 0;
+  padding-bottom: 4px;
+}
+
+.views.games + .views {
+  margin-top: 0;
+  border-top: 0;
+}
+
+.score .chips {
+  gap: 6px;
+  flex-wrap: wrap;
+  white-space: normal;
+}
+
+.score .act.boardpick {
+  padding: 4px;
+}
+
+.score .act.boardpick .pickword {
+  padding: 8px 6px;
+  color: var(--iv-60);
+}
+
+.picker {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 12px 0 2px;
+  border-bottom: 1px solid var(--iv-10);
+}
+
+.pickcard {
+  padding: 3px;
+  border: 1px solid var(--iv-16);
+  border-radius: 6px;
+  background: var(--well);
+  transition:
+    border-color 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.pickcard:hover {
+  border-color: var(--iv-45);
+}
+
+.pickcard:active {
+  transform: scale(0.97);
+}
+
+.pickcard.on {
+  border-color: var(--yellow);
+}
+
+.next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 0 0;
+  font: 400 11px/1.3 var(--mono);
+  color: var(--iv-60);
+}
+
+.next .lab {
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  margin-right: 4px;
+}
+
+.next .nextbtn {
+  font-size: 12px;
+  padding: 8px 12px;
+  color: var(--ivory);
+}
+
+.next .nextbtn b {
+  color: var(--yellow);
+}
+
+.next .hint {
+  color: var(--iv-45);
+  font-size: 10.5px;
+}
+
+.spothead.mini .who .err {
+  display: block;
+  font: 400 11px/1.3 var(--mono);
+  color: var(--pink);
+  font-style: normal;
+  margin-top: 8px;
 }
