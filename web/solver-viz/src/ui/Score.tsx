@@ -15,6 +15,7 @@
 
 import { cardLabel, isRed, type Card } from '../engine/cards'
 import { CardFace } from './bars'
+import { FULL_GAME } from './game'
 
 export type VillainAct = 'pot' | 'check'
 export type Cursor = 'you' | 'draw'
@@ -63,10 +64,10 @@ export function Score({
         <span className="none">—</span>
       </div>
       <div className="st board">
-        <CardFace ghost />
+        <CardFace game={FULL_GAME} ghost />
       </div>
       <div className="st board">
-        <CardFace ghost />
+        <CardFace game={FULL_GAME} ghost />
       </div>
       <div className="st">
         <span className="none">—</span>
@@ -162,7 +163,7 @@ export function OneLine({ line }: { line: HandLine }) {
     <span className="oneline">
       <span className="hand">
         {line.board.map((c) => (
-          <CardFace key={c} card={c} />
+          <CardFace game={FULL_GAME} key={c} card={c} />
         ))}
       </span>
       <span className={`pill ${facing ? 'p' : ''}`}>{facing ? 'bet 2' : 'check'}</span>

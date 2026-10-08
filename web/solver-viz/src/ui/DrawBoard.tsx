@@ -7,36 +7,45 @@
  * answer. Replaces the grid when the cursor is on the draw.
  */
 
-import type { Card } from '../engine/cards'
-import { INNER_ROWS } from '../engine/regions'
 import { CardFace, byRankDesc, pct, pct0 } from './bars'
+import type { GameUI } from './game'
 
 export function DrawBoard({
+  game,
+  options,
   table,
   hand,
+  fullHint,
 }: {
+  game: GameUI
+  /** the throw options as column labels, in the table's column order; the first is standing pat */
+  options: readonly string[]
   table: { share: number; counts: number[] }[]
-  /** the held hand's throw answer, when five cards are placed */
-  hand: { cards: readonly Card[]; counts: number[]; perCard: number[] } | null
+  /** the held hand's throw answer, when a whole hand is placed */
+  hand: { cards: readonly number[]; counts: number[]; perCard: number[] } | null
+  /** what to say when no whole hand is placed */
+  fullHint: string
 }) {
-  const overall = [0, 1, 2, 3, 4, 5].map((k) => table.reduce((s, r) => s + r.share * r.counts[k], 0))
+  const K = options.length
+  const ks = Array.from({ length: K }, (_, k) => k)
+  const overall = ks.map((k) => table.reduce((s, r) => s + r.share * r.counts[k], 0))
   const total = table.reduce((s, r) => s + r.share, 0) || 1
   return (
     <div className="drawblock">
-      <div className="drawb">
+      <div className="drawb" style={{ gridTemplateColumns: `200px repeat(${K}, 1fr) 80px` }}>
         <div className="h left">inner class · share</div>
-        {[0, 1, 2, 3, 4, 5].map((k) => (
-          <div key={k} className="h">
-            {k === 0 ? 'stand pat' : `throw ${k}`}
+        {options.map((o) => (
+          <div key={o} className="h">
+            {o}
           </div>
         ))}
         <div className="h">mode</div>
-        {INNER_ROWS.map((r, i) => {
+        {game.rows.map((r, i) => {
           const row = table[i]
           if (!row || row.share === 0) return null
           const top = row.counts.indexOf(Math.max(...row.counts))
           return (
-            <DrawRow key={r.label} label={r.label} share={row.share} counts={row.counts} top={top} />
+            <DrawRow key={r.label} label={r.label} share={row.share} counts={row.counts} top={top} options={options} />
           )
         })}
         <div className="rh all">
@@ -60,7 +69,7 @@ export function DrawBoard({
               const p = hand.perCard[idx]
               return (
                 <div key={c} className={`slot ${p < 0.5 ? 'keep' : ''}`}>
-                  <CardFace card={c} size="lg" />
+                  <CardFace game={game} card={c} size="lg" />
                   <span className="t">
                     <i style={{ height: `${p * 100}%` }} />
                   </span>
@@ -69,18 +78,18 @@ export function DrawBoard({
               )
             })}
             <div className="say">
-              {hand.counts.map((v, k) => (v > 0.004 ? <span key={k}>{k === 0 ? 'stand pat' : `throw ${k}`} <b>{pct0(v)}</b></span> : null))}
+              {hand.counts.map((v, k) => (v > 0.004 ? <span key={k}>{options[k]} <b>{pct0(v)}</b></span> : null))}
             </div>
           </div>
         </div>
       ) : (
-        <p className="legend-line">place five cards (the cards button) to see which of them are thrown</p>
+        <p className="legend-line">{fullHint}</p>
       )}
     </div>
   )
 }
 
-function DrawRow({ label, share, counts, top }: { label: string; share: number; counts: number[]; top: number }) {
+function DrawRow({ label, share, counts, top, options }: { label: string; share: number; counts: number[]; top: number; options: readonly string[] }) {
   return (
     <>
       <div className="rh">
@@ -93,7 +102,7 @@ function DrawRow({ label, share, counts, top }: { label: string; share: number; 
           <span>{v > 0.004 ? pct0(v) : '·'}</span>
         </div>
       ))}
-      <div className="mode">{top === 0 ? 'pat' : `throw ${top}`}</div>
+      <div className="mode">{top === 0 ? 'pat' : options[top]}</div>
     </>
   )
 }

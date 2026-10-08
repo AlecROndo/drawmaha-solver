@@ -3,6 +3,7 @@ import { parseBoard, parseCard } from './cards'
 import { classifyInner, classifyOuter } from './classify'
 import { innerRow, outerCol } from './regions'
 import { gridView } from './aggregate'
+import { tableOf } from './table'
 import { equitiesOfHand, policyFor } from './policy'
 import { CATEGORY_BASE, score5 } from './evaluate'
 import { MAX_N, exactRange, mulberry32, percentileRanks, sampleRange } from './sample'
@@ -140,8 +141,8 @@ describe('exactRange', () => {
     expect(seen.size).toBe(16215)
   })
   it('is the whole of its own range: gridView share 1 and n = 16,215', () => {
-    const g = gridView(two, policyFor(two, 'facing'), null)
-    expect(g.all.share).toBe(1)
+    const g = gridView(tableOf(two, policyFor(two, 'facing')), null)
+    expect(g.all.share).toBeCloseTo(1, 9)
     expect(g.all.n).toBe(16215)
   })
   it('five held cards give the one hand, classified like classifyInner and classifyOuter', () => {

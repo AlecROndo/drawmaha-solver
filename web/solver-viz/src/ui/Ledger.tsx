@@ -10,22 +10,15 @@
  * frequency) or by pinning a grid cell (opened at that row and column).
  */
 
-import type { Cell, GridView } from '../engine/aggregate'
-import type { Card } from '../engine/cards'
+import type { Cell, Example, GridView } from '../engine/aggregate'
 import type { Node } from '../engine/policy'
-import { INNER_ROWS, OUTER_COLS } from '../engine/regions'
 import { Hand, MixBar, actionWord, pct, pct0 } from './bars'
+import type { GameUI } from './game'
 import type { Pin } from './Grid'
 import type { SortKey } from './SpotHead'
 
-export interface Example {
-  cards: Card[]
-  mix: { f: number; c: number; p: number }
-  eqI: number
-  eqO: number
-}
-
 export function Ledger({
+  game,
   view,
   node,
   sort,
@@ -33,6 +26,7 @@ export function Ledger({
   onPin,
   examplesFor,
 }: {
+  game: GameUI
   view: GridView
   node: Node
   sort: SortKey
@@ -40,6 +34,8 @@ export function Ledger({
   onPin: (p: Pin | null) => void
   examplesFor: (row: number, col: number) => Example[]
 }) {
+  const INNER_ROWS = game.rows
+  const OUTER_COLS = game.cols
   const order = INNER_ROWS.map((_, i) => i).filter((i) => view.rows[i].n > 0)
   if (sort) order.sort((a, b) => view.rows[b][sort] - view.rows[a][sort])
   const openRow = pin?.row ?? null
@@ -115,9 +111,10 @@ export function Ledger({
                         <div key={k} className="lrow l3">
                           <span className="tog" />
                           <span className="name">
-                            <Hand cards={ex.cards} />
+                            <Hand game={game} cards={ex.cards} />
                             <small>
-                              inner {pct0(ex.eqI)} · outer {pct0(ex.eqO)}
+                              inner {pct0(ex.eqI)}
+                              {Number.isNaN(ex.eqO) ? '' : ` · outer ${pct0(ex.eqO)}`}
                             </small>
                           </span>
                           <span className="share" />

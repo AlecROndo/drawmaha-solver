@@ -1,23 +1,20 @@
 /**
- * Every view of the range as an aggregate over the sample under a mask: the
- * grid and its marginals, the strength ribbon, the equity plane, the deck
- * statistics, the draw table and the example hands of a cell.
+ * Every view of a range as an aggregate over a `RangeTable` under a mask:
+ * the grid and its marginals, the strength ribbon, the equity plane, the
+ * deck statistics, the draw table and the example hands of a cell.
  *
- * Terms: a *holding* is a sampled hand of five hole cards; its *inner* hand
- * is the holding as a poker hand and its *outer* hand the best two-hole-plus-
- * three-board Omaha hand; each has an equity, the share of the sample it
- * beats (`sample.ts`). A *region* is an inner row or outer column
- * (`regions.ts`); a *cell* here is any bucket of hands — a grid cell, a
- * ribbon bin, a plane pixel — carrying its share of the WHOLE sample (so a
- * filtered view shows how much of the full range is left) and the mean
- * *illustrative policy* mix (`policy.ts`) of the hands in it. A mask of 0/1
- * (`filter.ts`) or null, meaning every hand, says which hands count.
+ * Terms: a *hand* is one row of the table (`table.ts`) with its weight, its
+ * region (inner row × outer column), its mix and its equities. A *cell*
+ * here is any bucket of hands — a grid cell, a ribbon bin, a plane pixel —
+ * carrying its *share* (the bucket's weight over the WHOLE table's weight,
+ * so a filtered view shows how much of the full range is left), its count,
+ * and the weighted mean mix of the hands in it. A *mask* of 0/1
+ * (`filter.ts`) or null, meaning every hand, says which hands count. The
+ * table may be the full game's uniform sample or mini-drawmaha's exact
+ * reach-weighted enumeration; nothing here knows which.
  */
 
-import type { Card } from './cards'
-import { INNER_ROWS, OUTER_COLS } from './regions'
-import { type Policy, equitiesOfHand, mixOfHand } from './policy'
-import type { RangeSample } from './sample'
+import { type RangeTable, assertTable, weightOf } from './table'
 
 export interface Mix {
   f: number
@@ -25,7 +22,7 @@ export interface Mix {
   p: number
 }
 
-/** A bucket of hands: its share of the whole sample, its count, its mean mix. */
+/** A bucket of hands: its share of the whole table's weight, its count, its weighted mean mix. */
 export interface Cell extends Mix {
   share: number
   n: number
@@ -41,47 +38,56 @@ export interface GridView {
 
 export type RibbonKey = 'total' | 'inner' | 'outer' | 'scoop'
 
-const ROWS = INNER_ROWS.length
-const COLS = OUTER_COLS.length
-
-/** Running sums for a set of cells: count, Σf, Σc, Σp at [4k, 4k + 4). */
+/** Running sums for a set of cells: count, Σw, Σw·f, Σw·c, Σw·p at [5k, 5k + 5). */
 class Sums {
   readonly a: Float64Array
   constructor(cells: number) {
-    this.a = new Float64Array(cells * 4)
+    this.a = new Float64Array(cells * 5)
   }
-  add(k: number, pol: Policy, i: number): void {
-    const b = k * 4
+  add(k: number, t: RangeTable, i: number): void {
+    const b = k * 5
+    const w = weightOf(t, i)
     this.a[b] += 1
-    this.a[b + 1] += pol.f[i]
-    this.a[b + 2] += pol.c[i]
-    this.a[b + 3] += pol.p[i]
+    this.a[b + 1] += w
+    this.a[b + 2] += w * t.f[i]
+    this.a[b + 3] += w * t.c[i]
+    this.a[b + 4] += w * t.p[i]
   }
   /** The cell for bucket `k`; an empty bucket has share 0 and a zero mix, never NaN. */
-  cell(k: number, total: number): Cell {
-    const b = k * 4
+  cell(k: number, totalWeight: number): Cell {
+    const b = k * 5
     const n = this.a[b]
-    if (n === 0) return { share: 0, n: 0, f: 0, c: 0, p: 0 }
-    return { share: n / total, n, f: this.a[b + 1] / n, c: this.a[b + 2] / n, p: this.a[b + 3] / n }
+    const w = this.a[b + 1]
+    if (n === 0 || w === 0) return { share: 0, n, f: 0, c: 0, p: 0 }
+    return { share: w / totalWeight, n, f: this.a[b + 2] / w, c: this.a[b + 3] / w, p: this.a[b + 4] / w }
   }
 }
 
-function assertMask(s: RangeSample, mask: Uint8Array | null): void {
-  if (mask !== null && mask.length !== s.n) throw new Error(`mask has ${mask.length} entries for a sample of ${s.n}`)
+function assertMask(t: RangeTable, mask: Uint8Array | null): void {
+  if (mask !== null && mask.length !== t.n) throw new Error(`mask has ${mask.length} entries for a table of ${t.n}`)
 }
 
-function assertPolicy(s: RangeSample, pol: Policy): void {
-  if (pol.p.length !== s.n) throw new Error(`policy has ${pol.p.length} entries for a sample of ${s.n}`)
+/** The whole table's weight: the denominator every share is taken over. */
+function totalWeight(t: RangeTable): number {
+  if (t.weight === null) return 1
+  let s = 0
+  for (let i = 0; i < t.n; i++) s += t.weight[i]
+  if (!(s > 0)) throw new Error(`the table's weights sum to ${s}; a range has to weigh something`)
+  return s
 }
 
 /** The grid: a cell per region pair, the row and column marginals, and the whole. */
-export function gridView(s: RangeSample, pol: Policy, mask: Uint8Array | null): GridView {
-  assertMask(s, mask)
-  assertPolicy(s, pol)
+export function gridView(t: RangeTable, mask: Uint8Array | null): GridView {
+  assertTable(t)
+  assertMask(t, mask)
+  const ROWS = t.rows
+  const COLS = t.cols
+  const total = totalWeight(t)
   const sums = new Sums(ROWS * COLS)
-  for (let i = 0; i < s.n; i++) {
+  for (let i = 0; i < t.n; i++) {
     if (mask !== null && mask[i] === 0) continue
-    sums.add(s.row[i] * COLS + s.col[i], pol, i)
+    if (t.row[i] >= ROWS || t.col[i] >= COLS) throw new Error(`hand ${i} sits at (${t.row[i]}, ${t.col[i]}) outside a ${ROWS}×${COLS} grid`)
+    sums.add(t.row[i] * COLS + t.col[i], t, i)
   }
   const cells: Cell[][] = []
   const rowSums = new Sums(ROWS)
@@ -90,30 +96,37 @@ export function gridView(s: RangeSample, pol: Policy, mask: Uint8Array | null): 
   for (let r = 0; r < ROWS; r++) {
     const line: Cell[] = []
     for (let c = 0; c < COLS; c++) {
-      const b = (r * COLS + c) * 4
-      line.push(sums.cell(r * COLS + c, s.n))
-      for (let t = 0; t < 4; t++) {
-        rowSums.a[r * 4 + t] += sums.a[b + t]
-        colSums.a[c * 4 + t] += sums.a[b + t]
-        allSums.a[t] += sums.a[b + t]
+      const b = (r * COLS + c) * 5
+      line.push(sums.cell(r * COLS + c, total))
+      for (let k = 0; k < 5; k++) {
+        rowSums.a[r * 5 + k] += sums.a[b + k]
+        colSums.a[c * 5 + k] += sums.a[b + k]
+        allSums.a[k] += sums.a[b + k]
       }
     }
     cells.push(line)
   }
   return {
     cells,
-    rows: Array.from({ length: ROWS }, (_, r) => rowSums.cell(r, s.n)),
-    cols: Array.from({ length: COLS }, (_, c) => colSums.cell(c, s.n)),
-    all: allSums.cell(0, s.n),
+    rows: Array.from({ length: ROWS }, (_, r) => rowSums.cell(r, total)),
+    cols: Array.from({ length: COLS }, (_, c) => colSums.cell(c, total)),
+    all: allSums.cell(0, total),
   }
 }
 
-function keyValue(s: RangeSample, pol: Policy, key: RibbonKey, i: number): number {
+/** The ribbon's sort value of hand `i` under `key`; outer-based keys need an outer equity. */
+export function keyValue(t: RangeTable, key: RibbonKey, i: number): number {
   switch (key) {
-    case 'total': return pol.eq[i]
-    case 'inner': return s.innerEquity[i]
-    case 'outer': return s.outerEquity[i]
-    case 'scoop': return s.innerEquity[i] * s.outerEquity[i]
+    case 'total':
+      return t.eq[i]
+    case 'inner':
+      return t.eqI[i]
+    case 'outer':
+      if (t.eqO === null) throw new Error('this table has no outer equity to sort by')
+      return t.eqO[i]
+    case 'scoop':
+      if (t.eqO === null) throw new Error('this table has no outer equity to sort by')
+      return t.eqI[i] * t.eqO[i]
   }
 }
 
@@ -125,118 +138,130 @@ const KEY_STEPS = 2 ** 30
  * The key and the index are packed into one double and sorted natively,
  * which is an order of magnitude faster than a comparator sort.
  */
-function orderedBy(s: RangeSample, mask: Uint8Array | null, key: (i: number) => number): Uint32Array {
+function orderedBy(t: RangeTable, mask: Uint8Array | null, key: (i: number) => number): Uint32Array {
   let m = 0
-  for (let i = 0; i < s.n; i++) if (mask === null || mask[i] !== 0) m++
+  for (let i = 0; i < t.n; i++) if (mask === null || mask[i] !== 0) m++
   const packed = new Float64Array(m)
   let k = 0
-  for (let i = 0; i < s.n; i++) {
+  for (let i = 0; i < t.n; i++) {
     if (mask !== null && mask[i] === 0) continue
     const v = key(i)
     if (!(v >= 0 && v <= 1)) throw new Error(`sort key ${v} of hand ${i} is outside [0, 1]`)
-    packed[k++] = Math.round(v * KEY_STEPS) * s.n + i
+    packed[k++] = Math.round(v * KEY_STEPS) * t.n + i
   }
   packed.sort()
   const order = new Uint32Array(m)
-  for (let j = 0; j < m; j++) order[j] = packed[j] % s.n
+  for (let j = 0; j < m; j++) order[j] = packed[j] % t.n
   return order
 }
 
 /**
  * The strength ribbon: the masked hands sorted weakest to strongest by `key`
- * and cut into `bins` equal-count slices, each the mean mix of its slice.
+ * and cut into `bins` slices of equal weight, each the weighted mean mix of
+ * its slice. A slice boundary falls inside a hand only when the hand weighs
+ * more than a slice, in which case the hand fills the slice on its own.
  * Fewer masked hands than bins gives one bin per hand; none gives [].
  */
-export function ribbon(s: RangeSample, pol: Policy, mask: Uint8Array | null, key: RibbonKey, bins: number): Mix[] {
-  assertMask(s, mask)
-  assertPolicy(s, pol)
+export function ribbon(t: RangeTable, mask: Uint8Array | null, key: RibbonKey, bins: number): Mix[] {
+  assertTable(t)
+  assertMask(t, mask)
   if (!Number.isInteger(bins) || bins < 1) throw new Error(`bins must be a positive integer, got ${bins}`)
-  const order = orderedBy(s, mask, (i) => keyValue(s, pol, key, i))
+  const order = orderedBy(t, mask, (i) => keyValue(t, key, i))
   const m = order.length
+  if (m === 0) return []
   const count = Math.min(bins, m)
+  let masked = 0
+  for (let j = 0; j < m; j++) masked += weightOf(t, order[j])
+  if (!(masked > 0)) return []
+  const perBin = masked / count
   const out: Mix[] = []
+  let j = 0
   for (let b = 0; b < count; b++) {
-    const from = Math.floor((b * m) / count)
-    const to = Math.floor(((b + 1) * m) / count)
+    // The last bin takes whatever rounding left over, so every hand lands somewhere.
+    const target = b === count - 1 ? Number.POSITIVE_INFINITY : perBin
+    let w = 0
     let f = 0
     let c = 0
     let p = 0
-    for (let k = from; k < to; k++) {
-      f += pol.f[order[k]]
-      c += pol.c[order[k]]
-      p += pol.p[order[k]]
+    while (j < m && (w < target || w === 0)) {
+      const i = order[j++]
+      const wi = weightOf(t, i)
+      w += wi
+      f += wi * t.f[i]
+      c += wi * t.c[i]
+      p += wi * t.p[i]
     }
-    const len = to - from
-    out.push({ f: f / len, c: c / len, p: p / len })
+    if (w === 0) break
+    out.push({ f: f / w, c: c / w, p: p / w })
   }
   return out
 }
 
 /**
- * Where one hand sits on the ribbon: the fraction of the whole (unmasked)
- * sample whose key is strictly below the hand's. The hand need not be in
- * the sample; its key is computed the way `mixOfHand` computes its equities.
+ * Where a value sits on the ribbon: the weight of the whole (unmasked) table
+ * whose key is strictly below `v`, as a fraction of the table's weight.
  */
-export function percentileOf(s: RangeSample, pol: Policy, key: RibbonKey, hole: readonly Card[], board: readonly Card[]): number {
-  assertPolicy(s, pol)
-  const { eqI, eqO } = equitiesOfHand(hole, board, s)
-  const v =
-    key === 'total' ? mixOfHand(hole, board, s, 'facing').eq
-    : key === 'inner' ? eqI
-    : key === 'outer' ? eqO
-    : eqI * eqO
+export function percentileOf(t: RangeTable, key: RibbonKey, v: number): number {
+  assertTable(t)
+  const total = totalWeight(t)
   let below = 0
-  for (let i = 0; i < s.n; i++) if (keyValue(s, pol, key, i) < v) below++
-  return below / s.n
+  for (let i = 0; i < t.n; i++) if (keyValue(t, key, i) < v) below += weightOf(t, i)
+  return below / total
 }
 
 /**
  * The equity plane: bins × bins cells over (outer equity → x, inner equity →
  * y), cell (x, y) at index y × bins + x, each a `Cell` of the hands landing
- * there. An equity of exactly 1 lands in the last bin.
+ * there. An equity of exactly 1 lands in the last bin. A table without an
+ * outer equity has no plane.
  */
-export function density(s: RangeSample, pol: Policy, mask: Uint8Array | null, bins: number): Cell[] {
-  assertMask(s, mask)
-  assertPolicy(s, pol)
+export function density(t: RangeTable, mask: Uint8Array | null, bins: number): Cell[] {
+  assertTable(t)
+  assertMask(t, mask)
+  if (t.eqO === null) throw new Error('this table has no outer equity; there is no plane to draw')
   if (!Number.isInteger(bins) || bins < 1) throw new Error(`bins must be a positive integer, got ${bins}`)
+  const total = totalWeight(t)
   const sums = new Sums(bins * bins)
-  for (let i = 0; i < s.n; i++) {
+  for (let i = 0; i < t.n; i++) {
     if (mask !== null && mask[i] === 0) continue
-    const x = Math.min(bins - 1, Math.floor(s.outerEquity[i] * bins))
-    const y = Math.min(bins - 1, Math.floor(s.innerEquity[i] * bins))
-    sums.add(y * bins + x, pol, i)
+    const x = Math.min(bins - 1, Math.floor(t.eqO[i] * bins))
+    const y = Math.min(bins - 1, Math.floor(t.eqI[i] * bins))
+    sums.add(y * bins + x, t, i)
   }
-  return Array.from({ length: bins * bins }, (_, k) => sums.cell(k, s.n))
+  return Array.from({ length: bins * bins }, (_, k) => sums.cell(k, total))
 }
 
 /**
- * The deck under the mask. `inRange[c]`: the fraction of masked hands
- * holding card c (Σ = 5, every hand holds five). `potLift[c]`: the card's
- * share of the masked hands' total pot probability divided by its plain
- * share of the masked hands — 1 is neutral, above 1 the card leans the
- * range towards potting; 0 when the card is never held (or nothing pots).
+ * The deck under the mask. `inRange[c]`: the weighted fraction of masked
+ * hands holding card c (Σ = handSize). `potLift[c]`: the card's share of
+ * the masked hands' total pot probability divided by its plain share — 1 is
+ * neutral, above 1 the card leans the range towards potting; 0 when the
+ * card is never held (or nothing pots). An empty slot (255) is skipped.
  */
-export function deckStats(s: RangeSample, pol: Policy, mask: Uint8Array | null): { inRange: Float32Array; potLift: Float32Array } {
-  assertMask(s, mask)
-  assertPolicy(s, pol)
-  const count = new Float64Array(52)
-  const potSum = new Float64Array(52)
+export function deckStats(t: RangeTable, mask: Uint8Array | null): { inRange: Float32Array; potLift: Float32Array } {
+  assertTable(t)
+  assertMask(t, mask)
+  const count = new Float64Array(t.deckSize)
+  const potSum = new Float64Array(t.deckSize)
   let m = 0
   let potTotal = 0
-  for (let i = 0; i < s.n; i++) {
+  for (let i = 0; i < t.n; i++) {
     if (mask !== null && mask[i] === 0) continue
-    m++
-    potTotal += pol.p[i]
-    for (let k = 0; k < 5; k++) {
-      const c = s.cards[i * 5 + k]
-      count[c] += 1
-      potSum[c] += pol.p[i]
+    const w = weightOf(t, i)
+    m += w
+    potTotal += w * t.p[i]
+    for (let k = 0; k < t.handSize; k++) {
+      const c = t.cards[i * t.handSize + k]
+      if (c === 255) continue
+      if (c >= t.deckSize) throw new Error(`hand ${i} holds card ${c}, outside a deck of ${t.deckSize}`)
+      count[c] += w
+      potSum[c] += w * t.p[i]
     }
   }
-  const inRange = new Float32Array(52)
-  const potLift = new Float32Array(52)
+  const inRange = new Float32Array(t.deckSize)
+  const potLift = new Float32Array(t.deckSize)
   if (m === 0) return { inRange, potLift }
-  for (let c = 0; c < 52; c++) {
+  for (let c = 0; c < t.deckSize; c++) {
     inRange[c] = count[c] / m
     if (count[c] > 0 && potTotal > 0) potLift[c] = potSum[c] / potTotal / (count[c] / m)
   }
@@ -244,51 +269,67 @@ export function deckStats(s: RangeSample, pol: Policy, mask: Uint8Array | null):
 }
 
 /**
- * The draw table: per inner row, its share of the whole sample and the mean
- * throw-count distribution (`throwCounts`) of its masked hands; an empty row
- * has share 0 and zero counts.
+ * The draw table: per inner row, its share of the whole table and the
+ * weighted mean distribution over the `k` throw options (`throws` is
+ * n × k, row-major) of its masked hands; an empty row has share 0 and zero
+ * counts.
  */
-export function drawTable(s: RangeSample, throws: Float32Array, mask: Uint8Array | null): { share: number; counts: number[] }[] {
-  assertMask(s, mask)
-  if (throws.length !== s.n * 6) throw new Error(`throws has ${throws.length} entries for a sample of ${s.n} (wanted ${s.n * 6})`)
-  const n = new Float64Array(ROWS)
-  const sums = new Float64Array(ROWS * 6)
-  for (let i = 0; i < s.n; i++) {
+export function drawTable(t: RangeTable, throws: Float32Array, k: number, mask: Uint8Array | null): { share: number; counts: number[] }[] {
+  assertTable(t)
+  assertMask(t, mask)
+  if (!Number.isInteger(k) || k < 1) throw new Error(`k must be a positive integer, got ${k}`)
+  if (throws.length !== t.n * k) throw new Error(`throws has ${throws.length} entries for a table of ${t.n} (wanted ${t.n * k})`)
+  const total = totalWeight(t)
+  const w = new Float64Array(t.rows)
+  const sums = new Float64Array(t.rows * k)
+  for (let i = 0; i < t.n; i++) {
     if (mask !== null && mask[i] === 0) continue
-    const r = s.row[i]
-    n[r] += 1
-    for (let k = 0; k < 6; k++) sums[r * 6 + k] += throws[i * 6 + k]
+    const r = t.row[i]
+    const wi = weightOf(t, i)
+    w[r] += wi
+    for (let j = 0; j < k; j++) sums[r * k + j] += wi * throws[i * k + j]
   }
-  return Array.from({ length: ROWS }, (_, r) => ({
-    share: n[r] / s.n,
-    counts: Array.from({ length: 6 }, (_, k) => (n[r] === 0 ? 0 : sums[r * 6 + k] / n[r])),
+  return Array.from({ length: t.rows }, (_, r) => ({
+    share: w[r] / total,
+    counts: Array.from({ length: k }, (_, j) => (w[r] === 0 ? 0 : sums[r * k + j] / w[r])),
   }))
+}
+
+export interface Example {
+  cards: number[]
+  mix: Mix
+  eqI: number
+  /** NaN when the table has no outer equity */
+  eqO: number
+  weight: number
 }
 
 /**
  * Up to `k` hands of cell (row, col) under the mask, the ones that pot most
- * first; each with its cards high to low, its mix and its two equities.
+ * first; each with its cards high to low, its mix, its equities and its
+ * weight.
  */
-export function examples(
-  s: RangeSample, pol: Policy, mask: Uint8Array | null, row: number, col: number, k: number,
-): { cards: Card[]; mix: Mix; eqI: number; eqO: number }[] {
-  assertMask(s, mask)
-  assertPolicy(s, pol)
-  if (!Number.isInteger(row) || row < 0 || row >= ROWS) throw new Error(`${row} is not an inner row (0..${ROWS - 1})`)
-  if (!Number.isInteger(col) || col < 0 || col >= COLS) throw new Error(`${col} is not an outer column (0..${COLS - 1})`)
+export function examples(t: RangeTable, mask: Uint8Array | null, row: number, col: number, k: number): Example[] {
+  assertTable(t)
+  assertMask(t, mask)
+  if (!Number.isInteger(row) || row < 0 || row >= t.rows) throw new Error(`${row} is not an inner row (0..${t.rows - 1})`)
+  if (!Number.isInteger(col) || col < 0 || col >= t.cols) throw new Error(`${col} is not an outer column (0..${t.cols - 1})`)
   if (!Number.isInteger(k) || k < 0) throw new Error(`k must be a non-negative integer, got ${k}`)
-  const inCell = new Uint8Array(s.n)
-  for (let i = 0; i < s.n; i++) if ((mask === null || mask[i] !== 0) && s.row[i] === row && s.col[i] === col) inCell[i] = 1
+  const inCell = new Uint8Array(t.n)
+  for (let i = 0; i < t.n; i++) if ((mask === null || mask[i] !== 0) && t.row[i] === row && t.col[i] === col) inCell[i] = 1
   // Ascending in 1 − p is descending in p.
-  const order = orderedBy(s, inCell, (i) => 1 - pol.p[i])
-  const out = []
+  const order = orderedBy(t, inCell, (i) => 1 - t.p[i])
+  const out: Example[] = []
   for (let j = 0; j < Math.min(k, order.length); j++) {
     const i = order[j]
     out.push({
-      cards: Array.from(s.cards.subarray(i * 5, i * 5 + 5)).sort((a, b) => b - a),
-      mix: { f: pol.f[i], c: pol.c[i], p: pol.p[i] },
-      eqI: s.innerEquity[i],
-      eqO: s.outerEquity[i],
+      cards: Array.from(t.cards.subarray(i * t.handSize, (i + 1) * t.handSize))
+        .filter((c) => c !== 255)
+        .sort((a, b) => b - a),
+      mix: { f: t.f[i], c: t.c[i], p: t.p[i] },
+      eqI: t.eqI[i],
+      eqO: t.eqO === null ? Number.NaN : t.eqO[i],
+      weight: weightOf(t, i),
     })
   }
   return out

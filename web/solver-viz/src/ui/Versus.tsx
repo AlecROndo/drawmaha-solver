@@ -16,8 +16,8 @@ import { useState } from 'react'
 
 import type { Cell, GridView } from '../engine/aggregate'
 import type { Node } from '../engine/policy'
-import { INNER_ROWS, OUTER_COLS } from '../engine/regions'
 import { dominant } from './Grid'
+import type { GameUI } from './game'
 import { pct, pct0 } from './bars'
 import type { VillainAct } from './Score'
 
@@ -32,7 +32,9 @@ export interface Equity {
 const INK: Record<'f' | 'c' | 'p', string> = { f: '245,240,230', c: '233,184,98', p: '216,86,111' }
 
 /** A thumbnail of the two-half grid: ink = `weight(cell)`, colour = the cell's dominant action (or ivory when `plain`). */
-export function Thumb({ view, weight, plain, hover, onHover }: { view: GridView; weight: (c: Cell) => number; plain?: boolean; hover?: { row: number; col: number } | null; onHover?: (p: { row: number; col: number } | null) => void }) {
+export function Thumb({ game, view, weight, plain, hover, onHover }: { game: GameUI; view: GridView; weight: (c: Cell) => number; plain?: boolean; hover?: { row: number; col: number } | null; onHover?: (p: { row: number; col: number } | null) => void }) {
+  const INNER_ROWS = game.rows
+  const OUTER_COLS = game.cols
   const max = Math.max(1e-9, ...view.cells.flat().map(weight))
   return (
     <div className="heat" style={{ gridTemplateColumns: `repeat(${OUTER_COLS.length}, 1fr)` }} onMouseLeave={() => onHover?.(null)}>
@@ -60,6 +62,7 @@ export function Thumb({ view, weight, plain, hover, onHover }: { view: GridView;
 }
 
 export function Versus({
+  game,
   mine,
   theirs,
   node,
@@ -68,6 +71,7 @@ export function Versus({
   throwsMine,
   throwsTheirs,
 }: {
+  game: GameUI
   mine: GridView
   theirs: GridView
   node: Node
@@ -77,6 +81,8 @@ export function Versus({
   throwsMine: number[]
   throwsTheirs: number[]
 }) {
+  const INNER_ROWS = game.rows
+  const OUTER_COLS = game.cols
   const [hover, setHover] = useState<{ row: number; col: number } | null>(null)
   const theirWeight = (c: Cell) => c.share * (villainAct === 'pot' ? c.p : c.c)
   const myWeight = (c: Cell) => c.share * c.c
@@ -92,7 +98,7 @@ export function Versus({
             <span>seat 0 · their {villainAct === 'pot' ? 'betting' : 'checking'} range</span>
             <span className="dimmer">{pct0(theirKept)} kept</span>
           </div>
-          <Thumb view={theirs} weight={theirWeight} />
+          <Thumb game={game} view={theirs} weight={theirWeight} />
           <p className="legend-line">ink = how much of their range is here after they {villainAct === 'pot' ? 'bet' : 'checked'} · colour = what the region mostly did</p>
         </div>
         <div className="mid">
@@ -125,7 +131,7 @@ export function Versus({
             <span>you · seat 1 · whole range</span>
             <span className="dimmer">colour = your mix</span>
           </div>
-          <Thumb view={mine} weight={(c) => c.share} hover={hover} onHover={setHover} />
+          <Thumb game={game} view={mine} weight={(c) => c.share} hover={hover} onHover={setHover} />
           <p className="legend-line">ink = share of your range · colour = what the region mostly does now</p>
         </div>
       </div>
@@ -135,13 +141,13 @@ export function Versus({
       </div>
       <div className="film">
         <Frame who="deal · flop" what="both ranges" kept="100%">
-          <Thumb view={mine} weight={(c) => c.share} plain />
+          <Thumb game={game} view={mine} weight={(c) => c.share} plain />
         </Frame>
         <Frame who="seat 0" what={villainAct === 'pot' ? 'bets pot' : 'checks'} cls={villainAct === 'pot' ? 'p' : 'c'} kept={pct0(theirKept)} keptLabel="their range kept">
-          <Thumb view={theirs} weight={theirWeight} plain />
+          <Thumb game={game} view={theirs} weight={theirWeight} plain />
         </Frame>
         <Frame who="you" what={yourAct} cls="c" kept={pct0(mine.all.c)} keptLabel="your range kept" now>
-          <Thumb view={mine} weight={myWeight} plain />
+          <Thumb game={game} view={mine} weight={myWeight} plain />
         </Frame>
         <Frame who="seat 0 · draw" what="throws" kept="" keptLabel="throw-count mix">
           <ThrowBars t={throwsTheirs} />
