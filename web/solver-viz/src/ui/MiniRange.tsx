@@ -6,10 +6,11 @@
  * board in the grid's place at a draw decision — and, on the second tab,
  * the other seat's range beside yours with exact showdown equities.
  *
- * Every number is the solver's. The actor's range at a decision is the
- * exact reach-weighted set of its private states (`mini/range.ts`): every
- * physical hole (and discard) it could hold, weighted by the product of its
- * own action probabilities along the line. The other seat's range is the
+ * Every number is the solver's, read from its export and exact to that
+ * export's 1/250 rounding (`mini/range.ts`). The actor's range at a decision
+ * is the reach-weighted set of its private states: every physical hole (and
+ * discard) it could hold, weighted by the product of its own action
+ * probabilities along the line. The other seat's range is the
  * same for the other seat. Equities are showdown-now between the two
  * ranges with card removal: at round 2 both halves, exactly; with one board
  * card only the inner half can be scored, so the outer equity, the plane
@@ -522,7 +523,8 @@ export function MiniRange({ tab }: { tab: TabId }) {
         every private key — 6.2 million rows. The browser rebuilds the ranges exactly: it enumerates every hole (and
         discard) the actor could hold given the board, relabels suits jointly the way the solver’s key does, reads each
         state’s mix, and weights the state by the product of the actor’s own action probabilities along the line. Nothing
-        here is sampled or illustrative.
+        here is sampled or illustrative; the one rounding is the export’s, where each probability is a byte in 1/250ths,
+        so an action the strategy takes under 0.2% of the time reads as never.
       </p>
     </>
   )

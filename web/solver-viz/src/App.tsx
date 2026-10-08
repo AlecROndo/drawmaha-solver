@@ -70,8 +70,9 @@ export default function App() {
             when the decision is what to throw.
           </p>
           <p className="note">
-            <b>Mini-drawmaha is solved</b>: its range at every spot is the exact reach-weighted set under rung 3’s frozen
-            LCFR strategy, and every percentage is that strategy’s. <b>Full Drawmaha is not yet</b>: its composition is
+            <b>Mini-drawmaha is solved</b>: its range at every spot is the reach-weighted set under rung 3’s frozen LCFR
+            strategy, every percentage is that strategy’s, and the only rounding is the export’s 1/250 step.{' '}
+            <b>Full Drawmaha is not yet</b>: its composition is
             real (sampled and classified exactly) but its action mix is an illustrative stand-in for the rung-4 network,
             and the page says so wherever it is drawn.
           </p>

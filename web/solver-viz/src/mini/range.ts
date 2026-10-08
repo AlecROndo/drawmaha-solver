@@ -1,7 +1,15 @@
 /**
- * A seat's exact range at a spot — every private state it could be in,
- * weighted by how likely its own strategy was to bring that state here —
- * and the exact showdown equities of one range against another.
+ * A seat's range at a spot — every private state it could be in, weighted
+ * by how likely its own strategy was to bring that state here — and the
+ * showdown equities of one range against another. Both are exact GIVEN THE
+ * EXPORT: the enumeration misses no state and the equities are pairwise
+ * over every legal pair, but every probability is read from the export's
+ * byte rows, where the exporter rounded it to a multiple of 1/`scale`
+ * (1/250, `range_export.quantise`). A reach is a product of up to five such
+ * entries, so its rounding compounds, and an action the strategy takes less
+ * than 0.2% of the time is a zero byte — a state reached only through such
+ * an action has zero reach here, which is the export's resolution, not the
+ * strategy's behaviour.
  *
  * Terms. A *state* is one physical hand a seat could hold at the spot: three
  * hole cards and, once it has drawn, the card it *threw* (or no card, 255).
@@ -34,10 +42,12 @@
  * A stand-pat seat's state has one history: reach = Π round-1 probs(hole)
  * × P(stand pat | hole) × Π round-2 probs.
  *
- * Equities are exact and pairwise: my state against each of the other seat's
- * states whose cards are disjoint from mine, weighted by the other range's
- * weights (Bayes over a uniform deal: card removal restricts, their reach
- * weights). Inner and outer equities count a tie as half; a *scoop* is
+ * Equities are pairwise: my state against each of the other seat's states
+ * whose cards are disjoint from mine, weighted by the other range's weights
+ * (Bayes over a uniform deal: card removal restricts, their reach weights —
+ * and since each seat's reach is a product over its OWN decisions only, the
+ * two seats' weights are independent and pairwise disjointness is the whole
+ * constraint). Inner and outer equities count a tie as half; a *scoop* is
  * winning BOTH halves outright on the same pair, so a chop on either half is
  * not one.
  */
@@ -61,7 +71,14 @@ export interface MiniRange {
   n: number
   /** n × 4: hole (3, ascending) then the thrown card or `NO_DISCARD` */
   cards: Uint8Array
-  /** reach-weighted, sums to 1 over the range */
+  /**
+   * reach-weighted, sums to 1 over the range. Float32 because the shared
+   * `RangeTable` reads it; the narrowing costs ~6e-8 relative per entry, far
+   * under the export's 1/250 rounding, and cannot underflow: a nonzero reach
+   * is at least 250^-5 (five byte entries) over a total of at most 3n, so
+   * the smallest nonzero weight is ~1e-16 against float32's 1e-38 floor.
+   * `equities` accumulates these in doubles.
+   */
   weight: Float32Array
   /** inner row 0..5 = `innerCategory − 1` */
   row: Uint8Array
@@ -118,7 +135,8 @@ function sorted3(a: MiniCard, b: MiniCard, c: MiniCard): [MiniCard, MiniCard, Mi
 }
 
 /**
- * `player`'s range at `spot`, exact under the frozen strategy. The spot must
+ * `player`'s range at `spot`, exact under the exported strategy (module
+ * comment: exact to the export's 1/`scale` rounding). The spot must
  * be a decision (of either seat). Enumerates every physical state of
  * `player` not holding a card in `exclude` — its shape follows the seat's
  * own draw count at that moment: three hole cards before it has drawn or
