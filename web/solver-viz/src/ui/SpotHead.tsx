@@ -17,6 +17,7 @@ import type { Cell } from '../engine/aggregate'
 import type { Card } from '../engine/cards'
 import type { Node } from '../engine/policy'
 import { CardFace, MixBar, MixKey, actionWord, count, pct } from './bars'
+import { FULL_GAME } from './game'
 import type { Cursor } from './Score'
 
 export type Opened = null | 'panes' | 'deck'
@@ -130,10 +131,10 @@ export function SpotHead({
           {Array.from({ length: 5 }, (_, i) =>
             held[i] !== undefined ? (
               <button key={held[i]} type="button" className="hbtn heldcard" onClick={() => onUnhold(held[i])} aria-label={`remove the card`}>
-                <CardFace card={held[i]} />
+                <CardFace game={FULL_GAME} card={held[i]} />
               </button>
             ) : (
-              <CardFace key={`g${i}`} ghost />
+              <CardFace game={FULL_GAME} key={`g${i}`} ghost />
             ),
           )}
         </span>

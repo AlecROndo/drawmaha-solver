@@ -9,28 +9,28 @@
  * surface between bands so adjacent fills never need a border.
  */
 
-import { cardLabel, isRed, type Card } from '../engine/cards'
 import type { Mix } from '../engine/aggregate'
+import type { GameUI } from './game'
 
 export const pct = (x: number): string => `${(x * 100).toFixed(x * 100 >= 10 || x === 0 ? 0 : 1)}%`
 export const pct0 = (x: number): string => `${Math.round(x * 100)}%`
 export const count = (n: number): string => n.toLocaleString('en-US')
 
 /** Cards sorted high to low so a hand reads the way a player fans it. */
-export const byRankDesc = (cards: readonly Card[]): Card[] => [...cards].sort((a, b) => b - a)
+export const byRankDesc = (cards: readonly number[]): number[] => [...cards].sort((a, b) => b - a)
 
-/** One card face. `size` is `sm` for a hand in a row of text, `lg` for the holding strip. */
-export function CardFace({ card, size = 'sm', ghost }: { card?: Card; size?: 'sm' | 'lg'; ghost?: boolean }) {
+/** One card face, spelled by the game. `size` is `sm` for a hand in a row of text, `lg` for the holding strip. */
+export function CardFace({ game, card, size = 'sm', ghost }: { game: GameUI; card?: number; size?: 'sm' | 'lg'; ghost?: boolean }) {
   if (card === undefined || ghost) return <span className={`cf ${size} ghost`} aria-hidden />
-  return <span className={`cf ${size}${isRed(card) ? ' red' : ''}`}>{cardLabel(card)}</span>
+  return <span className={`cf ${size}${game.isRed(card) ? ' red' : ''}`}>{game.label(card)}</span>
 }
 
 /** A fanned hand, high card first. */
-export function Hand({ cards, size = 'sm' }: { cards: readonly Card[]; size?: 'sm' | 'lg' }) {
+export function Hand({ game, cards, size = 'sm' }: { game: GameUI; cards: readonly number[]; size?: 'sm' | 'lg' }) {
   return (
     <span className="hand">
       {byRankDesc(cards).map((c) => (
-        <CardFace key={c} card={c} size={size} />
+        <CardFace key={c} game={game} card={c} size={size} />
       ))}
     </span>
   )

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { deckStats, density, drawTable, examples, gridView, percentileOf, ribbon } from './aggregate'
+import { tableOf } from './table'
+import { equitiesOfHand, mixOfHand } from './policy'
 import { parseBoard, parseCard, rankOf } from './cards'
 import { maskFor } from './filter'
 import { policyFor, throwCounts } from './policy'
@@ -13,9 +15,9 @@ const held = maskFor(s, { rows: null, cols: null, held: [parseCard('As')] })!
 const sumMix = (m: { f: number; c: number; p: number }) => m.f + m.c + m.p
 
 describe('gridView', () => {
-  const g = gridView(s, pol, null)
+  const g = gridView(tableOf(s, pol), null)
   it('the whole range has share 1 and a mix that sums to 1', () => {
-    expect(g.all.share).toBe(1)
+    expect(g.all.share).toBeCloseTo(1, 9)
     expect(g.all.n).toBe(s.n)
     expect(sumMix(g.all)).toBeCloseTo(1, 5)
   })
@@ -54,7 +56,7 @@ describe('gridView', () => {
     for (const c of g.cells.flat()) if (c.n > 0) expect(sumMix(c)).toBeCloseTo(1, 5)
   })
   it('a mask shrinks the share of the whole but keeps it a share of the full sample', () => {
-    const h = gridView(s, pol, held)
+    const h = gridView(tableOf(s, pol), held)
     let kept = 0
     for (let i = 0; i < s.n; i++) kept += held[i]
     expect(h.all.n).toBe(kept)
@@ -65,7 +67,7 @@ describe('gridView', () => {
   })
   it('still sums to one on a paired flop', () => {
     const paired = sampleRange(parseBoard('Ks Kd 4c'), 3000, 2)
-    const g2 = gridView(paired, policyFor(paired, 'facing'), null)
+    const g2 = gridView(tableOf(paired, policyFor(paired, 'facing')), null)
     let total = 0
     for (const c of g2.cells.flat()) total += c.share
     expect(total).toBeCloseTo(1, 9)
@@ -77,13 +79,13 @@ describe('gridView', () => {
 describe('ribbon', () => {
   it('returns one mix per bin, each summing to 1', () => {
     for (const key of ['total', 'inner', 'outer', 'scoop'] as const) {
-      const r = ribbon(s, pol, null, key, 10)
+      const r = ribbon(tableOf(s, pol), null, key, 10)
       expect(r).toHaveLength(10)
       for (const m of r) expect(sumMix(m)).toBeCloseTo(1, 5)
     }
   })
   it('pots more at the strong end than the weak end', () => {
-    const r = ribbon(s, pol, null, 'total', 10)
+    const r = ribbon(tableOf(s, pol), null, 'total', 10)
     expect(r[9].p).toBeGreaterThan(r[0].p)
     expect(r[0].f).toBeGreaterThan(r[9].f)
   })
@@ -91,19 +93,21 @@ describe('ribbon', () => {
     const m = new Uint8Array(s.n)
     m[3] = 1
     m[40] = 1
-    const r = ribbon(s, pol, m, 'total', 10)
+    const r = ribbon(tableOf(s, pol), m, 'total', 10)
     expect(r).toHaveLength(2)
     expect(r[0].p).toBeCloseTo(Math.min(pol.p[3], pol.p[40]), 5)
   })
   it('is empty when no hand passes', () => {
-    expect(ribbon(s, pol, new Uint8Array(s.n), 'total', 10)).toEqual([])
+    expect(ribbon(tableOf(s, pol), new Uint8Array(s.n), 'total', 10)).toEqual([])
   })
 })
 
 describe('percentileOf', () => {
   it('lies in [0, 1] and is near 1 for a monster, near 0 for a blank', () => {
-    const monster = percentileOf(s, pol, 'total', [parseCard('Kh'), parseCard('Kc'), parseCard('9h'), parseCard('9c'), parseCard('As')], FLOP)
-    const blank = percentileOf(s, pol, 'inner', [parseCard('2h'), parseCard('3c'), parseCard('5d'), parseCard('7h'), parseCard('8c')], FLOP)
+    const big = [parseCard('Kh'), parseCard('Kc'), parseCard('9h'), parseCard('9c'), parseCard('As')]
+    const small = [parseCard('2h'), parseCard('3c'), parseCard('5d'), parseCard('7h'), parseCard('8c')]
+    const monster = percentileOf(tableOf(s, pol), 'total', mixOfHand(big, FLOP, s, 'facing').eq)
+    const blank = percentileOf(tableOf(s, pol), 'inner', equitiesOfHand(small, FLOP, s).eqI)
     expect(monster).toBeGreaterThan(0.95)
     expect(monster).toBeLessThanOrEqual(1)
     expect(blank).toBeLessThan(0.05)
@@ -114,13 +118,13 @@ describe('percentileOf', () => {
     const hole = Array.from(s.cards.subarray(i * 5, i * 5 + 5))
     let below = 0
     for (let j = 0; j < s.n; j++) if (s.outerEquity[j] < s.outerEquity[i]) below++
-    expect(percentileOf(s, pol, 'outer', hole, FLOP)).toBeCloseTo(below / s.n, 9)
+    expect(percentileOf(tableOf(s, pol), 'outer', equitiesOfHand(hole, FLOP, s).eqO)).toBeCloseTo(below / s.n, 9)
   })
 })
 
 describe('density', () => {
   it('has bins² cells whose shares sum to 1', () => {
-    const d = density(s, pol, null, 18)
+    const d = density(tableOf(s, pol), null, 18)
     expect(d).toHaveLength(324)
     let total = 0
     for (const c of d) total += c.share
@@ -129,7 +133,7 @@ describe('density', () => {
     for (const c of d) if (c.n === 0) expect(c.p).toBe(0)
   })
   it('puts a hand at x = outer, y = inner', () => {
-    const d = density(s, pol, null, 4)
+    const d = density(tableOf(s, pol), null, 4)
     const i = 0
     const x = Math.min(3, Math.floor(s.outerEquity[i] * 4))
     const y = Math.min(3, Math.floor(s.innerEquity[i] * 4))
@@ -139,7 +143,7 @@ describe('density', () => {
 
 describe('deckStats', () => {
   it('every hand holds five cards, so inRange sums to 5', () => {
-    const d = deckStats(s, pol, null)
+    const d = deckStats(tableOf(s, pol), null)
     expect(d.inRange).toHaveLength(52)
     expect(d.potLift).toHaveLength(52)
     let total = 0
@@ -151,19 +155,19 @@ describe('deckStats', () => {
     }
   })
   it('a held card is in every masked hand and lifts the pot share of its own rank', () => {
-    const d = deckStats(s, pol, held)
+    const d = deckStats(tableOf(s, pol), held)
     expect(d.inRange[parseCard('As')]).toBe(1)
     for (let c = 0; c < 52; c++) expect(Number.isNaN(d.potLift[c])).toBe(false)
   })
   it('an ace lifts the pot share above a deuce', () => {
-    const d = deckStats(s, pol, null)
+    const d = deckStats(tableOf(s, pol), null)
     expect(d.potLift[parseCard('Ah')]).toBeGreaterThan(d.potLift[parseCard('2h')])
   })
 })
 
 describe('drawTable', () => {
   it('has one line per inner row, shares summing to 1, counts summing to 1 where populated', () => {
-    const t = drawTable(s, throwCounts(s), null)
+    const t = drawTable(tableOf(s, pol), throwCounts(s), 6, null)
     expect(t).toHaveLength(9)
     let total = 0
     for (const r of t) {
@@ -176,17 +180,17 @@ describe('drawTable', () => {
     expect(total).toBeCloseTo(1, 9)
   })
   it('the made row stands pat', () => {
-    const t = drawTable(s, throwCounts(s), null)
+    const t = drawTable(tableOf(s, pol), throwCounts(s), 6, null)
     expect(t[8].counts[0]).toBe(1)
   })
 })
 
 describe('examples', () => {
   it('returns the k hands of the cell that pot most, cards high to low', () => {
-    const g = gridView(s, pol, null)
+    const g = gridView(tableOf(s, pol), null)
     let best: [number, number] = [0, 0]
     for (let r = 0; r < 9; r++) for (let c = 0; c < 8; c++) if (g.cells[r][c].n > g.cells[best[0]][best[1]].n) best = [r, c]
-    const ex = examples(s, pol, null, best[0], best[1], 5)
+    const ex = examples(tableOf(s, pol), null, best[0], best[1], 5)
     expect(ex).toHaveLength(5)
     for (let k = 1; k < ex.length; k++) expect(ex[k].mix.p).toBeLessThanOrEqual(ex[k - 1].mix.p)
     for (const e of ex) {
@@ -198,11 +202,11 @@ describe('examples', () => {
     }
   })
   it('returns fewer than k when the cell is smaller, and none for an empty cell', () => {
-    const g = gridView(s, pol, null)
+    const g = gridView(tableOf(s, pol), null)
     const empty = g.cells.flat().findIndex((c) => c.n === 0)
-    expect(examples(s, pol, null, Math.floor(empty / 8), empty % 8, 5)).toEqual([])
+    expect(examples(tableOf(s, pol), null, Math.floor(empty / 8), empty % 8, 5)).toEqual([])
     const m = new Uint8Array(s.n)
     m[0] = 1
-    expect(examples(s, pol, m, s.row[0], s.col[0], 5)).toHaveLength(1)
+    expect(examples(tableOf(s, pol), m, s.row[0], s.col[0], 5)).toHaveLength(1)
   })
 })

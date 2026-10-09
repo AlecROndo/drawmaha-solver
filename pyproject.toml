@@ -8,6 +8,13 @@ dependencies = [
     "matplotlib>=3.9",
 ]
 
+[project.optional-dependencies]
+# Rung 4's nets. Optional so the tabular rungs, and the default test suite,
+# never install torch; `uv sync --extra deep` brings it in.
+deep = [
+    "torch>=2.4",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",
@@ -25,6 +32,7 @@ leduc-exploit-server = "drawmaha_solver.leduc.exploit_server:main"
 minidraw-analysis = "drawmaha_solver.minidrawmaha.analysis:main"
 minidraw-play = "drawmaha_solver.minidrawmaha.play:main"
 minidraw-deals = "drawmaha_solver.minidrawmaha.deal_pack:main"
+minidraw-ranges = "drawmaha_solver.minidrawmaha.range_export:main"
 
 [build-system]
 requires = ["hatchling"]

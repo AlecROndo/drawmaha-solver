@@ -81,7 +81,7 @@ PRESSABLES = {
     "rung3-viz": (),
     # the range interface: the score's chips, the header's controls, the filter
     # chips, the grid's cells, the ledger's rows, the ribbon's keys, the deck
-    "solver-viz": (".score .act", ".hbtn", ".seg button", ".cell", ".lrow", ".key", ".dcard"),
+    "solver-viz": (".score .act", ".hbtn", ".seg button", ".cell", ".lrow", ".key", ".dcard", ".pickcard"),
     "index.html": (
         ".btn",
         ".navbtn",

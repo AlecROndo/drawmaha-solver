@@ -16,6 +16,7 @@
 import {
   BETS,
   CHOP,
+  DECK_SIZE,
   THROWS,
   actorOf,
   betSymbol,
@@ -26,6 +27,7 @@ import {
   isThrow,
   legalBets,
   replay,
+  roundTree,
   settle,
   sym,
   throwIndex,
@@ -96,16 +98,86 @@ export const board2 = (deal: Deal, throws: [Throw, Throw]): CardIndex =>
   deal.deck[STUB + count(throws[0]) + count(throws[1])]
 export const comboOf = (throws: [Throw, Throw]): string => throws[0] + throws[1]
 
+/** The sixteen post-draw worlds, P0's throw then P1's. */
+export const COMBOS: string[] = THROWS.flatMap((a) => THROWS.map((b) => a + b))
+
+// ------------------------------------------------------ the pack's shape
+
+/** A per-mille vector: `width` non-negative integers that partition 1000. */
+const isVector = (v: unknown, width: number): v is number[] =>
+  Array.isArray(v) &&
+  v.length === width &&
+  v.every((x) => Number.isInteger(x) && x >= 0) &&
+  v.reduce((sum: number, x: number) => sum + x, 0) === 1000
+
+const sameCards = (a: CardIndex[] | undefined, b: CardIndex[]): boolean =>
+  Array.isArray(a) && ascending(a).join() === ascending(b).join()
+
+// The grammar is the same for every deal, so it is grown once: round 1, and
+// round 2 after each of the seven lines that reach the draw.
+const ROUND1 = roundTree([])
+const ROUND2 = new Map(ROUND1.closed.map((line) => [line, roundTree([line])]))
+
+/**
+ * Why `deal` cannot be played, or null when it is whole. Every node the
+ * betting grammar can reach must carry a vector of the right width, every
+ * post-draw world a showdown on the cards the deck actually deals. This is
+ * the pack checked against the grammar the browser plays by — a node the
+ * Python export missed, or a stale chunk, is refused here and never reaches
+ * the table as a silently uniform bot.
+ */
+export function validateDeal(deal: Deal): string | null {
+  const deck = deal.deck
+  const whole = Array.from({ length: DECK_SIZE }, (_, i) => i)
+  if (!sameCards(deck, whole)) return 'the deck is not a permutation of the fifteen cards'
+  for (const seat of [0, 1] as const) {
+    if (!sameCards(deal.order?.[seat], deck.slice(3 * seat, 3 * seat + 3))) return `P${seat}'s draw order is not their three cards`
+  }
+  for (const node of ROUND1.nodes) {
+    if (!isVector(deal.r1?.[node], legalBets([node]).length)) return `round 1 at '${node}' is missing or malformed`
+  }
+  for (const line of ROUND1.closed) {
+    if (!isVector(deal.d0?.[line], THROWS.length)) return `P0's draw after ${line} is missing or malformed`
+    for (const drew of ['0', '1']) {
+      if (!isVector(deal.d1?.[line]?.[drew], THROWS.length)) return `P1's draw after ${line} (P0 drew ${drew}) is missing or malformed`
+    }
+    const round2 = ROUND2.get(line)!
+    for (const combo of COMBOS) {
+      for (const node of round2.nodes) {
+        if (!isVector(deal.r2?.[line]?.[combo]?.[node], legalBets([line, node]).length)) {
+          return `round 2 after ${line}/${combo} at '${node}' is missing or malformed`
+        }
+      }
+    }
+  }
+  for (const combo of COMBOS) {
+    const throws = [combo[0], combo[1]] as [Throw, Throw]
+    const show = deal.show?.[combo]
+    if (!show) return `the showdown of ${combo} is missing`
+    for (const seat of [0, 1] as const) {
+      if (!sameCards(show.holes?.[seat], holeOf(deal, seat, throws))) return `the showdown of ${combo} holds cards P${seat} does not`
+    }
+    if ((show.board ?? []).join() !== [board1(deal), board2(deal, throws)].join()) return `the showdown of ${combo} is on the wrong board`
+    if (![0, 1, CHOP].includes(show.inner) || ![0, 1, CHOP].includes(show.outer)) return `the showdown of ${combo} has a half undecided`
+  }
+  return null
+}
+
 // ------------------------------------------------------------- the mix
 
 export type Mix = Partial<Record<Act, number>>
 
-/** A per-mille vector over `legal`, as probabilities; a missing vector is uniform. */
-export function toMix(legal: Act[], vector: number[] | undefined): Mix {
+/**
+ * A per-mille vector over `legal`, as probabilities. A vector that is missing
+ * or the wrong width is a broken pack, and the point of the pack is that the
+ * bot plays the frozen strategy exactly — so it throws, naming `where`,
+ * rather than quietly playing uniform in the strategy's name. `validateDeal`
+ * runs on every chunk as it loads, so this is the backstop, not the check.
+ */
+export function toMix(legal: Act[], vector: number[] | undefined, where: string): Mix {
+  if (!vector || vector.length !== legal.length) throw new Error(`the deal pack has no vector at ${where}`)
   const mix: Mix = {}
-  for (let i = 0; i < legal.length; i++) {
-    mix[legal[i]] = vector ? (vector[i] ?? 0) / 1000 : 1 / legal.length
-  }
+  for (let i = 0; i < legal.length; i++) mix[legal[i]] = vector[i] / 1000
   return mix
 }
 
@@ -226,16 +298,17 @@ export function spotOf(h: Hand): { legal: Act[]; mix: Mix } {
   const phase = phaseOf(h)
   if (phase === 'round1') {
     const legal = legalBets([h.l1])
-    return { legal, mix: toMix(legal, h.deal.r1[h.l1]) }
+    return { legal, mix: toMix(legal, h.deal.r1[h.l1], `round 1 '${h.l1}'`) }
   }
   if (phase === 'draw') {
     const seat = actorAt(h)
-    const vector = seat === 0 ? h.deal.d0[h.l1] : h.deal.d1[h.l1]?.[String(count(h.throws[0]))]
-    return { legal: THROWS, mix: toMix(THROWS, vector) }
+    const drew = String(count(h.throws[0]))
+    const vector = seat === 0 ? h.deal.d0[h.l1] : h.deal.d1[h.l1]?.[drew]
+    return { legal: THROWS, mix: toMix(THROWS, vector, `P${seat}'s draw after ${h.l1}${seat === 1 ? ` (P0 drew ${drew})` : ''}`) }
   }
   const legal = legalBets([h.l1, h.l2 ?? ''])
   const combo = comboOf(h.throws as [Throw, Throw])
-  return { legal, mix: toMix(legal, h.deal.r2[h.l1]?.[combo]?.[h.l2 ?? '']) }
+  return { legal, mix: toMix(legal, h.deal.r2[h.l1]?.[combo]?.[h.l2 ?? ''], `round 2 after ${h.l1}/${combo} at '${h.l2 ?? ''}'`) }
 }
 
 /** The physical card a throw discards for the player to act, or null for a pat. */

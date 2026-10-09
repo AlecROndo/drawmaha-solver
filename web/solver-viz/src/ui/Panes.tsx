@@ -7,12 +7,14 @@
 
 import type { GridView } from '../engine/aggregate'
 import type { Node } from '../engine/policy'
-import { INNER_ROWS, OUTER_COLS } from '../engine/regions'
 import { actionWord, pct0 } from './bars'
+import type { GameUI } from './game'
 
 const INK: Record<'f' | 'c' | 'p', string> = { f: '245,240,230', c: '233,184,98', p: '216,86,111' }
 
-export function Panes({ view, node }: { view: GridView; node: Node }) {
+export function Panes({ game, view, node }: { game: GameUI; view: GridView; node: Node }) {
+  const INNER_ROWS = game.rows
+  const OUTER_COLS = game.cols
   const keys = node === 'facing' ? (['f', 'c', 'p'] as const) : (['c', 'p'] as const)
   return (
     <div className="panes" style={{ gridTemplateColumns: `repeat(${keys.length}, 1fr)` }}>

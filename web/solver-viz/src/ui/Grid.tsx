@@ -14,8 +14,8 @@
 
 import type { Cell, GridView } from '../engine/aggregate'
 import type { Node } from '../engine/policy'
-import { INNER_ROWS, OUTER_COLS } from '../engine/regions'
 import { MixBar, pct } from './bars'
+import type { GameUI } from './game'
 
 export interface Pin {
   row: number
@@ -26,6 +26,7 @@ export interface Pin {
 export const dominant = (c: Cell): 'f' | 'c' | 'p' => (c.p > c.c && c.p > c.f ? 'p' : c.f > c.c ? 'f' : 'c')
 
 export function Grid({
+  game,
   view,
   node,
   rows,
@@ -35,6 +36,7 @@ export function Grid({
   onCols,
   onPin,
 }: {
+  game: GameUI
   view: GridView
   node: Node
   rows: ReadonlySet<number> | null
@@ -44,6 +46,8 @@ export function Grid({
   onCols: (c: ReadonlySet<number> | null) => void
   onPin: (p: Pin | null) => void
 }) {
+  const INNER_ROWS = game.rows
+  const OUTER_COLS = game.cols
   const maxShare = Math.max(1e-9, ...view.cells.flat().map((c) => c.share))
   const toggle = (set: ReadonlySet<number> | null, i: number, size: number): ReadonlySet<number> | null => {
     const next = new Set(set ?? [])
@@ -52,12 +56,13 @@ export function Grid({
     return next.size === 0 || next.size === size ? null : next
   }
   const word = (k: 'f' | 'c' | 'p') => (k === 'f' ? 'fold' : k === 'c' ? (node === 'facing' ? 'call' : 'check') : 'pot')
+  const inHand = game.handSize === 3 ? 'three' : 'five'
 
   return (
     <div className="gridblock">
       <div className="filters">
         <div>
-          <div className="lbl">inner · the five in hand</div>
+          <div className="lbl">inner · the {inHand} in hand</div>
           <div className="seg">
             <button type="button" className={rows === null ? 'on' : ''} onClick={() => onRows(null)}>
               all
@@ -98,7 +103,7 @@ export function Grid({
         ))}
       </div>
       <p className="legend-line">
-        rows: the five in hand · columns: two of them with the board · a square's area is the region's share of the whole range · its bands are the mix ·
+        rows: the {inHand} in hand · columns: two of them with the board · a square's area is the region's share of the whole range · its bands are the mix ·
         corner word: what most of the region does
       </p>
     </div>

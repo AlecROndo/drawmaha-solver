@@ -64,7 +64,9 @@ h3{font-family:var(--display);font-weight:600;letter-spacing:-.02em;font-size:30
 p{margin:0}
 .lede{font-size:18px;line-height:1.5;color:var(--iv-80);max-width:52ch}
 .lede b{color:var(--ivory);font-weight:500}
-.squig{display:block;height:12px;width:190px;margin-top:12px}
+.squig{display:block;height:auto;width:190px;margin-top:12px}
+/* under the h1 the squiggle keeps the h2 proportion: ~4.5x the type size, so it grows with the headline */
+h1+.squig{width:clamp(190px,22vw,324px)}
 .squig path{fill:none;stroke:var(--ox-lit);stroke-width:2.2;stroke-linecap:round}
 .btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;font-weight:500;letter-spacing:.02em;padding:11px 16px;border-radius:4px;text-decoration:none;border:1px solid var(--iv-30);white-space:nowrap;transition:border-color .15s,background .15s,color .15s,transform var(--t-press) var(--ease-out)}
 .btn:hover{border-color:var(--ivory);background:var(--iv-06)}
@@ -349,7 +351,7 @@ footer a:hover{color:var(--ivory)}
 <header class="top">
   <div class="wrap">
     <a class="chip-home" href="https://drawmaha.app" aria-label="Drawmaha home">
-      <canvas data-chip data-font="3"></canvas>
+      <canvas data-chip data-font="1.5"></canvas>
       <span class="word">Drawmaha<small>Solver · Deep CFR</small></span>
     </a>
     <nav class="nav" aria-label="Site">
@@ -630,7 +632,7 @@ footer a:hover{color:var(--ivory)}
 </div>
 <footer>
   <div class="wrap">
-    <a class="chip-end" href="https://drawmaha.app" aria-label="Drawmaha home"><canvas data-chip data-font="4" data-speed="0.32"></canvas></a>
+    <a class="chip-end" href="https://drawmaha.app" aria-label="Drawmaha home"><canvas data-chip data-font="1.5" data-speed="0.32"></canvas></a>
     <div class="links"><a href="index.html">Home</a><a href="https://drawmaha.app/rung0">/rung0</a><a href="https://drawmaha.app/rung1">/rung1</a><a href="https://drawmaha.app/rung2">/rung2</a><a href="https://drawmaha.app/rung3">/rung3</a><a href="https://drawmaha.app">drawmaha.app</a></div>
   </div>
 </footer>
@@ -659,7 +661,7 @@ footer a:hover{color:var(--ivory)}
 /* chip.js — the Drawmaha chip: a dithered, tilted poker chip turning on its axis, drawn as ASCII on a canvas.
    Drop-in: include this script, add <a href="https://drawmaha.app"><canvas data-chip></canvas></a> sized by CSS
    (square, e.g. 92x92), and call mountChips({ mark: '#f5f0e6', ink: '#12070a' }) with the glyph colour. Transparent field.
-   Options per canvas via data attributes: data-font="4" (cell px), data-speed="0.3" (rad/s), data-tilt="0.8". */
+   Options per canvas via data attributes: data-font="1.5" (cell px), data-speed="0.3" (rad/s), data-tilt="0.8". */
 (function () {
 const FONT = "'IBM Plex Mono', ui-monospace, Menlo, monospace";
 const RAMP = " .'`,:;~-=+*x%#@";
@@ -808,7 +810,7 @@ function rayChip(g, o) {
         const n = toWorld(0, 0, zc > 0 ? 1 : -1);
         const nl = n[0] * L[0] + n[1] * L[1] + n[2] * L[2];
         const hl = Math.pow(nl * 0.5 + 0.5, 2), lam = Math.max(0, nl);
-        I = 0.12 + 0.62 * hl + 0.35 * Math.pow(lam, 16);
+        I = 0.4 + 0.7 * hl + 0.35 * Math.pow(lam, 16);
         if (rn > 0.96) I += 0.15;
         if (rn > 0.8 && !sector) I *= 0.9;
       }
@@ -827,7 +829,7 @@ function rayChip(g, o) {
               mat = sector ? 2 : 1;
               const n = toWorld(x / R, y / R, 0);
               const nl = n[0] * L[0] + n[1] * L[1] + n[2] * L[2];
-              I = 0.1 + 0.55 * Math.pow(nl * 0.5 + 0.5, 2) + 0.3 * Math.pow(Math.max(0, nl), 10);
+              I = 0.3 + 0.7 * Math.pow(nl * 0.5 + 0.5, 2) + 0.35 * Math.pow(Math.max(0, nl), 10);
             }
           }
         }
@@ -837,7 +839,8 @@ function rayChip(g, o) {
       const col = mat === 1 ? o.colBase : o.colPattern;
       if (o.dither) {
         const bay = (BAYER[cyy % 4][cxx % 4] + 0.5) / 16 - 0.5;
-        const lv = clamp(Math.floor(I * 5 + bay * 1.15), 0, 5);
+        /* the pattern never drops below '%': the sectors are what make the disc read as a chip, even in shadow */
+        const lv = Math.max(mat === 2 ? 4 : 0, clamp(Math.floor(I * 5 + bay * 1.15), 0, 5));
         if (lv > 0) { g.chb[i] = chars[lv]; g.cob[i] = col; } else { g.chb[i] = chars[1]; g.cob[i] = o.colDim; }
       } else {
         g.chb[i] = g.ramp(clamp(I, 0.08, 1)); g.cob[i] = col;
@@ -852,7 +855,7 @@ function mountChips(opts) {
   const hexA = (hex, a) => { let h = hex.replace('#', ''); if (h.length === 3) h = h.split('').map((c) => c + c).join(''); const n = parseInt(h, 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   for (const canvas of document.querySelectorAll('canvas[data-chip]')) {
-    const g = new Grid(canvas, ['transparent', mark, ink, hexA(mark, 0.35)], parseFloat(canvas.dataset.font || '4'));
+    const g = new Grid(canvas, ['transparent', mark, ink, hexA(mark, 0.5)], parseFloat(canvas.dataset.font || '1.5'));
     CHIP_SCENES.push({ g, canvas, yaw: 0.6, t: 0, speed: parseFloat(canvas.dataset.speed || '0.3'), tilt: parseFloat(canvas.dataset.tilt || '0.8'), drawn: false });
   }
   const ro = new ResizeObserver(() => CHIP_SCENES.forEach((s) => { s.g.resize(); s.drawn = false; }));
