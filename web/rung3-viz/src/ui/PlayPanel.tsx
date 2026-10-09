@@ -31,7 +31,7 @@ import {
   type PlayRow,
   type Session,
 } from '../play'
-import type { PackState } from '../deals'
+import { loadedDeals, type PackState } from '../deals'
 import { FROZEN, WORKERS } from '../research'
 import { Panel } from './site'
 
@@ -364,7 +364,10 @@ export function PlayPanel({
       </dl>
       <p className="side-total">
         {pack.manifest
-          ? `${pack.manifest.deals} pre-dealt hands in the pack (seed ${pack.manifest.seed}), ${Math.min(pack.loaded, pack.manifest.chunks.length) * pack.manifest.chunk} loaded; the strategy's digest ${pack.manifest.strategy.sha256.slice(0, 12)}… matches the release. `
+          ? `${pack.manifest.deals} pre-dealt hands in the pack (seed ${pack.manifest.seed}) — the same ${pack.manifest.deals} for every visitor, reshuffled each sitting, the seats alternating and the coach's roll drawn live — ${loadedDeals(pack.manifest, pack.loaded)} loaded; the strategy's digest is ${pack.manifest.strategy.sha256.slice(0, 12)}…. `
+          : ''}
+        {pack.error && pack.manifest
+          ? `A later chunk was refused (${pack.error}), so play goes on with the hands already in and comes round to them again. `
           : ''}
         Matching the bot in both seats averages zero; a perfect adversary makes at most {signed(FROZEN.exploitability, 3)} a hand. A hand swings by several chips, so short sessions are mostly noise.
       </p>

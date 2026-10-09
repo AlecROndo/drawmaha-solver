@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { useSession } from './deals'
 import { FINAL_ITERATION, FROZEN, SIZES, WORKERS, perHundred, series } from './research'
+import { PackBoundary } from './ui/PackBoundary'
 import { PlayPanel } from './ui/PlayPanel'
 import { ResearchTab } from './ui/ResearchTab'
 import { Footer, Hero, TopBar } from './ui/site'
@@ -96,7 +97,9 @@ export default function App() {
         ) : (
           <>
             <div className="block">
-              <PlayPanel session={session} setSession={setSession} pack={pack} />
+              <PackBoundary>
+                <PlayPanel session={session} setSession={setSession} pack={pack} />
+              </PackBoundary>
             </div>
             <p className="foot">
               The bot never looks a strategy up in the browser. Python dealt {pack.manifest?.deals ?? 600} hands as fixed

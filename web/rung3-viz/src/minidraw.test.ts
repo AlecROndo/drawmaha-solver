@@ -12,6 +12,7 @@ import {
   legalBets,
   rankOf,
   replay,
+  roundTree,
   settle,
   suitOf,
   sym,
@@ -83,6 +84,19 @@ describe('the chips', () => {
     expect(replay(['ppc'])).toEqual({ pot: 18, committed: [9, 9], behind: [17, 17], inRound: [8, 8] })
     expect(replay(['pppc'])).toEqual({ pot: 52, committed: [26, 26], behind: [0, 0], inRound: [25, 25] })
     expect(replay(['xpc'])).toEqual(replay(['pc']))
+  })
+
+  it('grows round 2 from where round 1 left the stacks: 8, 6, 4 and 0 decisions, as the Python export banks', () => {
+    // test_deal_pack.py pins the same counts off game.py; this is the browser's grammar agreeing
+    expect(roundTree([]).nodes).toEqual(['', 'x', 'xp', 'xpp', 'xppp', 'p', 'pp', 'ppp'])
+    expect(roundTree([]).closed.sort()).toEqual(['xx', 'xpc', 'xppc', 'xpppc', 'pc', 'ppc', 'pppc'].sort())
+    expect(roundTree(['xx']).nodes.length).toBe(8)
+    expect(roundTree(['pc']).nodes.length).toBe(6)
+    expect(roundTree(['xpc']).nodes).toEqual(roundTree(['pc']).nodes)
+    expect(roundTree(['ppc']).nodes.length).toBe(4)
+    expect(roundTree(['ppc']).closed.sort()).toEqual(['xx', 'xpc', 'pc'].sort())
+    expect(roundTree(['pppc'])).toEqual({ nodes: [], closed: [''] })
+    expect(roundTree(['xpppc'])).toEqual({ nodes: [], closed: [''] })
   })
 
   it('opens round 2 in the state round 1 left, and an all-in round 2 is closed at once', () => {

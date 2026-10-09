@@ -26,9 +26,13 @@ What goes in a deal, beside the vectors:
 
 Vectors are per-mille integers summing to 1000 (largest remainder), in
 `legal_actions()` order. `d1` is keyed by P0's draw **count**, which is all
-P1's infoset knows. A pack is written in chunks, with a manifest that records
-the seed, the strategy's digest and provenance, so the browser can say what it
-is playing and a re-export cannot silently swap it.
+P1's infoset knows — and the export checks that, rather than assuming it: the
+three single throws must read the same vector. A pack is written in chunks,
+with a manifest that records the seed, the strategy's digest and provenance.
+The browser checks each chunk's deal count against the manifest and every
+deal's shape against its own betting grammar; the digest is what it can SAY
+about the strategy it is playing, so a re-export shows up as a changed digest
+or seed rather than passing for the old one.
 """
 
 from __future__ import annotations
@@ -146,9 +150,16 @@ def export_deal(deck: tuple[Card, ...], strategies: Mapping) -> Deal:
         deal["r2"][line] = {}
         for first in DRAW_ACTIONS:
             after_first, stub = _draw(state, first, deck, STUB)
+            # P1 sees how many cards P0 drew, never which: the three single
+            # throws must land on one infoset and so one vector. Checked, not
+            # assumed, so a change to the key cannot leave the pack lying.
             count = str(throw_count(first))
-            if count not in deal["d1"][line]:
-                deal["d1"][line][count] = per_mille(strategies[after_first.infoset()])
+            vector = per_mille(strategies[after_first.infoset()])
+            if deal["d1"][line].setdefault(count, vector) != vector:
+                raise ValueError(
+                    f"P1's draw vector after {line} depends on which card P0 threw, "
+                    "not only on how many"
+                )
             for second in DRAW_ACTIONS:
                 after_second, stub2 = _draw(after_first, second, deck, stub)
                 round_two = after_second.apply_chance((deck[stub2],))
@@ -156,8 +167,11 @@ def export_deal(deck: tuple[Card, ...], strategies: Mapping) -> Deal:
                 banked: dict[str, list[int]] = {}
                 _walk_round(round_two, strategies, banked, on_close=None)
                 deal["r2"][line][combo] = banked
-                # The showdown depends on the cards alone, not on the line.
-                deal["show"].setdefault(combo, showdown(round_two))
+                # The showdown depends on the cards alone, not on the line;
+                # the first line banks it and every later one must agree.
+                shown = showdown(round_two)
+                if deal["show"].setdefault(combo, shown) != shown:
+                    raise ValueError(f"the showdown of {combo} differs between lines")
 
     _walk_round(root, strategies, deal["r1"], on_close=after_round_one)
     return deal
@@ -242,18 +256,60 @@ def write_pack(
 ) -> dict[str, object]:
     """Write `deals` in chunks of `chunk` under `out`, with the manifest; returns the manifest.
 
-    `out` is emptied of earlier `pack-*.json` files first, so a shorter export
-    cannot leave a stale chunk behind that the manifest no longer names.
+    Every file is staged beside its final name as `*.tmp`; a failure while
+    staging removes the stage and leaves the previous pack untouched. Then
+    the swap: the chunks are renamed in, the manifest after them, and last
+    the `pack-*.json` files the new manifest does not name are removed — so
+    the manifest on disk, old or new, never names a chunk that is missing.
+    The swap is a run of renames and not one atomic step: killed inside it,
+    the directory holds one whole manifest and every chunk it names, but the
+    chunks may be a mix of the two exports until the run is repeated. One
+    writer at a time: both sweeps of `*.tmp` assume the stage is this run's.
+
+    An empty export or a non-positive chunk is refused here: the browser's
+    `checkManifest` would refuse the manifest anyway, and the place to learn
+    that is the export, not the page.
     """
+    if not deals:
+        raise ValueError("a pack needs at least one deal")
+    if chunk <= 0:
+        raise ValueError(f"a chunk holds a positive number of deals, not {chunk}")
     out.mkdir(parents=True, exist_ok=True)
-    for stale in out.glob("pack-*.json"):
-        stale.unlink()
+    for orphan in out.glob("*.tmp"):
+        orphan.unlink()
     names = []
-    for number, start in enumerate(range(0, len(deals), chunk)):
-        name = f"pack-{number:02d}.json"
-        (out / name).write_text(json.dumps(deals[start : start + chunk], separators=(",", ":")))
-        names.append(name)
-    manifest = {
+    try:
+        for number, start in enumerate(range(0, len(deals), chunk)):
+            name = f"pack-{number:02d}.json"
+            (out / f"{name}.tmp").write_text(
+                json.dumps(deals[start : start + chunk], separators=(",", ":"))
+            )
+            names.append(name)
+        manifest = _manifest(deals, names, chunk=chunk, seed=seed, info=info, sha256=sha256)
+        (out / "index.json.tmp").write_text(json.dumps(manifest, indent=1))
+    except BaseException:
+        for staged in out.glob("*.tmp"):
+            staged.unlink()
+        raise
+    for name in names:
+        (out / f"{name}.tmp").replace(out / name)
+    (out / "index.json.tmp").replace(out / "index.json")
+    for stale in out.glob("pack-*.json"):
+        if stale.name not in names:
+            stale.unlink()
+    return manifest
+
+def _manifest(
+    deals: list[Deal],
+    names: list[str],
+    *,
+    chunk: int,
+    seed: int,
+    info: StrategyInfo,
+    sha256: str,
+) -> dict[str, object]:
+    """What the browser reads first: the pack's shape and where its strategy came from."""
+    return {
         "seed": seed,
         "deals": len(deals),
         "chunk": chunk,
@@ -267,8 +323,6 @@ def write_pack(
             "seed": info.seed,
         },
     }
-    (out / "index.json").write_text(json.dumps(manifest, indent=1))
-    return manifest
 
 def main(argv: list[str] | None = None) -> None:
     """Export a deal pack for the browser from the release strategy, or `--strategy PATH`."""
