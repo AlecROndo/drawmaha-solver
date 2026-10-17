@@ -204,6 +204,14 @@ def test_config_refuses_nonpositive_sizes():
         with pytest.raises(ValueError, match=field):
             FitConfig(**{field: 0})
 
+def test_config_refuses_a_nonpositive_rate_or_clip():
+    # A clip of 0 would scale every gradient to nothing: a fit that never
+    # moves and says so nowhere. A NaN is refused the same way.
+    for field in ("lr", "clip"):
+        for bad in (0.0, -1.0, float("nan")):
+            with pytest.raises(ValueError, match=field):
+                FitConfig(**{field: bad})
+
 def test_fit_refuses_a_non_finite_memory():
     rows, t, targets = real_rows(10, seed=3)
     bad_t = t.astype(np.float64)

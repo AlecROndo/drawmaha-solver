@@ -14,8 +14,9 @@ What is pinned here, and why:
   reference encoder on a sample that touches all 141 points.
 - An untrained seat (`None`) writes zeros, uniform, without touching the
   other seat's rows; nothing but `cumulative_regret` is written.
-- A table that is not the whole game, or the wrong number of nets, is
-  refused by name.
+- A table that is not the whole game — the wrong size, or the whole
+  game's rows in another order — or the wrong number of nets, is refused
+  by name.
 
 The whole-game tests run the real 6.2M-row materialise; they are kept to
 the four that need it. Every test skips without torch.
@@ -208,6 +209,23 @@ def test_materialise_touches_only_cumulative_regret(whole_table):
 def test_materialise_refuses_a_listed_table(sampled_keys):
     with pytest.raises(ValueError, match="whole game"):
         materialise(PackedTable.listed(sampled_keys), (None, None))
+
+def test_materialise_refuses_the_whole_games_rows_in_another_order(whole_table):
+    # The same 6.2M rows and the same columns, but not in the layout's
+    # order: the size check alone would write every point's outputs into
+    # the wrong slots. A listed table over every key would cost gigabytes
+    # to build, so the stand-in is the whole table with its widths reversed.
+    class Reordered:
+        cumulative_regret = whole_table.cumulative_regret
+
+        def __len__(self):
+            return len(whole_table)
+
+        def widths(self):
+            return whole_table.widths()[::-1]
+
+    with pytest.raises(ValueError, match="order"):
+        materialise(Reordered(), (None, None))
 
 def test_materialise_refuses_wrong_number_of_nets(whole_table):
     with pytest.raises(ValueError, match="two"):

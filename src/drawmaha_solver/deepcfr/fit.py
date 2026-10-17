@@ -16,9 +16,11 @@ out BEFORE the subtraction, so a padded column holding NaN is never looked
 at and never leaks into a gradient. Each row is weighted by its iteration
 t, divided by the batch's mean t so the loss keeps one scale as the run
 lengthens, and the batch loss is the mean over rows: a 2-wide and a 4-wide
-spot each count as one row. Later samples weigh more because a later
-iteration's regrets are a better estimate (Brown et al., linear CFR's
-weighting).
+spot each count as one row. The weight is Deep CFR's (Brown, Lerer, Gross &
+Sandholm 2019), borrowed from Linear CFR (Brown & Sandholm 2019): the
+early iterations' strategies are far from equilibrium, so the regrets
+sampled against them say the least about the game, and a weight that
+grows with t lets the later samples outvote them.
 
 **The optimiser.** Adam at the spec's learning rate, the gradient's norm
 clipped to the spec's bound before each step so one wild sample cannot
@@ -32,7 +34,9 @@ tuples with the same sum cannot collide. That one integer seeds
 `torch.manual_seed` for the net's initialisation and a `torch.Generator`
 for the minibatch indices. The thread count is set for the fit's duration
 and put back afterwards, because it is process-global and a different
-count changes the summation order of a matmul.
+count CAN change the summation order of a matmul; nothing promises two
+counts the same weights (1 and 4 threads happened to agree bit for bit on
+this Mac), so a run that must reproduce another keeps the count it used.
 
 Measured on this Mac (6 cores): one default refit — 4,000 steps of
 10,000 rows drawn from 1M real rows, features gathered on the fly — in
@@ -76,6 +80,11 @@ class FitConfig:
         for name in ("steps", "batch", "threads"):
             if getattr(self, name) < 1:
                 raise ValueError(f"{name} must be at least 1, got {getattr(self, name)}")
+        # `not > 0` rather than `<= 0`: a NaN is neither, and a clip of 0
+        # would scale every gradient to nothing and fit in silence.
+        for name in ("lr", "clip"):
+            if not getattr(self, name) > 0:
+                raise ValueError(f"{name} must be positive, got {getattr(self, name)}")
 
 # ---------------------------------------------------------------------------
 # The loss
@@ -115,8 +124,10 @@ def fit_from_scratch(
 ) -> Net:
     """A fresh `Net(config.width, config.depth)` fitted to the memory; returned in `eval()` mode.
 
-    `rows` (n,) int table rows, `t` (n,) int >= 1, `targets` (n, MAX_WIDTH)
-    float in ledger-column order with padding ignored. Refuses, before
+    `rows` (n,) int table rows, `t` (n,) iteration numbers >= 1 (an
+    integer-valued float is accepted: t enters only as a float32 weight),
+    `targets` (n, MAX_WIDTH) float in ledger-column order with padding
+    ignored. Refuses, before
     building anything: a `rows` or `t` that is not 1-D, non-integer rows,
     mismatched lengths, an empty memory, a non-finite or below-1 t, the
     wrong target width, a non-finite target at a legal column, and a row

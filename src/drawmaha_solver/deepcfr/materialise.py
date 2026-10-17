@@ -15,7 +15,9 @@ verdict WRITTEN into the slots in a form the ledger's rule reads as eq. (3):
   regret matching alone cannot express because it would read all-negative
   as uniform.
 - all equal: zeros, which the ledger reads as uniform. An untrained net
-  (iteration 1) and an exact tie land here, and so does a seat with no net.
+  (iteration 1) and an exact tie — bit-equal float32 outputs, which a
+  trained net all but never produces — land here, and so does a seat with
+  no net.
 
 **One pass per public point.** The table's rows are laid out point by point,
 each point's rows in its shape's `private_keys` order, and `features.layout()`
@@ -29,8 +31,13 @@ each written with one slice assignment. No key is ever built.
 seat's net scores the whole point; the other seat's net never sees it.
 
 **Only the whole game.** A `listed` table's rows are in whatever order the
-caller gave, so the layout's offsets mean nothing in it; it is refused by
-name, as are anything but exactly two nets.
+caller gave, so the layout's offsets mean nothing in it. The table does not
+say which index built it, so it is refused by its fingerprint: the row
+count, the column count and every row's width (`PackedTable.widths()`)
+must be the whole game's. A listed table over all 6.2 million keys in an
+order that happens to preserve every width would pass, and nothing builds
+one: its index would be the gigabytes of dict the packed table exists to
+avoid. Anything but exactly two nets is refused too.
 
 Measured on this Mac (6 threads): one whole-game materialise with two
 3 x 64 nets, 6.2M rows, in 0.47 s (the spec measured the bare forward pass at 0.32 s).
@@ -93,6 +100,13 @@ def materialise(table: PackedTable, nets: Sequence[Net | None]) -> None:
             "materialise writes the whole game's layout and was handed a table of "
             f"{len(table):,} rows and {table.cumulative_regret.size:,} columns, not the "
             f"whole game's {built.row_offset[-1]:,} and {built.column_offset[-1]:,}"
+        )
+    # Same size is not the same order: the widths are the layout's row by row
+    # only when the rows are. A 6.2M-element compare, about 3 ms.
+    if not np.array_equal(table.widths(), np.repeat(built.width, np.diff(built.row_offset))):
+        raise ValueError(
+            "materialise writes the whole game's layout and was handed a table whose "
+            "rows are not in the whole game's order"
         )
     gather = legal_gather()
     slots = table.cumulative_regret
