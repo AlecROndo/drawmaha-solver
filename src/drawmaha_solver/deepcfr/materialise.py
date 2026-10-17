@@ -62,8 +62,10 @@ def regret_slots_from_outputs(outputs: np.ndarray) -> np.ndarray:
 
     `outputs` is (n, w): each row a spot's outputs at its w legal columns.
     Returns (n, w) float64 — the table's dtype — by the three clauses in the
-    module docstring, classified row by row with no Python loop. A
-    non-finite output is refused: no clause is right for it.
+    module docstring, classified row by row with no Python loop. A tie is
+    exact equality of the outputs (float32 from the net, widened without
+    rounding), not a tolerance. A non-finite output is refused: no clause
+    is right for it.
     """
     outputs = np.asarray(outputs, dtype=np.float64)
     if outputs.ndim != 2:

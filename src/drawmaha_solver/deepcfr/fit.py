@@ -94,7 +94,9 @@ def batch_loss(net: Net, rows: np.ndarray, t: np.ndarray, targets: np.ndarray) -
     """One batch's loss, a scalar tensor: what every step minimises.
 
     Public so a test and PR 4's logging read the same number the optimiser
-    does. Builds the batch's features on the fly from `layout()`.
+    does. Builds the batch's features on the fly from `layout()`. Assumes
+    what `fit_from_scratch` checks: every t is >= 1, so the batch's mean t
+    the weights are divided by is positive.
     """
     built = layout()
     point, _ = built.locate_rows(rows)
@@ -127,12 +129,17 @@ def fit_from_scratch(
     `rows` (n,) int table rows, `t` (n,) iteration numbers >= 1 (an
     integer-valued float is accepted: t enters only as a float32 weight),
     `targets` (n, MAX_WIDTH) float in ledger-column order with padding
-    ignored. Refuses, before
-    building anything: a `rows` or `t` that is not 1-D, non-integer rows,
-    mismatched lengths, an empty memory, a non-finite or below-1 t, the
-    wrong target width, a non-finite target at a legal column, and a row
-    outside the table. Refuses afterwards a fit whose weights went
-    non-finite.
+    ignored.
+
+    Refused by name before anything is built:
+
+    - a `rows` or `t` that is not 1-D, or non-integer rows;
+    - mismatched lengths, or an empty memory;
+    - a non-finite t, or one below 1;
+    - targets not `MAX_WIDTH` wide, or non-finite at a legal column;
+    - a row outside the table.
+
+    Refused afterwards: a fit whose weights went non-finite.
     """
     rows = np.asarray(rows)
     t = np.asarray(t)
