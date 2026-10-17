@@ -256,7 +256,7 @@ already exists.
 2. **Reservoir uniformity**: every row offered is resident with probability C/n
    (chi-square over trials), and a resumed reservoir merges identically.
 3. **Materialise unit tests**: positive outputs pass through, all-negative writes
-   the argmax one-hot, ties write zeros; `ledger.strategy()` then equals eq. (3).
+   the argmax one-hot shared by tied maxima, all-equal writes zeros (decided 2026-10-16: a one-hot at the first tied index would make play depend on `Action` order); `ledger.strategy()` then equals eq. (3).
 4. **Own reach**: the vectorised pass equals a brute-force walk for sampled keys of
    every row type in the table above.
 5. **Short real run on mini-drawmaha** (torch, behind the slow flag): a few

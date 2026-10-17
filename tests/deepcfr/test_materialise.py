@@ -143,6 +143,19 @@ def test_ledger_strategy_is_eq_three():
                 expect = top / top.sum()
             np.testing.assert_allclose(ledger_over(written).strategy(), expect)
 
+def test_non_finite_outputs_are_refused():
+    # A NaN output would classify as "nothing positive, nothing equal" and
+    # write zeros: a diverged net playing uniform with nothing in the log.
+    with pytest.raises(ValueError, match="finite"):
+        regret_slots_from_outputs(np.array([[np.nan, -1.0, -2.0]]))
+
+def test_materialise_refuses_a_net_with_non_finite_weights(whole_table):
+    net = seeded_net(0)
+    with torch.no_grad():
+        net.layers[0].weight[0, 0] = float("nan")
+    with pytest.raises(ValueError, match="finite"):
+        materialise(whole_table, (net, None))
+
 def test_refuses_anything_but_a_batch_of_rows():
     with pytest.raises(ValueError, match="2-D"):
         regret_slots_from_outputs(np.array([1.0, -1.0]))

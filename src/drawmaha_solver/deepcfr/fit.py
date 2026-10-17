@@ -116,13 +116,23 @@ def fit_from_scratch(
     """A fresh `Net(config.width, config.depth)` fitted to the memory; returned in `eval()` mode.
 
     `rows` (n,) int table rows, `t` (n,) int >= 1, `targets` (n, MAX_WIDTH)
-    float in ledger-column order with padding ignored. Refuses mismatched
-    lengths, an empty memory, a t below 1, the wrong target width and a
-    row outside the table before building anything.
+    float in ledger-column order with padding ignored. Refuses, before
+    building anything: a `rows` or `t` that is not 1-D, non-integer rows,
+    mismatched lengths, an empty memory, a non-finite or below-1 t, the
+    wrong target width, a non-finite target at a legal column, and a row
+    outside the table. Refuses afterwards a fit whose weights went
+    non-finite.
     """
-    rows = np.asarray(rows, dtype=np.int64)
+    rows = np.asarray(rows)
     t = np.asarray(t)
     targets = np.asarray(targets, dtype=np.float32)
+    # A (n, 1) t would broadcast against the (n,) error into an (n, n) loss
+    # and train on the wrong number without a word, so the shapes are
+    # refused by name, not left to broadcasting.
+    if rows.ndim != 1 or t.ndim != 1:
+        raise ValueError(f"rows and t must be 1-D, got shapes {rows.shape} and {t.shape}")
+    if not np.issubdtype(rows.dtype, np.integer):
+        raise ValueError(f"rows must be integer row numbers, got dtype {rows.dtype}")
     if not len(rows) == len(t) == len(targets):
         raise ValueError(
             f"rows, t and targets must have the same length, got {len(rows)}, {len(t)}, {len(targets)}"
@@ -131,9 +141,15 @@ def fit_from_scratch(
         raise ValueError("the memory is empty: nothing to fit")
     if targets.ndim != 2 or targets.shape[1] != MAX_WIDTH:
         raise ValueError(f"targets must be (n, {MAX_WIDTH}), got shape {targets.shape}")
+    if not np.isfinite(t).all():
+        raise ValueError("every t must be finite")
     if t.min() < 1:
         raise ValueError(f"every t must be an iteration number >= 1, got a minimum of {t.min()}")
-    layout().locate_rows(rows)  # raises IndexError for a row outside the table
+    rows = rows.astype(np.int64)
+    point, _ = layout().locate_rows(rows)  # raises IndexError for a row outside the table
+    # Only the legal columns are checked: the padding may hold anything.
+    if not np.isfinite(targets[legal_gather()[point] != NO_ACTION]).all():
+        raise ValueError("every target at a legal column must be finite")
     folded = _fold_seed(seed)
     threads_before = torch.get_num_threads()
     torch.set_num_threads(config.threads)
@@ -151,6 +167,10 @@ def fit_from_scratch(
             optimiser.step()
     finally:
         torch.set_num_threads(threads_before)
+    # A diverged fit would materialise to uniform play with nothing in the
+    # log; it is an error here, where the run can see it.
+    if not all(torch.isfinite(parameter).all() for parameter in net.parameters()):
+        raise ValueError("the fit diverged: a weight is not finite")
     net.eval()
     return net
 

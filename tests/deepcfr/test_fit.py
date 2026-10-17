@@ -185,7 +185,7 @@ def test_fit_refuses_mismatched_or_empty_rows():
         fit_from_scratch(rows, t[:-1], targets, seed=(0,), config=SMALL)
     with pytest.raises(ValueError, match="empty"):
         fit_from_scratch(rows[:0], t[:0], targets[:0], seed=(0,), config=SMALL)
-    with pytest.raises(ValueError, match="t"):
+    with pytest.raises(ValueError, match=">= 1"):
         fit_from_scratch(rows, np.zeros_like(t), targets, seed=(0,), config=SMALL)
 
 def test_fit_refuses_targets_of_the_wrong_width():
@@ -203,3 +203,33 @@ def test_config_refuses_nonpositive_sizes():
     for field in ("steps", "batch", "threads"):
         with pytest.raises(ValueError, match=field):
             FitConfig(**{field: 0})
+
+def test_fit_refuses_a_non_finite_memory():
+    rows, t, targets = real_rows(10, seed=3)
+    bad_t = t.astype(np.float64)
+    bad_t[0] = np.nan
+    with pytest.raises(ValueError, match="finite"):
+        fit_from_scratch(rows, bad_t, targets, seed=(0,), config=SMALL)
+    point, _ = layout().locate_rows(rows)
+    legal = legal_gather()[point] != NO_ACTION
+    bad_targets = targets.copy()
+    bad_targets[np.argwhere(legal)[0][0], np.argwhere(legal)[0][1]] = np.nan
+    with pytest.raises(ValueError, match="finite"):
+        fit_from_scratch(rows, t, bad_targets, seed=(0,), config=SMALL)
+
+def test_fit_refuses_a_net_that_diverged():
+    # An absurd learning rate sends the weights past float32 in two steps
+    # (the clip bounds the gradient, not the step). That must be an error,
+    # not a net that materialises to uniform play with nothing in the log.
+    rows, t, targets = real_rows(10, seed=3)
+    with pytest.raises(ValueError, match="finite"):
+        fit_from_scratch(rows, t, targets, seed=(0,), config=FitConfig(steps=3, threads=1, lr=1e10))
+
+def test_fit_refuses_rows_or_t_that_are_not_one_dimensional_ints():
+    rows, t, targets = real_rows(10, seed=3)
+    with pytest.raises(ValueError, match="1-D"):
+        fit_from_scratch(rows, t[:, None], targets, seed=(0,), config=SMALL)
+    with pytest.raises(ValueError, match="1-D"):
+        fit_from_scratch(rows[:, None], t, targets, seed=(0,), config=SMALL)
+    with pytest.raises(ValueError, match="integer"):
+        fit_from_scratch(rows.astype(np.float64), t, targets, seed=(0,), config=SMALL)

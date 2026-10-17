@@ -55,11 +55,16 @@ def regret_slots_from_outputs(outputs: np.ndarray) -> np.ndarray:
 
     `outputs` is (n, w): each row a spot's outputs at its w legal columns.
     Returns (n, w) float64 — the table's dtype — by the three clauses in the
-    module docstring, classified row by row with no Python loop.
+    module docstring, classified row by row with no Python loop. A
+    non-finite output is refused: no clause is right for it.
     """
     outputs = np.asarray(outputs, dtype=np.float64)
     if outputs.ndim != 2:
         raise ValueError(f"outputs must be a 2-D (rows, width) batch, got shape {outputs.shape}")
+    # A NaN row would fall through every clause and write zeros: a diverged
+    # net playing uniform with nothing in the log.
+    if not np.isfinite(outputs).all():
+        raise ValueError("every output must be finite: the net has diverged")
     top = outputs.max(axis=1, keepdims=True)
     some_positive = top > 0.0
     all_equal = (outputs == top).all(axis=1, keepdims=True)
