@@ -36,6 +36,17 @@ def importable_tests(monkeypatch):
 def exploding_deal(rng: np.random.Generator):
     raise RuntimeError("boom")
 
+# How many deals this process has made; `first_deal_explodes` fails the first
+# and deals the rest, so a worker survives its own failure.
+_deals = 0
+
+def first_deal_explodes(rng: np.random.Generator):
+    global _deals
+    _deals += 1
+    if _deals == 1:
+        raise RuntimeError("boom")
+    return random_deal(rng)
+
 def write_some_regrets(table: PackedTable) -> None:
     """A fixed, non-uniform σ at every row, the same whichever table it is written into."""
     table.cumulative_regret[:] = np.random.default_rng(0).standard_normal(
@@ -113,6 +124,12 @@ def test_rows_of_refuses_a_walk_without_slots_or_without_the_uniform_column():
     quadratic = lockstep.walk(table, random_deal, 5, 3, 0, 0, (Average.QUADRATIC,))
     with pytest.raises(ValueError, match="uniform"):
         rows_of(quadratic)
+    # At t = 1 every column weighs 1, so the quadratic row IS σ: the check is
+    # on the row's content and rightly takes it, bit for bit the uniform rows.
+    write_some_regrets(table)
+    at_one = lockstep.walk(table, random_deal, 5, 1, 0, 0, (Average.QUADRATIC,))
+    uniform = lockstep.walk(table, random_deal, 5, 1, 0, 0, UNIFORM)
+    assert_collected_equal(rows_of(at_one), rows_of(uniform))
 
 def test_joined_keeps_walk_order_and_counts_walks():
     table = PackedTable.whole_game(extra_averages=1)
@@ -215,6 +232,9 @@ def test_collect_refuses_bad_arguments():
         Collector(seed=1, workers=True)
     with pytest.raises(ValueError, match="seed"):
         Collector(seed=-1, workers=0)
+    # A lambda cannot reach a spawned worker by pickle; refused at W = 0 too.
+    with pytest.raises(ValueError, match="deal"):
+        Collector(seed=1, workers=0, deal=lambda rng: random_deal(rng))
 
 def test_a_collector_must_be_open_to_collect():
     run = Collector(seed=1, workers=0)
@@ -227,6 +247,18 @@ def test_a_failing_deal_raises_in_the_parent():
     with Collector(seed=1, workers=2, deal=exploding_deal) as run:
         with pytest.raises(RuntimeError, match="boom"):
             run.collect(seat=0, t=1, walks=4)
+
+def test_a_collector_is_usable_after_a_raised_phase():
+    # The worker's first deal fails and the phase raises; the chunks queued
+    # behind it are cancelled, and the next phase walks as if nothing happened.
+    with Collector(seed=1, workers=1, deal=first_deal_explodes) as run:
+        write_some_regrets(run.table)
+        with pytest.raises(RuntimeError, match="boom"):
+            run.collect(seat=0, t=1, walks=8)
+        again = run.collect(seat=1, t=2, walks=4)
+    expected = PackedTable.whole_game(extra_averages=1)
+    write_some_regrets(expected)
+    assert_collected_equal(again, walked_by_hand(expected, 1, 2, 1, 4))
 
 def test_a_failing_deal_raises_in_process_too():
     with Collector(seed=1, workers=0, deal=exploding_deal) as run:

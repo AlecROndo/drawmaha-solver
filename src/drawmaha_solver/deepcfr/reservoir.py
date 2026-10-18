@@ -188,6 +188,9 @@ class Reservoir:
                 raise ValueError(f"{path} is not a reservoir checkpoint (no {missing[0]!r})")
             capacity, offered = int(saved["capacity"]), int(saved["offered"])
             rows, t, targets = saved["rows"], saved["t"], saved["targets"]
+        # The constructor would refuse this too, but without the file's name.
+        if capacity < 1:
+            raise ValueError(f"{path}: capacity must be a positive int, got {capacity}")
         memory = cls(capacity)
         size = min(offered, capacity)
         if (
@@ -246,4 +249,8 @@ def _validate_offer(rows: np.ndarray, targets: np.ndarray, t: int) -> tuple[np.n
     # erase it and a negative would pull against the others.
     if not _is_int(t) or t < 1:
         raise ValueError(f"t must be a positive int, got {t!r}")
+    # t is stored in an int32 array beside the rows; the run's 2,000 is far
+    # below the bound, which is here so the stamp can never wrap in silence.
+    if t >= 2**31:
+        raise ValueError(f"t must fit int32, got {t!r}")
     return rows.astype(np.int32, copy=False), targets.astype(np.float32, copy=False)

@@ -195,6 +195,9 @@ def test_merge_refuses_bad_rows():
         memory.merge(np.array([0, 2**31]), targets(2), t=1, rng=rng0)
     with pytest.raises(ValueError, match="t"):
         memory.merge(np.arange(2), targets(2), t=0, rng=rng0)
+    # t is stamped into an int32 array beside the rows.
+    with pytest.raises(ValueError, match="t must fit int32"):
+        memory.merge(np.arange(2), targets(2), t=2**31, rng=rng0)
     with pytest.raises(ValueError, match="capacity"):
         Reservoir(capacity=0)
     with pytest.raises(ValueError, match="capacity"):
@@ -238,6 +241,19 @@ def test_load_refuses_a_file_whose_counts_disagree(tmp_path):
         capacity=np.int64(8),
     )
     with pytest.raises(ValueError, match="broken.npz"):
+        Reservoir.load(broken)
+
+def test_load_refuses_a_capacity_that_holds_nothing_naming_the_file(tmp_path):
+    broken = tmp_path / "zero.npz"
+    np.savez(
+        broken,
+        rows=np.zeros(0, np.int32),
+        t=np.zeros(0, np.int32),
+        targets=np.zeros((0, TARGET_WIDTH), np.float32),
+        offered=np.int64(0),
+        capacity=np.int64(0),
+    )
+    with pytest.raises(ValueError, match="zero.npz.*capacity"):
         Reservoir.load(broken)
 
 def test_load_refuses_arrays_of_the_wrong_type(tmp_path):

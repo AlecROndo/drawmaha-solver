@@ -58,6 +58,7 @@ Modal's 16 GB is under 8 GB of workers beside a parent of about 0.5 GB.
 from __future__ import annotations
 
 import math
+import pickle
 import sys
 import traceback
 from collections.abc import Sequence
@@ -107,15 +108,19 @@ def rows_of(recorded: Recorded) -> Collected:
     """One walk's record as memory rows, visits in the order the walk made them.
 
     The walk must have run over a packed table (so every visit has a slot) and
-    been asked for exactly the uniform column (so `extra[0]` is σ); a record
-    from any other walk is refused rather than misread.
+    recorded one extra row that is a distribution, which is σ: the uniform
+    column weighs 1 at every t, and at t = 1 so does every column (t⁰ = t² = 1),
+    so a row that sums to 1 is σ whichever column wrote it. Any other record is
+    refused rather than misread.
     """
     if any(slot is None for _, slot, _ in recorded.regret) or any(
         slot is None for _, slot, _, _ in recorded.strategy
     ):
         raise ValueError("rows_of needs a walk over a packed table; a visit has no slot")
-    # One extra row that is a distribution: the uniform column at any t. A
-    # quadratic column would also be one row, summing to t², and be misread.
+    # The check is on the row, not the column's name (`rows_of` is not told
+    # t): a quadratic row at t ≥ 2 sums to t² and is refused; at t = 1 it is σ
+    # and passes, rightly. The rows are float64 — the worst |Σ − 1| seen over
+    # 200 walks is 2e-16 — so 1e-6 admits no σ of width 4 that is not one.
     if any(
         extra.shape[0] != 1 or abs(float(extra[0].sum()) - 1.0) > 1e-6
         for _, _, _, extra in recorded.strategy
@@ -162,10 +167,12 @@ class Collector:
     `table` is the whole-game `PackedTable` the workers walk; write the
     iteration's regrets into `table.cumulative_regret` before each `collect`.
     `workers=0` walks in this process, with no pool and no shared block.
+    `deal` reaches the spawned workers by pickle, so it is a module-level
+    callable, not a lambda or a function defined inside another.
     """
 
     def __init__(self, *, seed: int, workers: int, deal: RootSampler = random_deal) -> None:
-        _validate_collector(seed, workers)
+        _validate_collector(seed, workers, deal)
         self._seed = int(seed)
         self._workers = int(workers)
         self._deal = deal
@@ -196,16 +203,26 @@ class Collector:
 
         A worker that raises, walking or attaching, re-raises here with its
         message; a worker that dies raises `RuntimeError`. Either way no short
-        phase is returned.
+        phase is returned, and the collector stays usable: the chunks still
+        queued behind the one that raised are cancelled, so the next phase
+        does not wait on walks nobody will read (a chunk already running
+        finishes and is dropped).
         """
         table = self.table
         _validate_phase(seat, t, walks)
         if self._pool is None:
             return _walk_range(table, self._deal, self._seed, seat, t, range(walks))
+        chunks = _chunks(seat, t, walks, self._workers)
+        jobs = [self._pool.submit(_walk_chunk, chunk) for chunk in chunks]
         try:
-            parts = list(self._pool.map(_walk_chunk, _chunks(seat, t, walks, self._workers)))
+            parts = [job.result() for job in jobs]
         except BrokenProcessPool as broke:
             raise RuntimeError("a collector worker died") from broke
+        finally:
+            # After a success every job is done and this is a no-op; after a
+            # raise it is what keeps the stale tail from burning the workers.
+            for job in jobs:
+                job.cancel()
         return joined(parts)
 
     # -- opening and closing -------------------------------------------------
@@ -336,8 +353,8 @@ def _walk_chunk(job: tuple[int, int, int, int]) -> Collected:
 # Validation
 # ---------------------------------------------------------------------------
 
-def _validate_collector(seed: object, workers: object) -> None:
-    """Refuse a seed or worker count the run could not use, before a table is built."""
+def _validate_collector(seed: object, workers: object, deal: object) -> None:
+    """Refuse a seed, worker count or deal the run could not use, before a table is built."""
     # The walk streams are default_rng([seed, t, seat, k]), which refuses a
     # negative word — but only at the first walk, in a worker.
     if not _is_int(seed) or seed < 0:
@@ -345,6 +362,17 @@ def _validate_collector(seed: object, workers: object) -> None:
     # Zero workers is the in-process reference; a negative count is nothing.
     if not _is_int(workers) or workers < 0:
         raise ValueError(f"workers must be a non-negative int, got {workers!r}")
+    # A spawned worker gets `deal` by pickle, which carries a function by its
+    # module and name: a lambda or a local function cannot travel, and the
+    # pool would only say "a worker died" with the reason on a worker's
+    # stderr. Checked at W = 0 as well, so the reference accepts exactly what
+    # the workers do.
+    try:
+        pickle.dumps(deal)
+    except (pickle.PicklingError, AttributeError, TypeError) as why:
+        raise ValueError(
+            f"deal must be picklable to reach a spawned worker, got {deal!r} ({why})"
+        ) from why
 
 def _validate_phase(seat: object, t: object, walks: object) -> None:
     """Refuse a phase the walk could not run, before any worker is asked."""
