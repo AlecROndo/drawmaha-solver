@@ -166,12 +166,18 @@ rung 3's 10, and the net checkpoints (tens of KB) every iteration.
 
 ## Collecting: K walks per seat per iteration on W processes
 
-`collect(table, seat, t, seed, walks=K, workers=W)` runs walk k on process k mod W
-and returns the concatenated `Flat` arrays plus, for policy rows, the row number
-recovered from the column start (`searchsorted` over the table's cumulative widths).
-Processes fork on Linux (Modal) and share the read-only table copy-on-write; on the
-Mac they go through the same shared-memory blocks `parallel.py` uses. The sample is
-a function of (seed, t, seat, k), never of W.
+`Collector(seed, workers=W)` holds the run's whole-game table for as many phases
+as the run has, and `collect(seat, t, walks=K)` hands contiguous chunks of
+k = 0..K-1 (ceil(K / 4W) walks each) to the W workers and joins the chunks in k
+order. Each walk's record becomes rows directly: the advantage row is the
+traverser visit's `slot[0]` with its r, and the policy row the opponent visit's
+`slot[0]` with sigma from the `uniform` extra column; nothing is recovered by
+`searchsorted`. Processes are SPAWNED everywhere, on Modal as on the Mac (decided
+2026-10-16: the loop that calls `collect` holds torch threads, which a fork would
+copy mid-flight, and one code path behaves the same on both machines); the table's
+`cumulative_regret` lives in one shared-memory block the parent owns, each worker
+rebuilds the index over it once, and the parent materialises into it between phases.
+The sample is a function of (seed, t, seat, k), never of W.
 
 ## The exact average needs up to three predecessor rows per key
 
