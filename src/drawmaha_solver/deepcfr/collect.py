@@ -218,10 +218,10 @@ class Collector:
         try:
             # `submit` itself raises `BrokenProcessPool` once a worker has
             # died, so a second phase on a broken pool is named the same way.
-            jobs = [
-                self._pool.submit(_walk_chunk, chunk)
-                for chunk in _chunks(seat, t, walks, self._workers)
-            ]
+            # Appended one by one, so the `finally` sees every job that was
+            # submitted even if a later `submit` raised.
+            for chunk in _chunks(seat, t, walks, self._workers):
+                jobs.append(self._pool.submit(_walk_chunk, chunk))
             parts = [job.result() for job in jobs]
         except BrokenProcessPool as broke:
             raise RuntimeError(
