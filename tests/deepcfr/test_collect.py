@@ -11,6 +11,7 @@ the `with` ends.
 
 from __future__ import annotations
 
+import os
 from multiprocessing import shared_memory
 from pathlib import Path
 
@@ -46,6 +47,9 @@ def first_deal_explodes(rng: np.random.Generator):
     if _deals == 1:
         raise RuntimeError("boom")
     return random_deal(rng)
+
+def dying_deal(rng: np.random.Generator):
+    os._exit(3)
 
 def write_some_regrets(table: PackedTable) -> None:
     """A fixed, non-uniform σ at every row, the same whichever table it is written into."""
@@ -259,6 +263,15 @@ def test_a_collector_is_usable_after_a_raised_phase():
     expected = PackedTable.whole_game(extra_averages=1)
     write_some_regrets(expected)
     assert_collected_equal(again, walked_by_hand(expected, 1, 2, 1, 4))
+
+def test_a_dead_worker_is_named_and_breaks_the_collector_for_the_run():
+    with Collector(seed=1, workers=1, deal=dying_deal) as run:
+        with pytest.raises(RuntimeError, match="died"):
+            run.collect(seat=0, t=1, walks=4)
+        # The pool is broken for good; the next phase says so by name too,
+        # rather than leaking the pool's own exception.
+        with pytest.raises(RuntimeError, match="died"):
+            run.collect(seat=0, t=1, walks=4)
 
 def test_a_failing_deal_raises_in_process_too():
     with Collector(seed=1, workers=0, deal=exploding_deal) as run:

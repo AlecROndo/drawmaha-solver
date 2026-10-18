@@ -62,7 +62,7 @@ import pickle
 import sys
 import traceback
 from collections.abc import Sequence
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import Future, ProcessPoolExecutor, wait
 from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass
 from multiprocessing import get_context, shared_memory
@@ -203,26 +203,39 @@ class Collector:
 
         A worker that raises, walking or attaching, re-raises here with its
         message; a worker that dies raises `RuntimeError`. Either way no short
-        phase is returned, and the collector stays usable: the chunks still
-        queued behind the one that raised are cancelled, so the next phase
-        does not wait on walks nobody will read (a chunk already running
-        finishes and is dropped).
+        phase is returned, and when `collect` returns or raises no chunk is
+        still walking: the chunks queued behind a raised one are cancelled and
+        the running ones waited for, so the parent may write the table at
+        once. After a raising chunk the collector is usable for the next
+        phase; a dead worker breaks the pool for the rest of the run, and
+        every later `collect` raises the same `RuntimeError`.
         """
         table = self.table
         _validate_phase(seat, t, walks)
         if self._pool is None:
             return _walk_range(table, self._deal, self._seed, seat, t, range(walks))
-        chunks = _chunks(seat, t, walks, self._workers)
-        jobs = [self._pool.submit(_walk_chunk, chunk) for chunk in chunks]
+        jobs: list[Future[Collected]] = []
         try:
+            # `submit` itself raises `BrokenProcessPool` once a worker has
+            # died, so a second phase on a broken pool is named the same way.
+            jobs = [
+                self._pool.submit(_walk_chunk, chunk)
+                for chunk in _chunks(seat, t, walks, self._workers)
+            ]
             parts = [job.result() for job in jobs]
         except BrokenProcessPool as broke:
-            raise RuntimeError("a collector worker died") from broke
+            raise RuntimeError(
+                "a collector worker died; the pool is broken for the rest of the run"
+            ) from broke
         finally:
-            # After a success every job is done and this is a no-op; after a
-            # raise it is what keeps the stale tail from burning the workers.
+            # After a success every job is done and this is a no-op. After a
+            # raise the queued chunks would walk on for nobody, ahead of the
+            # next phase, and a running one would still be reading the table
+            # while the parent writes it; so the queue is cancelled and the
+            # running chunks are waited for before control goes back.
             for job in jobs:
                 job.cancel()
+            wait(jobs)
         return joined(parts)
 
     # -- opening and closing -------------------------------------------------
@@ -366,7 +379,9 @@ def _validate_collector(seed: object, workers: object, deal: object) -> None:
     # module and name: a lambda or a local function cannot travel, and the
     # pool would only say "a worker died" with the reason on a worker's
     # stderr. Checked at W = 0 as well, so the reference accepts exactly what
-    # the workers do.
+    # the workers do. This is the sending half only: a deal in a module the
+    # worker cannot import pickles here and fails to unpickle there, which
+    # `_attach_worker` reports with its traceback.
     try:
         pickle.dumps(deal)
     except (pickle.PicklingError, AttributeError, TypeError) as why:
