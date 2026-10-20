@@ -84,8 +84,14 @@ from typing import Protocol
 
 import numpy as np
 
-from drawmaha_solver.deepcfr.reservoir import Memory, Reservoir, _is_int, reservoir_stream
-from drawmaha_solver.minidrawmaha.lockstep import SEATS
+from drawmaha_solver.deepcfr.reservoir import (
+    TARGET_WIDTH,
+    Memory,
+    Reservoir,
+    _is_int,
+    reservoir_stream,
+)
+from drawmaha_solver.minidrawmaha.lockstep import SEATS, _columns
 from drawmaha_solver.minidrawmaha.packed_table import PackedTable
 
 # The iterations that line up with the tabular race's hands per seat: at
@@ -311,3 +317,71 @@ def _timed(into: list[float]):
         yield
     finally:
         into.append(time.perf_counter() - started)
+
+# ---------------------------------------------------------------------------
+# The oracle: gate 1's perfect net
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class OracleModel:
+    """A copy of one advantage memory at fit time: the "net" that remembers every sample."""
+
+    rows: np.ndarray  # int32 (n,)
+    t: np.ndarray  # int32 (n,)
+    targets: np.ndarray  # float32 (n, TARGET_WIDTH)
+
+class OracleLearner:
+    """The learner that makes the loop LCFR: its model is the memory, its write is LCFR's bank.
+
+    `fit` copies the memory. `write` puts at every row of each seat the
+    t′-weighted sum of the samples its model holds there, computed as LCFR
+    computes it — per t′ in increasing order, the samples of that t′ summed
+    per column in memory order with `np.add.at`, then `R[cols] += t′ ·
+    totals` — so the bits match `bank_rows` through any number of
+    iterations, not only the first. A row no sample names stays exactly
+    0.0. NumPy only, so gate 1 runs without torch.
+    """
+
+    def __init__(self) -> None:
+        # Row → first column, from the table's widths; built once per table.
+        self._starts: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+
+    def fit(
+        self, rows: np.ndarray, t: np.ndarray, targets: np.ndarray, *, seed: tuple[int, int, int]
+    ) -> Fitted:
+        return Fitted(OracleModel(np.array(rows), np.array(t), np.array(targets)), None)
+
+    def write(self, table: PackedTable, models: Sequence[OracleModel | None]) -> None:
+        starts, widths = self._layout(table)
+        summed = np.zeros(table.cumulative_regret.size)
+        for model in models:
+            if model is None:
+                continue
+            for t in np.unique(model.t):
+                at = model.t == t
+                rows = model.rows[at]
+                width = widths[rows]
+                columns = _columns(starts[rows], width)
+                legal = np.arange(TARGET_WIDTH)[None, :] < width[:, None]
+                values = model.targets[at][legal].astype(np.float64)
+                touched, _, inverse = np.unique(columns, return_index=True, return_inverse=True)
+                totals = np.zeros(touched.size)
+                np.add.at(totals, inverse, values)
+                summed[touched] += int(t) * totals
+        # Assigned into the array, never rebound: the workers read this block.
+        table.cumulative_regret[...] = summed
+
+    def save(self, model: OracleModel, path: Path) -> None:
+        # Through an open file, so NumPy does not append `.npz` to the name.
+        with Path(path).open("wb") as file:
+            np.savez(file, rows=model.rows, t=model.t, targets=model.targets)
+
+    def load(self, path: Path) -> OracleModel:
+        with np.load(Path(path), allow_pickle=False) as saved:
+            return OracleModel(saved["rows"], saved["t"], saved["targets"])
+
+    def _layout(self, table: PackedTable) -> tuple[np.ndarray, np.ndarray]:
+        if id(table) not in self._starts:
+            widths = table.widths()
+            self._starts[id(table)] = (np.cumsum(widths) - widths, widths)
+        return self._starts[id(table)]

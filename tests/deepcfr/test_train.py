@@ -29,11 +29,22 @@ from drawmaha_solver.deepcfr.train import (
     DeepConfig,
     DeepRun,
     Fitted,
+    OracleLearner,
     new_run,
     require_same_run,
     step,
 )
-from drawmaha_solver.minidrawmaha.lockstep import SEATS
+from drawmaha_solver.minidrawmaha.game import random_deal
+from drawmaha_solver.minidrawmaha.lockstep import (
+    SEATS,
+    apply_arrays,
+    flatten,
+    new_lockstep,
+    train_lockstep,
+    walk,
+)
+from drawmaha_solver.minidrawmaha.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.regret_rules import Average, RegretRule
 
 # ---------------------------------------------------------------------------
 # Spies
@@ -235,3 +246,96 @@ def test_each_merge_uses_its_own_stream_and_the_policy_memory_takes_both_seats(c
         assert same_memory(run.advantage[seat], advantage[seat])
     assert same_memory(run.policy, policy)
     assert run.policy.offered == policy_rows > 100
+
+# ---------------------------------------------------------------------------
+# Gate 1: with a perfect net, the loop is LCFR
+# ---------------------------------------------------------------------------
+
+def lcfr_rounded(seed: int, walks: int, iterations: int):
+    """LCFR from rung 3's own walk, flatten and apply_arrays, each sample rounded through float32.
+
+    The one difference from `train_lockstep` is the cast `collect.rows_of`
+    applies to every sample on its way into the memory. Yields the table
+    after each iteration.
+    """
+    table = PackedTable.whole_game()
+    for t in range(1, iterations + 1):
+        for seat in SEATS:
+            flats = [flatten(walk(table, random_deal, seed, t, seat, k, ()), 0) for k in range(walks)]
+            flats = [
+                replace(f, regret_values=f.regret_values.astype(np.float32).astype(np.float64))
+                for f in flats
+            ]
+            apply_arrays(table, flats, RegretRule.LCFR, t)
+        yield table
+
+def lcfr_exact(seed: int, walks: int, iterations: int):
+    """The untouched reference: `train_lockstep` with K workers under the LCFR rule."""
+    solve = new_lockstep(seed, workers=walks, rule="lcfr")
+    for _ in range(iterations):
+        yield train_lockstep(solve, 1).table
+
+def oracle_loop(seed: int, walks: int, workers: int, iterations: int):
+    """The loop with the oracle and an unbounded memory; yields (run, table) after each iteration.
+
+    The table is written once more after each step: the last write inside an
+    iteration precedes seat 1's refit, and what LCFR's table holds after
+    iteration t is what the loop's table holds as iteration t + 1 opens.
+    """
+    config = DeepConfig(seed=seed, walks=walks, workers=workers, capacity=walks * iterations * 100)
+    run = new_run(config)
+    learner = OracleLearner()
+    with Collector(seed=seed, workers=workers) as collector:
+        for _ in range(iterations):
+            step(run, collector, learner)
+            learner.write(collector.table, run.nets)
+            yield run, collector.table
+
+@pytest.mark.parametrize("workers", [0, 2])
+def test_the_oracle_loop_is_lcfr_bit_for_bit(workers):
+    iterations = 0
+    for (run, deep), reference in zip(oracle_loop(5, 40, workers, 3), lcfr_rounded(5, 40, 3)):
+        np.testing.assert_array_equal(deep.cumulative_regret, reference.cumulative_regret)
+        assert deep.cumulative_regret.any()
+        iterations += 1
+    assert iterations == 3
+    for memory in run.advantage:
+        assert 0 < memory.offered <= memory.capacity  # nothing was ever evicted
+
+def test_the_oracle_loop_equals_train_lockstep_to_float32_precision():
+    for (_, deep), reference in zip(oracle_loop(5, 40, 0, 3), lcfr_exact(5, 40, 3)):
+        exact = reference.cumulative_regret
+        np.testing.assert_allclose(deep.cumulative_regret, exact, rtol=1e-5, atol=1e-6)
+        # A row the walks never reached is exactly 0.0 in both.
+        np.testing.assert_array_equal(deep.cumulative_regret == 0.0, exact == 0.0)
+        # The float32 cast on the way into the memory is why there are two pins.
+        assert not np.array_equal(deep.cumulative_regret, exact)
+
+def test_the_uniform_column_leaves_the_walks_regrets_untouched():
+    table = PackedTable.whole_game(extra_averages=1)
+    table.cumulative_regret[:] = np.random.default_rng(1).standard_normal(table.cumulative_regret.size)
+    for k in range(20):
+        bare = walk(table, random_deal, 5, 2, k % 2, k, ())
+        asked = walk(table, random_deal, 5, 2, k % 2, k, (Average.UNIFORM,))
+        assert [(key, slot, r.tobytes()) for key, slot, r in bare.regret] == [
+            (key, slot, r.tobytes()) for key, slot, r in asked.regret
+        ]
+
+def test_the_oracle_writes_into_the_table_it_is_handed_and_never_rebinds_it():
+    table = PackedTable.whole_game()
+    before = table.cumulative_regret
+    before[:] = 7.0
+    OracleLearner().write(table, (None, None))
+    assert table.cumulative_regret is before and not before.any()
+
+def test_oracle_models_round_trip(tmp_path, collector):
+    run = new_run(SMALL)
+    learner = OracleLearner()
+    step(run, collector, learner)
+    learner.save(run.nets[0], tmp_path / "p0-t00001.pt")
+    back = learner.load(tmp_path / "p0-t00001.pt")
+    for name in ("rows", "t", "targets"):
+        a, b = getattr(run.nets[0], name), getattr(back, name)
+        assert a.dtype == b.dtype
+        np.testing.assert_array_equal(a, b)
+    assert run.nets[0].rows.shape[0] == run.advantage[0].size
