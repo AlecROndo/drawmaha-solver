@@ -37,6 +37,7 @@ from drawmaha_solver.deepcfr.train import (
     DeepRun,
     Fitted,
     OracleLearner,
+    current_iterate,
     load_run,
     mark_name,
     net_name,
@@ -46,7 +47,8 @@ from drawmaha_solver.deepcfr.train import (
     save_run,
     step,
 )
-from drawmaha_solver.minidrawmaha.game import random_deal
+from drawmaha_solver.minidrawmaha.enumeration import private_keys, public_decision_points
+from drawmaha_solver.minidrawmaha.game import InfoSet, random_deal
 from drawmaha_solver.minidrawmaha.lockstep import (
     SEATS,
     apply_arrays,
@@ -57,6 +59,7 @@ from drawmaha_solver.minidrawmaha.lockstep import (
 )
 from drawmaha_solver.minidrawmaha.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.regret_rules import Average, RegretRule
+from drawmaha_solver.minidrawmaha.strategy import StrategyInfo
 
 # ---------------------------------------------------------------------------
 # Spies
@@ -538,3 +541,45 @@ def test_the_resume_file_is_rewritten_on_the_clock_and_at_the_end_only_once(tmp_
     assert [RESUME in line["wrote"] for line in lines(tmp_path)] == [False, False, True]
     drive(tmp_path, 5, replace(DRIVEN, grid=(), save_every_s=0.0))
     assert [RESUME in line["wrote"] for line in lines(tmp_path)[3:]] == [True, True]
+
+# ---------------------------------------------------------------------------
+# The current iterate
+# ---------------------------------------------------------------------------
+
+def some_keys() -> list[InfoSet]:
+    """Two keys on every public point: both seats, every width, without walking the enumeration."""
+    keys = []
+    for point in public_decision_points():
+        shape = private_keys(board_cards=point.board_cards, discards=point.discards)
+        for hole, thrown, board in (shape[0], shape[len(shape) // 2]):
+            keys.append(
+                InfoSet(
+                    player=point.player,
+                    hole=hole,
+                    discarded=thrown,
+                    board=board,
+                    draws=point.draws,
+                    betting=point.betting,
+                )
+            )
+    return keys
+
+def test_current_iterate_is_regret_matching_row_by_row():
+    table = PackedTable.whole_game()
+    keys = some_keys()
+    rng = np.random.default_rng(2)
+    for index, key in enumerate(keys):
+        _, start, width = table.slot_of(key)
+        kind = index % 4
+        if kind == 0:  # a signed mix with something positive: regret matching
+            table.cumulative_regret[start : start + width] = rng.standard_normal(width) + 0.3
+        elif kind == 1:  # what materialise writes for an all-negative net: a one-hot
+            table.cumulative_regret[start + rng.integers(width)] = 1.0
+        elif kind == 2:  # all negative, raw: uniform, as the ledger reads it
+            table.cumulative_regret[start : start + width] = -rng.random(width) - 0.1
+        # kind 3: all zero, uniform
+    frozen = current_iterate(table, iteration=7, seed=5)
+    assert frozen.info == StrategyInfo(rule="deep", column="current", iteration=7, seed=5, workers=0)
+    for key in keys:
+        np.testing.assert_array_equal(frozen[key], table[key].strategy().astype(np.float32))
+    assert len(frozen) == len(table)

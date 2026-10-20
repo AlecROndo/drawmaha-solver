@@ -97,6 +97,7 @@ from drawmaha_solver.deepcfr.reservoir import (
 )
 from drawmaha_solver.minidrawmaha.lockstep import SEATS, _columns
 from drawmaha_solver.minidrawmaha.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.strategy import FrozenStrategy, StrategyInfo, average_rows
 
 # The iterations that line up with the tabular race's hands per seat: at
 # K = 10,000 walks per seat per iteration, Deep CFR's iteration 10 is LCFR's
@@ -646,10 +647,82 @@ class _Saves:
 # ---------------------------------------------------------------------------
 
 class NetLearner:
-    """The learner the run uses: PR 2's refit and materialise, imported when first used."""
+    """The learner the run uses: PR 2's refit and materialise, torch imported when first used.
+
+    `fit` is `fit_from_scratch` on the memory, then the loss of the fresh
+    net on one held batch — `config.batch` rows drawn with replacement by
+    a generator seeded as the fit was, so the number means the same thing
+    every iteration. `write` is `materialise`. The thread count comes from
+    the config, and the fit's own `set_num_threads` lasts the fit only.
+    """
 
     def __init__(self, config: DeepConfig) -> None:
         self._config = config
+        self._fit_config = None
+
+    def fit(
+        self, rows: np.ndarray, t: np.ndarray, targets: np.ndarray, *, seed: tuple[int, int, int]
+    ) -> Fitted:
+        import torch
+
+        from drawmaha_solver.deepcfr.fit import _fold_seed, batch_loss, fit_from_scratch
+
+        config = self._fit()
+        net = fit_from_scratch(rows, t, targets, seed=seed, config=config)
+        draw = torch.Generator().manual_seed(_fold_seed(seed))
+        held = torch.randint(len(rows), (config.batch,), generator=draw).numpy()
+        with torch.inference_mode():
+            loss = float(batch_loss(net, rows[held], t[held], targets[held]).item())
+        return Fitted(net, loss)
+
+    def write(self, table: PackedTable, models: Sequence[object | None]) -> None:
+        from drawmaha_solver.deepcfr.materialise import materialise
+
+        materialise(table, models)
+
+    def save(self, model: object, path: Path) -> None:
+        from drawmaha_solver.deepcfr.net import save_net
+
+        save_net(model, path)
+
+    def load(self, path: Path) -> object:
+        from drawmaha_solver.deepcfr.net import load_net
+
+        return load_net(path)
+
+    def _fit(self):
+        if self._fit_config is None:
+            from drawmaha_solver.deepcfr.fit import FitConfig
+
+            c = self._config
+            self._fit_config = FitConfig(
+                width=c.width,
+                depth=c.depth,
+                steps=c.steps,
+                batch=c.batch,
+                lr=c.lr,
+                clip=c.clip,
+                threads=c.threads,
+            )
+        return self._fit_config
+
+# ---------------------------------------------------------------------------
+# The current iterate
+# ---------------------------------------------------------------------------
+
+def current_iterate(table: PackedTable, *, iteration: int = 0, seed: int = 0) -> FrozenStrategy:
+    """Regret matching over the materialised table, frozen for the exact grader.
+
+    Deep CFR's eq. (3) exactly, because `materialise` already wrote the
+    all-negative case as a one-hot; an all-zero row plays uniformly, as
+    `RegretMatcher.strategy` reads it. `iteration` and `seed` only label the
+    file.
+    """
+    widths = table.widths()
+    info = StrategyInfo(rule="deep", column="current", iteration=iteration, seed=seed, workers=0)
+    return FrozenStrategy(
+        average_rows(np.maximum(table.cumulative_regret, 0.0), widths), widths, info
+    )
 
 # ---------------------------------------------------------------------------
 # The oracle: gate 1's perfect net
