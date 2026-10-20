@@ -85,6 +85,18 @@ def test_saved_nets_load_back_and_reproduce_the_write(tmp_path):
     assert table.cumulative_regret.any()
     assert same_weights(load_run(tmp_path / RESUME, learner=learner).nets[1], run.nets[1])
 
+def test_deep_config_carries_every_fit_config_field():
+    # The fit fields are copied flat into DeepConfig (fit.py imports torch at
+    # its top); a field added to FitConfig later must not drift past them.
+    from dataclasses import fields
+
+    from drawmaha_solver.deepcfr.fit import FitConfig
+
+    fit_fields = {f.name: f.default for f in fields(FitConfig)}
+    deep_fields = {f.name: f.default for f in fields(DeepConfig)}
+    assert all(deep_fields.get(name) == default for name, default in fit_fields.items())
+    assert NetLearner(DeepConfig())._fit() == FitConfig()
+
 def test_fit_reports_a_finite_loss_and_a_run_logs_it(tmp_path):
     learner = NetLearner(TINY)
     run = new_run(TINY)

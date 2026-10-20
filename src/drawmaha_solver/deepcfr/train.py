@@ -580,9 +580,10 @@ def _spawn_ignoring_signals(collector: Collector, *, workers: int) -> None:
     A spawned child inherits an ignored disposition and Python installs its
     SIGINT handler only over the default, so the workers ignore both
     signals for the run, as rung 3's do. The pool starts a worker per
-    submitted chunk until it has W, so one phase of 4W one-walk chunks —
-    submitted in a tight loop, long before the first worker is up — starts
-    all of them. Its rows are thrown away. Nothing to do at W = 0.
+    submitted chunk while none is idle, so one phase of 4W one-walk chunks —
+    submitted in a tight loop, a second before the first worker is even up —
+    starts all W in practice (pinned at W = 3). Its rows are thrown away.
+    Nothing to do at W = 0.
     """
     if workers == 0:
         return
