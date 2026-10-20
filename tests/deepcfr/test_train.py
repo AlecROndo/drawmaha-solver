@@ -15,6 +15,7 @@ deadline with its state saved, and refuses a changed sample by name.
 from __future__ import annotations
 
 import json
+import signal
 from dataclasses import replace
 from pathlib import Path
 
@@ -23,21 +24,28 @@ import pytest
 
 from drawmaha_solver.deepcfr.collect import Collector
 from drawmaha_solver.deepcfr.reservoir import Memory, Reservoir, reservoir_stream
+import drawmaha_solver.deepcfr.train as train
 from drawmaha_solver.deepcfr.train import (
     GRID,
+    MARKS,
+    NETS,
+    PROGRESS,
+    RESUME,
     SAMPLE_FIELDS,
+    STATE,
     DeepConfig,
     DeepRun,
     Fitted,
-    STATE,
     OracleLearner,
     load_run,
+    mark_name,
+    net_name,
     new_run,
     require_same_run,
+    run_deep,
     save_run,
     step,
 )
-import drawmaha_solver.deepcfr.train as train
 from drawmaha_solver.minidrawmaha.game import random_deal
 from drawmaha_solver.minidrawmaha.lockstep import (
     SEATS,
@@ -445,3 +453,88 @@ def test_load_refuses_a_missing_state_or_a_missing_file(tmp_path, collector):
     (tmp_path / "policy-t00001.npz").unlink()
     with pytest.raises(ValueError, match="policy-t00001.npz"):
         load_run(tmp_path, learner=learner)
+
+# ---------------------------------------------------------------------------
+# The driver
+# ---------------------------------------------------------------------------
+
+DRIVEN = DeepConfig(seed=5, walks=5, workers=0, capacity=100_000, grid=(4, 8))
+
+def drive(out: Path, target: int, config: DeepConfig = DRIVEN, **kw) -> DeepRun:
+    return run_deep(out, config, target=target, learner=OracleLearner(), log=lambda _: None, **kw)
+
+def lines(out: Path) -> list[dict]:
+    return [json.loads(line) for line in (out / PROGRESS).read_text().splitlines()]
+
+def loaded(out: Path, *parts: str) -> DeepRun:
+    return load_run(out.joinpath(*parts), learner=OracleLearner())
+
+def test_a_run_keeps_its_grid_its_nets_and_its_log_and_ends_at_its_target(tmp_path):
+    commits = []
+    run = drive(tmp_path, 10, commit=lambda: commits.append(1))
+    assert run.t == 10
+    for t in (4, 8):
+        kept = loaded(tmp_path, MARKS, mark_name(t))
+        assert kept.t == t and same_run(kept, straight(DRIVEN, t))
+    assert sorted(p.name for p in (tmp_path / NETS).iterdir()) == sorted(
+        net_name(seat, t) for t in range(1, 11) for seat in SEATS
+    )
+    assert same_run(loaded(tmp_path, RESUME), run)
+    log = lines(tmp_path)
+    assert [line["t"] for line in log] == list(range(1, 11))
+    assert log[-1]["stopped"] == "done" and "stopped" not in log[0]
+    for line in log:
+        assert line["target"] == 10
+        assert all(len(line["seconds"][stage]) == 2 for stage in ("materialise", "collect", "merge", "fit"))
+        assert line["seconds"]["iteration"] > 0
+        assert line["rows"]["advantage"][0] > 0 and line["rows"]["resident"]["policy"] > 0
+        assert line["loss"] == [None, None]
+        assert line["iterations_per_s"] > 0 and line["eta_h"] >= 0
+    assert set(log[3]["wrote"]) >= {f"{NETS}/{net_name(0, 4)}", f"{MARKS}/{mark_name(4)}", RESUME}
+    assert log[0]["wrote"] == [f"{NETS}/{net_name(0, 1)}", f"{NETS}/{net_name(1, 1)}"]
+    assert RESUME in log[-1]["wrote"]
+    assert len(commits) == 10
+    assert not list(tmp_path.rglob("*.tmp"))
+
+def test_a_run_stopped_and_restarted_equals_one_straight_run(tmp_path):
+    assert drive(tmp_path, 6).t == 6
+    run = drive(tmp_path, 10)
+    assert same_run(run, straight(DRIVEN, 10))
+    np.testing.assert_array_equal(written_by(run), written_by(straight(DRIVEN, 10)))
+    before = lines(tmp_path)
+    assert drive(tmp_path, 10).t == 10  # already there: nothing to do, nothing written
+    assert lines(tmp_path) == before
+
+def test_sigterm_finishes_the_iteration_saves_and_resumes_exactly(tmp_path):
+    raised = []
+
+    def log(line: str) -> None:
+        # The first progress record, i.e. after the first iteration's save.
+        if line.startswith("{") and not raised:
+            raised.append(1)
+            signal.raise_signal(signal.SIGTERM)
+
+    run = run_deep(tmp_path, DRIVEN, target=10, learner=OracleLearner(), log=log)
+    assert 0 < run.t < 10
+    assert loaded(tmp_path, RESUME).t == run.t
+    assert lines(tmp_path)[-1]["stopped"] == "SIGTERM"
+    assert same_run(drive(tmp_path, 10), straight(DRIVEN, 10))
+
+def test_a_deadline_stops_the_run_with_its_state_saved(tmp_path):
+    run = drive(tmp_path, 10, deadline_s=0.0)
+    assert 0 < run.t < 10
+    assert loaded(tmp_path, RESUME).t == run.t
+    assert lines(tmp_path)[-1]["stopped"] == "deadline"
+
+def test_a_resume_refuses_a_changed_config_by_name(tmp_path):
+    drive(tmp_path, 2)
+    with pytest.raises(ValueError, match="walks"):
+        drive(tmp_path, 3, replace(DRIVEN, walks=6))
+    assert drive(tmp_path, 3, replace(DRIVEN, workers=0, save_every_s=0.0, grid=(3,))).t == 3
+    assert loaded(tmp_path, MARKS, mark_name(3)).t == 3
+
+def test_the_resume_file_is_rewritten_on_the_clock_and_at_the_end_only_once(tmp_path):
+    drive(tmp_path, 3, replace(DRIVEN, grid=(), save_every_s=1e9))
+    assert [RESUME in line["wrote"] for line in lines(tmp_path)] == [False, False, True]
+    drive(tmp_path, 5, replace(DRIVEN, grid=(), save_every_s=0.0))
+    assert [RESUME in line["wrote"] for line in lines(tmp_path)[3:]] == [True, True]

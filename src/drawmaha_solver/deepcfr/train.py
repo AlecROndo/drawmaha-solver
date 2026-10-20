@@ -77,8 +77,9 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -86,6 +87,7 @@ from typing import Protocol
 
 import numpy as np
 
+from drawmaha_solver.deepcfr.collect import Collector
 from drawmaha_solver.deepcfr.reservoir import (
     TARGET_WIDTH,
     Memory,
@@ -404,6 +406,250 @@ def _atomically(write: Callable[[object, Path], None], value: object, path: Path
     with temporary.open("rb") as file:
         os.fsync(file.fileno())
     os.replace(temporary, path)
+
+# ---------------------------------------------------------------------------
+# Stopping on a signal
+# ---------------------------------------------------------------------------
+
+@dataclass(slots=True)
+class _StopRequest:
+    """Why the run was asked to stop; empty until a signal arrives."""
+
+    why: str = ""
+
+@contextmanager
+def _stop_on_signals() -> Iterator[_StopRequest]:
+    """Turn SIGTERM and SIGINT into a stop request for the block's duration.
+
+    `lockstep_run._stop_on_signals`, copied rather than imported from a
+    private name. The run checks the request after each iteration, so a
+    signal never cuts an iteration or a save in half; the previous handlers
+    come back on exit.
+    """
+    stop = _StopRequest()
+
+    def request_stop(signum, frame) -> None:
+        stop.why = signal.Signals(signum).name
+
+    previous = {sig: signal.signal(sig, request_stop) for sig in (signal.SIGTERM, signal.SIGINT)}
+    try:
+        yield stop
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
+
+# ---------------------------------------------------------------------------
+# The driver
+# ---------------------------------------------------------------------------
+
+# The layout of a run's directory.
+NETS = "nets"  # every iteration's two nets, never overwritten
+MARKS = "marks"  # a full save at each grid mark
+RESUME = "resume"  # the latest state, rewritten on the clock
+PROGRESS = "progress.jsonl"  # one line per iteration
+
+def net_name(seat: int, t: int) -> str:
+    """The kept net's file name under `nets/`: `p{seat}-t{t:05d}.pt`."""
+    return _net_name(seat, t)
+
+def mark_name(t: int) -> str:
+    """The directory name of the save kept at grid mark t: `t{t:05d}`."""
+    return f"t{t:05d}"
+
+def run_deep(
+    out: Path,
+    config: DeepConfig,
+    *,
+    target: int,
+    learner: Learner | None = None,
+    deadline_s: float | None = None,
+    commit: Callable[[], None] = lambda: None,
+    log: Callable[[str], None] = print,
+    observers: Sequence[Observer] = (),
+) -> DeepRun:
+    """Train `out`'s run up to `target` iterations, or until `deadline_s` or a signal.
+
+    Returns the run as it stands; `run.t == target` means done. `learner`
+    defaults to `NetLearner(config)`, the real one. The deadline counts from
+    once the run is open, worker startup included, and is checked after
+    each iteration, so a run always completes at least one. Raises whatever
+    the collector or the learner raises, without saving: the last commit
+    stands.
+
+    Steps:
+    1. Open the run: resume `out/resume`, or start one at iteration 0.
+    2. Return at once if it is already at `target`.
+    3. With SIGTERM and SIGINT turned into a stop request and one collector
+       open for the whole run, step until `target`, the deadline or a
+       signal; after every iteration keep both nets, save on the grid and on
+       the clock, append a progress line, commit once.
+    4. The last iteration's save includes the resume state and its line
+       says why the run stopped.
+    """
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    if learner is None:
+        learner = NetLearner(config)
+
+    # Step 1: open the run
+    run = _open(out, config, learner=learner)
+
+    # Step 2: nothing to do
+    if run.t >= target:
+        log(f"deep: already at {run.t:,} of {target:,}")
+        return run
+
+    deadline = None if deadline_s is None else time.monotonic() + deadline_s
+    with _stop_on_signals() as stop, Collector(seed=config.seed, workers=config.workers) as collector:
+        log(f"deep: from {run.t:,} to {target:,}, K = {config.walks:,} on {config.workers} workers")
+        # The pace and the save clock start once the workers are up, as the
+        # resume state on disk is as fresh as the open.
+        saves = _Saves(
+            out=out,
+            target=target,
+            learner=learner,
+            commit=commit,
+            log=log,
+            opened=time.monotonic(),
+            opened_t=run.t,
+            resumed=time.monotonic(),
+        )
+
+        # Steps 3 and 4: train, saving as it goes, and say why it stopped
+        _train(
+            run,
+            collector,
+            learner,
+            observers,
+            target=target,
+            marks=sorted(m for m in config.grid if run.t < m <= target),
+            deadline=deadline,
+            stop=stop,
+            saves=saves,
+        )
+    return run
+
+def _open(out: Path, config: DeepConfig, *, learner: Learner) -> DeepRun:
+    """The run in `out`: resumed from `out/resume` if it has a state, else new at iteration 0."""
+    resume = out / RESUME
+    if not (resume / STATE).exists():
+        return new_run(config)
+    run = load_run(resume, learner=learner)
+    # The saved config is the run's; the asked one may differ only in what
+    # the walks and nets never see.
+    require_same_run(run.config, config)
+    run.config = config
+    return run
+
+def _train(
+    run: DeepRun,
+    collector: Collector,
+    learner: Learner,
+    observers: Sequence[Observer],
+    *,
+    target: int,
+    marks: list[int],
+    deadline: float | None,
+    stop: _StopRequest,
+    saves: _Saves,
+) -> str:
+    """Step until `target`, the deadline or a signal; return why it stopped.
+
+    Every iteration keeps its two nets. A grid mark keeps a full save under
+    `marks/` and rewrites the resume state; so does the clock
+    (`save_every_s` since the last resume save) and the stop itself.
+    """
+    why = ""
+    while not why:
+        stats = step(run, collector, learner, observers)
+        if run.t >= target:
+            why = "done"
+        elif stop.why:
+            why = stop.why
+        elif deadline is not None and time.monotonic() > deadline:
+            why = "deadline"
+        kept = bool(marks) and run.t == marks[0]
+        if kept:
+            marks.pop(0)
+        resume = kept or bool(why) or saves.due(run.config.save_every_s)
+        saves.after_iteration(run, stats, kept=kept, resume=resume, why=why)
+    return why
+
+@dataclass(slots=True)
+class _Saves:
+    """Where a run's files go and who hears of them: the one writer of `out/` after the open."""
+
+    out: Path
+    target: int
+    learner: Learner
+    commit: Callable[[], None]
+    log: Callable[[str], None]
+    opened: float  # monotonic seconds when the run opened, the pace's baseline
+    opened_t: int  # the iteration it opened at
+    resumed: float  # monotonic seconds of the last resume save
+
+    def due(self, every_s: float) -> bool:
+        """Whether the clock asks for a resume save."""
+        return time.monotonic() - self.resumed >= every_s
+
+    def after_iteration(
+        self, run: DeepRun, stats: StepStats, *, kept: bool, resume: bool, why: str
+    ) -> None:
+        """Keep the nets, save what is due, append the progress line, commit once."""
+        wrote = []
+        nets = self.out / NETS
+        nets.mkdir(exist_ok=True)
+        for seat, net in enumerate(run.nets):
+            _atomically(self.learner.save, net, nets / net_name(seat, run.t))
+            wrote.append(f"{NETS}/{net_name(seat, run.t)}")
+        if kept:
+            save_run(run, self.out / MARKS / mark_name(run.t), learner=self.learner)
+            wrote.append(f"{MARKS}/{mark_name(run.t)}")
+        if resume:
+            save_run(run, self.out / RESUME, learner=self.learner)
+            wrote.append(RESUME)
+            self.resumed = time.monotonic()
+        rate = (run.t - self.opened_t) / max(time.monotonic() - self.opened, 1e-9)
+        line = {
+            "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "t": run.t,
+            "target": self.target,
+            "seconds": {
+                "materialise": [round(s, 3) for s in stats.materialise],
+                "collect": [round(s, 3) for s in stats.collect],
+                "merge": [round(s, 3) for s in stats.merge],
+                "fit": [round(s, 3) for s in stats.fit],
+                "iteration": round(stats.seconds, 3),
+            },
+            "rows": {
+                "advantage": [memory.offered for memory in run.advantage],
+                "policy": run.policy.offered,
+                "resident": {
+                    "advantage": [memory.size for memory in run.advantage],
+                    "policy": run.policy.size,
+                },
+            },
+            "loss": list(stats.loss),
+            "iterations_per_s": round(rate, 4),
+            "eta_h": round((self.target - run.t) / rate / 3600, 2),
+            "wrote": wrote,
+        }
+        if why:
+            line["stopped"] = why
+        with (self.out / PROGRESS).open("a") as file:
+            file.write(json.dumps(line) + "\n")
+        self.commit()
+        self.log(json.dumps(line))
+
+# ---------------------------------------------------------------------------
+# The real learner
+# ---------------------------------------------------------------------------
+
+class NetLearner:
+    """The learner the run uses: PR 2's refit and materialise, imported when first used."""
+
+    def __init__(self, config: DeepConfig) -> None:
+        self._config = config
 
 # ---------------------------------------------------------------------------
 # The oracle: gate 1's perfect net
