@@ -20,14 +20,20 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--target", type=int, default=2_000, help="iterations to reach")
-    parser.add_argument("--walks", type=int, default=defaults.walks, help="K walks per seat per iteration")
-    parser.add_argument("--workers", type=int, default=defaults.workers, help="W walk processes; 0 walks in-process")
+    parser.add_argument(
+        "--walks", type=int, default=defaults.walks, help="K walks per seat per iteration"
+    )
+    parser.add_argument(
+        "--workers", type=int, default=defaults.workers, help="W walk processes; 0 walks in-process"
+    )
     parser.add_argument("--capacity", type=int, default=defaults.capacity, help="C rows per memory")
     parser.add_argument("--width", type=int, default=defaults.width)
     parser.add_argument("--depth", type=int, default=defaults.depth)
     parser.add_argument("--steps", type=int, default=defaults.steps, help="Adam steps per refit")
     parser.add_argument("--batch", type=int, default=defaults.batch, help="rows per step")
-    parser.add_argument("--threads", type=int, default=defaults.threads, help="torch threads for the refit")
+    parser.add_argument(
+        "--threads", type=int, default=defaults.threads, help="torch threads for the refit"
+    )
     parser.add_argument("--seed", type=int, default=defaults.seed)
     return parser.parse_args(argv)
 

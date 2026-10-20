@@ -437,7 +437,9 @@ def _net_name(seat: int, t: int) -> str:
 
 def _write_state(directory: Path, state: dict) -> None:
     """`state.json`, written as a temp file, fsynced and renamed into place."""
-    _atomically(lambda text, path: path.write_text(text), json.dumps(state, indent=1), directory / STATE)
+    _atomically(
+        lambda text, path: path.write_text(text), json.dumps(state, indent=1), directory / STATE
+    )
 
 def _atomically(write: Callable[[object, Path], None], value: object, path: Path) -> None:
     """Run `write(value, temp)` then rename the temp onto `path`, so a crash leaves `path` whole."""
@@ -753,8 +755,9 @@ class NetLearner:
     plus a tag, so the draw is the same rule every iteration and never the
     fit's own first minibatch. It is a training loss on rows the net may
     have seen, not a held-out one; it says how well the refit fits, and it
-    is comparable across iterations. `write` is `materialise`. The thread count comes from the config, and
-    the fit's own `set_num_threads` lasts the fit only.
+    is comparable across iterations. `write` is `materialise`. The thread
+    count comes from the config, and the fit's own `set_num_threads` lasts
+    the fit only.
     """
 
     def __init__(self, config: DeepConfig) -> None:
