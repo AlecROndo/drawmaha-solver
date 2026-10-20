@@ -8,14 +8,19 @@ walk itself does not change: `materialise` writes each net's outputs into
 the table's regret slots, so rung 3's `traverse` plays the net's strategy
 through the same `RegretMatcher.strategy()` it always read.
 
-Three modules, one concern each:
+Five modules, one concern each:
 
 - `net`: the MLP, chunked prediction into NumPy, and the save file.
 - `materialise`: two seats' nets into `cumulative_regret`, Deep CFR's
   eq. (3) obtained by what is written rather than by changing the ledger.
 - `fit`: the from-scratch refit on (row, t, target) arrays.
+- `reservoir`: the memories those arrays come from — Algorithm R over
+  (row, t, target) rows, a counter-based stream per phase, an exact resume.
+- `collect`: K lockstep walks for one seat on W spawned processes, returned
+  as the rows a phase offers the memories.
 
-Everything here needs torch, which the default install leaves out: install
-the `deep` extra (`uv sync --extra deep`). Nothing outside this package
-imports it, so the default test suite runs without torch.
+`net`, `materialise` and `fit` need torch, which the default install leaves
+out: install the `deep` extra (`uv sync --extra deep`). `reservoir` and
+`collect` are NumPy only. Nothing outside this package imports torch, so
+the default test suite runs without it.
 """
