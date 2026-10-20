@@ -60,10 +60,12 @@ anywhere in a save leaves the previous `state.json` naming the previous,
 complete files. The files carry their iteration in their names for that
 reason — overwriting fixed names would let a crash between two memories put
 two iterations under one `state.json`. The configuration travels in the
-state, and a resume whose seed, K, C or net size differs is refused by the
-field's name, as rung 3 refuses a W change: each of them changes the sample.
-W itself may change, because the collector's rows are a function of (seed,
-t, seat, k) and never of W.
+state, and a resume whose seed, K, C, net size or any refit field differs
+is refused by the field's name, as rung 3 refuses a W change: each changes
+the sample or the fit — the thread count too, since a matmul's summation
+order can follow it, so a run begun at 8 threads resumes at 8. W itself may
+change, because the collector's rows are a function of (seed, t, seat, k)
+and never of W.
 
 **Determinism.** Everything is a function of (seed, t, seat, k): the walks
 draw from `lockstep.stream`, the memories from `reservoir_stream`, the refit
@@ -293,7 +295,8 @@ def step(
 
     `collector` is a `Collector` (or anything with its `table` and
     `collect`); the iteration is `run.t + 1`, and `run.t` advances once both
-    phases are done.
+    phases are done. A raise mid-way leaves `run` half-advanced (seat 0's
+    net and memories updated, `t` not), which `run_deep` never saves.
     """
     t = run.t + 1
     config = run.config
@@ -745,10 +748,12 @@ class NetLearner:
     """The learner the run uses: PR 2's refit and materialise, torch imported when first used.
 
     `fit` is `fit_from_scratch` on the memory, then the loss of the fresh
-    net on one held batch — `config.batch` rows drawn with replacement by
-    a generator seeded from the fit's seed plus a tag, so the draw is the
-    same rule every iteration and never the fit's own first minibatch.
-    `write` is `materialise`. The thread count comes from the config, and
+    net on one held batch — `config.batch` rows drawn with replacement from
+    the memory it was fitted to, by a generator seeded from the fit's seed
+    plus a tag, so the draw is the same rule every iteration and never the
+    fit's own first minibatch. It is a training loss on rows the net may
+    have seen, not a held-out one; it says how well the refit fits, and it
+    is comparable across iterations. `write` is `materialise`. The thread count comes from the config, and
     the fit's own `set_num_threads` lasts the fit only.
     """
 
@@ -840,8 +845,10 @@ class OracleLearner:
     computes it — per t′ in increasing order, the samples of that t′ summed
     per column in memory order with `np.add.at`, then `R[cols] += t′ ·
     totals` — so the bits match `bank_rows` through any number of
-    iterations, not only the first. A row no sample names stays exactly
-    0.0. NumPy only, so gate 1 runs without torch.
+    iterations, not only the first. The two models are summed one after
+    the other, which is only LCFR's order because a row belongs to one
+    acting seat and so appears in one model. A row no sample names stays
+    exactly 0.0. NumPy only, so gate 1 runs without torch.
     """
 
     def __init__(self) -> None:

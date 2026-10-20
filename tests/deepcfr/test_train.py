@@ -15,6 +15,7 @@ deadline with its state saved, and refuses a changed sample by name.
 from __future__ import annotations
 
 import json
+import os
 import signal
 from dataclasses import replace
 from pathlib import Path
@@ -621,13 +622,24 @@ def test_a_changed_config_is_refused_before_the_memories_are_read(tmp_path):
     with pytest.raises(ValueError, match="walks"):
         drive(tmp_path, 3, replace(DRIVEN, walks=6))
 
-def test_the_workers_ignore_the_signals_the_parent_catches():
+def dispositions() -> tuple[int, object, object]:
+    """This process's id and what it does on SIGINT and SIGTERM; slow, so a job per worker."""
+    import time as clock
+
+    clock.sleep(0.3)
+    return os.getpid(), signal.getsignal(signal.SIGINT), signal.getsignal(signal.SIGTERM)
+
+def test_every_worker_ignores_the_signals_the_parent_catches():
     # A terminal's Ctrl-C reaches the whole process group. The parent turns
     # it into a stop request; a worker that died on it would break the pool
-    # and the run would end without its save.
+    # and the run would end without its save. The pool starts a worker only
+    # when none is idle, so the claim is that the warm-up phase started ALL
+    # of them under the ignore: every distinct worker must report SIG_IGN.
     before = signal.getsignal(signal.SIGINT)
-    with Collector(seed=1, workers=1) as collector:
-        train._spawn_ignoring_signals(collector, workers=1)
+    with Collector(seed=1, workers=3) as collector:
+        train._spawn_ignoring_signals(collector, workers=3)
         assert signal.getsignal(signal.SIGINT) is before
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            assert collector._pool.submit(signal.getsignal, sig).result() is signal.SIG_IGN
+        jobs = [collector._pool.submit(dispositions) for _ in range(9)]
+        seen = {pid: (on_int, on_term) for pid, on_int, on_term in (job.result() for job in jobs)}
+    assert len(seen) == 3
+    assert all(handlers == (signal.SIG_IGN, signal.SIG_IGN) for handlers in seen.values())
