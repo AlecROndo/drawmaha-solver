@@ -109,6 +109,12 @@ class Spy:
     def of(self, kind: str) -> list[tuple]:
         return [event[1:] for event in self.events if event[0] == kind]
 
+@pytest.fixture(autouse=True)
+def importable_tests(monkeypatch):
+    # Spawned workers unpickle a test-defined job by module name, which
+    # resolves only with the repo root on the path they inherit.
+    monkeypatch.syspath_prepend(str(Path(__file__).parents[2]))
+
 @pytest.fixture(scope="module")
 def collector():
     with Collector(seed=3, workers=0) as run:
