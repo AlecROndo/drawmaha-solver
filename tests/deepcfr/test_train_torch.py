@@ -94,6 +94,14 @@ def test_fit_reports_a_finite_loss_and_a_run_logs_it(tmp_path):
     assert isinstance(fitted.loss, float) and math.isfinite(fitted.loss)
     again = learner.fit(rows.advantage_rows, np.ones(len(rows.advantage_rows), np.int32), rows.advantage_targets, seed=(9, 1, 0))
     assert again.loss == fitted.loss  # the held batch is a function of the fit's seed
+    # ... but not the fit's own first minibatch, which the net has just trained on.
+    from drawmaha_solver.deepcfr.fit import _fold_seed, batch_loss
+
+    first = torch.randint(len(rows.advantage_rows), (TINY.batch,), generator=torch.Generator().manual_seed(_fold_seed((9, 1, 0)))).numpy()
+    ones = np.ones(len(rows.advantage_rows), np.int32)
+    with torch.inference_mode():
+        trained_on = float(batch_loss(fitted.model, rows.advantage_rows[first], ones[first], rows.advantage_targets[first]).item())
+    assert fitted.loss != trained_on
     lines = []
     run_deep(tmp_path, TINY, target=1, learner=learner, log=lines.append)
     import json

@@ -67,10 +67,33 @@ t, seat, k) and never of W.
 
 **Determinism.** Everything is a function of (seed, t, seat, k): the walks
 draw from `lockstep.stream`, the memories from `reservoir_stream`, the refit
-from `(seed, t, p)`. No RNG state is ever checkpointed. The collector's pool
-is spawned when the run opens, before torch is imported, and the refit's
-threads run while the workers idle, so nothing forks after torch is loaded
-and the two never compete for cores.
+from `(seed, t, p)`. No RNG state is ever checkpointed. The collector's
+workers are spawned, not forked, so a torch import before or after them
+changes nothing; the refit's threads run while the workers idle, so the two
+never compete for cores.
+
+**Stopping.** SIGTERM and SIGINT are turned into a stop request the loop
+reads after each iteration and before the next, so a signal never cuts an
+iteration or a save in half and never costs an extra iteration either. A
+terminal's Ctrl-C reaches the whole process group, workers included: a
+worker that died on it would break the pool and end the run without its
+save. So the workers are spawned while the parent ignores both signals —
+a spawned child inherits an ignored disposition, and Python installs its
+own SIGINT handler only over the default — and only then are the parent's
+handlers put in. Rung 3's `parallel.py` has its workers ignore the signals
+themselves; PR 3's collector does not, and this module does not edit it.
+
+**The log.** `progress.jsonl` gets one line per iteration, and one more
+when a stop is noticed before an iteration starts. A run that crashed and
+resumed re-appends the iterations since its last resume save, so a reader
+takes the LAST line per t.
+
+Measured on this Mac (2026-10-20, W = 8, the default 3 × 64 net and
+4,000 × 10,000 refit, iteration 2 of a run): at K = 1,000, 25.9 s per
+iteration — materialise 0.46 + 0.47, collect 0.33 + 0.26, merge 0.001 ×2,
+fit 12.4 + 12.0; at K = 10,000, 35.0 s — materialise 0.46 + 0.46, collect
+3.95 + 2.97, merge 0.007 + 0.006, fit 13.7 + 13.4. The refits are the cost
+at either K; the spec budgeted ~26 s per iteration on 33 Modal cores.
 """
 
 from __future__ import annotations
@@ -369,25 +392,38 @@ def load_run(directory: Path, *, learner: Learner) -> DeepRun:
     not have.
     """
     directory = Path(directory)
-    state_path = directory / STATE
-    if not state_path.exists():
-        raise ValueError(f"{directory} holds no {STATE}; there is no run to resume")
-    state = json.loads(state_path.read_text())
+    state = _read_state(directory)
     files = state["files"]
     named = [*files["advantage"], files["policy"], *(n for n in files["nets"] if n is not None)]
     for name in named:
         if not (directory / name).exists():
-            raise ValueError(f"{state_path} names {name}, which is not in {directory}")
-    saved = dict(state["config"])
-    saved["grid"] = tuple(saved["grid"])
-    config = DeepConfig(**saved)
+            raise ValueError(f"{directory / STATE} names {name}, which is not in {directory}")
     return DeepRun(
-        config=config,
+        config=_config_of(state),
         t=int(state["t"]),
         nets=[None if name is None else learner.load(directory / name) for name in files["nets"]],
         advantage=tuple(Reservoir.load(directory / name) for name in files["advantage"]),
         policy=Reservoir.load(directory / files["policy"]),
     )
+
+def saved_config(directory: Path) -> DeepConfig:
+    """The config a save was made under, read from its `state.json` alone.
+
+    What a resume checks BEFORE loading: a refusal costs one small file,
+    not the gigabytes of memories behind it.
+    """
+    return _config_of(_read_state(Path(directory)))
+
+def _read_state(directory: Path) -> dict:
+    state_path = directory / STATE
+    if not state_path.exists():
+        raise ValueError(f"{directory} holds no {STATE}; there is no run to resume")
+    return json.loads(state_path.read_text())
+
+def _config_of(state: dict) -> DeepConfig:
+    saved = dict(state["config"])
+    saved["grid"] = tuple(saved["grid"])
+    return DeepConfig(**saved)
 
 def _memory_name(kind: str, t: int, *, seat: int | None = None) -> str:
     who = "" if seat is None else f"-p{seat}"
@@ -472,20 +508,20 @@ def run_deep(
 
     Returns the run as it stands; `run.t == target` means done. `learner`
     defaults to `NetLearner(config)`, the real one. The deadline counts from
-    once the run is open, worker startup included, and is checked after
-    each iteration, so a run always completes at least one. Raises whatever
-    the collector or the learner raises, without saving: the last commit
-    stands.
+    once the run is open, worker startup included, and is read before each
+    iteration and after it, as a signal is. Raises whatever the collector or
+    the learner raises, without saving: the last commit stands.
 
     Steps:
     1. Open the run: resume `out/resume`, or start one at iteration 0.
     2. Return at once if it is already at `target`.
-    3. With SIGTERM and SIGINT turned into a stop request and one collector
-       open for the whole run, step until `target`, the deadline or a
-       signal; after every iteration keep both nets, save on the grid and on
-       the clock, append a progress line, commit once.
-    4. The last iteration's save includes the resume state and its line
-       says why the run stopped.
+    3. Open one collector for the whole run, its workers started under
+       ignored signals; then, with SIGTERM and SIGINT turned into a stop
+       request, step until `target`, the deadline or a signal; after every
+       iteration keep both nets, save on the grid and on the clock, append
+       a progress line, commit once.
+    4. The last save includes the resume state, and the last line says why
+       the run stopped.
     """
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -501,7 +537,10 @@ def run_deep(
         return run
 
     deadline = None if deadline_s is None else time.monotonic() + deadline_s
-    with _stop_on_signals() as stop, Collector(seed=config.seed, workers=config.workers) as collector:
+    with Collector(seed=config.seed, workers=config.workers) as collector:
+        # The workers come up under ignored signals, before the parent's
+        # handlers go in (see the module docstring on stopping).
+        _spawn_ignoring_signals(collector, workers=config.workers)
         log(f"deep: from {run.t:,} to {target:,}, K = {config.walks:,} on {config.workers} workers")
         # The pace and the save clock start once the workers are up, as the
         # resume state on disk is as fresh as the open.
@@ -514,31 +553,50 @@ def run_deep(
             opened=time.monotonic(),
             opened_t=run.t,
             resumed=time.monotonic(),
+            resume_t=run.t if (out / RESUME / STATE).exists() else -1,
         )
-
-        # Steps 3 and 4: train, saving as it goes, and say why it stopped
-        _train(
-            run,
-            collector,
-            learner,
-            observers,
-            target=target,
-            marks=sorted(m for m in config.grid if run.t < m <= target),
-            deadline=deadline,
-            stop=stop,
-            saves=saves,
-        )
+        with _stop_on_signals() as stop:
+            _train(
+                run,
+                collector,
+                learner,
+                observers,
+                target=target,
+                marks=sorted(m for m in config.grid if run.t < m <= target),
+                deadline=deadline,
+                stop=stop,
+                saves=saves,
+            )
     return run
+
+def _spawn_ignoring_signals(collector: Collector, *, workers: int) -> None:
+    """Start every worker of `collector` while SIGINT and SIGTERM are ignored here.
+
+    A spawned child inherits an ignored disposition and Python installs its
+    SIGINT handler only over the default, so the workers ignore both
+    signals for the run, as rung 3's do. The pool starts a worker per
+    submitted chunk until it has W, so one phase of 4W one-walk chunks —
+    submitted in a tight loop, long before the first worker is up — starts
+    all of them. Its rows are thrown away. Nothing to do at W = 0.
+    """
+    if workers == 0:
+        return
+    previous = {sig: signal.signal(sig, signal.SIG_IGN) for sig in (signal.SIGTERM, signal.SIGINT)}
+    try:
+        collector.collect(seat=0, t=1, walks=4 * workers)
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
 
 def _open(out: Path, config: DeepConfig, *, learner: Learner) -> DeepRun:
     """The run in `out`: resumed from `out/resume` if it has a state, else new at iteration 0."""
     resume = out / RESUME
     if not (resume / STATE).exists():
         return new_run(config)
-    run = load_run(resume, learner=learner)
     # The saved config is the run's; the asked one may differ only in what
-    # the walks and nets never see.
-    require_same_run(run.config, config)
+    # the walks and nets never see. Checked before the memories are read.
+    require_same_run(saved_config(resume), config)
+    run = load_run(resume, learner=learner)
     run.config = config
     return run
 
@@ -558,23 +616,33 @@ def _train(
 
     Every iteration keeps its two nets. A grid mark keeps a full save under
     `marks/` and rewrites the resume state; so does the clock
-    (`save_every_s` since the last resume save) and the stop itself.
+    (`save_every_s` since the last resume save) and the stop itself. The
+    stop is read after each iteration and again before the next.
     """
-    why = ""
-    while not why:
+    while True:
+        # A signal or the deadline that landed during the last save stops
+        # the run here, before another iteration is paid for.
+        why = _why_stop(stop, deadline)
+        if why:
+            saves.stopped(run, why=why)
+            return why
         stats = step(run, collector, learner, observers)
-        if run.t >= target:
-            why = "done"
-        elif stop.why:
-            why = stop.why
-        elif deadline is not None and time.monotonic() > deadline:
-            why = "deadline"
+        why = "done" if run.t >= target else _why_stop(stop, deadline)
         kept = bool(marks) and run.t == marks[0]
         if kept:
             marks.pop(0)
         resume = kept or bool(why) or saves.due(run.config.save_every_s)
         saves.after_iteration(run, stats, kept=kept, resume=resume, why=why)
-    return why
+        if why:
+            return why
+
+def _why_stop(stop: _StopRequest, deadline: float | None) -> str:
+    """The signal's name, "deadline", or "" to carry on."""
+    if stop.why:
+        return stop.why
+    if deadline is not None and time.monotonic() > deadline:
+        return "deadline"
+    return ""
 
 @dataclass(slots=True)
 class _Saves:
@@ -588,6 +656,7 @@ class _Saves:
     opened: float  # monotonic seconds when the run opened, the pace's baseline
     opened_t: int  # the iteration it opened at
     resumed: float  # monotonic seconds of the last resume save
+    resume_t: int  # the iteration the resume state on disk holds; -1 for none
 
     def due(self, every_s: float) -> bool:
         """Whether the clock asks for a resume save."""
@@ -607,9 +676,7 @@ class _Saves:
             save_run(run, self.out / MARKS / mark_name(run.t), learner=self.learner)
             wrote.append(f"{MARKS}/{mark_name(run.t)}")
         if resume:
-            save_run(run, self.out / RESUME, learner=self.learner)
-            wrote.append(RESUME)
-            self.resumed = time.monotonic()
+            self._save_resume(run, wrote)
         rate = (run.t - self.opened_t) / max(time.monotonic() - self.opened, 1e-9)
         line = {
             "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -637,6 +704,31 @@ class _Saves:
         }
         if why:
             line["stopped"] = why
+        self._record(line)
+
+    def stopped(self, run: DeepRun, *, why: str) -> None:
+        """A stop noticed before an iteration: the resume state if it is behind, and one line."""
+        wrote: list[str] = []
+        if self.resume_t != run.t:
+            self._save_resume(run, wrote)
+        self._record(
+            {
+                "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "t": run.t,
+                "target": self.target,
+                "wrote": wrote,
+                "stopped": why,
+            }
+        )
+
+    def _save_resume(self, run: DeepRun, wrote: list[str]) -> None:
+        save_run(run, self.out / RESUME, learner=self.learner)
+        wrote.append(RESUME)
+        self.resumed = time.monotonic()
+        self.resume_t = run.t
+
+    def _record(self, line: dict) -> None:
+        """Append the line to `progress.jsonl`, commit once, and say it."""
         with (self.out / PROGRESS).open("a") as file:
             file.write(json.dumps(line) + "\n")
         self.commit()
@@ -646,14 +738,18 @@ class _Saves:
 # The real learner
 # ---------------------------------------------------------------------------
 
+# The word added to a fit's seed to draw its held batch: "HELD" in ASCII.
+_HELD_TAG = 0x48454C44
+
 class NetLearner:
     """The learner the run uses: PR 2's refit and materialise, torch imported when first used.
 
     `fit` is `fit_from_scratch` on the memory, then the loss of the fresh
     net on one held batch — `config.batch` rows drawn with replacement by
-    a generator seeded as the fit was, so the number means the same thing
-    every iteration. `write` is `materialise`. The thread count comes from
-    the config, and the fit's own `set_num_threads` lasts the fit only.
+    a generator seeded from the fit's seed plus a tag, so the draw is the
+    same rule every iteration and never the fit's own first minibatch.
+    `write` is `materialise`. The thread count comes from the config, and
+    the fit's own `set_num_threads` lasts the fit only.
     """
 
     def __init__(self, config: DeepConfig) -> None:
@@ -669,7 +765,7 @@ class NetLearner:
 
         config = self._fit()
         net = fit_from_scratch(rows, t, targets, seed=seed, config=config)
-        draw = torch.Generator().manual_seed(_fold_seed(seed))
+        draw = torch.Generator().manual_seed(_fold_seed((*seed, _HELD_TAG)))
         held = torch.randint(len(rows), (config.batch,), generator=draw).numpy()
         with torch.inference_mode():
             loss = float(batch_loss(net, rows[held], t[held], targets[held]).item())

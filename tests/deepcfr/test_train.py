@@ -518,16 +518,26 @@ def test_sigterm_finishes_the_iteration_saves_and_resumes_exactly(tmp_path):
             signal.raise_signal(signal.SIGTERM)
 
     run = run_deep(tmp_path, DRIVEN, target=10, learner=OracleLearner(), log=log)
-    assert 0 < run.t < 10
-    assert loaded(tmp_path, RESUME).t == run.t
-    assert lines(tmp_path)[-1]["stopped"] == "SIGTERM"
+    # The signal landed during iteration 1's save; the run must not pay for
+    # iteration 2 before noticing it.
+    assert run.t == 1
+    assert loaded(tmp_path, RESUME).t == 1
+    log_lines = lines(tmp_path)
+    assert log_lines[-1]["stopped"] == "SIGTERM" and log_lines[-1]["t"] == 1
+    assert RESUME in log_lines[-1]["wrote"]
     assert same_run(drive(tmp_path, 10), straight(DRIVEN, 10))
 
 def test_a_deadline_stops_the_run_with_its_state_saved(tmp_path):
+    # Read before each iteration as well as after: a deadline already past
+    # starts nothing, and the resume state still says where the run stands.
     run = drive(tmp_path, 10, deadline_s=0.0)
-    assert 0 < run.t < 10
-    assert loaded(tmp_path, RESUME).t == run.t
-    assert lines(tmp_path)[-1]["stopped"] == "deadline"
+    assert run.t == 0
+    assert loaded(tmp_path, RESUME).t == 0
+    assert lines(tmp_path)[-1] | {"stopped": "deadline", "t": 0} == lines(tmp_path)[-1]
+    drive(tmp_path, 3)
+    run = drive(tmp_path, 10, deadline_s=0.0)
+    assert run.t == 3 and loaded(tmp_path, RESUME).t == 3
+    assert lines(tmp_path)[-1]["stopped"] == "deadline" and lines(tmp_path)[-1]["wrote"] == []
 
 def test_a_resume_refuses_a_changed_config_by_name(tmp_path):
     drive(tmp_path, 2)
@@ -601,3 +611,23 @@ def test_cli_parses_the_flags_into_a_config():
     assert args.out == Path("runs/x") and args.target == 3
     assert cli.config_from_args(cli.parse(["--out", "y"])) == DeepConfig()
     assert cli.parse(["--out", "y"]).target == 2_000
+
+def test_a_changed_config_is_refused_before_the_memories_are_read(tmp_path):
+    drive(tmp_path, 2)
+    # A refusal must cost a read of state.json, not of the 3.6 GB behind it:
+    # with the memory files gone, the config is still what is refused.
+    for memory in (tmp_path / RESUME).glob("*.npz"):
+        memory.unlink()
+    with pytest.raises(ValueError, match="walks"):
+        drive(tmp_path, 3, replace(DRIVEN, walks=6))
+
+def test_the_workers_ignore_the_signals_the_parent_catches():
+    # A terminal's Ctrl-C reaches the whole process group. The parent turns
+    # it into a stop request; a worker that died on it would break the pool
+    # and the run would end without its save.
+    before = signal.getsignal(signal.SIGINT)
+    with Collector(seed=1, workers=1) as collector:
+        train._spawn_ignoring_signals(collector, workers=1)
+        assert signal.getsignal(signal.SIGINT) is before
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            assert collector._pool.submit(signal.getsignal, sig).result() is signal.SIG_IGN
