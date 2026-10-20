@@ -29,11 +29,15 @@ from drawmaha_solver.deepcfr.train import (
     DeepConfig,
     DeepRun,
     Fitted,
+    STATE,
     OracleLearner,
+    load_run,
     new_run,
     require_same_run,
+    save_run,
     step,
 )
+import drawmaha_solver.deepcfr.train as train
 from drawmaha_solver.minidrawmaha.game import random_deal
 from drawmaha_solver.minidrawmaha.lockstep import (
     SEATS,
@@ -339,3 +343,105 @@ def test_oracle_models_round_trip(tmp_path, collector):
         assert a.dtype == b.dtype
         np.testing.assert_array_equal(a, b)
     assert run.nets[0].rows.shape[0] == run.advantage[0].size
+
+# ---------------------------------------------------------------------------
+# The resume state
+# ---------------------------------------------------------------------------
+
+def same_run(first: DeepRun, second: DeepRun) -> bool:
+    """t, config, the three memories and the oracle models, all bytewise."""
+    if first.t != second.t or first.config != second.config:
+        return False
+    if not all(same_memory(a, b) for a, b in zip((*first.advantage, first.policy), (*second.advantage, second.policy), strict=True)):
+        return False
+    for a, b in zip(first.nets, second.nets, strict=True):
+        if (a is None) != (b is None):
+            return False
+        if a is not None and not all(
+            getattr(a, name).dtype == getattr(b, name).dtype
+            and np.array_equal(getattr(a, name), getattr(b, name))
+            for name in ("rows", "t", "targets")
+        ):
+            return False
+    return True
+
+def written_by(run: DeepRun) -> np.ndarray:
+    """The regret slots the oracle writes for the run's nets, on a fresh whole-game table."""
+    table = PackedTable.whole_game()
+    OracleLearner().write(table, run.nets)
+    return table.cumulative_regret
+
+def straight(config: DeepConfig, iterations: int) -> DeepRun:
+    run = new_run(config)
+    learner = OracleLearner()
+    with Collector(seed=config.seed, workers=config.workers) as collector:
+        for _ in range(iterations):
+            step(run, collector, learner)
+    return run
+
+def test_save_and_load_round_trip(tmp_path, collector):
+    run = new_run(SMALL)
+    learner = OracleLearner()
+    step(run, collector, learner)
+    step(run, collector, learner)
+    save_run(run, tmp_path, learner=learner)
+    back = load_run(tmp_path, learner=learner)
+    assert same_run(run, back)
+    assert not list(tmp_path.glob("*.tmp"))
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "advantage-p0-t00002.npz",
+        "advantage-p1-t00002.npz",
+        "p0-t00002.pt",
+        "p1-t00002.pt",
+        "policy-t00002.npz",
+        STATE,
+    ]
+    assert json.loads((tmp_path / STATE).read_text())["t"] == 2
+
+def test_resume_equals_uninterrupted(tmp_path):
+    config = DeepConfig(seed=5, walks=8, workers=0, capacity=200)
+    learner = OracleLearner()
+    resumed = new_run(config)
+    with Collector(seed=5, workers=0) as collector:
+        step(resumed, collector, learner)
+        step(resumed, collector, learner)
+    save_run(resumed, tmp_path, learner=learner)
+    resumed = load_run(tmp_path, learner=learner)
+    with Collector(seed=5, workers=0) as collector:
+        step(resumed, collector, learner)
+    uninterrupted = straight(config, 3)
+    assert same_run(resumed, uninterrupted)
+    np.testing.assert_array_equal(written_by(resumed), written_by(uninterrupted))
+    for memory in resumed.advantage:
+        assert memory.offered > memory.capacity  # the resumed draws evicted, as the straight ones did
+
+def test_a_save_interrupted_before_state_json_keeps_the_previous_state(tmp_path, collector, monkeypatch):
+    run = new_run(SMALL)
+    learner = OracleLearner()
+    step(run, collector, learner)
+    save_run(run, tmp_path, learner=learner)
+    first = load_run(tmp_path, learner=learner)
+    step(run, collector, learner)
+
+    def crash(directory, state):
+        raise OSError("disk gone")
+
+    monkeypatch.setattr(train, "_write_state", crash)
+    with pytest.raises(OSError, match="disk gone"):
+        save_run(run, tmp_path, learner=learner)
+    assert same_run(load_run(tmp_path, learner=learner), first)
+    monkeypatch.undo()
+    save_run(run, tmp_path, learner=learner)
+    assert load_run(tmp_path, learner=learner).t == 2
+    assert not any("t00001" in p.name for p in tmp_path.iterdir())
+
+def test_load_refuses_a_missing_state_or_a_missing_file(tmp_path, collector):
+    with pytest.raises(ValueError, match="state.json"):
+        load_run(tmp_path, learner=OracleLearner())
+    run = new_run(SMALL)
+    learner = OracleLearner()
+    step(run, collector, learner)
+    save_run(run, tmp_path, learner=learner)
+    (tmp_path / "policy-t00001.npz").unlink()
+    with pytest.raises(ValueError, match="policy-t00001.npz"):
+        load_run(tmp_path, learner=learner)

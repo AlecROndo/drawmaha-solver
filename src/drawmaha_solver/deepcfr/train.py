@@ -75,10 +75,12 @@ and the two never compete for cores.
 
 from __future__ import annotations
 
+import json
+import os
 import time
 from collections.abc import Callable, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Protocol
 
@@ -317,6 +319,91 @@ def _timed(into: list[float]):
         yield
     finally:
         into.append(time.perf_counter() - started)
+
+# ---------------------------------------------------------------------------
+# The resume state
+# ---------------------------------------------------------------------------
+
+# The commit point of a save: written last, and the only file a load trusts.
+STATE = "state.json"
+
+def save_run(run: DeepRun, directory: Path, *, learner: Learner) -> None:
+    """Write the run's three memories, its nets and `state.json` into `directory`; the state last.
+
+    Every file carries the iteration in its name, so the files of the
+    previous save stand untouched until the new `state.json` is in place;
+    then whatever the state does not name is removed. A crash anywhere
+    before the state's rename leaves the previous state loadable.
+    """
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    t = run.t
+    advantage = [_memory_name("advantage", t, seat=seat) for seat in SEATS]
+    policy = _memory_name("policy", t)
+    nets = [None if net is None else _net_name(seat, t) for seat, net in enumerate(run.nets)]
+    for seat in SEATS:
+        run.advantage[seat].save(directory / advantage[seat])
+    run.policy.save(directory / policy)
+    for seat, name in enumerate(nets):
+        if name is not None:
+            _atomically(learner.save, run.nets[seat], directory / name)
+    state = {
+        "t": t,
+        "config": asdict(run.config),
+        "files": {"advantage": advantage, "policy": policy, "nets": nets},
+    }
+    _write_state(directory, state)
+    keep = {STATE, *advantage, policy, *(name for name in nets if name is not None)}
+    for stale in directory.iterdir():
+        if stale.is_file() and stale.name not in keep:
+            stale.unlink()
+
+def load_run(directory: Path, *, learner: Learner) -> DeepRun:
+    """The run as `save_run` left it in `directory`, ready for the next `step`.
+
+    Refuses, by name, a directory with no `state.json` and a state naming a
+    file that is not there, rather than continuing from a memory it does
+    not have.
+    """
+    directory = Path(directory)
+    state_path = directory / STATE
+    if not state_path.exists():
+        raise ValueError(f"{directory} holds no {STATE}; there is no run to resume")
+    state = json.loads(state_path.read_text())
+    files = state["files"]
+    named = [*files["advantage"], files["policy"], *(n for n in files["nets"] if n is not None)]
+    for name in named:
+        if not (directory / name).exists():
+            raise ValueError(f"{state_path} names {name}, which is not in {directory}")
+    saved = dict(state["config"])
+    saved["grid"] = tuple(saved["grid"])
+    config = DeepConfig(**saved)
+    return DeepRun(
+        config=config,
+        t=int(state["t"]),
+        nets=[None if name is None else learner.load(directory / name) for name in files["nets"]],
+        advantage=tuple(Reservoir.load(directory / name) for name in files["advantage"]),
+        policy=Reservoir.load(directory / files["policy"]),
+    )
+
+def _memory_name(kind: str, t: int, *, seat: int | None = None) -> str:
+    who = "" if seat is None else f"-p{seat}"
+    return f"{kind}{who}-t{t:05d}.npz"
+
+def _net_name(seat: int, t: int) -> str:
+    return f"p{seat}-t{t:05d}.pt"
+
+def _write_state(directory: Path, state: dict) -> None:
+    """`state.json`, written as a temp file, fsynced and renamed into place."""
+    _atomically(lambda text, path: path.write_text(text), json.dumps(state, indent=1), directory / STATE)
+
+def _atomically(write: Callable[[object, Path], None], value: object, path: Path) -> None:
+    """Run `write(value, temp)` then rename the temp onto `path`, so a crash leaves `path` whole."""
+    temporary = path.with_name(path.name + ".tmp")
+    write(value, temporary)
+    with temporary.open("rb") as file:
+        os.fsync(file.fileno())
+    os.replace(temporary, path)
 
 # ---------------------------------------------------------------------------
 # The oracle: gate 1's perfect net
