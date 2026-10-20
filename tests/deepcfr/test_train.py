@@ -583,3 +583,21 @@ def test_current_iterate_is_regret_matching_row_by_row():
     for key in keys:
         np.testing.assert_array_equal(frozen[key], table[key].strategy().astype(np.float32))
     assert len(frozen) == len(table)
+
+# ---------------------------------------------------------------------------
+# The command line
+# ---------------------------------------------------------------------------
+
+def test_cli_parses_the_flags_into_a_config():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "run_deep_cfr", Path(__file__).parents[2] / "scripts" / "run_deep_cfr.py"
+    )
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    args = cli.parse(["--out", "runs/x", "--walks", "7", "--width", "32", "--target", "3"])
+    assert cli.config_from_args(args) == DeepConfig(walks=7, width=32)
+    assert args.out == Path("runs/x") and args.target == 3
+    assert cli.config_from_args(cli.parse(["--out", "y"])) == DeepConfig()
+    assert cli.parse(["--out", "y"]).target == 2_000

@@ -259,6 +259,11 @@ already exists.
    returning each key's t'-weighted regret sum) the loop after one iteration must
    equal `train_lockstep(rule="lcfr", workers=K)` after one iteration bit for bit
    on the whole table. This pins recorder -> memory -> materialise -> walk.
+   (PR 4, 2026-10-20: the memory stores a sample as float32, and about half of a
+   walk's regrets are not float32-exact, so the pin is two: bit for bit over
+   THREE iterations against LCFR built from rung 3's own `walk`/`flatten`/
+   `apply_arrays` with each sample rounded through float32 first, and to float32
+   precision against the untouched `train_lockstep`.)
 2. **Reservoir uniformity**: every row offered is resident with probability C/n
    (chi-square over trials), and a resumed reservoir merges identically.
 3. **Materialise unit tests**: positive outputs pass through, all-negative writes
@@ -286,8 +291,8 @@ behind `MINIDRAWMAHA_FULL_DEEP=1`.
 | 1 | `minidrawmaha/features.py`, `pyproject.toml` (`deep` optional group: torch) | the 136-feature encoder, built per shape and per point; row -> (point, position); the per-point legal gather |
 | 2 | `deepcfr/net.py`, `deepcfr/materialise.py`, `deepcfr/fit.py` | the MLP, `regret_slots_from_outputs` (eq. 3 by the write), `materialise(table, nets)`; the from-scratch refit (moved here from PR 4 on 2026-10-16 at Alec's request: "the pytorch code and the code that actually makes/trains the model" together) |
 | 3 | `deepcfr/reservoir.py`, `deepcfr/collect.py` | Algorithm R rows and their checkpoint; K walks on W processes returning rows |
-| 4 | `deepcfr/train.py`, `scripts/run_deep_cfr.py` | the loop with checkpoints, resume, grid marks, exactness pin, the short real run |
-| 5 | `deepcfr/average.py`, `deepcfr/policy.py` | predecessor table and own-reach pass; running exact average; Pi fit and freeze; current iterate freeze |
+| 4 | `deepcfr/train.py`, `scripts/run_deep_cfr.py` | the loop with checkpoints, resume, grid marks, exactness pin, the short real run; the current iterate freeze (moved here from PR 5 on 2026-10-20 so gate 5 has something to grade) |
+| 5 | `deepcfr/average.py`, `deepcfr/policy.py` | predecessor table and own-reach pass; running exact average; Pi fit and freeze |
 | 6 | `scripts/modal_rung4.py`, `minidrawmaha/analysis.py` (rung-4 figure), `figures/rung4/`, `README.md` | the Modal launcher and grader fan-out, the net-size sweep (3 x 64, 4 x 64, 3 x 128 at 100 iterations, graded exactly), the run, the equal-hands figure, the answer sheet, the README section |
 
 Each PR: tests first, driven to merge-ready, a walkthrough PDF under
