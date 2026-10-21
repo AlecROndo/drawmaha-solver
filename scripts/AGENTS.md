@@ -12,8 +12,8 @@ docstring opens with the exact command to run it.
   rule on this machine), `modal_rung3.py` (the four-rule race on Modal),
   `grade_checkpoint.py` (the exact meter on a checkpoint),
   `freeze_strategy.py` (one averaging column into the release file).
-- `deepcfr/` — `run_deep_cfr.py`, Deep CFR on this machine, resumable. Rung
-  4's Modal launcher lands here too.
+- `deepcfr/` — `run_deep_cfr.py`, Deep CFR on this machine, resumable. When
+  rung 4's Modal launcher is written (it is not yet), it goes here too.
 
 ## Rules
 
