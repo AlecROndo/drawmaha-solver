@@ -4,11 +4,11 @@ Replaces the regret half of rung 3's ledgers with a net. The walk is rung 3's
 `lockstep.walk`, unchanged: `materialise` writes each net's outputs into the
 packed table's regret slots, and the walk plays them through the ledger's own
 `strategy()`. The spec, the gates and the PR ladder are in
-`docs/superpowers/specs/2026-10-07-deep-cfr-m1-design.md`. PRs 1 to 4 (the
+`docs/superpowers/specs/2026-10-07-deep-cfr-m1-design.md`. PRs 1 to 5 (the
 encoder, the net with materialise and the refit, the reservoir with the
-collector, the train loop) are merged; PR 5 (the exact running average and the policy net Π, as the `average`
-and `policy` modules) and PR 6 (the Modal launcher,
-the net-size sweep, the figures and the README section) are next.
+collector, the train loop, the exact running average and the policy net Π
+as the `average` and `policy` modules) are merged; PR 6 (the Modal
+launcher, the net-size sweep, the figures and the README section) is next.
 
 ## Rules
 
@@ -33,6 +33,18 @@ the net-size sweep, the figures and the README section) are next.
   named by its iteration. A resume may change the worker count; the seed, the
   walks, the capacity, the net's size, the refit fields and the thread count
   are refused by name, because each changes the sample or the fit.
+- **An observer that carries state has `name`, `save` and `load`**
+  (`StatefulObserver` in `train.py`; `ExactAverage` in `average.py` is the one). Its file
+  joins the resume set and every mark, named in `state.json`. A resume
+  refuses to drop one the state names, and refuses an observer the state
+  has no file for; a plain `load_run` of a mark needs no observer. The
+  exact average is accumulated at the hook and cannot be rebuilt later
+  except by replaying every kept net, so `scripts/deepcfr/run_deep_cfr.py` always passes it.
+- **Own reach is in key space, with multiplicity.** A post-draw key has
+  three predecessor draw keys (the key forgets which card was drawn); two
+  that coincide are listed twice. The brute-force walk in
+  `tests/deepcfr/test_average.py` is the gate; a one-row `previous_own_row`
+  would pass most keys and be wrong at every throw.
 - **Anything handed to the collector reaches a spawned worker by pickle**, so
   it must be importable by module name in a fresh process: a module-level
   function, never a lambda or a closure. The tests prepend the repo root to

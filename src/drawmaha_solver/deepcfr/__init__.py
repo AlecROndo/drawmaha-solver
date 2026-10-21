@@ -8,7 +8,7 @@ walk itself does not change: `materialise` writes each net's outputs into
 the table's regret slots, so rung 3's `traverse` plays the net's strategy
 through the same `RegretMatcher.strategy()` it always read.
 
-Six modules, one concern each:
+Eight modules, one concern each:
 
 - `net`: the MLP, chunked prediction into NumPy, and the save file.
 - `materialise`: two seats' nets into `cumulative_regret`, Deep CFR's
@@ -21,10 +21,16 @@ Six modules, one concern each:
 - `train`: the loop that calls them in order, iteration after iteration —
   its resume state, grid marks, progress log and graceful stop — behind a
   `Learner` seam, so the loop never names torch.
+- `average`: the exact average strategy (Single Deep CFR) — own reach pushed
+  through a predecessor table every phase, `t · reach · σ` summed per column
+  at the loop's observer hook, and frozen for the grader.
+- `policy`: Π, the original Deep CFR's average — a fresh net fit on the
+  policy memory, frozen by running it over every key.
 
-`net`, `materialise` and `fit` need torch, which the default install leaves
-out: install the `deep` extra (`uv sync --extra deep`). `reservoir`,
-`collect` and `train` are NumPy only (`train` imports torch inside its
-`NetLearner`, when a real run asks for it). Nothing outside this package imports torch, so
-the default test suite runs without it.
+`net`, `materialise`, `fit` and `policy` need torch, which the default
+install leaves out: install the `deep` extra (`uv sync --extra deep`).
+`reservoir`, `collect`, `train` and `average` are NumPy only (`train` and
+`policy` import torch inside their functions, when a real run asks for it).
+Nothing outside this package imports torch, so the default test suite runs
+without it.
 """

@@ -207,7 +207,9 @@ against a brute-force own reach walked through `MiniState` for a handful of keys
 ## Three graded objects per grid mark, all as FrozenStrategy files
 
 - **exact average**: numerator / denominator from the running sums (uniform where
-  the denominator is zero), `average_rows` -> `FrozenStrategy`.
+  the denominator is zero), `average_rows` -> `FrozenStrategy`. (PR 5, 2026-10-21:
+  the denominator is the numerator's row sum exactly, since every sigma row sums
+  to one, so only the numerator is stored, as rung 3 stores `strategy_sum`.)
 - **Pi**: a fresh policy net fit on M_Pi as it stands at the mark (t'-weighted MSE on
   the recorded sigma), run over every key, clipped at 0 and renormalised (uniform
   if all zero) -> `FrozenStrategy`. Trained at every mark, not only at the end, so
@@ -269,12 +271,20 @@ already exists.
 3. **Materialise unit tests**: positive outputs pass through, all-negative writes
    the argmax one-hot shared by tied maxima, all-equal writes zeros (decided 2026-10-16: a one-hot at the first tied index would make play depend on `Action` order); `ledger.strategy()` then equals eq. (3).
 4. **Own reach**: the vectorised pass equals a brute-force walk for sampled keys of
-   every row type in the table above.
+   every row type in the table above. (PR 5, 2026-10-21: pinned at two keys per
+   public point of each seat plus one post-draw key with three distinct
+   predecessors and one with two, against a walk through `MiniState` that takes
+   every own action through `apply`. The "exact = tabular" comparison the PR 5
+   prompt suggested is not a test: rung 3's `strategy_sum` is banked at the
+   opponent's SAMPLED visits, so it equals the exact pass only in expectation.)
 5. **Short real run on mini-drawmaha** (torch, behind the slow flag): a few
    iterations of the real loop at a small K on the whole table; the exact
    average's exploitability must fall below uniform play's 4.842 and below the
    current iterate's, and the rebuilt-from-checkpoints average must equal the
-   running sums. This is the end-to-end check; it has no outside referee, which
+   running sums. (PR 5, 2026-10-21: the running sums travel as a stateful
+   observer's file in the resume set and every mark, so "resume == uninterrupted"
+   holds for them bit for bit, pinned with the oracle in the default suite; the
+   replay pin runs both with the oracle models and with the kept nets.) This is the end-to-end check; it has no outside referee, which
    is the price of decision 4 below (the Leduc gate was dropped, so the deep
    package is written against `PackedTable` directly, with no game adapter).
 6. **Modal smoke**: 3 iterations at K = 1,000 on the real container; the timing
@@ -292,7 +302,7 @@ behind `MINIDRAWMAHA_FULL_DEEP=1`.
 | 2 | `deepcfr/net.py`, `deepcfr/materialise.py`, `deepcfr/fit.py` | the MLP, `regret_slots_from_outputs` (eq. 3 by the write), `materialise(table, nets)`; the from-scratch refit (moved here from PR 4 on 2026-10-16 at Alec's request: "the pytorch code and the code that actually makes/trains the model" together) |
 | 3 | `deepcfr/reservoir.py`, `deepcfr/collect.py` | Algorithm R rows and their checkpoint; K walks on W processes returning rows |
 | 4 | `deepcfr/train.py`, `scripts/run_deep_cfr.py` | the loop with checkpoints, resume, grid marks, exactness pin, the short real run; the current iterate freeze (moved here from PR 5 on 2026-10-20 so gate 5 has something to grade) |
-| 5 | `deepcfr/average.py`, `deepcfr/policy.py` | predecessor table and own-reach pass; running exact average; Pi fit and freeze |
+| 5 | `deepcfr/average.py`, `deepcfr/policy.py` | predecessor table and own-reach pass; running exact average; Pi fit and freeze (landed 2026-10-21 with one seam in `train.py`: an observer with `name`/`save`/`load` is saved beside the memories; the three per-mark `FrozenStrategy` files are PR 6's to write, from the mark's sums, policy memory and nets, through `ExactAverage.frozen`, `policy.fit_policy` and `policy.policy_strategy`) |
 | 6 | `scripts/modal_rung4.py`, `minidrawmaha/analysis.py` (rung-4 figure), `figures/rung4/`, `README.md` | the Modal launcher and grader fan-out, the net-size sweep (3 x 64, 4 x 64, 3 x 128 at 100 iterations, graded exactly), the run, the equal-hands figure, the answer sheet, the README section |
 
 Each PR: tests first, driven to merge-ready, a walkthrough PDF under
