@@ -12,13 +12,16 @@ docstring opens with the exact command to run it.
   rule on this machine), `modal_rung3.py` (the four-rule race on Modal),
   `grade_checkpoint.py` (the exact meter on a checkpoint),
   `freeze_strategy.py` (one averaging column into the release file).
-- `deepcfr/` — `run_deep_cfr.py`, Deep CFR on this machine, resumable. When
-  rung 4's Modal launcher is written (it is not yet), it goes here too.
+- `deepcfr/` — `run_deep_cfr.py`, Deep CFR on this machine, resumable;
+  `modal_rung4.py`, the same run on Modal (`train`), one grader per grid
+  mark (`grade`, writes `figures/rung4/grades.json`), the `smoke`, the
+  net-size `sweep` and `status`.
 
 ## Rules
 
-- **Tests find scripts by path.** `tests/minidrawmaha/test_modal_rung3.py`
-  and `tests/deepcfr/test_train.py` load a script with `importlib`, and
+- **Tests find scripts by path.** `tests/minidrawmaha/test_modal_rung3.py`,
+  `tests/deepcfr/test_modal_rung4.py` and `tests/deepcfr/test_train.py` load
+  a script with `importlib`, and
   `tests/test_vercel_config.py` reads the `rungs=(…)` list out of
   `site/vercel_build.sh`. Moving or renaming a script means updating them,
   `vercel.json`, `README.md`, and the `_source` string the two generators
@@ -32,7 +35,11 @@ docstring opens with the exact command to run it.
   the terminal and can spawn its own continuation across Modal's 24-hour cap.
   One container trains one rule, writing to the volume `drawmaha-rung3`
   under `<rule>/`, and a heartbeat in `<rule>/owner.json` keeps a second
-  trainer off a rule that is live. It costs money; only a person launches it.
+  trainer off a rule that is live. Rung 4 is the same shape on the volume
+  `drawmaha-rung4`: one trainer per run (the main run under deep/, the sweep
+  under sweep/<size>/) with the claim helpers lifted rather than imported,
+  and graders fanned out one per mark. It costs money; only a person
+  launches it.
 - **The `rungs=(…)` list in `site/vercel_build.sh` and the rewrites in
   `vercel.json` move together**; a surface added to one without the other is
   the silent break `tests/test_vercel_config.py` exists to catch.

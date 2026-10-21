@@ -144,7 +144,7 @@ app = modal.App(APP)
 volume = modal.Volume.from_name(APP, create_if_missing=True)
 image = (
     modal.Image.debian_slim(python_version="3.12")
-    .pip_install("numpy==2.5.2", "matplotlib==3.10.8")
+    .pip_install("numpy==2.5.2", "matplotlib==3.11.1")
     .pip_install("torch==2.14.1", extra_index_url="https://download.pytorch.org/whl/cpu")
     .add_local_python_source("drawmaha_solver")
 )
@@ -322,25 +322,34 @@ def _continues(iteration: int, target: int, elapsed_s: float) -> bool:
 # ---------------------------------------------------------------------------
 
 @app.local_entrypoint()
-def grade(name: str = RUN, marks: str = "", grades: str = str(DEEP_GRADES)) -> None:
+def grade(name: str = RUN, marks: str = "", grades: str = str(DEEP_GRADES), local: str = "") -> None:
     """Grade the run's kept marks — all of them, or the listed ones — and write them into `grades`.
 
-    One `grade_mark` container per mark, all at once. A mark the run has
-    not kept is refused by name before any container starts. Keys the
-    grader did not write are kept; the file is written sorted, so the
-    marks read in training order.
+    One `grade_mark` container per mark, all at once; with `--local DIR`
+    the marks of a run made on this machine (`scripts/deepcfr/run_deep_cfr.py`)
+    are graded here, one after another, by the same `grade_mark_dir`, and
+    nothing of Modal's is touched. A mark the run has not kept is refused
+    by name before any grade starts. Keys the grader did not write are
+    kept; the file is written sorted, so the marks read in training order.
     """
-    kept = modal.Function.from_name(APP, "read_marks").remote(name)
+    if local:
+        kept = _kept_marks(Path(local))
+    else:
+        kept = modal.Function.from_name(APP, "read_marks").remote(name)
     asked = sorted(int(m) for m in marks.split(",")) if marks else kept
     missing = [t for t in asked if t not in kept]
     if missing:
-        raise ValueError(f"{name} has kept no mark at {missing}; its marks are {kept}")
-    deployed = modal.Function.from_name(APP, "grade_mark")
-    calls = [(t, deployed.spawn(name, t)) for t in asked]
+        raise ValueError(f"{local or name} has kept no mark at {missing}; its marks are {kept}")
+    if local:
+        results = [(t, grade_mark_dir(Path(local), t)) for t in asked]
+    else:
+        deployed = modal.Function.from_name(APP, "grade_mark")
+        calls = [(t, deployed.spawn(name, t)) for t in asked]
+        results = [(t, call.get()) for t, call in calls]
     path = Path(grades)
     held = json.loads(path.read_text()) if path.exists() else {}
-    for t, call in calls:
-        for column, entry in call.get().items():
+    for t, graded in results:
+        for column, entry in graded.items():
             held[deep_key(t, column)] = entry
             print(f"{deep_key(t, column)}: {entry.get('exploitability', float('nan')):.4f}")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -357,14 +366,16 @@ def grade_mark(name: str, t: int) -> dict[str, dict]:
 
 @app.function(image=image, volumes={str(ROOT): volume})
 def read_marks(name: str) -> list[int]:
-    """The grid marks run `name` has kept, in order: those with a `state.json` under `marks/`."""
+    """The grid marks run `name` has kept on the Volume, in order."""
     volume.reload()
-    marks = _run_dir(name) / MARKS
+    return _kept_marks(_run_dir(name))
+
+def _kept_marks(run_dir: Path) -> list[int]:
+    """The marks under `run_dir/marks/` that reached their `state.json`, in order."""
+    marks = Path(run_dir) / MARKS
     if not marks.exists():
         return []
-    return sorted(
-        int(mark.name[1:]) for mark in marks.iterdir() if (mark / STATE).exists()
-    )
+    return sorted(int(mark.name[1:]) for mark in marks.iterdir() if (mark / STATE).exists())
 
 def grade_mark_dir(
     run_dir: Path, t: int, *, grade: Callable[[FrozenStrategy], Grade] = analysis.grade

@@ -241,6 +241,26 @@ def test_grade_refuses_a_mark_the_run_has_not_kept(launcher, tmp_path):
         launcher.grade(marks="10,20", grades=str(tmp_path / "grades.json"))
     fakes["grade_mark"].spawn.assert_not_called()
 
+def test_grade_local_grades_a_mac_runs_marks_here_and_touches_no_container(launcher, tmp_path, monkeypatch):
+    run = tmp_path / "run"
+    for t in (10, 20):
+        (run / MARKS / mark_name(t)).mkdir(parents=True)
+        (run / MARKS / mark_name(t) / "state.json").write_text("{}")
+    graded = []
+
+    def fake_grade_mark_dir(run_dir, t):
+        graded.append((Path(run_dir), t))
+        return {column: {"exploitability": float(t)} for column in ("exact", "pi", "current")}
+
+    monkeypatch.setattr(launcher, "grade_mark_dir", fake_grade_mark_dir)
+    out = tmp_path / "grades.json"
+    launcher.grade(local=str(run), grades=str(out))
+    assert graded == [(run, 10), (run, 20)]
+    launcher.modal.Function.from_name.assert_not_called()
+    assert json.loads(out.read_text())["deep/00020/pi"] == {"exploitability": 20.0}
+    with pytest.raises(ValueError, match="50"):
+        launcher.grade(local=str(run), marks="50", grades=str(out))
+
 def test_the_training_clock_is_the_sum_of_the_last_line_per_iteration(launcher, tmp_path):
     progress(
         tmp_path,

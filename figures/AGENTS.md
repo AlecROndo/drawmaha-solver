@@ -1,7 +1,7 @@
 # `figures/` — committed outputs, kept as regression fingerprints
 
-Each of `rung0/` to `rung3/` is written by that rung's analysis command (`rps-analysis`,
-`kuhn-analysis`, `leduc-analysis`, `minidraw-analysis`) and committed. Rungs
+Each of `rung0/` to `rung4/` is written by that rung's analysis command (`rps-analysis`,
+`kuhn-analysis`, `leduc-analysis`, `minidraw-analysis`, `deep-analysis`) and committed. Rungs
 1 and 2 run unseeded and enumerate the whole tree, so a regenerated figure
 that differs means a number moved: a dirty `figures/` after an unrelated
 change is a failing test, not noise. Nothing here is edited by hand.
@@ -13,3 +13,11 @@ and 2 GB each; the checkpoints live on the Modal volume, not here); without
 the flag the figures are drawn from the committed file. `rung3/answer_sheet.json`
 is what the README and `/rung3` quote, and `web/rung3-viz/src/data/` holds
 copies of both files that are refreshed by hand after a regeneration.
+
+`rung4/grades.json` is rung 4's graded record: every grid mark of the Deep
+CFR run, three objects each (`deep/<t>/<exact|pi|current>`), written by
+`scripts/deepcfr/modal_rung4.py`'s `grade` from the marks on the Modal
+volume `drawmaha-rung4`, with `hands_per_seat`, the training clock and the
+run's config beside each grade. `deep-analysis` reads it with `rung3/grades.json`
+and writes `rung4/price.png` and `rung4/answer_sheet.json`; the net-size
+sweep's verdict, written by `sweep --grade`, lands beside them as `sweep.json`.

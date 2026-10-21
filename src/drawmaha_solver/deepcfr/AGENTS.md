@@ -7,8 +7,11 @@ packed table's regret slots, and the walk plays them through the ledger's own
 `docs/superpowers/specs/2026-10-07-deep-cfr-m1-design.md`. PRs 1 to 5 (the
 encoder, the net with materialise and the refit, the reservoir with the
 collector, the train loop, the exact running average and the policy net Π
-as the `average` and `policy` modules) are merged; PR 6 (the Modal
-launcher, the net-size sweep, the figures and the README section) is next.
+as the `average` and `policy` modules) are merged, and so is PR 6: the
+Modal launcher `scripts/deepcfr/modal_rung4.py` (train, grade, smoke, sweep,
+status), the price figure in `minidrawmaha/answer/analysis.py`
+(`deep-analysis`, `figures/rung4/`) and the README section. The package
+itself is complete; what remains is the paid run and its grades.
 
 ## Rules
 
@@ -58,4 +61,10 @@ launcher, the net-size sweep, the figures and the README section) is next.
 `scripts/deepcfr/run_deep_cfr.py` is argparse over `DeepConfig`; its
 docstring opens with the smoke command, and re-running the same `--out`
 resumes. Ctrl-C or SIGTERM finishes the iteration and saves. Measured
-per-iteration timings are in `train.py`'s docstring, not here.
+per-iteration timings are in `train.py`'s docstring, not here. On Modal the
+same loop is `scripts/deepcfr/modal_rung4.py`; a grid mark is graded three
+ways by its `grade_mark_dir` — the exact average's sums, Π fit fresh on the
+mark's policy memory, and the current iterate over the mark's nets — into
+`figures/rung4/grades.json`, which `deep-analysis` reads. The grader needs
+`NetLearner.fit_config` (Π's fit shares the run's refit config) and nothing
+else of this package that the loop does not already expose.

@@ -83,6 +83,7 @@ from pathlib import Path
 
 import numpy as np
 from matplotlib.colors import to_hex, to_rgb
+from matplotlib.ticker import FormatStrFormatter
 
 from drawmaha_solver.minidrawmaha.rules.cards import DECK, Card
 from drawmaha_solver.minidrawmaha.exploitability import (
@@ -830,6 +831,10 @@ def fig_price(rung3: Mapping[str, Grade], rung4: Mapping[str, Grade], out: Path)
     below.axhline(1.0, color=BASELINE, linewidth=1.2, linestyle="--")
     below.set_xscale("log")
     below.set_yscale("log")
+    # A ratio reads as 0.2 or 3, not as 2 × 10⁻¹; minor ticks too, since a
+    # log axis spanning under a decade is labelled by them.
+    below.yaxis.set_major_formatter(FormatStrFormatter("%g"))
+    below.yaxis.set_minor_formatter(FormatStrFormatter("%g"))
     below.set_xlabel("hands sampled per seat (equal for both solvers at each mark)", color=MUTED, fontsize=9)
     below.set_ylabel("Deep CFR ÷ LCFR", color=MUTED, fontsize=9)
     save(fig, out)

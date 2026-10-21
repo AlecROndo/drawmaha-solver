@@ -309,6 +309,57 @@ The **Play the solver** tab (`/rung3#play`) is the trainer: your three cards fac
 
 The browser never looks the strategy up. The table is 6.2M rows behind a joint canonical suit relabelling, which is the one routine this repo most wants to exist exactly once, and the site runs no Python. So `uv run minidraw-deals` deals 600 hands as fixed deck orders and records, for each, the frozen strategy's mix at every decision either player can reach (about 480 nodes a deal), the canonical low/mid/top order of each player's cards, and the showdown of all 16 post-draw worlds — `web/rung3-viz/public/deals/`, six chunks of 100 fetched as the queue runs low, with a manifest recording the seed and the strategy's digest. The page follows the path it is on and reads the vector, and refuses a chunk whose deal count disagrees with the manifest or a deal with a node its grammar can reach but the pack lacks. The pack is one seeded sample: every visitor plays the same 600 deals, reshuffled each sitting, not fresh draws from the deal distribution; the seats alternate and the coach's roll is drawn live, so one deal plays differently each time it comes round — plenty for a trainer, and said so on the page. `deal_pack.py` is tested with a stand-in profile so the suite never needs the 18 MB file. Only the pot-limit betting grammar is transcribed to TypeScript, and `minidraw.test.ts` pins it against the same thirteen round-1 lines the Python suite pins.
 
+## Rung 4 — Deep CFR on mini-drawmaha
+
+`src/drawmaha_solver/deepcfr/`. The same game, the same walk, and the same exact grader as rung 3, with one change: the 6.2M regret ledgers are replaced by a network. Rung 3's answer is the yardstick, so rung 4 asks one question at every point of the race's grid:
+
+    price = exploitability(Deep CFR's average) ÷ exploitability(LCFR's linear average), at equal hands per seat
+
+Deep CFR at K = 10,000 walks per seat per iteration has seen the same hands at iteration t as LCFR had at lockstep iteration 1,000 t, so the eight marks 10, 20, 50, 100, 200, 500, 1,000 and 2,000 sit on the race's 10k to 2M checkpoints exactly (`figures/rung3/grades.json`). There is no pass mark: the ratio is recorded and read.
+
+### The engine
+
+One iteration (`train.py`) is rung 3's lockstep with the ledger's regret half swapped out. For each seat in turn: write both seats' nets into the packed table's regret slots (`materialise.py`, which obtains Deep CFR's eq. 3 by *what is written*, a one-hot at the argmax when every output is non-positive, so `RegretMatcher.strategy()` is unchanged); let the exact average see the table; walk K hands on W spawned processes (`collect.py`), which return the traverser's regret samples and the opponent's strategy samples as rows; merge them into fixed-size reservoirs (`reservoir.py`, Algorithm R, 50M rows each); refit the seat's net from scratch on its memory (`fit.py`, 4,000 Adam steps of 10,000 rows, t-weighted squared error; `net.py`, 136 → 64 → 64 → 64 → 7). Every random draw is a function of (seed, t, seat, walk index), never of W, so a run resumes and re-runs bit for bit (`tests/deepcfr/test_train.py` pins the loop against rung 3's LCFR with a perfect "net").
+
+Three objects are graded at every mark, because they answer different questions:
+
+- the **exact average** (`average.py`): CFR's actual answer, `Σ_t t · own_reach_t · σ_t` summed per column at the moment each iteration's strategy sits in the table, with own reach pushed through a predecessor table over the 141 public points (a post-draw key has three pre-draw predecessors, all of which count);
+- **Π**, the policy net (`policy.py`): the original Deep CFR's average, a fresh net fit at the mark on the policy memory, which is the only average a game *without* a table can keep;
+- the **current iterate**: regret matching over the materialised table, which CFR never promises will converge.
+
+### Running it on Modal
+
+`scripts/deepcfr/modal_rung4.py` is rung 3's launcher for this run: one trainer container (33 cores, 16 GB) that claims its directory on the Volume `drawmaha-rung4`, heartbeats, saves `resume/` every 30 minutes and a full `marks/t00010/`… at each grid mark, and spawns its own continuation at 23 hours; one grader container per mark, which freezes the three objects and grades them with the untouched exact meter. Each `modal run` starts paid containers; deploy first, and launch in this order:
+
+```bash
+uv run --with modal modal deploy scripts/deepcfr/modal_rung4.py                 # free; builds the image
+uv run --with modal modal run scripts/deepcfr/modal_rung4.py::smoke            # 3 iterations at K = 1,000, one mark graded: seconds, hours and dollars for the run
+uv run --with modal modal run scripts/deepcfr/modal_rung4.py::sweep            # 3×64, 4×64, 3×128 to 100 iterations, three containers at once
+uv run --with modal modal run scripts/deepcfr/modal_rung4.py::status           # where every run stands
+uv run --with modal modal run scripts/deepcfr/modal_rung4.py::sweep --grade    # once all three are at 100: figures/rung4/sweep.json and the winner
+uv run --with modal modal run scripts/deepcfr/modal_rung4.py::train            # 2,000 iterations at K = 10,000; add --width --depth if the sweep picked another size
+uv run --with modal modal run scripts/deepcfr/modal_rung4.py::grade            # every kept mark, three objects each → figures/rung4/grades.json
+uv run deep-analysis                                                          # figures/rung4/price.png and answer_sheet.json
+```
+
+The sweep's verdict is fixed before its numbers exist: the run uses 3 × 64 unless another size's exact average grades lower by more than 10% of 3 × 64's at 100 iterations. The same loop runs on a Mac with `scripts/deepcfr/run_deep_cfr.py`, and `::grade --local DIR` grades such a run's marks here.
+
+### The answer so far
+
+The Modal run has not been launched yet. What is graded so far is a run of the same configuration on a Mac (K = 10,000, C = 50M, 3 × 64, 4,000 × 10,000 refits, seed 0, W = 8) to iteration 50, graded through `::grade --local` — the first three of the eight marks, at 0.11, 0.23 and 0.63 hours of training:
+
+| hands per seat | LCFR | exact average | Π | current iterate | exact ÷ LCFR |
+|---|---|---|---|---|---|
+| 100k | 3.048 | 0.581 | 0.610 | 0.658 | 0.19 |
+| 200k | 2.697 | 0.444 | 0.489 | 0.647 | 0.16 |
+| 500k | 1.876 | 0.396 | 0.459 | 0.549 | 0.21 |
+
+Exploitability in chips per hand, ante 1, by the exact grader; uniform random play is 4.842 (`figures/rung4/answer_sheet.json`).
+
+![Deep CFR ÷ LCFR at equal hands](figures/rung4/price.png)
+
+Two readings, both provisional on three marks of one seed. **Early, the net is five times less exploitable than the table at equal hands.** At 100k hands LCFR has touched a small fraction of its 6.2M rows and plays uniform at the rest, while the net has learned a strategy that holds across every spot it has never seen. The price is a ratio of two falling curves, and LCFR's falls faster (3.05 → 0.061 over the grid, 50×, against 0.58 → 0.40 over these three marks), so the question the remaining marks answer is where they cross. **The three objects order as the spec's gate 5 said from 20 iterations on:** the exact average below Π below the current iterate, and the current iterate barely moves (0.658 → 0.549) while the averages fall, which is CFR's promise about the average and nothing more.
+
 ## The site
 
 Seven surfaces: the homepage at `/`, its Rules tab at `/rules` and the Cover at `/cover` (three self-contained static pages in `web/cover/` — the first two designed outside the repo and exported, the Cover authored here; see `web/cover/README.md`) the four visualizers at `/rung0`, `/rung1`, `/rung2` and `/rung3`, and the solver's range interface at `/solver`.
@@ -334,6 +385,8 @@ Rungs 0 and 1 complete. Rung 1 solves Kuhn to its closed-form equilibrium, repro
 
 Rung 2's solver is complete and checked against an outside referee: it reaches the sequence-form LP's −0.08561 game value, drives exploitability to 0.011 chips/hand, and holds a committed OpenSpiel fixture that pins the tree's shape, the payoff ladder and the exact answer — none of which any closed form could supply. It ships the analysis pipeline, three figures, `leduc-play`, and the `/rung2` action-timeline visualizer over a committed solve. Still open at rung 2: an exploit mode — lock a range and watch a Leduc best-responder punish it, the rung-1 exploit tab's equivalent.
 
-Rung 3 is solved tabularly. Four regret rules raced to 20M hands per seat on Modal, and LCFR won at 0.061 chips/hand by the exact grader. Its average is frozen as a release asset, and the rung ships `minidraw-analysis`, four figures, `minidraw-play`, and the `/rung3` page: the research with its figures and the browser trainer over a pre-dealt pack. Next: rung 4, Deep CFR. Its first target is mini-drawmaha itself, where the exact grader and this tabular answer measure what the networks give up.
+Rung 3 is solved tabularly. Four regret rules raced to 20M hands per seat on Modal, and LCFR won at 0.061 chips/hand by the exact grader. Its average is frozen as a release asset, and the rung ships `minidraw-analysis`, four figures, `minidraw-play`, and the `/rung3` page: the research with its figures and the browser trainer over a pre-dealt pack. Next was rung 4, Deep CFR, with mini-drawmaha itself as the first target.
+
+Rung 4's engine is complete and gated: the loop reproduces rung 3's LCFR bit for bit with a perfect net, a resumed run equals an uninterrupted one, and the exact average replays from the kept nets. The Modal launcher, the grader and the price figure are in; the app is deployed, and the first three marks, graded from a Mac run at the full configuration, put Deep CFR's exact average at 0.16–0.21 of LCFR's exploitability at equal hands (100k–500k per seat). Next: the paid run on Modal, 2,000 iterations at K = 10,000 with the five remaining marks, after the smoke and the net-size sweep.
 
 One gap worth naming: **CI runs no tests.** The only workflow is an automated code review, so the 500-plus-test suite is run by hand rather than enforced on a pull request. Next: a test job.
