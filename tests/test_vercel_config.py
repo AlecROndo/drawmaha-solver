@@ -50,16 +50,16 @@ def test_the_cover_page_is_served_from_the_filesystem():
 
 def test_static_output_is_served_from_public():
     # The other half of the same contract: the catch-all only mattered because
-    # scripts/vercel_build.sh writes the visualizers into public/, which Vercel
+    # scripts/site/vercel_build.sh writes the visualizers into public/, which Vercel
     # serves filesystem-first once no framework preset outranks it.
     assert _vercel_config()["outputDirectory"] == "public"
 
 def test_every_rung_the_build_script_emits_has_a_rewrite():
-    # scripts/vercel_build.sh builds `rungs=(rung0 rung1)` into public/<rung>,
+    # scripts/site/vercel_build.sh builds `rungs=(rung0 rung1)` into public/<rung>,
     # but a directory is not a URL: /rung0 with no trailing slash needs an
     # explicit rewrite to its index.html. Adding a rung to the script without
     # adding its rewrite here is the next version of this same silent break.
-    build_script = (REPO_ROOT / "scripts" / "vercel_build.sh").read_text()
+    build_script = (REPO_ROOT / "scripts" / "site" / "vercel_build.sh").read_text()
     # Matched, not split: `split("rungs=(")[1]` raises IndexError before the
     # assert below can fire, so renaming the variable in the shell script would
     # fail this test with a traceback about list indices instead of the message
@@ -67,9 +67,9 @@ def test_every_rung_the_build_script_emits_has_a_rewrite():
     # `rungs=("rung0" "rung1")` yields rung0 rather than a quote-wrapped token
     # that then fails the rewrite lookup on a config that is actually correct.
     declaration = re.search(r"^rungs=\(([^)]*)\)", build_script, re.MULTILINE)
-    assert declaration, "could not find a rungs=(...) list in scripts/vercel_build.sh"
+    assert declaration, "could not find a rungs=(...) list in scripts/site/vercel_build.sh"
     rungs = shlex.split(declaration.group(1))
-    assert rungs, "the rungs=(...) list in scripts/vercel_build.sh is empty"
+    assert rungs, "the rungs=(...) list in scripts/site/vercel_build.sh is empty"
 
     rewrites = {r["source"]: r["destination"] for r in _vercel_config()["rewrites"]}
     for rung in rungs:

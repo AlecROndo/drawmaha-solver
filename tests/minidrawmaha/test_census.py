@@ -1,7 +1,7 @@
 """The census: how big mini-drawmaha is, and the committed referee that pins it.
 
 Rung 2 could ask OpenSpiel how big Leduc was. Nothing implements Drawmaha, so
-rung 3 manufactures its own referee: `scripts/generate_minidrawmaha_census.py`
+rung 3 manufactures its own referee: `scripts/minidrawmaha/generate_census.py`
 counts what the enumerator yields and writes `census.json`, and this file
 re-derives every number in that file from the rules and demands agreement. A
 change to the deck, the throw cap or the betting tree therefore fails here
@@ -37,15 +37,15 @@ from random import Random
 
 import pytest
 
-from drawmaha_solver.minidrawmaha.cards import DECK
-from drawmaha_solver.minidrawmaha.enumeration import (
+from drawmaha_solver.minidrawmaha.rules.cards import DECK
+from drawmaha_solver.minidrawmaha.rules.enumeration import (
     all_infosets,
     merged,
     private_keys,
     public_decision_points,
     public_tree,
 )
-from drawmaha_solver.minidrawmaha.game import (
+from drawmaha_solver.minidrawmaha.rules.game import (
     DISCARD_MASK,
     DRAW_ACTIONS,
     THROW_CAP,
@@ -55,7 +55,7 @@ from drawmaha_solver.minidrawmaha.game import (
     canonical_picture,
     draw_order,
 )
-from drawmaha_solver.minidrawmaha.hands import HOLE_CARDS
+from drawmaha_solver.minidrawmaha.rules.hands import HOLE_CARDS
 
 CENSUS = json.loads((Path(__file__).parent / "census.json").read_text())
 

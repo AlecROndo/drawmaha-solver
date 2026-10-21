@@ -29,10 +29,10 @@ kuhn-exploit-server = "drawmaha_solver.kuhn.exploit_server:main"
 leduc-analysis = "drawmaha_solver.leduc.analysis:main"
 leduc-play = "drawmaha_solver.leduc.play:main"
 leduc-exploit-server = "drawmaha_solver.leduc.exploit_server:main"
-minidraw-analysis = "drawmaha_solver.minidrawmaha.analysis:main"
-minidraw-play = "drawmaha_solver.minidrawmaha.play:main"
-minidraw-deals = "drawmaha_solver.minidrawmaha.deal_pack:main"
-minidraw-ranges = "drawmaha_solver.minidrawmaha.range_export:main"
+minidraw-analysis = "drawmaha_solver.minidrawmaha.answer.analysis:main"
+minidraw-play = "drawmaha_solver.minidrawmaha.answer.play:main"
+minidraw-deals = "drawmaha_solver.minidrawmaha.answer.deal_pack:main"
+minidraw-ranges = "drawmaha_solver.minidrawmaha.answer.range_export:main"
 
 [build-system]
 requires = ["hatchling"]

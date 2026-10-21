@@ -11,10 +11,10 @@ import signal
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha.lockstep import load_lockstep, new_lockstep, read_lockstep, train_lockstep
-from drawmaha_solver.minidrawmaha.lockstep_run import RESUME, kept_name, run_to
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.regret_rules import Average, RegretRule
+from drawmaha_solver.minidrawmaha.solver.lockstep import load_lockstep, new_lockstep, read_lockstep, train_lockstep
+from drawmaha_solver.minidrawmaha.solver.lockstep_run import RESUME, kept_name, run_to
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.regret_rules import Average, RegretRule
 from drawmaha_solver.regret_matching import RegretMatcher
 
 BOTH = (Average.UNIFORM, Average.QUADRATIC)

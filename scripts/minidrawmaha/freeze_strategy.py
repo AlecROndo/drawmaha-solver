@@ -1,6 +1,6 @@
 """Freeze one averaging column of a lockstep checkpoint into a strategy file.
 
-    uv run python scripts/freeze_minidrawmaha_strategy.py \
+    uv run python scripts/minidrawmaha/freeze_strategy.py \
         runs/modal/lcfr/iter-002000000.npz runs/strategy/strategy-lcfr-2m.npz
 
 Prints the file's size and SHA-256, which is what `strategy.STRATEGY_SHA256`
@@ -15,8 +15,8 @@ import argparse
 from pathlib import Path
 
 from drawmaha_solver.minidrawmaha.exploitability import best_response_value
-from drawmaha_solver.minidrawmaha.regret_rules import Average
-from drawmaha_solver.minidrawmaha.strategy import (
+from drawmaha_solver.minidrawmaha.solver.regret_rules import Average
+from drawmaha_solver.minidrawmaha.answer.strategy import (
     from_checkpoint,
     load_strategy,
     save_strategy,

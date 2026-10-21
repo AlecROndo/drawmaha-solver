@@ -70,11 +70,11 @@ from multiprocessing import get_context, shared_memory
 import numpy as np
 
 from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, _is_int
-from drawmaha_solver.minidrawmaha.game import random_deal
-from drawmaha_solver.minidrawmaha.lockstep import SEATS, Recorded, walk
-from drawmaha_solver.minidrawmaha.mccfr import RootSampler
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.regret_rules import Average
+from drawmaha_solver.minidrawmaha.rules.game import random_deal
+from drawmaha_solver.minidrawmaha.solver.lockstep import SEATS, Recorded, walk
+from drawmaha_solver.minidrawmaha.solver.mccfr import RootSampler
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.regret_rules import Average
 
 # The one averaging column the walk is asked for: weight 1 at every t, so the
 # recorded extra row is σ itself.

@@ -49,7 +49,7 @@ from pathlib import Path
 
 import numpy as np
 
-from drawmaha_solver.minidrawmaha.cards import (
+from drawmaha_solver.minidrawmaha.rules.cards import (
     DECK,
     RANK_SYMBOL,
     SUIT_SYMBOL,
@@ -58,14 +58,14 @@ from drawmaha_solver.minidrawmaha.cards import (
     hand_symbol,
     parse_cards,
 )
-from drawmaha_solver.minidrawmaha.deal_pack import THROW_CODE, indices
-from drawmaha_solver.minidrawmaha.enumeration import (
+from drawmaha_solver.minidrawmaha.answer.deal_pack import THROW_CODE, indices
+from drawmaha_solver.minidrawmaha.rules.enumeration import (
     PrivateKey,
     PublicPoint,
     private_keys,
     public_decision_points,
 )
-from drawmaha_solver.minidrawmaha.game import (
+from drawmaha_solver.minidrawmaha.rules.game import (
     THROW_CAP,
     Action,
     InfoSet,
@@ -73,14 +73,14 @@ from drawmaha_solver.minidrawmaha.game import (
     draw_order,
     line_symbol,
 )
-from drawmaha_solver.minidrawmaha.hands import (
+from drawmaha_solver.minidrawmaha.rules.hands import (
     BOARD_CARDS,
     HOLE_CARDS,
     Score,
     inner_score,
     outer_score,
 )
-from drawmaha_solver.minidrawmaha.strategy import (
+from drawmaha_solver.minidrawmaha.answer.strategy import (
     StrategyInfo,
     fetch_strategy,
     load_strategy,

@@ -33,7 +33,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from drawmaha_solver.minidrawmaha.features import FEATURE_WIDTH, HEAD_WIDTH
+from drawmaha_solver.minidrawmaha.rules.features import FEATURE_WIDTH, HEAD_WIDTH
 
 # Rows per forward pass in `predict`; a run parameter only in the sense
 # that a test shrinks it to force several chunks.

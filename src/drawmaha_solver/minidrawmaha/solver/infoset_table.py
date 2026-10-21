@@ -66,12 +66,12 @@ from collections.abc import Callable, Iterable, Iterator, Mapping
 
 import numpy as np
 
-from drawmaha_solver.minidrawmaha.cards import Card, hand_symbol
-from drawmaha_solver.minidrawmaha.enumeration import (
+from drawmaha_solver.minidrawmaha.rules.cards import Card, hand_symbol
+from drawmaha_solver.minidrawmaha.rules.enumeration import (
     private_keys,
     public_decision_points,
 )
-from drawmaha_solver.minidrawmaha.game import (
+from drawmaha_solver.minidrawmaha.rules.game import (
     ACTION_SYMBOL,
     DRAW_ACTIONS,
     Action,
@@ -80,7 +80,7 @@ from drawmaha_solver.minidrawmaha.game import (
     canonical_picture,
     line_symbol,
 )
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.regret_matching import RegretMatcher
 
 # The walk keys this by `state.infoset()`. Every InfoSet a legal state can

@@ -45,7 +45,7 @@ from enum import IntEnum
 from itertools import combinations
 from typing import NamedTuple
 
-from drawmaha_solver.minidrawmaha.cards import Card
+from drawmaha_solver.minidrawmaha.rules.cards import Card
 
 # How many cards each rule reads. The outer half is handed all three private
 # cards and must choose two of them, which is the constraint rather than an

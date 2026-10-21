@@ -62,13 +62,13 @@ from typing import Protocol
 
 import numpy as np
 
-from drawmaha_solver.minidrawmaha.enumeration import (
+from drawmaha_solver.minidrawmaha.rules.enumeration import (
     PrivateKey,
     all_infosets,
     private_keys,
     public_decision_points,
 )
-from drawmaha_solver.minidrawmaha.game import InfoSet
+from drawmaha_solver.minidrawmaha.rules.game import InfoSet
 from drawmaha_solver.regret_matching import RegretMatcher
 
 # Where one ledger lives: its row, the first of its columns, and how many.

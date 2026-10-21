@@ -32,7 +32,7 @@ torch = pytest.importorskip("torch")
 from drawmaha_solver.deepcfr import fit as fit_module  # noqa: E402
 from drawmaha_solver.deepcfr.fit import FitConfig, batch_loss, fit_from_scratch  # noqa: E402
 from drawmaha_solver.deepcfr.net import Net, predict  # noqa: E402
-from drawmaha_solver.minidrawmaha.features import (  # noqa: E402
+from drawmaha_solver.minidrawmaha.rules.features import (  # noqa: E402
     MAX_WIDTH,
     NO_ACTION,
     layout,

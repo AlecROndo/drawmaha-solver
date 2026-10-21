@@ -1,7 +1,7 @@
 """Grade a mini-drawmaha checkpoint with the exact meter, and time each part.
 
-    uv run python scripts/grade_minidrawmaha_checkpoint.py runs/mccfr-seed0/solve.npz
-    uv run python scripts/grade_minidrawmaha_checkpoint.py runs/dcfr/solve.npz --column quadratic
+    uv run python scripts/minidrawmaha/grade_checkpoint.py runs/mccfr-seed0/solve.npz
+    uv run python scripts/minidrawmaha/grade_checkpoint.py runs/dcfr/solve.npz --column quadratic
 
 Grades one of the checkpoint's averages: the primary linear one by default, or
 any extra column the run banked. The table is sized from what the checkpoint
@@ -30,19 +30,19 @@ from drawmaha_solver.minidrawmaha.exploitability import (
     expected_value,
     minidrawmaha_game,
 )
-from drawmaha_solver.minidrawmaha.infoset_table import (
+from drawmaha_solver.minidrawmaha.solver.infoset_table import (
     InfoSetTable,
     StrategyView,
     new_infoset_table,
 )
-from drawmaha_solver.minidrawmaha.lockstep import (
+from drawmaha_solver.minidrawmaha.solver.lockstep import (
     LockstepSolve,
     is_lockstep,
     load_lockstep,
     read_lockstep,
 )
-from drawmaha_solver.minidrawmaha.mccfr import Solve, load_solve, read_run
-from drawmaha_solver.minidrawmaha.regret_rules import (
+from drawmaha_solver.minidrawmaha.solver.mccfr import Solve, load_solve, read_run
+from drawmaha_solver.minidrawmaha.solver.regret_rules import (
     Average,
     RegretRule,
     column_average,

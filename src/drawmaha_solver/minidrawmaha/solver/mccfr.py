@@ -97,10 +97,10 @@ from typing import Any, Protocol
 
 import numpy as np
 
-from drawmaha_solver.minidrawmaha.game import random_deal
-from drawmaha_solver.minidrawmaha.infoset_table import new_infoset_table
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.regret_rules import (
+from drawmaha_solver.minidrawmaha.rules.game import random_deal
+from drawmaha_solver.minidrawmaha.solver.infoset_table import new_infoset_table
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.regret_rules import (
     RULES,
     Average,
     BankRegret,

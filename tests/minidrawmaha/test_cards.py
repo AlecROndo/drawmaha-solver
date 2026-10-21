@@ -12,7 +12,7 @@ from itertools import combinations, permutations
 
 import pytest
 
-from drawmaha_solver.minidrawmaha.cards import (
+from drawmaha_solver.minidrawmaha.rules.cards import (
     DECK,
     N_RANKS,
     N_SUITS,

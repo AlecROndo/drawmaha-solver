@@ -28,15 +28,15 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from drawmaha_solver.minidrawmaha.game import InfoSet
-from drawmaha_solver.minidrawmaha.lockstep import (
+from drawmaha_solver.minidrawmaha.rules.game import InfoSet
+from drawmaha_solver.minidrawmaha.solver.lockstep import (
     LockstepSolve,
     load_lockstep,
     new_lockstep,
     save_lockstep,
 )
-from drawmaha_solver.minidrawmaha.parallel import ParallelLockstep, packed_table_for
-from drawmaha_solver.minidrawmaha.regret_rules import Average, RegretRule, validate_averages
+from drawmaha_solver.minidrawmaha.solver.parallel import ParallelLockstep, packed_table_for
+from drawmaha_solver.minidrawmaha.solver.regret_rules import Average, RegretRule, validate_averages
 
 # 1-2-5 to a million, then every million: dense where the curve bends and
 # through the last 9M, where two close rules are told apart.

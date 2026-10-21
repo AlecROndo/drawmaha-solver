@@ -13,18 +13,18 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha.cards import (
+from drawmaha_solver.minidrawmaha.rules.cards import (
     DECK,
     canonical_relabelling,
     parse_cards,
     relabel,
 )
-from drawmaha_solver.minidrawmaha.deal_pack import card_index
-from drawmaha_solver.minidrawmaha.enumeration import (
+from drawmaha_solver.minidrawmaha.answer.deal_pack import card_index
+from drawmaha_solver.minidrawmaha.rules.enumeration import (
     private_keys,
     public_decision_points,
 )
-from drawmaha_solver.minidrawmaha.game import (
+from drawmaha_solver.minidrawmaha.rules.game import (
     DRAW_ACTIONS,
     Action,
     InfoSet,
@@ -32,14 +32,14 @@ from drawmaha_solver.minidrawmaha.game import (
     draw_order,
     line_symbol,
 )
-from drawmaha_solver.minidrawmaha.hands import (
+from drawmaha_solver.minidrawmaha.rules.hands import (
     InnerCategory,
     OuterCategory,
     inner_score,
     outer_score,
 )
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.range_export import (
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.answer.range_export import (
     ACTION_CODE,
     FLUSH_PICTURES,
     SCALE,
@@ -50,7 +50,7 @@ from drawmaha_solver.minidrawmaha.range_export import (
     shape_name,
     write_fixtures,
 )
-from drawmaha_solver.minidrawmaha.strategy import (
+from drawmaha_solver.minidrawmaha.answer.strategy import (
     STRATEGY_SHA256,
     FrozenStrategy,
     StrategyInfo,

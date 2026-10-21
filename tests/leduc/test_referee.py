@@ -2,7 +2,7 @@
 
 Rung 1 could be checked against a closed form written on paper. Leduc has
 none, so the ground truth is a second independent implementation — OpenSpiel's
-`leduc_poker` — plus an exact solve of it. `scripts/generate_leduc_referee.py`
+`leduc_poker` — plus an exact solve of it. `scripts/leduc/generate_referee.py`
 interrogates that referee and writes `referee.json`; every test here
 re-derives the same fact from our own code and demands agreement.
 
@@ -210,7 +210,7 @@ def test_exploitability_falls_at_every_checkpoint(curve, referee):
 def test_the_fixture_records_where_it_came_from(referee):
     # It is committed data with no runtime provenance, so a reader who finds a
     # surprising number has to be able to tell what produced it.
-    assert "generate_leduc_referee.py" in referee["_source"]
+    assert "scripts/leduc/generate_referee.py" in referee["_source"]
     assert referee["openspiel_version"]
 
 

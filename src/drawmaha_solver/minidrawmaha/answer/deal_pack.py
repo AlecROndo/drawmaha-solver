@@ -44,8 +44,8 @@ from pathlib import Path
 
 import numpy as np
 
-from drawmaha_solver.minidrawmaha.cards import DECK, Card
-from drawmaha_solver.minidrawmaha.game import (
+from drawmaha_solver.minidrawmaha.rules.cards import DECK, Card
+from drawmaha_solver.minidrawmaha.rules.game import (
     DRAW_ACTIONS,
     Action,
     MiniState,
@@ -53,8 +53,8 @@ from drawmaha_solver.minidrawmaha.game import (
     line_symbol,
     throw_count,
 )
-from drawmaha_solver.minidrawmaha.hands import Score, inner_score, outer_score
-from drawmaha_solver.minidrawmaha.strategy import (
+from drawmaha_solver.minidrawmaha.rules.hands import Score, inner_score, outer_score
+from drawmaha_solver.minidrawmaha.answer.strategy import (
     StrategyInfo,
     fetch_strategy,
     load_strategy,

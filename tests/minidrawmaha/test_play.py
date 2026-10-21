@@ -13,10 +13,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha.cards import CARD_SYMBOL, parse_cards
-from drawmaha_solver.minidrawmaha.game import Action, MiniState
-from drawmaha_solver.minidrawmaha import play
-from drawmaha_solver.minidrawmaha.play import (
+from drawmaha_solver.minidrawmaha.rules.cards import CARD_SYMBOL, parse_cards
+from drawmaha_solver.minidrawmaha.rules.game import Action, MiniState
+from drawmaha_solver.minidrawmaha.answer import play
+from drawmaha_solver.minidrawmaha.answer.play import (
     RELEASE_EXPLOITABILITY,
     RELEASE_SELF_PLAY_VALUE_P0,
     bot_action,
@@ -29,7 +29,7 @@ from drawmaha_solver.minidrawmaha.play import (
     showdown_line,
     thrown_card,
 )
-from drawmaha_solver.minidrawmaha.strategy import save_strategy, uniform_strategy
+from drawmaha_solver.minidrawmaha.answer.strategy import save_strategy, uniform_strategy
 from drawmaha_solver.play_session import QuitGame, Scoreboard
 
 GRADES = Path(__file__).parents[2] / "figures" / "rung3" / "grades.json"

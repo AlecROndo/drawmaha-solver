@@ -19,10 +19,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha.lockstep import new_lockstep, train_lockstep
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.parallel import ParallelLockstep
-from drawmaha_solver.minidrawmaha.regret_rules import Average, RegretRule
+from drawmaha_solver.minidrawmaha.solver.lockstep import new_lockstep, train_lockstep
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.parallel import ParallelLockstep
+from drawmaha_solver.minidrawmaha.solver.regret_rules import Average, RegretRule
 from drawmaha_solver.regret_matching import RegretMatcher
 
 BOTH_COLUMNS = (Average.UNIFORM, Average.QUADRATIC)

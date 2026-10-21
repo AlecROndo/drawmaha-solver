@@ -71,26 +71,26 @@ from pathlib import Path
 import numpy as np
 from matplotlib.colors import to_hex, to_rgb
 
-from drawmaha_solver.minidrawmaha.cards import DECK, Card
+from drawmaha_solver.minidrawmaha.rules.cards import DECK, Card
 from drawmaha_solver.minidrawmaha.exploitability import (
     best_response_value,
     expected_value,
 )
-from drawmaha_solver.minidrawmaha.game import (
+from drawmaha_solver.minidrawmaha.rules.game import (
     Action,
     DrawSignal,
     InfoSet,
     canonical_picture,
 )
-from drawmaha_solver.minidrawmaha.hands import InnerCategory, inner_score
-from drawmaha_solver.minidrawmaha.lockstep import read_lockstep
-from drawmaha_solver.minidrawmaha.regret_rules import (
+from drawmaha_solver.minidrawmaha.rules.hands import InnerCategory, inner_score
+from drawmaha_solver.minidrawmaha.solver.lockstep import read_lockstep
+from drawmaha_solver.minidrawmaha.solver.regret_rules import (
     PRIMARY_AVERAGE,
     Average,
     RegretRule,
     validate_averages,
 )
-from drawmaha_solver.minidrawmaha.strategy import (
+from drawmaha_solver.minidrawmaha.answer.strategy import (
     STRATEGY_SHA256,
     StrategyInfo,
     fetch_strategy,

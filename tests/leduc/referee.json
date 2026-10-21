@@ -1,5 +1,5 @@
 {
-  "_source": "OpenSpiel leduc_poker, interrogated by scripts/generate_leduc_referee.py. Do not hand-edit: regenerate.",
+  "_source": "OpenSpiel leduc_poker, interrogated by scripts/leduc/generate_referee.py. Do not hand-edit: regenerate.",
   "openspiel_version": "2.0.2",
   "census": {
     "decision_nodes": 3780,

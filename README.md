@@ -179,13 +179,13 @@ Two things change from Kuhn, and between them they are the whole rung. **The dec
 
 Kuhn's equilibrium can be written down; Leduc's cannot. So ground truth comes from OpenSpiel — an independent implementation of the same game, plus an exact solve of it.
 
-`scripts/generate_leduc_referee.py` interrogates it once and writes `tests/leduc/referee.json`: the node census, the infoset collapse, the payoff ladder, the path probabilities, the sequence-form LP's value of the game, and OpenSpiel's own CFR convergence curve. `tests/leduc/test_referee.py` then re-derives every one of those facts from our code and demands agreement.
+`scripts/leduc/generate_referee.py` interrogates it once and writes `tests/leduc/referee.json`: the node census, the infoset collapse, the payoff ladder, the path probabilities, the sequence-form LP's value of the game, and OpenSpiel's own CFR convergence curve. `tests/leduc/test_referee.py` then re-derives every one of those facts from our code and demands agreement.
 
 `open_spiel` is deliberately **not** a dependency — its wheels are large and the Vercel build must not pull them. The generator is the only file that imports it, nothing imports the generator, and it runs by hand:
 
 ```bash
 uv run --with open_spiel --with cvxpy --with ecos --no-project \
-    python3 scripts/generate_leduc_referee.py
+    python3 scripts/leduc/generate_referee.py
 ```
 
 The re-derivation is the point. A test that read a number out of the fixture and asserted it equalled itself would pass forever while the solver rotted, so the census comes from walking our own tree, the payoff ladder from our own terminals, and the referee's 936 suit-distinct spots from keying our own infosets on card instead of rank — which turns "936 collapse to 288 with nothing lost" from OpenSpiel's word into something CI checks.
@@ -245,7 +245,7 @@ Mini-drawmaha has 6,220,050 infosets, about 21,000 times Leduc's 288. One pass o
 
 ### The race
 
-Four regret rules, each trained for 2,000,000 lockstep iterations (20M hands per seat) on Modal and graded by the exact walk (`regret_rules.py`, `scripts/modal_rung3.py`):
+Four regret rules, each trained for 2,000,000 lockstep iterations (20M hands per seat) on Modal and graded by the exact walk (`regret_rules.py`, `scripts/minidrawmaha/modal_rung3.py`):
 
 | hands per seat | vanilla | LCFR | CFR+ | DCFR |
 |---|---|---|---|---|
@@ -289,7 +289,7 @@ uv run minidraw-analysis --grade-runs runs/modal  # first grade new checkpoints 
 uv run minidraw-play                             # deal yourself in against the frozen strategy
 ```
 
-`minidraw-analysis` reads two inputs: the committed `figures/rung3/grades.json` (every grid checkpoint of the race, graded) and the release strategy. It does not need the 555 MB checkpoints unless it is asked to grade new ones. To retrain, use `uv run --with modal modal run scripts/modal_rung3.py::main` (it costs Modal money; `::status` shows progress). To freeze a checkpoint, use `scripts/freeze_minidrawmaha_strategy.py`.
+`minidraw-analysis` reads two inputs: the committed `figures/rung3/grades.json` (every grid checkpoint of the race, graded) and the release strategy. It does not need the 555 MB checkpoints unless it is asked to grade new ones. To retrain, use `uv run --with modal modal run scripts/minidrawmaha/modal_rung3.py::main` (it costs Modal money; `::status` shows progress). To freeze a checkpoint, use `scripts/minidrawmaha/freeze_strategy.py`.
 
 ### Playing it
 
@@ -324,8 +324,8 @@ Identity colour lives *inside* a figure, where it carries an action's or a card'
 `npm run dev` in a visualizer serves that app alone, without the static pages. To see all eight wired the way Vercel wires them:
 
 ```bash
-bash scripts/vercel_build.sh          # builds public/
-uv run python scripts/serve_site.py   # http://localhost:4321
+bash scripts/site/vercel_build.sh          # builds public/
+uv run python scripts/site/serve_site.py   # http://localhost:4321
 ```
 
 ## Status

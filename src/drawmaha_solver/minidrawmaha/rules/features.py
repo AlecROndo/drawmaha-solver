@@ -45,13 +45,13 @@ from functools import cache
 
 import numpy as np
 
-from drawmaha_solver.minidrawmaha.cards import DECK, N_RANKS, N_SUITS, Card
-from drawmaha_solver.minidrawmaha.enumeration import (
+from drawmaha_solver.minidrawmaha.rules.cards import DECK, N_RANKS, N_SUITS, Card
+from drawmaha_solver.minidrawmaha.rules.enumeration import (
     PublicPoint,
     private_keys,
     public_decision_points,
 )
-from drawmaha_solver.minidrawmaha.game import (
+from drawmaha_solver.minidrawmaha.rules.game import (
     BETTING_ACTIONS,
     DRAW_ACTIONS,
     N_ROUNDS,

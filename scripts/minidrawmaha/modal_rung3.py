@@ -4,10 +4,10 @@
 2M with `--target 2000000`, and `benchmark`'s `hours_for_default_target` is
 measured against that default.
 
-    uv run --with modal modal run scripts/modal_rung3.py::smoke          # ~15 min, one rule: it/s on Modal (`benchmark`)
-    uv run --with modal modal deploy scripts/modal_rung3.py              # once, and after any code change
-    uv run --with modal modal run scripts/modal_rung3.py::main --target 3000000 --rules vanilla,cfr+,dcfr
-    uv run --with modal modal run scripts/modal_rung3.py::status         # where each run stands
+    uv run --with modal modal run scripts/minidrawmaha/modal_rung3.py::smoke          # ~15 min, one rule: it/s on Modal (`benchmark`)
+    uv run --with modal modal deploy scripts/minidrawmaha/modal_rung3.py              # once, and after any code change
+    uv run --with modal modal run scripts/minidrawmaha/modal_rung3.py::main --target 3000000 --rules vanilla,cfr+,dcfr
+    uv run --with modal modal run scripts/minidrawmaha/modal_rung3.py::status         # where each run stands
     uv run --with modal modal volume get drawmaha-rung3 dcfr/iter-001000000.npz .
 
 Deploy first: `main` then spawns on the DEPLOYED app, whose calls outlive this
@@ -42,10 +42,10 @@ from pathlib import Path
 
 import modal
 
-from drawmaha_solver.minidrawmaha.lockstep import new_lockstep, save_lockstep
-from drawmaha_solver.minidrawmaha.lockstep_run import run_to
-from drawmaha_solver.minidrawmaha.parallel import ParallelLockstep
-from drawmaha_solver.minidrawmaha.regret_rules import RegretRule
+from drawmaha_solver.minidrawmaha.solver.lockstep import new_lockstep, save_lockstep
+from drawmaha_solver.minidrawmaha.solver.lockstep_run import run_to
+from drawmaha_solver.minidrawmaha.solver.parallel import ParallelLockstep
+from drawmaha_solver.minidrawmaha.solver.regret_rules import RegretRule
 
 # ---------------------------------------------------------------------------
 # The app, its Volume and the container shape

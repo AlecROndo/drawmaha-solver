@@ -15,7 +15,7 @@ script is the only file that does, it is never imported by anything, and it
 runs by hand:
 
     uv run --with open_spiel --with cvxpy --with ecos --no-project \\
-        python3 scripts/generate_leduc_referee.py
+        python3 scripts/leduc/generate_referee.py
 
 The facts it records, and why each is worth pinning:
 
@@ -293,7 +293,7 @@ def _write(*, census, collapse, lp_value, curve, payoff_magnitudes) -> None:
     fixture = {
         "_source": (
             "OpenSpiel leduc_poker, interrogated by "
-            "scripts/generate_leduc_referee.py. Do not hand-edit: regenerate."
+            "scripts/leduc/generate_referee.py. Do not hand-edit: regenerate."
         ),
         "openspiel_version": pyspiel.__version__,
         "census": census,

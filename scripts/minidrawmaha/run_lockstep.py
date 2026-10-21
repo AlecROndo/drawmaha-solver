@@ -1,6 +1,6 @@
 """Train one rule's lockstep run on this machine, resumably.
 
-    caffeinate -i uv run python scripts/run_lockstep.py lcfr --out runs/lockstep-lcfr
+    caffeinate -i uv run python scripts/minidrawmaha/run_lockstep.py lcfr --out runs/lockstep-lcfr
 
 Re-running the same command resumes from `<out>/resume.npz`. Ctrl-C (or
 SIGTERM) finishes the iteration and saves. See `lockstep_run` for what is kept.
@@ -9,8 +9,8 @@ SIGTERM) finishes the iteration and saves. See `lockstep_run` for what is kept.
 import argparse
 from pathlib import Path
 
-from drawmaha_solver.minidrawmaha.lockstep_run import run_to
-from drawmaha_solver.minidrawmaha.regret_rules import RegretRule
+from drawmaha_solver.minidrawmaha.solver.lockstep_run import run_to
+from drawmaha_solver.minidrawmaha.solver.regret_rules import RegretRule
 
 def main() -> None:
     parser = argparse.ArgumentParser()

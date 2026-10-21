@@ -25,14 +25,14 @@ from itertools import islice
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha.enumeration import (
+from drawmaha_solver.minidrawmaha.rules.enumeration import (
     all_infosets,
     private_keys,
     public_decision_points,
 )
-from drawmaha_solver.minidrawmaha.game import Action, DrawSignal, InfoSet, random_deal
-from drawmaha_solver.minidrawmaha.mccfr import load_solve, new_solve, save_solve, train
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.rules.game import Action, DrawSignal, InfoSet, random_deal
+from drawmaha_solver.minidrawmaha.solver.mccfr import load_solve, new_solve, save_solve, train
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.regret_matching import RegretMatcher
 
 FULL_RUN = os.environ.get("MINIDRAWMAHA_FULL_TABLE") == "1"

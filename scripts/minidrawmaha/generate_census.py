@@ -1,7 +1,7 @@
 """Regenerate `tests/minidrawmaha/census.json` — rung 3's stand-in for a referee.
 
 Rung 2 could ask OpenSpiel how big Leduc was, and
-`scripts/generate_leduc_referee.py` wrote the answer down. No engine implements
+`scripts/leduc/generate_referee.py` wrote the answer down. No engine implements
 Drawmaha, so rung 3 has no outside opinion to interrogate; what it has instead
 is an enumeration of its own rules, and this script writes down what that
 enumeration says. `tests/minidrawmaha/test_census.py` then rebuilds every
@@ -9,7 +9,7 @@ number here from the rules a second, different way and demands agreement, so a
 change to the deck, the throw cap or the betting tree fails loudly rather than
 quietly shipping a solver for a different game.
 
-    uv run python3 scripts/generate_minidrawmaha_census.py
+    uv run python3 scripts/minidrawmaha/generate_census.py
 
 It takes about fifteen seconds — long enough to be worth committing the answer
 rather than recomputing it on every run. The cost is not the arithmetic: it is
@@ -45,21 +45,21 @@ from pathlib import Path
 
 sys.path.insert(0, "src")
 
-from drawmaha_solver.minidrawmaha.cards import DECK, N_RANKS, N_SUITS  # noqa: E402
-from drawmaha_solver.minidrawmaha.enumeration import (  # noqa: E402
+from drawmaha_solver.minidrawmaha.rules.cards import DECK, N_RANKS, N_SUITS  # noqa: E402
+from drawmaha_solver.minidrawmaha.rules.enumeration import (  # noqa: E402
     ROOT_DEALS,
     all_infosets,
     private_keys,
     public_decision_points,
     public_tree,
 )
-from drawmaha_solver.minidrawmaha.game import (  # noqa: E402
+from drawmaha_solver.minidrawmaha.rules.game import (  # noqa: E402
     ANTE,
     STACK,
     THROW_CAP,
     NodeKind,
 )
-from drawmaha_solver.minidrawmaha.hands import BOARD_CARDS, HOLE_CARDS  # noqa: E402
+from drawmaha_solver.minidrawmaha.rules.hands import BOARD_CARDS, HOLE_CARDS  # noqa: E402
 
 FIXTURE = Path("tests/minidrawmaha/census.json")
 
@@ -212,8 +212,8 @@ def _write(*, public: dict, keys: dict, infosets: dict, gate: dict) -> None:
     concrete = public.pop("concrete")
     fixture = {
         "_source": (
-            "drawmaha_solver.minidrawmaha.enumeration, counted by "
-            "scripts/generate_minidrawmaha_census.py. Do not hand-edit: regenerate."
+            "drawmaha_solver.minidrawmaha.rules.enumeration, counted by "
+            "scripts/minidrawmaha/generate_census.py. Do not hand-edit: regenerate."
         ),
         # Every number below moves if any of these do, which is the whole
         # reason the file is committed.

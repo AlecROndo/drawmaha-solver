@@ -48,8 +48,8 @@ from pathlib import Path
 
 import numpy as np
 
-from drawmaha_solver.minidrawmaha.game import random_deal
-from drawmaha_solver.minidrawmaha.mccfr import (
+from drawmaha_solver.minidrawmaha.rules.game import random_deal
+from drawmaha_solver.minidrawmaha.solver.mccfr import (
     RootSampler,
     Table,
     _flat_slots,
@@ -62,8 +62,8 @@ from drawmaha_solver.minidrawmaha.mccfr import (
     _widths,
     traverse,
 )
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable, Slot
-from drawmaha_solver.minidrawmaha.regret_rules import (
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable, Slot
+from drawmaha_solver.minidrawmaha.solver.regret_rules import (
     RULES,
     Average,
     RegretRule,

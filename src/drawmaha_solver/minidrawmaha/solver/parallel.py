@@ -48,8 +48,8 @@ from multiprocessing.process import BaseProcess
 
 import numpy as np
 
-from drawmaha_solver.minidrawmaha.game import InfoSet
-from drawmaha_solver.minidrawmaha.lockstep import (
+from drawmaha_solver.minidrawmaha.rules.game import InfoSet
+from drawmaha_solver.minidrawmaha.solver.lockstep import (
     SEATS,
     Flat,
     LockstepSolve,
@@ -57,9 +57,9 @@ from drawmaha_solver.minidrawmaha.lockstep import (
     flatten,
     walk,
 )
-from drawmaha_solver.minidrawmaha.mccfr import RootSampler
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.regret_rules import Average
+from drawmaha_solver.minidrawmaha.solver.mccfr import RootSampler
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.regret_rules import Average
 
 # A walk records at most ~50 rows (measured: 31 regret rows / 76 values, 48
 # strategy rows / 134 values over 1,000 mini-drawmaha walks). Room for fifty

@@ -65,14 +65,14 @@ from enum import IntEnum, StrEnum
 from itertools import combinations
 from typing import TYPE_CHECKING
 
-from drawmaha_solver.minidrawmaha.cards import (
+from drawmaha_solver.minidrawmaha.rules.cards import (
     DECK,
     Card,
     canonical,
     canonical_relabelling,
     hand_symbol,
 )
-from drawmaha_solver.minidrawmaha.hands import (
+from drawmaha_solver.minidrawmaha.rules.hands import (
     BOARD_CARDS,
     HOLE_CARDS,
     inner_score,

@@ -6,8 +6,8 @@ the rest — onto files inside it. There is no single command that reproduces
 that locally, so reviewing a change to the cover page and the visualizers
 together meant three terminals and a guess. This is that one command:
 
-    bash scripts/vercel_build.sh          # build public/
-    uv run python scripts/serve_site.py   # http://localhost:4321
+    bash scripts/site/vercel_build.sh          # build public/
+    uv run python scripts/site/serve_site.py   # http://localhost:4321
 
 Stdlib only, so it can never break on the solver's numeric stack.
 """
@@ -19,7 +19,7 @@ from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 PUBLIC = ROOT / "public"
 
 # Read from vercel.json rather than mirrored by hand: a hand copy silently
@@ -46,7 +46,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if not PUBLIC.is_dir():
-        sys.exit("public/ is missing — run `bash scripts/vercel_build.sh` first.")
+        sys.exit("public/ is missing — run `bash scripts/site/vercel_build.sh` first.")
 
     handler = partial(Handler, directory=str(PUBLIC))
     with HTTPServer(("127.0.0.1", args.port), handler) as httpd:

@@ -1,6 +1,6 @@
 {
   "framework": null,
-  "buildCommand": "bash scripts/vercel_build.sh",
+  "buildCommand": "bash scripts/site/vercel_build.sh",
   "outputDirectory": "public",
   "rewrites": [
     {

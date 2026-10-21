@@ -125,7 +125,7 @@ def test_the_fonts_it_loads_are_the_ones_the_build_serves(
     is a 404 the browser hides behind a fallback face.
     """
     page = pages[name]
-    script = (ROOT / "scripts" / "vercel_build.sh").read_text()
+    script = (ROOT / "scripts" / "site" / "vercel_build.sh").read_text()
     checked_in = {path.name for path in (COVER / "fonts").glob("*.woff2")}
 
     wanted = set(re.findall(r"/fonts/([a-z0-9-]+\.woff2)", page))
@@ -148,7 +148,7 @@ def test_the_fonts_it_loads_are_the_ones_the_build_serves(
 
 def test_the_checked_in_fonts_are_not_ones_the_build_already_copies() -> None:
     """web/cover/fonts/ holds only what copy_font cannot reach; no duplicates."""
-    script = (ROOT / "scripts" / "vercel_build.sh").read_text()
+    script = (ROOT / "scripts" / "site" / "vercel_build.sh").read_text()
     for path in (COVER / "fonts").glob("*.woff2"):
         match = re.fullmatch(r"([a-z-]+)-latin-(\d+)-normal\.woff2", path.name)
         if not match:

@@ -67,8 +67,8 @@ from functools import cache
 from itertools import combinations, permutations
 from math import comb
 
-from drawmaha_solver.minidrawmaha.cards import DECK, Card, canonical
-from drawmaha_solver.minidrawmaha.game import (
+from drawmaha_solver.minidrawmaha.rules.cards import DECK, Card, canonical
+from drawmaha_solver.minidrawmaha.rules.game import (
     Action,
     DrawSignal,
     InfoSet,
@@ -76,7 +76,7 @@ from drawmaha_solver.minidrawmaha.game import (
     NodeKind,
     canonical_picture,
 )
-from drawmaha_solver.minidrawmaha.hands import HOLE_CARDS
+from drawmaha_solver.minidrawmaha.rules.hands import HOLE_CARDS
 
 # The root chance event, which `MiniState` deliberately leaves outside the state
 # machine: C(15,3) hands for P0 and C(12,3) for P1. It is not a node anybody
@@ -266,7 +266,7 @@ def private_keys(*, board_cards: int, discards: int) -> tuple[PrivateKey, ...]:
 def all_infosets() -> Iterator[InfoSet]:
     """Every infoset in mini-drawmaha, each exactly once. 6,220,050 of them.
 
-    A generator, and the only walk: `scripts/generate_minidrawmaha_census.py`
+    A generator, and the only walk: `scripts/minidrawmaha/generate_census.py`
     counts what it yields and `infoset_table.py` allocates one ledger per key
     it yields, so the census and the table can never disagree about what the
     game is. Consuming the whole of it builds 6.2 million `InfoSet` objects —

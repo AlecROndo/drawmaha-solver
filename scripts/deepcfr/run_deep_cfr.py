@@ -1,6 +1,6 @@
 """Train Deep CFR on mini-drawmaha on this machine, resumably.
 
-    caffeinate -i uv run --extra deep python scripts/run_deep_cfr.py --out runs/deep-smoke --target 3 --walks 1000
+    caffeinate -i uv run --extra deep python scripts/deepcfr/run_deep_cfr.py --out runs/deep-smoke --target 3 --walks 1000
 
 Re-running the same command resumes from `<out>/resume`. Ctrl-C (or SIGTERM)
 finishes the iteration and saves. See `deepcfr.train` for what is kept and

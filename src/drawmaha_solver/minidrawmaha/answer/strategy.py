@@ -19,7 +19,9 @@ array, and is refused on load rather than read as somebody else's strategy.
 the race graded, but a checkpoint may carry uniform or quadratic columns
 beside it and any of them can be frozen. An infoset the run never reached has
 an all-zero sum and plays uniformly, exactly as `RegretMatcher.average_strategy`
-reads it; 8,036 of the LCFR run's 6,220,050 rows are such.
+reads it. About 2.7 million of the LCFR run's 6,220,050 rows were never
+banked, and 3,537,196 read exactly uniform; nearly all of them are round-2
+rows the sampler's own play rarely reaches.
 
 **Float32 is enough.** The grader accepts rows within 1e-6 of summing to one,
 and float32 normalisation lands within about 1e-7. Graded, the frozen LCFR
@@ -45,10 +47,10 @@ from pathlib import Path
 import numpy as np
 
 from drawmaha_solver.minidrawmaha.exploitability import ROW_SUM_TOLERANCE
-from drawmaha_solver.minidrawmaha.game import InfoSet
-from drawmaha_solver.minidrawmaha.lockstep import read_lockstep
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.regret_rules import (
+from drawmaha_solver.minidrawmaha.rules.game import InfoSet
+from drawmaha_solver.minidrawmaha.solver.lockstep import read_lockstep
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.regret_rules import (
     PRIMARY_AVERAGE,
     Average,
     validate_averages,
