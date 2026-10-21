@@ -17,14 +17,15 @@ order. This module is that order — one iteration is
 — plus everything a 15-hour run needs around it: the resume state, grid-mark
 saves, a progress line per iteration, and a graceful stop on a signal or a
 deadline. There is no new math here; the exact average and the policy net Π
-are PR 5, which plugs into `observers` without touching the loop.
+are PR 5 (`average`, `policy`), which plug into `observers` without
+touching the loop.
 
 **Why materialise runs before every phase, not once per iteration.** Seat
 1's walks at iteration t sample seat 0's FRESHLY refit net — that is what
 alternating lockstep does, and what the spec counts as "iteration t's"
 strategy for seat 0. So the write happens twice per iteration, and the
-observers, which PR 5 will use to accumulate the exact average, are told
-which seat's σ is about to be sampled as the opponent: 1 − p.
+observers — PR 5's `ExactAverage` accumulates the exact average there — are
+told which seat's σ is about to be sampled as the opponent: 1 − p.
 
 **The learner seam.** The loop never names torch. It talks to a `Learner`
 with four methods — `fit` a model to the memory, `write` two models into
@@ -54,10 +55,14 @@ untouched `train_lockstep`. The oracle repeats LCFR's float operations in
 LCFR's order (per t′ in increasing order, `R[cols] += t′ · totals`) because
 a single Σ t′·r over all rows would round differently from t = 2 on.
 
-**The resume state** is three memories, the two latest nets, and a small
+**The resume state** is three memories, the two latest nets, the file of
+every observer that carries state (PR 5's `ExactAverage`: an observer with
+`name`, `save` and `load` — see `StatefulObserver`), and a small
 `state.json` written LAST and atomically: it is the commit point, so a crash
 anywhere in a save leaves the previous `state.json` naming the previous,
-complete files. The files carry their iteration in their names for that
+complete files. A resume refuses to drop an observer the state names, and
+an observer whose file the state lacks, because either would make the
+average silently wrong. The files carry their iteration in their names for that
 reason — overwriting fixed names would let a crash between two memories put
 two iterations under one `state.json`. The configuration travels in the
 state, and a resume whose seed, K, C, net size or any refit field differs
@@ -108,7 +113,7 @@ from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 
@@ -268,6 +273,35 @@ class Learner(Protocol):
 # whose σ is about to be sampled as the opponent, 1 − p.
 Observer = Callable[[PackedTable, int, int], None]
 
+@runtime_checkable
+class StatefulObserver(Protocol):
+    """An observer that carries state across iterations: PR 5's exact average.
+
+    Its `name` names its file, `{name}-t{t:05d}.npz`, which `save_run`
+    writes beside the memories (atomically, as `Reservoir.save` is: the
+    observer's own `save` is trusted to be) and `state.json` names; a
+    resumed run `load`s it before its first step. An observer without the
+    three members is stateless and is left alone — `isinstance` on this
+    protocol is that test.
+    """
+
+    name: str
+
+    def __call__(self, table: PackedTable, t: int, seat: int) -> None: ...
+
+    def save(self, path: Path) -> None: ...
+
+    def load(self, path: Path) -> None: ...
+
+def _stateful(observers: Sequence[Observer]) -> list[StatefulObserver]:
+    """The observers that carry state, in the order given; two with one name are refused."""
+    found = [o for o in observers if isinstance(o, StatefulObserver)]
+    names = [o.name for o in found]
+    for name in names:
+        if names.count(name) > 1:
+            raise ValueError(f"two stateful observers are named {name!r}; their files would collide")
+    return found
+
 # ---------------------------------------------------------------------------
 # One iteration
 # ---------------------------------------------------------------------------
@@ -356,8 +390,10 @@ def _timed(into: list[float]):
 # The commit point of a save: written last, and the only file a load trusts.
 STATE = "state.json"
 
-def save_run(run: DeepRun, directory: Path, *, learner: Learner) -> None:
-    """Write the run's three memories, its nets and `state.json` into `directory`; the state last.
+def save_run(
+    run: DeepRun, directory: Path, *, learner: Learner, observers: Sequence[Observer] = ()
+) -> None:
+    """Write the run's three memories, its nets, its stateful observers and `state.json` into `directory`; the state last.
 
     Every file carries the iteration in its name, so the files of the
     previous save stand untouched until the new `state.json` is in place;
@@ -370,44 +406,69 @@ def save_run(run: DeepRun, directory: Path, *, learner: Learner) -> None:
     advantage = [_memory_name("advantage", t, seat=seat) for seat in SEATS]
     policy = _memory_name("policy", t)
     nets = [None if net is None else _net_name(seat, t) for seat, net in enumerate(run.nets)]
+    stateful = _stateful(observers)
+    extras = {observer.name: _observer_name(observer.name, t) for observer in stateful}
     for seat in SEATS:
         run.advantage[seat].save(directory / advantage[seat])
     run.policy.save(directory / policy)
     for seat, name in enumerate(nets):
         if name is not None:
             _atomically(learner.save, run.nets[seat], directory / name)
+    for observer in stateful:
+        observer.save(directory / extras[observer.name])
     state = {
         "t": t,
         "config": asdict(run.config),
-        "files": {"advantage": advantage, "policy": policy, "nets": nets},
+        "files": {"advantage": advantage, "policy": policy, "nets": nets, "observers": extras},
     }
     _write_state(directory, state)
-    keep = {STATE, *advantage, policy, *(name for name in nets if name is not None)}
+    keep = {STATE, *advantage, policy, *(name for name in nets if name is not None), *extras.values()}
     for stale in directory.iterdir():
         if stale.is_file() and stale.name not in keep:
             stale.unlink()
 
-def load_run(directory: Path, *, learner: Learner) -> DeepRun:
+def load_run(
+    directory: Path, *, learner: Learner, observers: Sequence[Observer] = ()
+) -> DeepRun:
     """The run as `save_run` left it in `directory`, ready for the next `step`.
 
-    Refuses, by name, a directory with no `state.json` and a state naming a
-    file that is not there, rather than continuing from a memory it does
-    not have.
+    Each stateful observer given is loaded from the file the state names
+    for it. Refuses, by name, a directory with no `state.json`, a state
+    naming a file that is not there, and a stateful observer the state has
+    no file for (a save made without it), rather than continuing from a
+    memory or a sum it does not have. A state that names an observer NOT
+    given here loads fine — a grader opening a mark for its memories and
+    nets needs no observer; it is `run_deep`'s resume that refuses to drop
+    one.
     """
     directory = Path(directory)
     state = _read_state(directory)
     files = state["files"]
     named = [*files["advantage"], files["policy"], *(n for n in files["nets"] if n is not None)]
+    saved = files.get("observers", {})
+    stateful = _stateful(observers)
+    for observer in stateful:
+        if observer.name not in saved:
+            raise ValueError(
+                f"{directory / STATE} holds no file for the observer {observer.name!r}: "
+                "that save was made without it"
+            )
+        named.append(saved[observer.name])
     for name in named:
         if not (directory / name).exists():
             raise ValueError(f"{directory / STATE} names {name}, which is not in {directory}")
-    return DeepRun(
+    run = DeepRun(
         config=_config_of(state),
         t=int(state["t"]),
         nets=[None if name is None else learner.load(directory / name) for name in files["nets"]],
         advantage=tuple(Reservoir.load(directory / name) for name in files["advantage"]),
         policy=Reservoir.load(directory / files["policy"]),
     )
+    # Last, so a refused config or memory leaves the caller's observers as
+    # they were.
+    for observer in stateful:
+        observer.load(directory / saved[observer.name])
+    return run
 
 def saved_config(directory: Path) -> DeepConfig:
     """The config a save was made under, read from its `state.json` alone.
@@ -434,6 +495,9 @@ def _memory_name(kind: str, t: int, *, seat: int | None = None) -> str:
 
 def _net_name(seat: int, t: int) -> str:
     return f"p{seat}-t{t:05d}.pt"
+
+def _observer_name(name: str, t: int) -> str:
+    return f"{name}-t{t:05d}.npz"
 
 def _write_state(directory: Path, state: dict) -> None:
     """`state.json`, written as a temp file, fsynced and renamed into place."""
@@ -532,9 +596,12 @@ def run_deep(
     out.mkdir(parents=True, exist_ok=True)
     if learner is None:
         learner = NetLearner(config)
+    # Two stateful observers with one name are refused here, before an
+    # iteration is paid for, not at the first save.
+    _stateful(observers)
 
     # Step 1: open the run
-    run = _open(out, config, learner=learner)
+    run = _open(out, config, learner=learner, observers=observers)
 
     # Step 2: nothing to do
     if run.t >= target:
@@ -555,6 +622,7 @@ def run_deep(
             learner=learner,
             commit=commit,
             log=log,
+            observers=observers,
             opened=time.monotonic(),
             opened_t=run.t,
             resumed=time.monotonic(),
@@ -594,15 +662,29 @@ def _spawn_ignoring_signals(collector: Collector, *, workers: int) -> None:
         for sig, handler in previous.items():
             signal.signal(sig, handler)
 
-def _open(out: Path, config: DeepConfig, *, learner: Learner) -> DeepRun:
-    """The run in `out`: resumed from `out/resume` if it has a state, else new at iteration 0."""
+def _open(
+    out: Path, config: DeepConfig, *, learner: Learner, observers: Sequence[Observer]
+) -> DeepRun:
+    """The run in `out`: resumed from `out/resume` if it has a state, else new at iteration 0.
+
+    A resume state naming a stateful observer the run was not given is
+    refused by name: continuing without it would drop its state at the next
+    save, and the average it held would be gone with nothing in the log.
+    """
     resume = out / RESUME
     if not (resume / STATE).exists():
         return new_run(config)
     # The saved config is the run's; the asked one may differ only in what
     # the walks and nets never see. Checked before the memories are read.
     require_same_run(saved_config(resume), config)
-    run = load_run(resume, learner=learner)
+    given = {observer.name for observer in _stateful(observers)}
+    dropped = sorted(set(_read_state(resume)["files"].get("observers", {})) - given)
+    if dropped:
+        raise ValueError(
+            f"{resume / STATE} carries state for the observer(s) {dropped}, which this "
+            "run was not given; resuming without them would drop it"
+        )
+    run = load_run(resume, learner=learner, observers=observers)
     run.config = config
     return run
 
@@ -659,6 +741,7 @@ class _Saves:
     learner: Learner
     commit: Callable[[], None]
     log: Callable[[str], None]
+    observers: Sequence[Observer]
     opened: float  # monotonic seconds when the run opened, the pace's baseline
     opened_t: int  # the iteration it opened at
     resumed: float  # monotonic seconds of the last resume save
@@ -679,7 +762,9 @@ class _Saves:
             _atomically(self.learner.save, net, nets / net_name(seat, run.t))
             wrote.append(f"{NETS}/{net_name(seat, run.t)}")
         if kept:
-            save_run(run, self.out / MARKS / mark_name(run.t), learner=self.learner)
+            save_run(
+                run, self.out / MARKS / mark_name(run.t), learner=self.learner, observers=self.observers
+            )
             wrote.append(f"{MARKS}/{mark_name(run.t)}")
         if resume:
             self._save_resume(run, wrote)
@@ -728,7 +813,7 @@ class _Saves:
         )
 
     def _save_resume(self, run: DeepRun, wrote: list[str]) -> None:
-        save_run(run, self.out / RESUME, learner=self.learner)
+        save_run(run, self.out / RESUME, learner=self.learner, observers=self.observers)
         wrote.append(RESUME)
         self.resumed = time.monotonic()
         self.resume_t = run.t

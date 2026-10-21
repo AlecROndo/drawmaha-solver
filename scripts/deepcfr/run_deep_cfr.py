@@ -2,8 +2,9 @@
 
     caffeinate -i uv run --extra deep python scripts/deepcfr/run_deep_cfr.py --out runs/deep-smoke --target 3 --walks 1000
 
-Re-running the same command resumes from `<out>/resume`. Ctrl-C (or SIGTERM)
-finishes the iteration and saves. See `deepcfr.train` for what is kept and
+Re-running the same command resumes from `<out>/resume`, the exact average
+(`deepcfr.average`) included. Ctrl-C (or SIGTERM) finishes the iteration and
+saves. See `deepcfr.train` for what is kept and
 which flags a resume may change (`--workers` yes; the seed, the walks, the
 capacity and the net's size no).
 """
@@ -12,6 +13,7 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from drawmaha_solver.deepcfr.average import ExactAverage
 from drawmaha_solver.deepcfr.train import DeepConfig, run_deep
 
 def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -53,7 +55,9 @@ def config_from_args(args: argparse.Namespace) -> DeepConfig:
 
 def main() -> None:
     args = parse()
-    run_deep(args.out, config_from_args(args), target=args.target)
+    # The exact average rides along from iteration 1: it cannot be rebuilt
+    # later without replaying every kept net, and its file joins the resume.
+    run_deep(args.out, config_from_args(args), target=args.target, observers=(ExactAverage(),))
 
 if __name__ == "__main__":
     main()

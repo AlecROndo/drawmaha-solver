@@ -5,7 +5,9 @@ and loaded refits to the same weights as the uninterrupted run (the memory
 round-trips, the fit is a function of its seed, and the thread count is
 fixed); the kept net files load with `load_net` and reproduce materialise's
 write; and, behind `MINIDRAWMAHA_FULL_DEEP=1`, a few real iterations leave
-the current iterate less exploitable than uniform play (4.842).
+the exact average less exploitable than the current iterate, and both less
+than uniform play (4.842), the average replays from the kept nets bit for
+bit, and Π grades below uniform.
 """
 
 from __future__ import annotations
@@ -19,9 +21,11 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
+from drawmaha_solver.deepcfr.average import ExactAverage  # noqa: E402
 from drawmaha_solver.deepcfr.collect import Collector  # noqa: E402
 from drawmaha_solver.deepcfr.materialise import materialise  # noqa: E402
 from drawmaha_solver.deepcfr.net import load_net  # noqa: E402
+from drawmaha_solver.deepcfr.policy import fit_policy, policy_strategy  # noqa: E402
 from drawmaha_solver.deepcfr.train import (  # noqa: E402
     NETS,
     RESUME,
@@ -123,21 +127,56 @@ def test_fit_reports_a_finite_loss_and_a_run_logs_it(tmp_path):
 
 @pytest.mark.skipif(
     not FULL_DEEP,
-    reason="a few real iterations at K = 1,000 and one exact grade, ~10 min; set MINIDRAWMAHA_FULL_DEEP=1",
+    reason="20 real iterations at K = 1,000 with 1,000-step refits, three exact grades, ~7 min; set MINIDRAWMAHA_FULL_DEEP=1",
 )
-def test_gate_five_the_current_iterate_beats_uniform(tmp_path):
+def test_gate_five_the_exact_average_beats_the_current_iterate_and_uniform(tmp_path):
     config = DeepConfig(seed=0, walks=1_000, workers=8, capacity=10_000_000, steps=1_000, threads=8)
     learner = NetLearner(config)
+    exact = ExactAverage()
     started = time.monotonic()
-    run = run_deep(tmp_path, config, target=5, learner=learner, log=print)
+    # Twenty iterations, not PR 4's five: the average carries iteration 1's
+    # uniform play at weight 1/Σt and seat 1's share lags a refit, so at t = 5
+    # it grades 1.522 against the current iterate's 1.391 and at t = 10
+    # 1.089 against 0.865; the current iterate then swings back up (0.927 at
+    # 20, 0.998 at 40) while the average keeps falling (0.869, 0.737), so
+    # from t = 20 the spec's ordering holds (measured 2026-10-21, seed 0).
+    run = run_deep(tmp_path, config, target=20, learner=learner, observers=(exact,), log=print)
     trained_s = time.monotonic() - started
+    assert exact.last == [20, 20]
     table = PackedTable.whole_game()
     learner.write(table, run.nets)
+    grades, seconds = {}, {}
+    strategies = {
+        "current": current_iterate(table, iteration=run.t, seed=config.seed),
+        "exact": exact.frozen(iteration=run.t, seed=config.seed),
+    }
     started = time.monotonic()
-    grade = exploitability(current_iterate(table, iteration=run.t, seed=config.seed))
-    graded_s = time.monotonic() - started
+    pi = fit_policy(*run.policy.contents(), seed=config.seed, iteration=run.t, config=learner._fit())
+    strategies["pi"] = policy_strategy(pi, iteration=run.t, seed=config.seed)
+    seconds["pi fit + freeze"] = time.monotonic() - started
+    for name, strategy in strategies.items():
+        started = time.monotonic()
+        grades[name] = exploitability(strategy)
+        seconds[name] = time.monotonic() - started
     uniform = exploitability(uniform_strategy())
-    print(f"gate 5: current iterate at t={run.t} grades {grade:.3f} against uniform {uniform:.3f}; "
-          f"trained in {trained_s:.0f} s, graded in {graded_s:.0f} s")
+    print(
+        f"gate 5 at t={run.t}: current {grades['current']:.3f}, exact average {grades['exact']:.3f}, "
+        f"pi {grades['pi']:.3f}, uniform {uniform:.3f}; trained in {trained_s:.0f} s; "
+        + ", ".join(f"{k} {v:.0f} s" for k, v in seconds.items())
+    )
     assert uniform == pytest.approx(4.842, abs=0.001)
-    assert grade < uniform
+    assert grades["exact"] < grades["current"] < uniform
+    # Π's bar is the floor; its number is reported, not pinned.
+    assert grades["pi"] < uniform
+    # Single Deep CFR both ways: the sums replay from the kept nets, bit for bit.
+    replay = ExactAverage()
+    kept = lambda seat, t: None if t == 0 else load_net(tmp_path / NETS / net_name(seat, t))  # noqa: E731
+    for t in range(1, run.t + 1):
+        materialise(table, (kept(0, t - 1), kept(1, t - 1)))
+        replay(table, t, 1)
+        materialise(table, (kept(0, t), kept(1, t - 1)))
+        replay(table, t, 0)
+    np.testing.assert_array_equal(replay.sums, exact.sums)
+    saved = ExactAverage()
+    saved.load(tmp_path / RESUME / f"exact-t{run.t:05d}.npz")
+    np.testing.assert_array_equal(saved.sums, exact.sums)
