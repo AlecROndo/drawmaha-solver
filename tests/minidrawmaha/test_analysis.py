@@ -259,3 +259,94 @@ def test_the_committed_headline_numbers_are_what_the_grader_says():
     uniform = grade(uniform_strategy())
     for name in ("br0", "br1", "exploitability", "value_p0"):
         assert uniform[name] == pytest.approx(grades[UNIFORM_RANDOM][name], abs=1e-9)
+
+# ---------------------------------------------------------------------------
+# Rung 4: the price of the net at equal hands
+# ---------------------------------------------------------------------------
+
+def fake_deep_grades(marks=(10, 2_000), walks=10_000):
+    """Three graded objects per mark, the exact average lowest, with the run's config beside them."""
+    grades = {}
+    config = {"seed": 0, "walks": walks, "workers": 32, "capacity": 50_000_000, "width": 64, "depth": 3,
+              "steps": 4_000, "batch": 10_000, "lr": 1e-3, "clip": 1.0, "threads": 8,
+              "grid": [10, 20, 50, 100, 200, 500, 1_000, 2_000], "save_every_s": 1800.0}
+    for t in marks:
+        for k, column in enumerate(analysis.DEEP_COLUMNS):
+            grades[analysis.deep_key(t, column)] = {
+                "exploitability": (1.0 + 0.5 * k) * 2.0 / np.sqrt(t * walks / 10),
+                "br0": 0.0, "br1": 0.0, "value_p0": -0.09,
+                "hands_per_seat": t * walks, "wall_clock_s": 30.0 * t, "config": config,
+            }
+    return grades
+
+def test_a_deep_key_sorts_by_iteration_and_refuses_an_unknown_column():
+    assert analysis.deep_key(10, "exact") == "deep/00010/exact"
+    assert sorted([analysis.deep_key(2_000, "pi"), analysis.deep_key(50, "pi")])[0].endswith("00050/pi")
+    with pytest.raises(ValueError, match="linear"):
+        analysis.deep_key(10, "linear")
+
+def test_a_deep_series_is_hands_per_seat_in_order_for_one_object():
+    points = analysis.deep_series(fake_deep_grades(), "pi")
+    assert [hands for hands, _ in points] == [100_000, 20_000_000]
+    assert points[0][1] > points[1][1]
+    assert analysis.deep_series(fake_deep_grades(), "exact")[0][1] < points[0][1]
+
+def test_a_key_that_is_not_a_deep_mark_is_refused_by_name():
+    with pytest.raises(ValueError, match="lcfr/000010000/linear"):
+        analysis.deep_series({**fake_deep_grades(), "lcfr/000010000/linear": {}}, "exact")
+    with pytest.raises(ValueError, match="deep/00010/linear"):
+        analysis.deep_series({"deep/00010/linear": {}}, "exact")
+
+def test_the_price_table_divides_each_object_by_lcfr_at_equal_hands():
+    table = analysis.price_table(fake_grades(), fake_deep_grades())
+    assert [row["iteration"] for row in table] == [10, 2_000]
+    first = table[0]
+    lcfr = fake_grades()[grade_key("lcfr", 10_000, "linear")]["exploitability"]
+    assert first["hands_per_seat"] == 100_000 and first["lcfr"] == pytest.approx(lcfr)
+    for column in analysis.DEEP_COLUMNS:
+        assert first["price"][column] == pytest.approx(first[column] / lcfr)
+    assert first["wall_clock_s"] == pytest.approx(300.0)
+
+def test_a_mark_with_no_lcfr_point_at_equal_hands_is_refused():
+    with pytest.raises(ValueError, match="500,000 hands"):
+        analysis.price_table(fake_grades(), fake_deep_grades(marks=(10, 50)))
+
+def test_the_price_figure_title_reads_the_last_marks_ratios(tmp_path, titles):
+    analysis.fig_price(fake_grades(), fake_deep_grades(), tmp_path / "price.png")
+    table = analysis.price_table(fake_grades(), fake_deep_grades())
+    last = table[-1]["price"]
+    assert titles[-1].startswith("Deep CFR ÷ LCFR at 20M hands")
+    for column in analysis.DEEP_COLUMNS:
+        assert f"{last[column]:.2f}" in titles[-1]
+
+def test_the_price_figure_needs_the_uniform_line(tmp_path, titles):
+    rung3 = fake_grades()
+    del rung3[UNIFORM_RANDOM]
+    with pytest.raises(ValueError, match=UNIFORM_RANDOM):
+        analysis.fig_price(rung3, fake_deep_grades(), tmp_path / "price.png")
+
+def test_deep_main_writes_the_figure_and_the_sheet(tmp_path, monkeypatch):
+    rung3, rung4 = tmp_path / "rung3.json", tmp_path / "rung4.json"
+    rung3.write_text(json.dumps(fake_grades()))
+    rung4.write_text(json.dumps(fake_deep_grades()))
+    sweep = tmp_path / "sweep.json"
+    sweep.write_text(json.dumps({"iterations": 100, "winner": "64x3", "sizes": {}}))
+    out = tmp_path / "figures"
+    analysis.deep_main(["--grades", str(rung4), "--rung3", str(rung3), "--sweep", str(sweep), "--out", str(out)])
+    assert (out / "price.png").stat().st_size > 0
+    sheet = json.loads((out / "answer_sheet.json").read_text())
+    assert sheet["headline"]["hands_per_seat"] == 20_000_000
+    assert sheet["headline"]["price"]["exact"] == pytest.approx(
+        analysis.price_table(fake_grades(), fake_deep_grades())[-1]["price"]["exact"]
+    )
+    assert sheet["run"]["walks"] == 10_000
+    assert sheet["sweep"]["winner"] == "64x3"
+    assert [row["iteration"] for row in sheet["marks"]] == [10, 2_000]
+
+def test_deep_main_without_a_sweep_file_leaves_the_sheet_without_one(tmp_path):
+    rung3, rung4 = tmp_path / "rung3.json", tmp_path / "rung4.json"
+    rung3.write_text(json.dumps(fake_grades()))
+    rung4.write_text(json.dumps(fake_deep_grades()))
+    out = tmp_path / "figures"
+    analysis.deep_main(["--grades", str(rung4), "--rung3", str(rung3), "--sweep", str(tmp_path / "none.json"), "--out", str(out)])
+    assert json.loads((out / "answer_sheet.json").read_text())["sweep"] is None

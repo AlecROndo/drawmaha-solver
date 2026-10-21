@@ -843,7 +843,8 @@ class NetLearner:
     have seen, not a held-out one; it says how well the refit fits, and it
     is comparable across iterations. `write` is `materialise`. The thread
     count comes from the config, and the fit's own `set_num_threads` lasts
-    the fit only.
+    the fit only. `fit_config` is the `FitConfig` the run's fields describe,
+    which Π's fit at a grid mark shares (`policy.fit_policy`).
     """
 
     def __init__(self, config: DeepConfig) -> None:
@@ -857,7 +858,7 @@ class NetLearner:
 
         from drawmaha_solver.deepcfr.fit import _fold_seed, batch_loss, fit_from_scratch
 
-        config = self._fit()
+        config = self.fit_config()
         net = fit_from_scratch(rows, t, targets, seed=seed, config=config)
         draw = torch.Generator().manual_seed(_fold_seed((*seed, _HELD_TAG)))
         held = torch.randint(len(rows), (config.batch,), generator=draw).numpy()
@@ -880,7 +881,8 @@ class NetLearner:
 
         return load_net(path)
 
-    def _fit(self):
+    def fit_config(self):
+        """The `FitConfig` of this run's refits, built once torch is first needed."""
         if self._fit_config is None:
             from drawmaha_solver.deepcfr.fit import FitConfig
 

@@ -99,7 +99,7 @@ def test_deep_config_carries_every_fit_config_field():
     fit_fields = {f.name: f.default for f in fields(FitConfig)}
     deep_fields = {f.name: f.default for f in fields(DeepConfig)}
     assert all(deep_fields.get(name) == default for name, default in fit_fields.items())
-    assert NetLearner(DeepConfig())._fit() == FitConfig()
+    assert NetLearner(DeepConfig()).fit_config() == FitConfig()
 
 def test_fit_reports_a_finite_loss_and_a_run_logs_it(tmp_path):
     learner = NetLearner(TINY)
@@ -151,7 +151,7 @@ def test_gate_five_the_exact_average_beats_the_current_iterate_and_uniform(tmp_p
         "exact": exact.frozen(iteration=run.t, seed=config.seed),
     }
     started = time.monotonic()
-    pi = fit_policy(*run.policy.contents(), seed=config.seed, iteration=run.t, config=learner._fit())
+    pi = fit_policy(*run.policy.contents(), seed=config.seed, iteration=run.t, config=learner.fit_config())
     strategies["pi"] = policy_strategy(pi, iteration=run.t, seed=config.seed)
     seconds["pi fit + freeze"] = time.monotonic() - started
     for name, strategy in strategies.items():
