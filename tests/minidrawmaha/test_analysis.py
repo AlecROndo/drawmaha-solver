@@ -350,3 +350,17 @@ def test_deep_main_without_a_sweep_file_leaves_the_sheet_without_one(tmp_path):
     out = tmp_path / "figures"
     analysis.deep_main(["--grades", str(rung4), "--rung3", str(rung3), "--sweep", str(tmp_path / "none.json"), "--out", str(out)])
     assert json.loads((out / "answer_sheet.json").read_text())["sweep"] is None
+
+def test_deep_main_refuses_a_file_of_two_runs_before_touching_the_figure(tmp_path):
+    rung3, rung4 = tmp_path / "rung3.json", tmp_path / "rung4.json"
+    rung3.write_text(json.dumps(fake_grades()))
+    mixed = fake_deep_grades()
+    mixed[analysis.deep_key(2_000, "pi")]["config"] = {**mixed[analysis.deep_key(2_000, "pi")]["config"], "seed": 1}
+    rung4.write_text(json.dumps(mixed))
+    out = tmp_path / "figures"
+    out.mkdir()
+    (out / "price.png").write_bytes(b"the committed figure")
+    with pytest.raises(ValueError, match="different runs"):
+        analysis.deep_main(["--grades", str(rung4), "--rung3", str(rung3), "--out", str(out)])
+    assert (out / "price.png").read_bytes() == b"the committed figure"
+    assert not (out / "answer_sheet.json").exists()

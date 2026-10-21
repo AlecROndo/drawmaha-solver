@@ -193,7 +193,25 @@ def test_a_sweep_grade_fans_out_the_three_sizes_and_names_the_winner(launcher, t
     assert written["winner"] == "128x3"
     assert written["sizes"]["64x4"]["pi"]["exploitability"] == pytest.approx(1.07)
     assert written["iterations"] == 100
+    # The sheet's hands are the graded run's, not the grading command's flags.
+    assert written["hands_per_seat"] == 1_000_000
     assert "128x3" in capsys.readouterr().out
+
+def test_a_sweep_grade_refuses_sizes_that_disagree_on_hands(launcher, tmp_path):
+    hands = {"sweep/64x3": 1_000_000, "sweep/64x4": 1_000_000, "sweep/128x3": 500_000}
+
+    def spawn(name, t):
+        return mock.Mock(get=lambda: {c: {"exploitability": 1.0, "hands_per_seat": hands[name]} for c in ("exact", "pi", "current")})
+
+    fakes = {
+        "read_status": mock.Mock(remote=lambda: {name: {"t": 100} for name in hands}),
+        "grade_mark": mock.Mock(spawn=spawn),
+    }
+    launcher.modal.Function.from_name.side_effect = lambda app, name: fakes[name]
+    out = tmp_path / "sweep.json"
+    with pytest.raises(ValueError, match="hands per seat"):
+        launcher.sweep(grade=True, out=str(out))
+    assert not out.exists()
 
 # ---------------------------------------------------------------------------
 # Grading: the fan-out and grades.json
@@ -337,13 +355,18 @@ def test_grade_mark_dir_refuses_a_mark_that_was_not_kept(launcher, tmp_path):
 # The smoke's report
 # ---------------------------------------------------------------------------
 
-def test_the_speed_report_projects_the_full_run_from_the_smokes_lines(launcher):
-    lines = [line(1, 22.0), line(2, 22.0), line(3, 22.0), line(3, 22.0), line(4, 22.0)]
+def test_the_speed_report_projects_the_full_run_from_the_last_iteration(launcher):
+    # Iteration 1 fits a tiny memory and is cheap; the LAST iteration is the one
+    # that looks like the run. Iteration 3 was re-run after the resume and its
+    # earlier line must not count twice.
+    cheap = line(1, 12.0)
+    cheap["seconds"]["fit"] = [5.0, 5.0]
+    lines = [cheap, line(2, 22.0), line(3, 22.0), line(3, 22.0), line(4, 22.0)]
     graded = {"exact": {"grade_s": 60.0}, "pi": {"grade_s": 60.0, "pi_fit_s": 30.0}, "current": {"grade_s": 60.0}}
     report = launcher._speed_report(lines, graded, walks=1_000, workers=32, cpu_count=33)
     assert report["iterations"] == 4
-    assert report["seconds_per_iteration"] == pytest.approx(22.0)
-    assert report["seconds"]["fit"] == pytest.approx(20.0)
+    assert report["seconds_per_iteration"] == pytest.approx((12.0 + 22.0 * 3) / 4)
+    assert report["seconds"]["fit"] == pytest.approx(20.0), "the last iteration's stages"
     assert report["seconds"]["collect"] == pytest.approx(2.0)
     # Only the walks scale with K: 2 s of collecting at K = 1,000 is 20 s at 10,000.
     assert report["projected_seconds_per_iteration"] == pytest.approx(22.0 - 2.0 + 20.0)

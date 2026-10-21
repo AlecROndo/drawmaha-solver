@@ -48,11 +48,12 @@ mark as for eight.
 shape, in a scratch directory and not on the Volume, then ONE more
 iteration resumed from the save (the resume path, exact average included),
 then the three objects graded from the kept mark on the same container.
-Its report is the seconds per stage, the projection to the full run — only
-the walks scale with K, so collect is scaled by 10,000 / K and the rest
-taken as measured — and that projection priced at Modal's listed rates,
-which replaces the spec's ~26 s and ~$70 budget. The grader's seconds come
-with it, so the eight grade containers are budgeted too.
+Its report is the last iteration's seconds per stage, the projection to the
+full run — only the walks scale with K, so collect is scaled by 10,000 / K
+and the rest taken as measured; a lower bound, since the refit grows a
+little with the memory — and that projection priced at Modal's listed
+rates, which replaces the spec's ~26 s and ~$70 budget. The grader's
+seconds come with it, so the eight grade containers are budgeted too.
 
 `sweep` is the spec's net-size question: 3 × 64, 4 × 64 and 3 × 128 to 100
 iterations each (1M hands per seat) in three trainers at once, under
@@ -467,21 +468,26 @@ def benchmark(walks: int, iterations: int, workers: int) -> dict:
 def _speed_report(
     progress: list[dict], graded: Mapping[str, Mapping], *, walks: int, workers: int, cpu_count: int | None
 ) -> dict:
-    """Seconds per stage over the lines (last per t), the full run's projection, and its price.
+    """The last iteration's seconds per stage, the full run's projection from it, and its price.
 
-    Collect is the one stage that scales with K, so the projection takes
-    it × `DeepConfig.walks / walks` and every other stage as measured. The
-    price is the trainer's cores and memory at Modal's listed rates for the
-    projected hours of `TARGET` iterations.
+    The LAST iteration is the one that looks like the run: iteration 1 fits
+    a near-empty memory and plays uniform, so an average over a 3-iteration
+    smoke would read low. A crashed-and-resumed t counts once (last line per
+    t). Collect is the one stage that scales with K, so the projection takes
+    it × `DeepConfig.walks / walks` and every other stage as measured at the
+    last iteration. Still a lower bound: the refit's sampling and the
+    reservoir's merges grow a little with the memory over 2,000 iterations.
+    The price is the trainer's cores and memory at Modal's listed rates for
+    the projected hours of `TARGET` iterations; `seconds_per_iteration` is
+    the mean over the smoke's iterations, for the record.
     """
     last = {int(line["t"]): line for line in progress if "seconds" in line}
+    final = last[max(last)]["seconds"]
     stages = ("materialise", "collect", "merge", "fit")
-    seconds = {
-        stage: sum(sum(line["seconds"][stage]) for line in last.values()) / len(last) for stage in stages
-    }
+    seconds = {stage: sum(final[stage]) for stage in stages}
     per_iteration = sum(line["seconds"]["iteration"] for line in last.values()) / len(last)
     scale = DeepConfig.walks / walks
-    projected = per_iteration - seconds["collect"] + seconds["collect"] * scale
+    projected = final["iteration"] - seconds["collect"] + seconds["collect"] * scale
     hours = projected * TARGET / 3600
     usd = hours * 3600 * ((workers + 1) * CPU_USD_PER_CORE_S + MEMORY_GIB * MEMORY_USD_PER_GIB_S)
     grade_seconds = {column: float(entry["grade_s"]) for column, entry in graded.items()}
@@ -517,7 +523,8 @@ def sweep(
 
     The grade refuses, by name, a size whose run is short of `target`
     before any container starts; a run that has not started is refused the
-    same way.
+    same way. `walks`, `workers`, `threads` and `seed` shape the launch
+    only; the sheet's hands are read back from the graded runs.
     """
     names = {size: f"{SWEEP}/{_size_name(*size)}" for size in SIZES}
     if not grade:
@@ -535,10 +542,15 @@ def sweep(
     deployed = modal.Function.from_name(APP, "grade_mark")
     calls = {size: deployed.spawn(name, target) for size, name in names.items()}
     by_size = {_size_name(*size): call.get() for size, call in calls.items()}
+    # The hands come from the graded runs, not from this command's flags: a
+    # sweep launched at another K would otherwise be filed under the wrong hands.
+    hands = {size: int(columns["exact"]["hands_per_seat"]) for size, columns in by_size.items()}
+    if len(set(hands.values())) != 1:
+        raise ValueError(f"the sizes disagree on hands per seat at iteration {target}: {hands}")
     winner = sweep_winner(by_size)
     sheet = {
         "iterations": target,
-        "hands_per_seat": target * walks,
+        "hands_per_seat": hands.popitem()[1],
         "rule": f"{_size_name(*DEFAULT_SIZE)} unless another size's exact average is lower by more "
                 f"than {CLEAR_MARGIN:.0%} of its exploitability",
         "winner": winner,

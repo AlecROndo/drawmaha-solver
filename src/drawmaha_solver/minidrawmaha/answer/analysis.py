@@ -690,8 +690,11 @@ def deep_main(argv: list[str] | None = None) -> None:
     Steps:
       1. Read rung 4's grades (`--grades`), rung 3's (`--rung3`) and, if the
          file exists, the net-size sweep (`--sweep`).
-      2. Draw `price.png` into `--out`.
-      3. Write `answer_sheet.json` beside it and print the price table.
+      2. Build the sheet, which refuses a grades file of two runs, BEFORE
+         anything is written: a refusal must leave the committed figure as
+         it was, not a figure that disagrees with the sheet.
+      3. Draw `price.png` into `--out`, write `answer_sheet.json` beside it,
+         and print the price table.
     """
     parser = argparse.ArgumentParser(description="Rung-4 analysis: the price of the net at equal hands")
     parser.add_argument("--grades", type=Path, default=DEEP_GRADES)
@@ -705,11 +708,11 @@ def deep_main(argv: list[str] | None = None) -> None:
     rung4 = json.loads(args.grades.read_text())
     sweep = json.loads(args.sweep.read_text()) if args.sweep.exists() else None
 
-    # Step 2: the figure
-    fig_price(rung3, rung4, args.out / "price.png")
-
-    # Step 3: the sheet
+    # Step 2: the sheet, as the check
     sheet = deep_answer_sheet(rung3, rung4, sweep=sweep)
+
+    # Step 3: the figure and the files
+    fig_price(rung3, rung4, args.out / "price.png")
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "answer_sheet.json").write_text(json.dumps(sheet, indent=2) + "\n")
     print(f"wrote {(args.out / 'answer_sheet.json').resolve()}")
@@ -756,8 +759,15 @@ def price_table(rung3: Mapping[str, Grade], rung4: Mapping[str, Grade]) -> list[
 
     Equal hands is the spec's comparison: a Deep CFR mark at t · K hands
     per seat is set against LCFR's linear average at the lockstep iteration
-    that sampled as many, `hands / workers`. A mark with no LCFR grade at
-    its hands is refused by name rather than matched to a neighbour.
+    that sampled as many, `hands / workers`. That division assumes what
+    rung 3's lockstep is (`solver/lockstep.py`): every iteration, each of
+    the W workers walks exactly one hand per seat, so a checkpoint at
+    iteration n has sampled n · W hands per seat; `_workers` reads W off the
+    grades and the figures' hand counts are built on it. Hands, not wall
+    clock or compute, because a net iteration costs far more than a table
+    update and the spec asks what the net gives up per hand seen. A mark
+    with no LCFR grade at its hands is refused by name rather than matched
+    to a neighbour.
     """
     workers = _workers(rung3)
     by_iteration: dict[int, dict[str, Grade]] = {}
