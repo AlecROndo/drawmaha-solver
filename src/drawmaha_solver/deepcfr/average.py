@@ -112,7 +112,7 @@ Graded (K = 1,000, W = 8, 1,000-step refits, seed 0; uniform plays at
 0.849. The average loses at t = 5 and 10 because iteration 1's uniform play
 is still in it at weight 1/Σt and seat 1's share lags a refit; from t = 20
 it leads, which is where gate 5 is pinned. Rung 3's LCFR average after 2M
-iterations graded 0.72. Every row of that table was re-measured after the
+iterations graded 0.061 (`figures/rung3/grades.json`). Every row of that table was re-measured after the
 tied-column fix below and is unchanged to three decimals: tied keys are
 few, and the fix moves only their share. The committed record of rung 4's
 grades is PR 6's `figures/rung4/grades.json`; until it lands these are the
