@@ -284,7 +284,13 @@ already exists.
    running sums. (PR 5, 2026-10-21: the running sums travel as a stateful
    observer's file in the resume set and every mark, so "resume == uninterrupted"
    holds for them bit for bit, pinned with the oracle in the default suite; the
-   replay pin runs both with the oracle models and with the kept nets.) This is the end-to-end check; it has no outside referee, which
+   replay pin runs both with the oracle models and with the kept nets. "A few
+   iterations" is twenty: at K = 1,000 the average grades 1.522 at t = 5 and
+   1.089 at t = 10 against the current iterate's 1.391 and 0.865, because
+   iteration 1's uniform play is still in it at weight 1/Σt and seat 1's share
+   lags a refit; the current iterate then swings up — 0.927 at 20, 0.998 at
+   40 — while the average falls through it, 0.869 then 0.737, and Π follows at
+   0.975 then 0.849. The gate is pinned at t = 20.) This is the end-to-end check; it has no outside referee, which
    is the price of decision 4 below (the Leduc gate was dropped, so the deep
    package is written against `PackedTable` directly, with no game adapter).
 6. **Modal smoke**: 3 iterations at K = 1,000 on the real container; the timing

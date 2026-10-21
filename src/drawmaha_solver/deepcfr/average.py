@@ -79,6 +79,15 @@ reached (6,211,381 of 6,220,050 had positive weight after those five
 iterations): own reach is positive wherever every own action on the way
 has positive probability, which is almost everywhere, where rung 3's
 sampled `strategy_sum` left 2.7 million rows unbanked after 2M iterations.
+
+Graded (K = 1,000, W = 8, 1,000-step refits, seed 0; uniform plays at
+4.842): the current iterate swings — 1.391 at t = 5, 0.865 at 10, 0.927 at
+20, 0.998 at 40 — while the exact average falls through it, 1.522, 1.089,
+0.869, 0.737, and Π follows the average at a distance, 1.512, 1.325, 0.975,
+0.849. The average loses at t = 5 and 10 because iteration 1's uniform play
+is still in it at weight 1/Σt and seat 1's share lags a refit; from t = 20
+it leads, which is where gate 5 is pinned. Rung 3's LCFR average after 2M
+iterations graded 0.72.
 """
 
 from __future__ import annotations
