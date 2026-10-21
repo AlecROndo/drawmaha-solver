@@ -19,9 +19,12 @@ array, and is refused on load rather than read as somebody else's strategy.
 the race graded, but a checkpoint may carry uniform or quadratic columns
 beside it and any of them can be frozen. An infoset the run never reached has
 an all-zero sum and plays uniformly, exactly as `RegretMatcher.average_strategy`
-reads it. About 2.7 million of the LCFR run's 6,220,050 rows were never
-banked, and 3,537,196 read exactly uniform; nearly all of them are round-2
-rows the sampler's own play rarely reaches.
+reads it. Of the LCFR run's 6,220,050 rows, 2,710,428 were never banked,
+and 3,537,196 read exactly uniform: the 826,768 extra were banked only while
+no action yet had positive regret, which regret matching also plays as
+uniform. The uniform rows are almost all round-2 rows, lines the sampler's
+own play rarely reaches — 3,534,565 of them, against 324 in round 1 and
+2,307 at the draw.
 
 **Float32 is enough.** The grader accepts rows within 1e-6 of summing to one,
 and float32 normalisation lands within about 1e-7. Graded, the frozen LCFR
