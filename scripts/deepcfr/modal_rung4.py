@@ -477,10 +477,11 @@ def _speed_report(
     it × `DeepConfig.walks / walks` and every other stage as measured at the
     last iteration. Still a lower bound, in two ways: the refit's sampling
     and the reservoir's merges grow a little with the memory over 2,000
-    iterations, and whether materialise, merge and fit move at all with K
-    is not measured here (the Mac's 35.0 s at K = 10,000 against 25.9 s at
-    K = 1,000, both in `train.py`'s docstring, says the walks were nearly
-    all of the difference there). The price
+    iterations, and the refit moves with K too: between the Mac's two
+    measurements in `train.py`'s docstring (25.9 s at K = 1,000, 35.0 s at
+    K = 10,000, both at iteration 2) the walks were 6.3 s of the 9.1 s
+    gap and the two refits 2.7 s, which scaling collect alone leaves out.
+    The price
     is the trainer's cores and memory at Modal's listed rates for the
     projected hours of `TARGET` iterations; `smoke_mean_seconds_per_iteration`
     is the mean over the smoke's own iterations at its own K, for the
