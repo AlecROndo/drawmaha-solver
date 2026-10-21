@@ -406,6 +406,7 @@ def test_save_and_load_round_trip(tmp_path, collector):
     back = load_run(tmp_path, learner=learner)
     assert same_run(run, back)
     assert not list(tmp_path.glob("*.tmp"))
+    # No stateful observer, so no observer file: the PR 4 layout exactly.
     assert sorted(p.name for p in tmp_path.iterdir()) == [
         "advantage-p0-t00002.npz",
         "advantage-p1-t00002.npz",

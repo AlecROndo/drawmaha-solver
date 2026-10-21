@@ -13,6 +13,10 @@ kept; and a run stopped and restarted keeps the same sums bit for bit.
 
 from __future__ import annotations
 
+import importlib.util
+import json
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -23,7 +27,18 @@ from drawmaha_solver.deepcfr.average import (
     predecessors,
 )
 from drawmaha_solver.deepcfr.collect import Collector
-from drawmaha_solver.deepcfr.train import DeepConfig, OracleLearner, new_run, step
+from drawmaha_solver.deepcfr.train import (
+    MARKS,
+    RESUME,
+    STATE,
+    DeepConfig,
+    OracleLearner,
+    load_run,
+    mark_name,
+    new_run,
+    run_deep,
+    step,
+)
 from drawmaha_solver.minidrawmaha.rules.cards import DECK
 from drawmaha_solver.minidrawmaha.rules.enumeration import (
     PublicPoint,
@@ -374,3 +389,65 @@ def test_the_sums_accumulated_in_an_oracle_run_equal_a_replay_from_its_models():
     # The freeze is a distribution on every key (the constructor checks each
     # row); the whole-game grade of it is gate 5, behind the slow flag.
     assert len(acc.frozen(iteration=3, seed=5)) == len(table)
+
+# ---------------------------------------------------------------------------
+# The resume: the sums join the resume set and every mark
+# ---------------------------------------------------------------------------
+
+DRIVEN = DeepConfig(seed=5, walks=5, workers=0, capacity=100_000, grid=(4, 8))
+
+def drive(out: Path, target: int, observers=()) -> None:
+    run_deep(out, DRIVEN, target=target, learner=OracleLearner(), observers=observers, log=lambda _: None)
+
+def test_a_run_stopped_and_restarted_keeps_the_same_sums_bitwise(tmp_path):
+    first = ExactAverage()
+    drive(tmp_path / "run", 6, observers=(first,))
+    assert first.last == [6, 6]
+    second = ExactAverage()
+    drive(tmp_path / "run", 10, observers=(second,))
+    straight = ExactAverage()
+    drive(tmp_path / "straight", 10, observers=(straight,))
+    assert second.last == straight.last == [10, 10] and straight.sums.any()
+    np.testing.assert_array_equal(second.sums, straight.sums)
+    resume = tmp_path / "run" / RESUME
+    assert (resume / "exact-t00010.npz").exists() and not (resume / "exact-t00006.npz").exists()
+    assert json.loads((resume / STATE).read_text())["files"]["observers"] == {"exact": "exact-t00010.npz"}
+    assert not list((tmp_path / "run").rglob("*.tmp"))
+    # A mark carries the sums at its own t, equal to a straight run stopped there.
+    at_mark = ExactAverage()
+    at_mark.load(tmp_path / "run" / MARKS / mark_name(8) / "exact-t00008.npz")
+    to_eight = ExactAverage()
+    drive(tmp_path / "eight", 8, observers=(to_eight,))
+    assert at_mark.last == [8, 8]
+    np.testing.assert_array_equal(at_mark.sums, to_eight.sums)
+
+def test_a_resume_refuses_a_state_without_the_observers_file(tmp_path):
+    drive(tmp_path, 2)  # saved with no observer
+    with pytest.raises(ValueError, match="exact"):
+        drive(tmp_path, 3, observers=(ExactAverage(),))
+    assert load_run(tmp_path / RESUME, learner=OracleLearner()).t == 2  # nothing was overwritten
+
+def test_a_resume_refuses_to_drop_a_saved_observer(tmp_path):
+    drive(tmp_path, 2, observers=(ExactAverage(),))
+    with pytest.raises(ValueError, match="exact"):
+        drive(tmp_path, 3)
+    # A plain load — what PR 6's grader does with a mark — still works without it.
+    assert load_run(tmp_path / RESUME, learner=OracleLearner()).t == 2
+    assert (tmp_path / RESUME / "exact-t00002.npz").exists()
+
+def test_two_stateful_observers_with_one_name_are_refused(tmp_path):
+    with pytest.raises(ValueError, match="exact"):
+        drive(tmp_path, 1, observers=(ExactAverage(), ExactAverage()))
+
+def test_the_cli_passes_the_exact_average(monkeypatch):
+    spec = importlib.util.spec_from_file_location(
+        "run_deep_cfr", Path(__file__).parents[2] / "scripts" / "deepcfr" / "run_deep_cfr.py"
+    )
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    calls = []
+    monkeypatch.setattr(cli, "run_deep", lambda *args, **kw: calls.append((args, kw)))
+    monkeypatch.setattr("sys.argv", ["run_deep_cfr.py", "--out", "x"])
+    cli.main()
+    (_, kw), = calls
+    assert [type(o) for o in kw["observers"]] == [ExactAverage]
