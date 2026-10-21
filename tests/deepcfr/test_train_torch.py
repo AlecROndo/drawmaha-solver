@@ -127,7 +127,7 @@ def test_fit_reports_a_finite_loss_and_a_run_logs_it(tmp_path):
 
 @pytest.mark.skipif(
     not FULL_DEEP,
-    reason="20 real iterations at K = 1,000 and three exact grades, ~8 min; set MINIDRAWMAHA_FULL_DEEP=1",
+    reason="20 real iterations at K = 1,000 with 1,000-step refits, three exact grades, ~7 min; set MINIDRAWMAHA_FULL_DEEP=1",
 )
 def test_gate_five_the_exact_average_beats_the_current_iterate_and_uniform(tmp_path):
     config = DeepConfig(seed=0, walks=1_000, workers=8, capacity=10_000_000, steps=1_000, threads=8)

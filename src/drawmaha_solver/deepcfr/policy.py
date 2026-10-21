@@ -55,7 +55,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from drawmaha_solver.minidrawmaha.rules.features import NO_ACTION, layout, legal_gather
-from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.answer.strategy import (
     FrozenStrategy,
     StrategyInfo,
@@ -141,6 +140,6 @@ def policy_strategy(net: Net, *, iteration: int, seed: int) -> FrozenStrategy:
         outputs = predict(net, np.concatenate([private, public], axis=1))
         columns = slice(built.column_offset[p], built.column_offset[p + 1])
         clipped[columns] = np.maximum(outputs[:, gather[p, :width]], 0.0).ravel()
-    widths = PackedTable.whole_game().widths()
+    widths = np.repeat(built.width, np.diff(built.row_offset))
     info = StrategyInfo(rule="deep", column="pi", iteration=iteration, seed=seed, workers=0)
     return FrozenStrategy(average_rows(clipped, widths), widths, info)

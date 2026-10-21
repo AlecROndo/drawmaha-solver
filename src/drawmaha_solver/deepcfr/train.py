@@ -24,8 +24,8 @@ touching the loop.
 1's walks at iteration t sample seat 0's FRESHLY refit net — that is what
 alternating lockstep does, and what the spec counts as "iteration t's"
 strategy for seat 0. So the write happens twice per iteration, and the
-observers, which PR 5 will use to accumulate the exact average, are told
-which seat's σ is about to be sampled as the opponent: 1 − p.
+observers — PR 5's `ExactAverage` accumulates the exact average there — are
+told which seat's σ is about to be sampled as the opponent: 1 − p.
 
 **The learner seam.** The loop never names torch. It talks to a `Learner`
 with four methods — `fit` a model to the memory, `write` two models into
@@ -591,6 +591,9 @@ def run_deep(
     out.mkdir(parents=True, exist_ok=True)
     if learner is None:
         learner = NetLearner(config)
+    # Two stateful observers with one name are refused here, before an
+    # iteration is paid for, not at the first save.
+    _stateful(observers)
 
     # Step 1: open the run
     run = _open(out, config, learner=learner, observers=observers)

@@ -39,7 +39,7 @@ from drawmaha_solver.deepcfr.train import (
     run_deep,
     step,
 )
-from drawmaha_solver.minidrawmaha.rules.cards import DECK
+from drawmaha_solver.minidrawmaha.rules.cards import DECK, SUIT_RELABELLINGS, relabel
 from drawmaha_solver.minidrawmaha.rules.enumeration import (
     PublicPoint,
     private_keys,
@@ -101,33 +101,49 @@ def is_throw_opening(point: PublicPoint) -> bool:
     return point.board_cards == 2 and point.discards == 1 and len(point.betting[1]) == point.player
 
 def brute_force_own_reach(table: PackedTable, key: InfoSet) -> float:
-    """Σ over the seat's physical pre-histories of Π own σ, walked through `MiniState`.
+    """Σ over the seat's physical histories in `key` of Π own σ, walked through `MiniState`, per suit frame.
 
-    The key's canonical cards stand in for physical ones. The opponent's hole,
-    throw and replacement are FIXED to one choice disjoint from every card the
-    seat has seen, so the sum runs over the seat's own histories only — the
-    per-row constant the average cancels. A key with a discard has three
-    pre-draw holes, `hole − d + discarded` for each d in the hole, and the walk
-    deals d back as the replacement. Every own action is taken through
+    The key's picture is put in every one of the six physical suit frames,
+    and each frame's histories are walked; the mean over frames is the sum
+    over physical histories up to the per-row constant the average cancels.
+    One frame is not enough: at a post-draw key whose pre-draw picture has a
+    suit symmetry, the physical histories split between the thrown card's
+    column and its twin's, and a single frame sees only one of them.
+
+    Within a frame, the opponent's hole, throw and replacement are FIXED to
+    one choice disjoint from every card the seat has seen, so the sum runs
+    over the seat's own histories only. A key with a discard has three
+    pre-draw holes, `hole − d + discarded` for each d in the hole, and the
+    walk deals d back as the replacement. Every own action is taken through
     `MiniState.apply`, so no column convention is assumed; the throw is the
-    action whose discard pile comes out as the key's.
+    action whose discard pile comes out as the frame's thrown card.
     """
+    return sum(
+        _own_reach_in_frame(
+            table,
+            key,
+            hole=relabel(frame, key.hole),
+            thrown=relabel(frame, key.discarded),
+            board=relabel(frame, key.board),
+        )
+        for frame in SUIT_RELABELLINGS
+    ) / len(SUIT_RELABELLINGS)
+
+def _own_reach_in_frame(table: PackedTable, key: InfoSet, *, hole, thrown, board) -> float:
     seat = key.player
-    seen = set(key.hole) | set(key.discarded) | set(key.board)
+    seen = set(hole) | set(thrown) | set(board)
     spare = [card for card in DECK if card not in seen]
     opponent = tuple(sorted(spare[:3]))
-    if key.discarded:
-        starts = [
-            (tuple(sorted((set(key.hole) - {d}) | set(key.discarded))), d) for d in key.hole
-        ]
+    if thrown:
+        starts = [(tuple(sorted((set(hole) - {d}) | set(thrown))), d) for d in hole]
     else:
-        starts = [(key.hole, None)]
+        starts = [(hole, None)]
 
     def walk(state: MiniState, drawn, probability: float) -> float:
         if state.kind is NodeKind.TERMINAL:
             return 0.0
         if state.kind is NodeKind.CHANCE:
-            short = [p for p, hole in enumerate(state.holes) if len(hole) < 3]
+            short = [p for p, cards in enumerate(state.holes) if len(cards) < 3]
             if short:
                 if short[0] == seat:
                     cards = (drawn,)
@@ -138,7 +154,7 @@ def brute_force_own_reach(table: PackedTable, key: InfoSet) -> float:
                         if dealt[0] != drawn and dealt[0] not in seen
                     )
             else:
-                cards = (key.board[len(state.board)],)
+                cards = (board[len(state.board)],)
             return walk(state.apply_chance(cards), drawn, probability)
         if state.current_player == seat and state.infoset() == key:
             return probability
@@ -151,7 +167,7 @@ def brute_force_own_reach(table: PackedTable, key: InfoSet) -> float:
                 action = next(
                     a
                     for a in DRAW_ACTIONS
-                    if throw_count(a) == 1 and state.apply(a).discards[seat] == key.discarded
+                    if throw_count(a) == 1 and state.apply(a).discards[seat] == thrown
                 )
             else:
                 action = DRAW_ACTIONS[1]
@@ -185,10 +201,17 @@ def test_predecessors_cover_the_six_cases():
         before = points[pred.point]
         assert before.player == point.player  # an OWN decision
         n = len(shape_of(point))
-        m = 3 if is_throw_opening(point) else 1
-        assert pred.positions.shape == pred.columns.shape == (n, m)
+        assert pred.positions.shape == pred.columns.shape == pred.weights.shape
+        assert pred.positions.shape[0] == n
         assert pred.columns.min() >= 0 and pred.columns.max() < before.width
         assert pred.positions.min() >= 0 and pred.positions.max() < len(shape_of(before))
+        if is_throw_opening(point):
+            # Three pre-draw holes, each sharing 1 over the thrown card's twins.
+            assert pred.positions.shape[1] >= 3
+            np.testing.assert_allclose(pred.weights.sum(axis=1), 3.0)
+            assert set(np.unique(pred.weights).tolist()) <= {0.0, 1 / 3, 0.5, 1.0}
+        else:
+            assert pred.positions.shape[1] == 1 and (pred.weights == 1.0).all()
         if point.board_cards == 2 and len(point.betting[1]) == point.player:
             assert before.is_draw_decision and before.draws == point.draws[: point.player]
         elif point.is_draw_decision:
@@ -204,9 +227,14 @@ def test_a_throw_keys_three_predecessors_are_its_three_pre_draw_holes():
     points = public_decision_points()
     index = next(i for i, point in enumerate(points) if is_throw_opening(point))
     pred = preds[index]
-    distinct = np.array([len(set(row)) for row in pred.positions.tolist()])
+    distinct = np.array(
+        [len({at for at, w in zip(row, weights) if w > 0}) for row, weights in zip(pred.positions.tolist(), pred.weights.tolist())]
+    )
     assert set(distinct.tolist()) == {2, 3}
     assert (distinct == 3).mean() > 0.9  # the spec's sample: 96 of 101 have three distinct
+    # A tied thrown card is charged to two columns at a half each.
+    halves = (pred.weights == 0.5).sum(axis=1)
+    assert set(halves.tolist()) >= {0, 2} and 0 < (halves > 0).mean() < 0.5
     # Stand-pat openings have one predecessor at the stand-pat column.
     pat = next(
         preds[i]
@@ -215,7 +243,7 @@ def test_a_throw_keys_three_predecessors_are_its_three_pre_draw_holes():
     )
     assert (pat.columns == DRAW_ACTIONS.index(Action.THROW_NONE)).all()
     # A throw column is never the stand-pat column.
-    assert (pred.columns >= 1).all()
+    assert (pred.columns[pred.weights > 0] >= 1).all()
 
 # ---------------------------------------------------------------------------
 # Own reach (gate 4)
@@ -237,17 +265,50 @@ def throw_keys_with(distinct: int, seat: int) -> list[InfoSet]:
     for index, point in enumerate(points):
         if point.player != seat or not is_throw_opening(point):
             continue
-        rows = [len(set(row)) for row in preds[index].positions.tolist()]
+        pred = preds[index]
+        rows = [
+            len({at for at, w in zip(row, weights) if w > 0})
+            for row, weights in zip(pred.positions.tolist(), pred.weights.tolist())
+        ]
         position = rows.index(distinct)
         return [key_on(point, shape_of(point)[position])]
     raise AssertionError("no throw-opening point")
+
+def tied_throw_keys(seat: int, count: int) -> list[InfoSet]:
+    """Round-2 throw-opening keys of `seat` where a pre-draw picture's suit symmetry moves the thrown card.
+
+    There the physical histories split between the thrown card's column and
+    its twin's; one frame sees only one of them, and a map that reads a
+    single column is wrong by the other's share.
+    """
+    point = next(p for p in public_decision_points() if p.player == seat and is_throw_opening(p))
+    keys = []
+    for hole, thrown, board in shape_of(point):
+        for drawn in hole:
+            pre = tuple(sorted((set(hole) - {drawn}) | set(thrown)))
+            stabiliser = [
+                frame
+                for frame in SUIT_RELABELLINGS
+                if set(relabel(frame, pre)) == set(pre) and relabel(frame, board[:1]) == board[:1]
+            ]
+            if len({relabel(frame, thrown) for frame in stabiliser}) > 1:
+                keys.append(key_on(point, (hole, thrown, board)))
+                break
+        if len(keys) == count:
+            return keys
+    raise AssertionError("no tied throw key")
 
 @pytest.mark.parametrize("seat", [0, 1])
 def test_own_reach_equals_the_brute_force_walk(seat):
     table = random_table(2)
     reach = own_reach(table, seat=seat)
     assert reach.shape == (len(table),) and reach.dtype == np.float64
-    keys = some_keys(seat) + throw_keys_with(3, seat) + throw_keys_with(2, seat)
+    keys = (
+        some_keys(seat)
+        + throw_keys_with(3, seat)
+        + throw_keys_with(2, seat)
+        + tied_throw_keys(seat, 12)
+    )
     assert len(keys) > 100
     for key in keys:
         expected = brute_force_own_reach(table, key)
@@ -316,11 +377,14 @@ def test_the_frozen_average_is_the_normalised_sums_uniform_where_unreached():
     acc = ExactAverage()
     acc(table, 1, 1)
     frozen = acc.frozen(iteration=1, seed=5)
+    checked = 0
     for key in some_keys(1):
         _, start, width = table.slot_of(key)
         row = acc.sums[start : start + width]
         if row.sum() > 0:
             np.testing.assert_allclose(frozen[key], (row / row.sum()).astype(np.float32), rtol=1e-6)
+            checked += 1
+    assert checked > 0  # the guarded loop above must not pass vacuously
     for key in some_keys(0):  # seat 0 was never accumulated: uniform everywhere
         np.testing.assert_array_equal(frozen[key], np.full(len(key.legal_actions()), 1 / len(key.legal_actions()), np.float32))
 

@@ -40,6 +40,25 @@ the same for the three (one card from the same stub) and constant over t,
 so it cancels. When two of the three pre-draw holes canonicalise to one draw
 key, that key is listed twice: it still stands for two physical histories.
 
+**Why a throw column can be two columns.** The ledger's throw columns name
+a card by its place in `draw_order`, which sorts the hole by rank and then
+by the CANONICAL suit label of the pre-draw picture. When that picture has
+a suit symmetry that swaps the thrown card with an equal-rank twin — a
+pair in the hole whose suits the board card does not tell apart — the
+label is a tie the relabelling breaks one way in one physical instance of
+the pre-draw key and the other way in another. The post-draw key stands
+for every physical instance, so its histories split evenly: half arrived
+through the thrown card's column, half through the twin's. Reading one
+column in the post-draw key's own frame would charge the whole key to one
+of them, and at a key where the net plays that column at zero the reach
+would read zero where it is not. So each pre-draw hole contributes the
+MEAN of σ over the orbit of the thrown card under the pre-draw picture's
+stabiliser (a `weights` row beside `positions` and `columns`: 1 for a
+lone card, 1/2 per twin, 1/3 for trips), which is the sum over physical
+histories up to the per-row constant. The brute force in
+`tests/deepcfr/test_average.py` walks the key's picture in every one of
+the six suit frames for the same reason.
+
 **The predecessor table.** Every key has an earlier own decision, or none:
 
     key                                   previous own decision                                rows
@@ -99,6 +118,7 @@ from pathlib import Path
 
 import numpy as np
 
+from drawmaha_solver.minidrawmaha.rules.cards import SUIT_RELABELLINGS, relabel
 from drawmaha_solver.minidrawmaha.rules.enumeration import PublicPoint, private_keys
 from drawmaha_solver.minidrawmaha.rules.features import Layout, layout
 from drawmaha_solver.minidrawmaha.rules.game import (
@@ -126,13 +146,16 @@ class Pred:
 
     `positions[k, j]` is the j-th predecessor of this point's k-th key as a
     position in `point`'s shape of `private_keys`; `columns[k, j]` the
-    ledger column taken there. One column (j = 0) everywhere but a round-2
-    point after a throw, which has three.
+    ledger column taken there; `weights[k, j]` that entry's share. One entry
+    of weight 1 everywhere but a round-2 point after a throw, which has one
+    entry per (pre-draw hole, twin of the thrown card), the three holes'
+    shares each summing to 1, zero-weighted padding past the last.
     """
 
     point: int
     positions: np.ndarray  # int64 (n_keys, m)
     columns: np.ndarray  # int64 (n_keys, m)
+    weights: np.ndarray  # float64 (n_keys, m)
 
 @cache
 def predecessors() -> tuple[Pred | None, ...]:
@@ -156,12 +179,14 @@ def predecessors() -> tuple[Pred | None, ...]:
             n = len(private_keys(board_cards=shape[0], discards=shape[1]))
             positions = np.arange(n, dtype=np.int64)[:, None]
             columns = np.broadcast_to(np.int64(points[index].actions.index(action)), (n, 1))
+            weights = np.broadcast_to(1.0, (n, 1))
         elif point.discards == 0:
             positions = _pat_map()
             columns = np.broadcast_to(np.int64(DRAW_ACTIONS.index(Action.THROW_NONE)), positions.shape)
+            weights = np.broadcast_to(1.0, positions.shape)
         else:
-            positions, columns = _throw_map()
-        table.append(Pred(point=index, positions=positions, columns=columns))
+            positions, columns, weights = _throw_map()
+        table.append(Pred(point=index, positions=positions, columns=columns, weights=weights))
     return tuple(table)
 
 def _previous_own_decision(point: PublicPoint) -> tuple[tuple, Action | None] | None:
@@ -197,29 +222,45 @@ def _pat_map() -> np.ndarray:
     return out
 
 @cache
-def _throw_map() -> tuple[np.ndarray, np.ndarray]:
-    """Each `(2, 1)` key's three draw keys and throw columns; both (n, 3).
+def _throw_map() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Each `(2, 1)` key's draw keys, throw columns and shares; all (n, m), zero-weighted past the last entry.
 
     Pre-draw hole j is the hole minus its j-th card plus the thrown card.
-    The column is the thrown card's place in `draw_order` of that pre-draw
-    picture, after the stand-pat column — the same rule `MiniState.apply`
-    throws by, so a key's three entries are exactly the three actions that
-    could have produced it. Listed with multiplicity: two pre-draw holes
-    that canonicalise to one draw key are two histories.
+    A column is a card's place in `draw_order` of that pre-draw picture,
+    after the stand-pat column — the same rule `MiniState.apply` throws by.
+    The cards charged are the thrown card's orbit under the pre-draw
+    picture's stabiliser (the suit relabellings that fix the hole as a set
+    and the board card), each at 1/|orbit|: the physical instances of the
+    key arrive through each of them in equal number (module docstring).
+    Listed with multiplicity: two pre-draw holes that canonicalise to one
+    draw key are two histories.
     """
     position = {key: k for k, key in enumerate(private_keys(board_cards=1, discards=0))}
     keys = private_keys(board_cards=2, discards=1)
-    positions = np.empty((len(keys), 3), dtype=np.int64)
-    columns = np.empty((len(keys), 3), dtype=np.int64)
     pat = DRAW_ACTIONS.index(Action.THROW_NONE)
-    for k, (hole, thrown, board) in enumerate(keys):
+    entries: list[list[tuple[int, int, float]]] = []
+    for hole, thrown, board in keys:
         first = board[:1]
-        for j, drawn in enumerate(hole):
+        row = []
+        for drawn in hole:
             pre = tuple(sorted(card for card in hole if card != drawn) + list(thrown))
-            positions[k, j] = position[canonical_picture(pre, (), first)]
+            at = position[canonical_picture(pre, (), first)]
             ordered = draw_order(hole=pre, discarded=(), board=first)
-            columns[k, j] = pat + 1 + ordered.index(thrown[0])
-    return positions, columns
+            twins = {
+                relabel(frame, thrown)[0]
+                for frame in SUIT_RELABELLINGS
+                if set(relabel(frame, pre)) == set(pre) and relabel(frame, first) == first
+            }
+            row += [(at, pat + 1 + ordered.index(twin), 1.0 / len(twins)) for twin in sorted(twins)]
+        entries.append(row)
+    width = max(len(row) for row in entries)
+    positions = np.zeros((len(keys), width), dtype=np.int64)
+    columns = np.zeros((len(keys), width), dtype=np.int64)
+    weights = np.zeros((len(keys), width))
+    for k, row in enumerate(entries):
+        for j, (at, column, weight) in enumerate(row):
+            positions[k, j], columns[k, j], weights[k, j] = at, column, weight
+    return positions, columns, weights
 
 # ---------------------------------------------------------------------------
 # Own reach
@@ -229,7 +270,11 @@ def current_strategy(table: PackedTable) -> np.ndarray:
     """σ at every column, float64: regret matching row by row, as `RegretMatcher.strategy` reads it.
 
     The positive part of each row over its total; a row with no positive
-    slot plays uniform. Vectorised over the whole table with one `reduceat`.
+    slot plays uniform. Vectorised over the whole table with one `reduceat`,
+    which adds a row left to right where the ledger's `sum` may pair, so a
+    row can differ from the ledger's by one ulp — the walks sample the
+    ledger's; the average weights this one, and the replay and resume pins
+    compare this one with itself.
     """
     widths = table.widths()
     positive = np.maximum(table.cumulative_regret, 0.0)
@@ -268,8 +313,13 @@ def own_reach(table: PackedTable, *, seat: int) -> np.ndarray:
             + pred.positions * built.width[pred.point]
             + pred.columns
         )
-        reach[rows] = (before * sigma[columns]).sum(axis=1)
+        reach[rows] = (before * sigma[columns] * pred.weights).sum(axis=1)
     return reach
+
+def _widths() -> np.ndarray:
+    """Every row's width in the whole game's order, from the layout alone (no table built)."""
+    built = layout()
+    return np.repeat(built.width, np.diff(built.row_offset))
 
 def _require_whole_game(table: PackedTable) -> Layout:
     """The layout, once `table` is the whole game in the whole game's order (materialise's check, restated)."""
@@ -277,7 +327,7 @@ def _require_whole_game(table: PackedTable) -> Layout:
     if (
         len(table) != built.row_offset[-1]
         or table.cumulative_regret.size != built.column_offset[-1]
-        or not np.array_equal(table.widths(), np.repeat(built.width, np.diff(built.row_offset)))
+        or not np.array_equal(table.widths(), _widths())
     ):
         raise ValueError(
             "own reach reads the whole game's layout and was handed a table of "
@@ -343,7 +393,7 @@ class ExactAverage:
 
         `iteration` and `seed` only label the file.
         """
-        widths = PackedTable.whole_game().widths()
+        widths = _widths()
         info = StrategyInfo(rule="deep", column="exact", iteration=iteration, seed=seed, workers=0)
         return FrozenStrategy(average_rows(self.sums, widths), widths, info)
 
