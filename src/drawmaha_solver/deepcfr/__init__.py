@@ -3,7 +3,7 @@
 Rung 3 solves mini-drawmaha with one ledger per infoset, 6.2 million of them
 in `PackedTable`. This package replaces the ledgers' REGRET half with a
 network that reads what the player can see — the 136 features of
-`minidrawmaha.features` — and writes seven outputs, one per `Action`. The
+`minidrawmaha.rules.features` — and writes seven outputs, one per `Action`. The
 walk itself does not change: `materialise` writes each net's outputs into
 the table's regret slots, so rung 3's `traverse` plays the net's strategy
 through the same `RegretMatcher.strategy()` it always read.

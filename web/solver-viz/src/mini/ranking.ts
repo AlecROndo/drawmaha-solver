@@ -1,7 +1,7 @@
 /**
  * Both halves of mini-drawmaha's split pot, scored as plain integers that
  * compare the way `hands.Score` tuples compare in Python. A transcript of
- * `src/drawmaha_solver/minidrawmaha/hands.py`, pinned against Python-generated
+ * `src/drawmaha_solver/minidrawmaha/rules/hands.py`, pinned against Python-generated
  * fixtures in `ranking.test.ts`.
  *
  * Terms. The *inner* half goes to the best 3-card hand made of the three

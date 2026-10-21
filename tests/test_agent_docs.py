@@ -126,3 +126,76 @@ def test_the_root_file_reaches_every_nested_one() -> None:
             f"{agent_file.relative_to(ROOT)} lives under {rel}/, which the root "
             "AGENTS.md never names; add it to the subtree map"
         )
+
+
+# ---------------------------------------------------------------------------
+# The paths the rename moved, named outside the AGENTS.md files
+# ---------------------------------------------------------------------------
+
+# The walk above reads only `AGENTS.md`. A docstring, a visualizer's header
+# comment, a fixture's `_source` string or a README that still names a file
+# at its old place is just as wrong, and an agent follows it just as
+# trustingly. The old names are derived from the tree rather than listed:
+# every module now under `rules/`, `solver/` or `answer/` once lived flat in
+# `minidrawmaha/`, and every script now under `scripts/<group>/` once lived
+# flat in `scripts/`. The dated specs and plans under `docs/superpowers/` are
+# history and keep their old paths on purpose; `docs/AGENTS.md` states the
+# mapping.
+MINIDRAWMAHA = ROOT / "src" / "drawmaha_solver" / "minidrawmaha"
+SPLIT = ("rules", "solver", "answer")
+HISTORY = ROOT / "docs" / "superpowers"
+PROSE_EXTENSIONS = (".py", ".md", ".ts", ".tsx", ".toml", ".sh", ".json", ".html", ".css")
+# The deal packs and the strategy exports are data, megabytes of it.
+PROSE_SIZE_CAP = 1_000_000
+
+
+def moved_modules() -> set[str]:
+    return {
+        path.stem
+        for group in SPLIT
+        for path in (MINIDRAWMAHA / group).glob("*.py")
+        if path.stem != "__init__"
+    }
+
+
+def prose_files() -> list[Path]:
+    found = []
+    for path in ROOT.rglob("*"):
+        rel = path.relative_to(ROOT)
+        if not SKIP_DIRS.isdisjoint(rel.parts) or HISTORY in path.parents:
+            continue
+        if (
+            path.is_file()
+            and path.suffix in PROSE_EXTENSIONS
+            and path.stat().st_size <= PROSE_SIZE_CAP
+        ):
+            found.append(path)
+    return sorted(found)
+
+
+def test_the_split_left_no_flat_module_behind() -> None:
+    """`rules/`, `solver/` and `answer/` hold every module that moved."""
+    moved = moved_modules()
+    assert len(moved) >= 15, moved
+    assert not [p.name for p in MINIDRAWMAHA.glob("*.py") if p.stem in moved]
+
+
+def test_scripts_has_no_flat_entry_points() -> None:
+    """Every script sits in a group, so a file directly under `scripts/` is always stale."""
+    flat = [p.name for p in (ROOT / "scripts").iterdir() if p.suffix in (".py", ".sh")]
+    assert not flat, flat
+
+
+def test_no_prose_names_a_moved_file_at_its_old_place() -> None:
+    old_module = re.compile(
+        r"\bminidrawmaha[./](?:" + "|".join(sorted(moved_modules())) + r")\b(?![-\w])"
+    )
+    old_script = re.compile(r"\bscripts/[A-Za-z0-9_]+\.(?:py|sh)\b")
+    stale: list[str] = []
+    for path in prose_files():
+        text = path.read_text(errors="replace")
+        for pattern in (old_module, old_script):
+            for match in pattern.finditer(text):
+                line = text.count("\n", 0, match.start()) + 1
+                stale.append(f"{path.relative_to(ROOT)}:{line}: {match.group(0)}")
+    assert not stale, "these name a moved file at its old place:\n" + "\n".join(stale)

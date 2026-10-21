@@ -11,7 +11,7 @@
  * the two-letter spelling the Python suite and CLI use (`4h`); a *glyph* is
  * the same card drawn for a face (`4♥`).
  *
- * This module is a transcript of `src/drawmaha_solver/minidrawmaha/cards.py`'s
+ * This module is a transcript of `src/drawmaha_solver/minidrawmaha/rules/cards.py`'s
  * deck half; the suit relabelling lives in `canonical.ts`.
  */
 
