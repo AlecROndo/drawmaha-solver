@@ -112,7 +112,11 @@ Graded (K = 1,000, W = 8, 1,000-step refits, seed 0; uniform plays at
 0.849. The average loses at t = 5 and 10 because iteration 1's uniform play
 is still in it at weight 1/Σt and seat 1's share lags a refit; from t = 20
 it leads, which is where gate 5 is pinned. Rung 3's LCFR average after 2M
-iterations graded 0.72.
+iterations graded 0.72. Every row of that table was re-measured after the
+tied-column fix below and is unchanged to three decimals: tied keys are
+few, and the fix moves only their share. The committed record of rung 4's
+grades is PR 6's `figures/rung4/grades.json`; until it lands these are the
+gate's own prints.
 """
 
 from __future__ import annotations
@@ -296,9 +300,10 @@ def own_reach(table: PackedTable, *, seat: int) -> np.ndarray:
 
     1.0 at the seat's first own action, then `Σ_pred reach[pred] · σ[pred,
     column]` point by point in walk order. Up to a per-row constant — the
-    chance and opponent factors the average cancels — this is the textbook
-    `π^seat(I)`; `tests/deepcfr/test_average.py` pins it against a walk
-    through `MiniState`.
+    deck's factor, which the average cancels — this is the textbook
+    `π^seat(I)`, the seat's own realization probability;
+    `tests/deepcfr/test_average.py` pins it against a walk through
+    `MiniState` in every suit frame.
     """
     if seat not in SEATS:
         raise ValueError(f"seat must be one of {SEATS}, got {seat!r}")
