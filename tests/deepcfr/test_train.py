@@ -48,9 +48,9 @@ from drawmaha_solver.deepcfr.train import (
     save_run,
     step,
 )
-from drawmaha_solver.minidrawmaha.enumeration import private_keys, public_decision_points
-from drawmaha_solver.minidrawmaha.game import InfoSet, random_deal
-from drawmaha_solver.minidrawmaha.lockstep import (
+from drawmaha_solver.minidrawmaha.rules.enumeration import private_keys, public_decision_points
+from drawmaha_solver.minidrawmaha.rules.game import InfoSet, random_deal
+from drawmaha_solver.minidrawmaha.solver.lockstep import (
     SEATS,
     apply_arrays,
     flatten,
@@ -58,9 +58,9 @@ from drawmaha_solver.minidrawmaha.lockstep import (
     train_lockstep,
     walk,
 )
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.regret_rules import Average, RegretRule
-from drawmaha_solver.minidrawmaha.strategy import StrategyInfo
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.regret_rules import Average, RegretRule
+from drawmaha_solver.minidrawmaha.answer.strategy import StrategyInfo
 
 # ---------------------------------------------------------------------------
 # Spies
@@ -609,7 +609,7 @@ def test_cli_parses_the_flags_into_a_config():
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
-        "run_deep_cfr", Path(__file__).parents[2] / "scripts" / "run_deep_cfr.py"
+        "run_deep_cfr", Path(__file__).parents[2] / "scripts" / "deepcfr" / "run_deep_cfr.py"
     )
     cli = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cli)

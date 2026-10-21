@@ -20,7 +20,7 @@ from drawmaha_solver.deepcfr.reservoir import (
     Reservoir,
     reservoir_stream,
 )
-from drawmaha_solver.minidrawmaha import lockstep
+from drawmaha_solver.minidrawmaha.solver import lockstep
 
 def targets(n: int) -> np.ndarray:
     """n target rows, column 0 numbering them so a kept row can be told from another."""
@@ -278,7 +278,7 @@ def test_a_loaded_memory_can_keep_filling_to_its_capacity(tmp_path):
     assert loaded.contents()[0].tolist() == [0, 1, 2, 3, 4, 50, 51, 52]
 
 def test_target_width_matches_the_encoder():
-    from drawmaha_solver.minidrawmaha.features import MAX_WIDTH
+    from drawmaha_solver.minidrawmaha.rules.features import MAX_WIDTH
 
     assert TARGET_WIDTH == MAX_WIDTH
 

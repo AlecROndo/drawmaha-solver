@@ -21,10 +21,11 @@ import pytest
 import drawmaha_solver.deepcfr.collect as collect
 from drawmaha_solver.deepcfr.collect import Collected, Collector, joined, rows_of
 from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH
-from drawmaha_solver.minidrawmaha import features, lockstep
-from drawmaha_solver.minidrawmaha.game import random_deal
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.regret_rules import Average
+from drawmaha_solver.minidrawmaha.rules import features
+from drawmaha_solver.minidrawmaha.solver import lockstep
+from drawmaha_solver.minidrawmaha.rules.game import random_deal
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.regret_rules import Average
 
 UNIFORM = (Average.UNIFORM,)
 

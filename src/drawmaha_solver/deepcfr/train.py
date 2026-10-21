@@ -120,9 +120,9 @@ from drawmaha_solver.deepcfr.reservoir import (
     _is_int,
     reservoir_stream,
 )
-from drawmaha_solver.minidrawmaha.lockstep import SEATS, _columns
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.strategy import FrozenStrategy, StrategyInfo, average_rows
+from drawmaha_solver.minidrawmaha.solver.lockstep import SEATS, _columns
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.answer.strategy import FrozenStrategy, StrategyInfo, average_rows
 
 # The iterations that line up with the tabular race's hands per seat: at
 # K = 10,000 walks per seat per iteration, Deep CFR's iteration 10 is LCFR's

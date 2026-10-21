@@ -15,10 +15,10 @@ from itertools import islice
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha.lockstep import new_lockstep, save_lockstep, train_lockstep
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.regret_rules import Average, column_average
-from drawmaha_solver.minidrawmaha.strategy import (
+from drawmaha_solver.minidrawmaha.solver.lockstep import new_lockstep, save_lockstep, train_lockstep
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.regret_rules import Average, column_average
+from drawmaha_solver.minidrawmaha.answer.strategy import (
     FrozenStrategy,
     StrategyInfo,
     average_rows,

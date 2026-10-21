@@ -2,7 +2,7 @@
 
 `referee.json` is what OpenSpiel says about Leduc — the node census, the
 infoset collapse, the payoff ladder, the exact value of the game, and its own
-solver's convergence pace. `scripts/generate_leduc_referee.py` writes it;
+solver's convergence pace. `scripts/leduc/generate_referee.py` writes it;
 nothing here imports OpenSpiel, because its wheels are large and the Vercel
 deployment build must not pull them.
 

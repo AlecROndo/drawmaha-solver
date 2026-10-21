@@ -11,9 +11,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha import deal_pack
-from drawmaha_solver.minidrawmaha.cards import DECK, parse_cards
-from drawmaha_solver.minidrawmaha.deal_pack import (
+from drawmaha_solver.minidrawmaha.answer import deal_pack
+from drawmaha_solver.minidrawmaha.rules.cards import DECK, parse_cards
+from drawmaha_solver.minidrawmaha.answer.deal_pack import (
     CHOP,
     PER_MILLE,
     STUB,
@@ -25,13 +25,13 @@ from drawmaha_solver.minidrawmaha.deal_pack import (
     random_decks,
     write_pack,
 )
-from drawmaha_solver.minidrawmaha.game import (
+from drawmaha_solver.minidrawmaha.rules.game import (
     DRAW_ACTIONS,
     Action,
     draw_order,
     pot_shares,
 )
-from drawmaha_solver.minidrawmaha.strategy import StrategyInfo
+from drawmaha_solver.minidrawmaha.answer.strategy import StrategyInfo
 
 
 class Uniform(Mapping):

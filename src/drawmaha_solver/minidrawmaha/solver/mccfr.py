@@ -1,0 +1,636 @@
+"""External-sampling MCCFR: rung 2's walk with the deck and the opponent sampled.
+
+Vanilla CFR walks the whole tree every iteration. Leduc's tree is small enough
+for that; mini-drawmaha's is 85.1 billion decision nodes, so the walk does not
+run slowly here, it does not run. External sampling keeps rung 2's recursion —
+terminal, chance and decision branches, utilities indexed by position in
+`legal_actions()`, ledgers banked in place on the way back up — and changes
+what two of those branches do:
+
+- **The deck is sampled, not averaged.** A chance node picks ONE outcome by
+  its probability and follows it.
+- **The opponent is sampled, not enumerated.** At the opponent's spot the walk
+  picks ONE action from the opponent's current mix and follows it.
+
+The traverser's own spots are still enumerated: every legal action is walked,
+because regret is a comparison between the actions and a comparison needs all
+of them. One traversal per seat per iteration, P0 then P1, each against a
+freshly dealt root.
+
+**The weight is the sample.** Rung 2 multiplied the regret bank by π₋ᵢ·π_c —
+how often the deck and the opponent bring play to this spot. Under sampling,
+that product is exactly the probability the walk arrives here at all, so the
+update lands with that FREQUENCY instead of that COEFFICIENT, and the regret
+weight at the traverser's spot is exactly 1:
+
+    at my spot:     R(I, ·) += 1 · (u − ⟨σ, u⟩)
+    at their spot:  S(I, ·) += t · σ(I, ·)
+
+`u[k]` is what my k-th action earned down the sampled path; `⟨σ, u⟩` is what my
+current mix earned on it. Their difference is one unbiased sample of rung 2's
+counterfactual regret. Multiply π₋ᵢ·π_c in on top and the probability is
+applied twice: nothing crashes, and the opponent's reach — which differs
+across the worlds of one spot, because the opponent's cards differ — is
+squared, so the worlds they rarely produce are under-trained and the solve
+converges somewhere else. On Leduc that walk stalls at an exploitability of
+0.14–0.20 where this one reaches 0.05, and is indistinguishable from it for
+the first few hundred thousand iterations. (The chance half is inert in both
+games: every chance probability at one public point is the same number, so it
+rescales a ledger uniformly. In mini-drawmaha that is because the deck deals
+combinations of the stub uniformly and the stub's size is public; a test walks
+many worlds through one public line to pin it.) That is the one way to get
+this file wrong by pattern-matching `leduc/cfr.py`, so `traverse` has no reach
+parameter to thread.
+
+The strategy sum is banked at the OPPONENT's spots, where the walk samples from
+σ anyway: arriving there already happened with the opponent's own reach, so
+adding σ once per arrival reproduces the own-reach weighting rung 2 wrote out
+by hand. The traverser's own spots bank no strategy — they were enumerated,
+not played, and counting them would credit every action with having been
+chosen. The weight `t` makes the AVERAGE linear: later iterates count more in
+the answer, on the premise that they are better. Extra averaging columns —
+uniform, quadratic — bank the same σ at their own weights beside it, free,
+because nothing reads an average while training. Under vanilla regret that
+premise does not hold up: on Leduc the UNIFORM column beats the linear one at
+every length, 1.5-2.7x at 10k iterations and about 4x by a million (0.012
+against 0.050). That is a measurement, not yet an explanation; it is consistent
+with vanilla CFR's regret bound being a bound on the uniform average (linear
+averaging is backed only when the regrets are weighted to match, as in LCFR and
+CFR+) and with a t-weighted average's smaller effective sample. Under the other
+three rules the linear column is the good one.
+
+What happens to the regret once measured is the run's REGRET RULE
+(`regret_rules`): vanilla adds it at weight 1, which makes the default a vanilla
+regret with a linearly weighted average, not Linear CFR, which weights both;
+LCFR weights it by `t`; CFR+ floors the sum at zero; DCFR discounts by sign.
+The walk measures the regret the same way for all four and hands it over
+unweighted. `test_mccfr.py` grades each rule on Leduc against the LP value.
+
+Linear weighting makes `t` part of a run's state, which is why training takes a
+`Solve` — table, RNG, root sampler, iteration count, rule and columns together
+— rather than a bare table: a table handed back alone would restart `t` at 1
+and weight every later strategy as if the run were young. The RNG is consumed
+in one fixed order (root deal, then every pick in recursion order), so a seed
+reproduces a run bit for bit, a run trained in chunks equals one trained
+straight, and a checkpoint restores the random stream along with the ledgers.
+
+The walk is written against a nine-member state protocol, not against
+`MiniState`, and both `LeducState` and `MiniState` satisfy it unchanged. That is
+load-bearing: mini-drawmaha has no referee, so the proof that this walk is right
+is the same walk run on Leduc and graded against the LP value. Only the root
+deal is game-specific — Leduc's is a constant tuple, mini-drawmaha's is
+`random_deal` — so it is passed in.
+
+One known cost, accepted by the plan: a subtree behind an opponent action whose
+current probability is exactly zero receives no samples until that action's
+regret turns positive again. It costs nothing while the action stays at zero,
+and row 6's exact meter is what would show a stale spot that matters.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Callable, Hashable, Mapping, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Protocol
+
+import numpy as np
+
+from drawmaha_solver.minidrawmaha.rules.game import random_deal
+from drawmaha_solver.minidrawmaha.solver.infoset_table import new_infoset_table
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.regret_rules import (
+    RULES,
+    Average,
+    BankRegret,
+    RegretRule,
+    bank_vanilla,
+    extra_weights,
+    validate_averages,
+)
+from drawmaha_solver.regret_matching import RegretMatcher
+
+# ---------------------------------------------------------------------------
+# What the walk reads
+# ---------------------------------------------------------------------------
+
+class State(Protocol):
+    """The nine members a walk reads off a node. `LeducState` and `MiniState` both have them.
+
+    A chance outcome is opaque: a single card in Leduc, a tuple of cards in
+    mini-drawmaha. The walk hands back to `apply_chance` exactly what
+    `chance_outcomes` handed it, and never looks inside.
+    """
+
+    def is_terminal(self) -> bool: ...
+    def is_chance_node(self) -> bool: ...
+    def chance_outcomes(self) -> Sequence[tuple[Any, float]]: ...
+    def apply_chance(self, outcome: Any) -> State: ...
+    @property
+    def current_player(self) -> int: ...
+    def legal_actions(self) -> Sequence[Any]: ...
+    def apply(self, action: Any) -> State: ...
+    def infoset(self) -> Hashable: ...
+    def returns(self) -> tuple[float, float]: ...
+
+# Deals one root. The private deal sits outside both state machines — Leduc
+# enumerates 30 of them, mini-drawmaha samples from 100,100 — so each game
+# supplies its own. Mini-drawmaha's is `random_deal`.
+RootSampler = Callable[[np.random.Generator], State]
+
+# One ledger per infoset. Mini-drawmaha's `InfoSetTable` and Leduc's are both
+# dicts of `RegretMatcher`; a lookup that misses raises, which is the table's
+# claim that the walk reached a spot the census says does not exist.
+Table = Mapping[Hashable, RegretMatcher]
+
+# ---------------------------------------------------------------------------
+# A run
+# ---------------------------------------------------------------------------
+
+@dataclass(slots=True)
+class Solve:
+    """Everything a run needs to continue exactly where it stopped.
+
+    `iteration` is the index t of the last COMPLETED iteration, so the next one
+    banks at t = iteration + 1. `seed` is provenance only; the live random
+    stream is `rng`. Mutable on purpose: `train` advances it in place, and a
+    copy would be a second solve silently diverging from the first.
+
+    `rule` is how the traverser's regret is banked (`regret_rules`), and
+    `averages` the extra averaging columns banked beside the primary linear
+    one, in the order of the ledgers' `extra_sums` rows. Both are fixed for
+    the life of a run: a checkpoint records them and refuses to resume under
+    others.
+
+    The answer is `average_strategy(solve.table)` — or, for another column,
+    `regret_rules.column_average` — and never the table's current strategy,
+    which cycles and is not the solution.
+    """
+
+    table: Table
+    rng: np.random.Generator
+    deal: RootSampler
+    seed: int
+    iteration: int = 0
+    rule: RegretRule = RegretRule.VANILLA
+    averages: tuple[Average, ...] = ()
+
+def new_solve(
+    seed: int,
+    *,
+    table: Table | None = None,
+    deal: RootSampler = random_deal,
+    rule: RegretRule | str = RegretRule.VANILLA,
+    averages: Sequence[Average | str] = (),
+) -> Solve:
+    """A fresh run at iteration 0, seeded so that it can be reproduced.
+
+    `table=None` allocates the whole mini-drawmaha table — a `PackedTable`,
+    about 280 MB and a second — with one `extra_sums` row per averaging
+    column. Pass a table to train a slice or another game; it must hold every
+    key the walk can reach from `deal`'s roots, since a miss raises, and every
+    ledger must carry exactly one extra row per column.
+
+    `rule` and `averages` are accepted by name ("dcfr", ("uniform",
+    "quadratic")). The defaults — vanilla, no extra columns — are the learner
+    as it was before rules existed, bit for bit.
+    """
+    rule = RegretRule(rule)
+    averages = validate_averages(averages)
+    if table is None:
+        table = new_infoset_table(extra_averages=len(averages))
+    else:
+        _require_extra_rows(table, averages)
+    return Solve(
+        table=table,
+        rng=np.random.default_rng(seed),
+        deal=deal,
+        seed=seed,
+        rule=rule,
+        averages=averages,
+    )
+
+def train(solve: Solve, iterations: int) -> Solve:
+    """Run `iterations` more iterations on `solve`, in place, and return it.
+
+    There is no progress callback: a caller wanting checkpoints trains in
+    chunks, and chunks are guaranteed to equal one straight run. A callback
+    that touched the RNG would break that without a sound.
+    """
+    if iterations < 1:
+        raise ValueError(f"iterations must be at least 1, got {iterations}")
+    for _ in range(iterations):
+        run_iteration(solve)
+    return solve
+
+def run_iteration(solve: Solve) -> None:
+    """One iteration: a fresh deal walked with P0 traversing, then another with P1.
+
+    Both traversals bank at the same t. Each seat gets its own deal rather than
+    sharing one, so the two samples are independent. P0's regrets are banked
+    before P1 walks against them — CFR+'s alternating updates, for every rule.
+    """
+    t = solve.iteration + 1
+    bank = RULES[solve.rule]
+    column_weights = extra_weights(solve.averages, t)
+    for traverser in (0, 1):
+        traverse(
+            solve.deal(solve.rng),
+            solve.table,
+            traverser,
+            solve.rng,
+            t,
+            bank=bank,
+            column_weights=column_weights,
+        )
+    solve.iteration = t
+
+def _require_extra_rows(table: Table, averages: tuple[Average, ...]) -> None:
+    """Refuse a table whose ledgers do not carry exactly one `extra_sums` row per column.
+
+    Checked at every ledger, before training. A ledger a row short would crash
+    on its first bank, but one a row too many would not: a single column's
+    weights broadcast across two rows and bank the same numbers into both.
+    """
+    rows = len(averages)
+    if isinstance(table, PackedTable):
+        # Every window's rows are the store's rows, so one shape answers for
+        # all 6.2 million ledgers without building a window.
+        carried = iter([table.extra_sums.shape[0]])
+    else:
+        carried = (ledger.extra_sums.shape[0] for ledger in table.values())
+    mismatched = next((count for count in carried if count != rows), None)
+    if mismatched is not None:
+        plural = "" if mismatched == 1 else "s"
+        raise ValueError(
+            f"a ledger carries {mismatched} extra averaging row{plural}, but the run "
+            f"banks {rows} columns: {[column.value for column in averages]}"
+        )
+
+# ---------------------------------------------------------------------------
+# The walk
+# ---------------------------------------------------------------------------
+
+def traverse(
+    state: State,
+    table: Table,
+    traverser: int,
+    rng: np.random.Generator,
+    t: int,
+    *,
+    bank: BankRegret = bank_vanilla,
+    column_weights: np.ndarray | None = None,
+) -> float:
+    """Chips to `traverser` from `state` along one sampled path, banking on the way up.
+
+    Returns the traverser's value only. The opponent's value is not computed on
+    a sampled path, and returning a pair would invite somebody to read it.
+
+    The returned number is a sample, not an expectation: it is unbiased for the
+    traverser's value under the current strategies, and noisy.
+
+    `bank` is the regret rule, handed each of the traverser's regrets unweighted
+    — what weight iteration t deserves is the rule's to decide. `column_weights`
+    is iteration t's weight for each extra averaging column, shaped (k, 1), or
+    None when the run banks none. The walk writes the slots directly rather
+    than through `RegretMatcher.update`, which would re-derive σ and re-check
+    its inputs at every visit; under vanilla it does the same arithmetic, and
+    `test_mccfr.py` holds the two to identical bytes.
+    """
+    if state.is_terminal():
+        return state.returns()[traverser]
+
+    # The deck: one outcome, by its probability, and no ledger — the deck has
+    # no regrets. Its probability is NOT carried down; having been sampled is
+    # already how it enters.
+    if state.is_chance_node():
+        outcomes = state.chance_outcomes()
+        picked = _pick(rng, [probability for _, probability in outcomes])
+        return traverse(
+            state.apply_chance(outcomes[picked][0]),
+            table,
+            traverser,
+            rng,
+            t,
+            bank=bank,
+            column_weights=column_weights,
+        )
+
+    ledger = table[state.infoset()]
+    actions = state.legal_actions()
+    sigma = ledger.strategy()
+
+    # My spot: walk every action and hand the rule their regret, at weight
+    # exactly 1. u[k] belongs to actions[k], which is the ledger's column k. σ
+    # was read before the subtree ran and is still this ledger's strategy:
+    # perfect recall keeps the subtree from reaching this spot again.
+    if state.current_player == traverser:
+        utilities = np.array(
+            [
+                traverse(
+                    state.apply(action),
+                    table,
+                    traverser,
+                    rng,
+                    t,
+                    bank=bank,
+                    column_weights=column_weights,
+                )
+                for action in actions
+            ]
+        )
+        value = sigma @ utilities
+        bank(ledger, utilities - value, t)
+        return float(value)
+
+    # Their spot: bank the mix they are about to be sampled from — weight t in
+    # the primary sum, each column's own weight in its row — and follow the
+    # one action it picks. Their regret is untouched: it moves only when they
+    # traverse.
+    ledger.strategy_sum += t * sigma
+    if column_weights is not None:
+        ledger.extra_sums += column_weights * sigma
+    return traverse(
+        state.apply(actions[_pick(rng, sigma)]),
+        table,
+        traverser,
+        rng,
+        t,
+        bank=bank,
+        column_weights=column_weights,
+    )
+
+def _pick(rng: np.random.Generator, probabilities: Sequence[float]) -> int:
+    """An index drawn with probability `probabilities[k]`, from one uniform number.
+
+    Not `rng.choice(p=...)`, which validates and normalises its input on every
+    call: 2.5 µs a draw against 0.3 µs here. Measured over whole traversals
+    that is a fifth of Leduc's cost (0.145 → 0.117 ms) and a twentieth of
+    mini-drawmaha's (2.6 → 2.5 ms), whose time goes to building states.
+
+    A rounding tail (the probabilities summing to 1 − 1e-16 and the draw landing
+    past them) falls back to the last action with positive probability, never
+    to the last action outright: regret matching zeroes actions exactly, and a
+    zero-probability action must never be followed.
+    """
+    threshold = rng.random()
+    cumulative = 0.0
+    fallback = -1
+    for index, probability in enumerate(probabilities):
+        if probability > 0.0:
+            cumulative += probability
+            if threshold < cumulative:
+                return index
+            fallback = index
+    # A distribution with no positive entry has nothing to sample; the ledger
+    # and both games guarantee one, so reaching here is a caller bug.
+    if fallback < 0:
+        raise ValueError(f"no action has positive probability: {list(probabilities)}")
+    return fallback
+
+# ---------------------------------------------------------------------------
+# Checkpoints
+# ---------------------------------------------------------------------------
+
+# Present in every checkpoint written since regret rules existed, and absent
+# from every one written before; `averages`, `extra_sums` and `stamps` travel
+# with it.
+_RULE_KEY = "rule"
+
+def save_solve(solve: Solve, path: Path) -> None:
+    """Write a run to one `.npz`: every ledger slot flat, plus t, the RNG, the rule and the columns.
+
+    Flat arrays rather than a pickle: every ledger's regret, and separately
+    every ledger's strategy sum, are laid end to end in the table's own order,
+    with each ledger's width alongside so `load_solve` can slice them back
+    apart and refuse a table they do not fit. The extra columns are laid out
+    the same way, one row per column (k × Σ widths), and the stamps one per
+    ledger — zeros under every rule but DCFR, which cannot resume without them.
+
+    That layout IS a `PackedTable`'s store, so the whole game's checkpoint is
+    its four arrays written as they stand — no window is built. Any other
+    table (Leduc's dict, a hand-built one) is concatenated ledger by ledger
+    into the same format.
+
+    Raises on an empty table, which has nothing to restore, and on a generator
+    other than the PCG64 `new_solve` and `load_solve` build, whose state could
+    not be restored.
+    """
+    if not solve.table:
+        raise ValueError("the table is empty; there is nothing to checkpoint")
+    _require_restorable(solve.rng.bit_generator.state)
+    regret, strategy_sum, extra_sums, stamps = _flat_slots(solve.table)
+    with Path(path).open("wb") as file:
+        np.savez(
+            file,
+            regret=regret,
+            strategy_sum=strategy_sum,
+            extra_sums=extra_sums,
+            stamps=stamps,
+            widths=_widths(solve.table),
+            iteration=np.int64(solve.iteration),
+            seed=np.int64(solve.seed),
+            rng_state=np.str_(json.dumps(solve.rng.bit_generator.state)),
+            # Through the enums, so a hand-built Solve holding plain names is
+            # validated here rather than written as whatever it holds.
+            rule=np.str_(RegretRule(solve.rule).value),
+            averages=np.array(
+                [Average(column).value for column in solve.averages], dtype=np.str_
+            ),
+        )
+
+def load_solve(
+    path: Path,
+    *,
+    table: Table,
+    deal: RootSampler = random_deal,
+    rule: RegretRule | str = RegretRule.VANILLA,
+    averages: Sequence[Average | str] = (),
+) -> Solve:
+    """Pour a checkpoint into `table` and return the run, ready to continue.
+
+    The caller allocates `table` — the same game and the same keys, in the
+    same order, as the table that was saved, with one extra row per column.
+    Its ledgers are overwritten in place. Training the returned solve continues
+    the saved random stream, so a resumed run equals an uninterrupted one bit
+    for bit.
+
+    `rule` and `averages` are what the caller means to continue, and must be
+    what the run was trained under: a DCFR run resumed as vanilla would train
+    on without a word, from regrets no vanilla run could have produced, and
+    columns in another order would pour one weighting's sums into another's
+    row. A checkpoint written before rules existed records neither, and was a
+    vanilla run with no columns.
+
+    The widths are the fingerprint: a table with another ledger count or any
+    ledger of another width raises before anything is written. A table of the
+    same shape but different keys cannot be told apart from the numbers alone,
+    which is why the order contract is the caller's. The rule, the columns and
+    the random stream are all checked before any ledger is written too, so a
+    refused checkpoint leaves the table untouched.
+    """
+    rule = RegretRule(rule)
+    averages = validate_averages(averages)
+    with np.load(Path(path), allow_pickle=False) as saved:
+        widths = saved["widths"]
+        _validate_shape(widths, table)
+        _require_same_run(_saved_run(saved), (rule, averages))
+        _require_extra_rows(table, averages)
+        rng_state = json.loads(str(saved["rng_state"]))
+        _require_restorable(rng_state)
+        rng = np.random.default_rng()
+        rng.bit_generator.state = rng_state
+        regret, strategy_sum = saved["regret"], saved["strategy_sum"]
+        if _RULE_KEY in saved.files:
+            extra_sums, stamps = saved["extra_sums"], saved["stamps"]
+        else:
+            extra_sums = np.zeros((0, int(widths.sum())))
+            stamps = np.zeros(len(widths), dtype=np.int64)
+        _validate_columns(extra_sums, stamps, widths, len(averages))
+        _pour_slots(table, widths, regret, strategy_sum, extra_sums, stamps)
+        return Solve(
+            table=table,
+            rng=rng,
+            deal=deal,
+            seed=int(saved["seed"]),
+            iteration=int(saved["iteration"]),
+            rule=rule,
+            averages=averages,
+        )
+
+def read_run(path: Path) -> tuple[RegretRule, tuple[Average, ...]]:
+    """The rule and the extra columns a checkpoint was trained under, read without loading it.
+
+    What a caller needs BEFORE `load_solve`: the table it allocates must carry
+    one extra row per column, and `load_solve` must be told the rule it is
+    continuing. A checkpoint from before rules existed reads as vanilla with
+    no columns, which is what it was.
+    """
+    with np.load(Path(path), allow_pickle=False) as saved:
+        return _saved_run(saved)
+
+def _saved_run(saved: np.lib.npyio.NpzFile) -> tuple[RegretRule, tuple[Average, ...]]:
+    if _RULE_KEY not in saved.files:
+        return RegretRule.VANILLA, ()
+    return RegretRule(str(saved[_RULE_KEY])), validate_averages(
+        str(column) for column in saved["averages"]
+    )
+
+def _require_same_run(
+    saved: tuple[RegretRule, tuple[Average, ...]], asked: tuple[RegretRule, tuple[Average, ...]]
+) -> None:
+    """Refuse to resume a checkpoint under a rule or columns it was not trained with."""
+    (saved_rule, saved_averages), (rule, averages) = saved, asked
+    if saved_rule is not rule:
+        raise ValueError(
+            f"the checkpoint was trained under {saved_rule.value!r}, "
+            f"and this run asks for {rule.value!r}"
+        )
+    if saved_averages != averages:
+        raise ValueError(
+            f"the checkpoint banks the columns {[column.value for column in saved_averages]}, "
+            f"and this run asks for {[column.value for column in averages]}"
+        )
+
+def _require_restorable(rng_state: Mapping[str, Any]) -> None:
+    """Refuse a random stream a checkpoint cannot carry, with a message that says so.
+
+    Only PCG64 is carried: it is what `new_solve` seeds and what `load_solve`
+    rebuilds, and its state is plain integers, so it survives JSON. Another
+    generator's state holds arrays, and would fail deep inside NumPy or JSON.
+    """
+    name = rng_state.get("bit_generator")
+    if name != "PCG64":
+        raise ValueError(
+            f"a checkpoint carries only a PCG64 random stream, not {name!r}"
+        )
+
+def _widths(table: Table) -> np.ndarray:
+    if isinstance(table, PackedTable):
+        return table.widths()
+    return np.fromiter(
+        (ledger.n_actions for ledger in table.values()), dtype=np.int64, count=len(table)
+    )
+
+def _flat_slots(table: Table) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """The four ledger slots of every row, end to end: the checkpoint's arrays.
+
+    A `PackedTable` already stores them this way and hands them over as they
+    stand. Any other table is concatenated, which is fine at Leduc's 936
+    ledgers and is what the packed table exists to spare the whole game:
+    listing 6.2 million windows first cost 50 s and a transient of gigabytes.
+    """
+    if isinstance(table, PackedTable):
+        return table.cumulative_regret, table.strategy_sum, table.extra_sums, table.stamp
+    ledgers = list(table.values())
+    return (
+        np.concatenate([ledger.cumulative_regret for ledger in ledgers]),
+        np.concatenate([ledger.strategy_sum for ledger in ledgers]),
+        np.concatenate([ledger.extra_sums for ledger in ledgers], axis=1),
+        np.fromiter(
+            (ledger.stamp[0] for ledger in ledgers), dtype=np.int64, count=len(ledgers)
+        ),
+    )
+
+def _pour_slots(
+    table: Table,
+    widths: np.ndarray,
+    regret: np.ndarray,
+    strategy_sum: np.ndarray,
+    extra_sums: np.ndarray,
+    stamps: np.ndarray,
+) -> None:
+    """Write a checkpoint's four arrays into `table`'s ledgers, in place.
+
+    The inverse of `_flat_slots`: a `PackedTable` takes each array in one
+    copy, any other table ledger by ledger. The caller has already checked
+    every shape, so nothing here can fail halfway through.
+    """
+    if isinstance(table, PackedTable):
+        table.cumulative_regret[:] = regret
+        table.strategy_sum[:] = strategy_sum
+        table.extra_sums[:] = extra_sums
+        table.stamp[:] = stamps
+        return
+    ends = np.cumsum(widths)
+    rows = zip(table.values(), ends, widths, stamps, strict=True)
+    for ledger, end, width, stamp in rows:
+        ledger.cumulative_regret[:] = regret[end - width : end]
+        ledger.strategy_sum[:] = strategy_sum[end - width : end]
+        ledger.extra_sums[:] = extra_sums[:, end - width : end]
+        ledger.stamp[0] = stamp
+
+def _validate_columns(
+    extra_sums: np.ndarray, stamps: np.ndarray, widths: np.ndarray, rows: int
+) -> None:
+    """Refuse extra sums or stamps that do not match the widths, before writing into the table.
+
+    The write loop's `zip(strict=True)` would notice a short stamp array too,
+    but only after pouring every ledger before the end of it.
+    """
+    if extra_sums.shape != (rows, int(widths.sum())):
+        raise ValueError(
+            f"the checkpoint's extra_sums are {extra_sums.shape}, and its widths "
+            f"and columns need {(rows, int(widths.sum()))}"
+        )
+    if stamps.shape != widths.shape:
+        raise ValueError(
+            f"the checkpoint holds {len(stamps)} stamps for {len(widths)} ledgers"
+        )
+
+def _validate_shape(widths: np.ndarray, table: Table) -> None:
+    """Refuse a table the checkpoint's ledgers do not fit, before writing into it."""
+    if len(widths) != len(table):
+        raise ValueError(
+            f"the checkpoint holds {len(widths)} ledgers, the table {len(table)}"
+        )
+    table_widths = _widths(table)
+    mismatched = np.flatnonzero(widths != table_widths)
+    if mismatched.size:
+        first = int(mismatched[0])
+        raise ValueError(
+            f"ledger {first} is {widths[first]} wide in the checkpoint and "
+            f"{table_widths[first]} wide in the table "
+            f"({mismatched.size} width mismatches in all)"
+        )

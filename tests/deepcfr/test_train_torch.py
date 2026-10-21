@@ -36,8 +36,8 @@ from drawmaha_solver.deepcfr.train import (  # noqa: E402
     step,
 )
 from drawmaha_solver.minidrawmaha.exploitability import exploitability  # noqa: E402
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable  # noqa: E402
-from drawmaha_solver.minidrawmaha.strategy import uniform_strategy  # noqa: E402
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable  # noqa: E402
+from drawmaha_solver.minidrawmaha.answer.strategy import uniform_strategy  # noqa: E402
 
 FULL_DEEP = os.environ.get("MINIDRAWMAHA_FULL_DEEP") == "1"
 

@@ -34,9 +34,9 @@ from drawmaha_solver.deepcfr.materialise import (  # noqa: E402
     regret_slots_from_outputs,
 )
 from drawmaha_solver.deepcfr.net import Net, predict  # noqa: E402
-from drawmaha_solver.minidrawmaha.enumeration import all_infosets  # noqa: E402
-from drawmaha_solver.minidrawmaha.features import encode  # noqa: E402
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable  # noqa: E402
+from drawmaha_solver.minidrawmaha.rules.enumeration import all_infosets  # noqa: E402
+from drawmaha_solver.minidrawmaha.rules.features import encode  # noqa: E402
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable  # noqa: E402
 from drawmaha_solver.regret_matching import RegretMatcher  # noqa: E402
 
 # ---------------------------------------------------------------------------

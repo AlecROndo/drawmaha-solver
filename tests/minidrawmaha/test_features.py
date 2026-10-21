@@ -28,13 +28,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha.cards import DECK, Card
-from drawmaha_solver.minidrawmaha.enumeration import (
+from drawmaha_solver.minidrawmaha.rules.cards import DECK, Card
+from drawmaha_solver.minidrawmaha.rules.enumeration import (
     all_infosets,
     private_keys,
     public_decision_points,
 )
-from drawmaha_solver.minidrawmaha.features import (
+from drawmaha_solver.minidrawmaha.rules.features import (
     CARD_GROUP,
     FEATURE_WIDTH,
     HEAD_WIDTH,
@@ -53,8 +53,8 @@ from drawmaha_solver.minidrawmaha.features import (
     public_features,
     public_row,
 )
-from drawmaha_solver.minidrawmaha.game import Action, DrawSignal, chip_state
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.rules.game import Action, DrawSignal, chip_state
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 
 # ---------------------------------------------------------------------------
 # One group of cards: multi-hot, rank counts, suit counts
@@ -110,7 +110,7 @@ def test_the_encoder_never_imports_torch():
     # In a fresh interpreter, so another test module that did import torch
     # cannot mask an import added here by mistake.
     probe = (
-        "import sys; import drawmaha_solver.minidrawmaha.features; "
+        "import sys; import drawmaha_solver.minidrawmaha.rules.features; "
         "raise SystemExit(1 if 'torch' in sys.modules else 0)"
     )
     assert subprocess.run([sys.executable, "-c", probe], check=False).returncode == 0

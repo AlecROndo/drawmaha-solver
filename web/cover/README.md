@@ -64,7 +64,7 @@ The pages load eight woff2 files from `/fonts/`, all named the @fontsource
 way (`<family>-latin-<weight>-<style>.woff2`), and they reach `public/fonts/`
 by two routes:
 
-- `scripts/vercel_build.sh` copies IBM Plex Mono 400/500/600 and Plus
+- `scripts/site/vercel_build.sh` copies IBM Plex Mono 400/500/600 and Plus
   Jakarta Sans 600 regular (the display voice) out of rung 0's `@fontsource`
   packages with `copy_font`. Those are **not** duplicated here.
 - The other four — Instrument Sans 400/500/600 (the prose voice) and Plus
@@ -97,8 +97,8 @@ link must match a rewrite source in `vercel.json` or the test fails.
 
 ## Checking them locally
 
-The build script is the real thing (`bash scripts/vercel_build.sh`, then
-`uv run python scripts/serve_site.py`), but it runs three `npm ci` builds
+The build script is the real thing (`bash scripts/site/vercel_build.sh`, then
+`uv run python scripts/site/serve_site.py`), but it runs three `npm ci` builds
 first. To look at just these three pages, mimic `public/` in a temp dir and
 serve it:
 

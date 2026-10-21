@@ -22,7 +22,7 @@ import pytest
 from drawmaha_solver.leduc.exploitability import exploitability, expected_value
 from drawmaha_solver.leduc.game import DEALS, LeducState
 from drawmaha_solver.leduc.infoset_table import new_infoset_table as new_leduc_table
-from drawmaha_solver.minidrawmaha.lockstep import (
+from drawmaha_solver.minidrawmaha.solver.lockstep import (
     _Recorder,
     load_lockstep,
     new_lockstep,
@@ -32,9 +32,9 @@ from drawmaha_solver.minidrawmaha.lockstep import (
     train_lockstep,
     walk,
 )
-from drawmaha_solver.minidrawmaha.mccfr import new_solve, save_solve, train, traverse
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
-from drawmaha_solver.minidrawmaha.regret_rules import (
+from drawmaha_solver.minidrawmaha.solver.mccfr import new_solve, save_solve, train, traverse
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.regret_rules import (
     RULES,
     Average,
     RegretRule,

@@ -33,14 +33,14 @@ from random import Random
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha.cards import canonical, parse_cards
-from drawmaha_solver.minidrawmaha.enumeration import (
+from drawmaha_solver.minidrawmaha.rules.cards import canonical, parse_cards
+from drawmaha_solver.minidrawmaha.rules.enumeration import (
     all_infosets,
     private_keys,
     public_decision_points,
 )
-from drawmaha_solver.minidrawmaha.game import DRAW_ACTIONS, Action, InfoSet
-from drawmaha_solver.minidrawmaha.infoset_table import (
+from drawmaha_solver.minidrawmaha.rules.game import DRAW_ACTIONS, Action, InfoSet
+from drawmaha_solver.minidrawmaha.solver.infoset_table import (
     average_strategy,
     current_strategy,
     format_strategy_tables,
@@ -48,7 +48,7 @@ from drawmaha_solver.minidrawmaha.infoset_table import (
     new_infoset_table,
     spots,
 )
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 
 CENSUS = json.loads((Path(__file__).parent / "census.json").read_text())
 

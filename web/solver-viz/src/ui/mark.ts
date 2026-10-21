@@ -230,7 +230,7 @@ function rayChip(g: Grid, o: ChipParams) {
         const nl = n[0] * L[0] + n[1] * L[1] + n[2] * L[2]
         const hl = Math.pow(nl * 0.5 + 0.5, 2)
         const lam = Math.max(0, nl)
-        I = 0.12 + 0.62 * hl + 0.35 * Math.pow(lam, 16)
+        I = 0.4 + 0.7 * hl + 0.35 * Math.pow(lam, 16)
         if (rn > 0.96) I += 0.15
         if (rn > 0.8 && !sector) I *= 0.9
       }
@@ -251,7 +251,7 @@ function rayChip(g: Grid, o: ChipParams) {
               mat = sector ? 2 : 1
               const n = toWorld(x / R, y / R, 0)
               const nl = n[0] * L[0] + n[1] * L[1] + n[2] * L[2]
-              I = 0.1 + 0.55 * Math.pow(nl * 0.5 + 0.5, 2) + 0.3 * Math.pow(Math.max(0, nl), 10)
+              I = 0.3 + 0.7 * Math.pow(nl * 0.5 + 0.5, 2) + 0.35 * Math.pow(Math.max(0, nl), 10)
             }
           }
         }
@@ -260,7 +260,8 @@ function rayChip(g: Grid, o: ChipParams) {
       const i = cyy * cols + cxx
       const col = mat === 1 ? o.colBase : o.colPattern
       const bay = (BAYER[cyy % 4][cxx % 4] + 0.5) / 16 - 0.5
-      const lv = clamp(Math.floor(I * 5 + bay * 1.15), 0, 5)
+      /* the pattern never drops below '%': the sectors are what make the disc read as a chip, even in shadow */
+      const lv = Math.max(mat === 2 ? 4 : 0, clamp(Math.floor(I * 5 + bay * 1.15), 0, 5))
       if (lv > 0) {
         g.chb[i] = chars[lv]
         g.cob[i] = col
@@ -288,7 +289,7 @@ export interface ChipOptions {
   mark?: string
   /** the glyph colour of its pattern: the sectors and the inner ring */
   ink?: string
-  /** cell size in px; 3 for a 56px mark, 4 for the 132px one that closes a page */
+  /** cell size in px; 1.5 everywhere the chip is the mark, which is ~60 glyphs across the 56px one in the bar */
   font?: number
   /** turn rate in rad/s when the mouse is elsewhere */
   speed?: number
@@ -303,7 +304,7 @@ export function mountChip(canvas: HTMLCanvasElement, opts: ChipOptions = {}): ()
   const mark = opts.mark ?? '#f5f0e6'
   const ink = opts.ink ?? '#8e2038'
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-  const g = new Grid(canvas, ['transparent', mark, ink, hexA(mark, 0.35)], opts.font ?? 4)
+  const g = new Grid(canvas, ['transparent', mark, ink, hexA(mark, 0.5)], opts.font ?? 1.5)
   const s = { yaw: 0.6, t: 0, speed: opts.speed ?? 0.3, tilt: opts.tilt ?? 0.8, drawn: false }
 
   const move = (cx: number, cy: number) => {

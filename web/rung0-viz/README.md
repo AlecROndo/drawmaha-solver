@@ -34,7 +34,7 @@ npm run build   # static bundle in dist/ — 100% client-side, no server code
 ```
 
 To see this page inside the site, next to the cover page and the rung-1
-visualizer, run `scripts/serve_site.py` from the repo root.
+visualizer, run `scripts/site/serve_site.py` from the repo root.
 
 ## Deploy
 

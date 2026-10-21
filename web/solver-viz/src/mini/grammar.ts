@@ -1,7 +1,7 @@
 /**
  * Mini-drawmaha's pot-limit betting grammar: what may be done, what ends the
  * hand, what closes a round, what a bet costs, and the throw codes. A
- * transcript of the rules half of `src/drawmaha_solver/minidrawmaha/game.py`,
+ * transcript of the rules half of `src/drawmaha_solver/minidrawmaha/rules/game.py`,
  * copied from `web/rung3-viz/src/minidraw.ts` without that file's settlement
  * and deck helpers (the deck lives in `cards.ts`), and pinned by
  * `grammar.test.ts` against the same thirteen round-1 lines and chip ladder

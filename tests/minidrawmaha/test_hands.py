@@ -18,8 +18,8 @@ from random import Random
 
 import pytest
 
-from drawmaha_solver.minidrawmaha.cards import DECK, parse_cards
-from drawmaha_solver.minidrawmaha.hands import (
+from drawmaha_solver.minidrawmaha.rules.cards import DECK, parse_cards
+from drawmaha_solver.minidrawmaha.rules.hands import (
     BOARD_CARDS,
     HOLE_CARDS,
     OUTER_HOLE_CARDS,

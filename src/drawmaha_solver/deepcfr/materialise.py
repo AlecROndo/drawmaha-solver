@@ -50,8 +50,8 @@ from collections.abc import Sequence
 import numpy as np
 
 from drawmaha_solver.deepcfr.net import Net, predict
-from drawmaha_solver.minidrawmaha.features import layout, legal_gather
-from drawmaha_solver.minidrawmaha.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.rules.features import layout, legal_gather
+from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 
 # ---------------------------------------------------------------------------
 # Eq. (3) as a write

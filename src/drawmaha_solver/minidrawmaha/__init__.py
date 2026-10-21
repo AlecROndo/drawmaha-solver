@@ -11,4 +11,11 @@ The rung exists because it is the last one where "how far is this strategy from
 optimal?" has an exact answer. Rung 4's neural solver needs a game whose truth
 is known to be graded against, and a network here would leave that grader
 ungraded.
+
+Three subpackages, and one module kept apart from all of them: `rules/` is
+what the game is, with no solver in it; `solver/` is the tabular learner
+and its memory; `answer/` is everything built on the solved game, from the
+frozen strategy to the two exports the site reads. `exploitability.py`, the
+exact meter, imports `rules/` only, so that it cannot share a bug with the
+solver it grades.
 """

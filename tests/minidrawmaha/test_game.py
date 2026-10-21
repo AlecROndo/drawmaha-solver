@@ -15,8 +15,8 @@ from random import Random
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha.cards import DECK, canonical, parse_cards, relabel
-from drawmaha_solver.minidrawmaha.game import (
+from drawmaha_solver.minidrawmaha.rules.cards import DECK, canonical, parse_cards, relabel
+from drawmaha_solver.minidrawmaha.rules.game import (
     ANTE,
     DISCARD_MASK,
     DRAW_ACTIONS,
@@ -36,7 +36,7 @@ from drawmaha_solver.minidrawmaha.game import (
     random_deal,
     throw_count,
 )
-from drawmaha_solver.minidrawmaha.hands import HOLE_CARDS, inner_score, outer_score
+from drawmaha_solver.minidrawmaha.rules.hands import HOLE_CARDS, inner_score, outer_score
 
 F, X, P = Action.FOLD, Action.CHECK_CALL, Action.POT
 

@@ -1,5 +1,5 @@
 {
-  "_source": "drawmaha_solver.minidrawmaha.enumeration, counted by scripts/generate_minidrawmaha_census.py. Do not hand-edit: regenerate.",
+  "_source": "drawmaha_solver.minidrawmaha.rules.enumeration, counted by scripts/minidrawmaha/generate_census.py. Do not hand-edit: regenerate.",
   "configuration": {
     "deck_cards": 15,
     "ranks": 5,

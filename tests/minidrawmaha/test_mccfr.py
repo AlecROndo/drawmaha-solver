@@ -43,14 +43,14 @@ import pytest
 from drawmaha_solver.leduc.exploitability import exploitability, expected_value
 from drawmaha_solver.leduc.game import DEALS, LeducState
 from drawmaha_solver.leduc.infoset_table import new_infoset_table as new_leduc_table
-from drawmaha_solver.minidrawmaha.game import (
+from drawmaha_solver.minidrawmaha.rules.game import (
     DRAW_ACTIONS,
     Action,
     InfoSet,
     random_deal,
 )
-from drawmaha_solver.minidrawmaha import regret_rules
-from drawmaha_solver.minidrawmaha.mccfr import (
+from drawmaha_solver.minidrawmaha.solver import regret_rules
+from drawmaha_solver.minidrawmaha.solver.mccfr import (
     Solve,
     _pick,
     load_solve,
@@ -61,7 +61,7 @@ from drawmaha_solver.minidrawmaha.mccfr import (
     train,
     traverse,
 )
-from drawmaha_solver.minidrawmaha.regret_rules import (
+from drawmaha_solver.minidrawmaha.solver.regret_rules import (
     Average,
     RegretRule,
     bank_cfr_plus,

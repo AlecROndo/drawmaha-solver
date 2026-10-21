@@ -1,6 +1,6 @@
 """The Modal launcher's one-trainer-per-rule claim and its launch, without Modal.
 
-`scripts/modal_rung3.py` imports `modal` at the top, so the module is loaded
+`scripts/minidrawmaha/modal_rung3.py` imports `modal` at the top, so the module is loaded
 with a stand-in for it whose decorators hand the functions back unchanged, so
 `main` and the claim helpers (`_claim`, `_stopped`, `_settle`, `_continues`)
 are called as plain functions. The helpers touch nothing of Modal's but
@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "modal_rung3.py"
+SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "minidrawmaha" / "modal_rung3.py"
 START = 1_000_000.0
 
 class FakeApp:

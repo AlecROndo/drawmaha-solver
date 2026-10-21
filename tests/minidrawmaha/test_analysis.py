@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha import analysis
-from drawmaha_solver.minidrawmaha.analysis import (
+from drawmaha_solver.minidrawmaha.answer import analysis
+from drawmaha_solver.minidrawmaha.answer.analysis import (
     GRADES,
     RULES,
     UNIFORM_RANDOM,
@@ -34,10 +34,10 @@ from drawmaha_solver.minidrawmaha.analysis import (
     round_one_frequencies,
     series,
 )
-from drawmaha_solver.minidrawmaha.hands import InnerCategory
-from drawmaha_solver.minidrawmaha.lockstep import new_lockstep, save_lockstep, train_lockstep
-from drawmaha_solver.minidrawmaha.regret_rules import Average
-from drawmaha_solver.minidrawmaha.strategy import (
+from drawmaha_solver.minidrawmaha.rules.hands import InnerCategory
+from drawmaha_solver.minidrawmaha.solver.lockstep import new_lockstep, save_lockstep, train_lockstep
+from drawmaha_solver.minidrawmaha.solver.regret_rules import Average
+from drawmaha_solver.minidrawmaha.answer.strategy import (
     StrategyInfo,
     fetch_strategy,
     load_strategy,

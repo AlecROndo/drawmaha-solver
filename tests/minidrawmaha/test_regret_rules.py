@@ -17,7 +17,7 @@ import math
 import numpy as np
 import pytest
 
-from drawmaha_solver.minidrawmaha.regret_rules import (
+from drawmaha_solver.minidrawmaha.solver.regret_rules import (
     RULES,
     Average,
     RegretRule,
@@ -271,7 +271,7 @@ def test_the_tail_formula_alone_matches_a_brute_force_tail(start, stop):
     # stop} log(1 + k^−1.5) ≈ 0.006, whose last bit is ~1e-18. At that
     # resolution the formula's a^−3 term (8.9e-16 at the table's end) is
     # visible, which the full L above, at 4.4e-16 per bit, cannot resolve.
-    from drawmaha_solver.minidrawmaha.regret_rules import _tail
+    from drawmaha_solver.minidrawmaha.solver.regret_rules import _tail
 
     assert _tail(start) - _tail(stop) == pytest.approx(
         brute_force_tail(start, stop), rel=0, abs=5e-17

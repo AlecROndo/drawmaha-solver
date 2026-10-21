@@ -53,7 +53,7 @@ import torch
 from torch.nn.utils import clip_grad_norm_
 
 from drawmaha_solver.deepcfr.net import Net
-from drawmaha_solver.minidrawmaha.features import MAX_WIDTH, NO_ACTION, layout, legal_gather
+from drawmaha_solver.minidrawmaha.rules.features import MAX_WIDTH, NO_ACTION, layout, legal_gather
 
 # ---------------------------------------------------------------------------
 # The run parameters
