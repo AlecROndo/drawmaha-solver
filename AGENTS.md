@@ -1,0 +1,81 @@
+# Drawmaha solver — agent instructions
+
+Root instructions for coding agents. Only what applies to every change, or
+would be expensive to get wrong, lives here. Subtree rules live in nested
+`AGENTS.md` files, loaded by walk-up when you work inside that subtree (each
+has a one-line `CLAUDE.md` shim so Claude Code loads it too). The resolver
+table points at reference that is read on demand. `tests/test_agent_docs.py`
+checks that every path named in these files exists and every shim is in place.
+
+## What this repo is
+
+A heads-up pot-limit Drawmaha solver, built as a validation ladder: each rung
+adds one idea and is graded against a known answer before the next is climbed.
+`README.md` is the long-form narrative, kept current rung by rung.
+
+| Rung | Game | Package | Ground truth |
+|---|---|---|---|
+| 0 | rock-paper-scissors | `src/drawmaha_solver/rps/` | the uniform Nash, closed form |
+| 1 | Kuhn poker | `src/drawmaha_solver/kuhn/` | the closed-form equilibrium family; 64 pure strategies enumerated |
+| 2 | Leduc poker | `src/drawmaha_solver/leduc/` | OpenSpiel, frozen in `tests/leduc/referee.json` |
+| 3 | mini-drawmaha, tabular MCCFR | `src/drawmaha_solver/minidrawmaha/` | the exact best-response walk; no outside engine exists |
+| 4 | mini-drawmaha, Deep CFR | `src/drawmaha_solver/deepcfr/` | rung 3's grader and rung 3's tabular answer |
+
+Python 3.12+ with `uv`; NumPy and matplotlib; torch only as the optional
+`deep` extra. The site under `web/` is five Vite + React + TypeScript apps and
+three static pages, deployed by Vercel from `vercel.json`.
+
+## Rules that hold everywhere
+
+- **A grader never shares code with what it grades.** Every rung's
+  `exploitability.py` imports the game rules and nothing from the solver; a bug
+  shared between them would cancel and certify the thing that broke it. Inside
+  a grader: sum over the hidden worlds first, then take the responder's max. A
+  max inside the sum is an adversary who sees face-down cards.
+- **The two reach weights of CFR are keyword-only on purpose**
+  (`RegretMatcher.update(..., regret_weight=, strategy_weight=)` in
+  `src/drawmaha_solver/regret_matching.py`). Swapped, every rung still
+  converges to a wrong answer without a warning. Never make them positional.
+- **Committed fixtures, figures and exports are regenerated, never hand-edited.**
+  `tests/leduc/referee.json`, `tests/minidrawmaha/census.json`, everything
+  under `figures/`, the packs under `web/rung3-viz/public/deals/` and
+  `web/solver-viz/public/mini/`, and the copies under `web/*/src/data/`. Each
+  names the command that writes it.
+- **CI runs no tests.** The only workflow is an automated review. Run
+  `uv run pytest` yourself, and `npm test` in any visualizer you touched,
+  before opening a PR. The default suite passes without torch, Modal,
+  OpenSpiel or a network download; keep it that way.
+- **Docstrings are the design record and they teach.** The reviewer re-derives
+  the math they state. A wrong claim in a docstring or in `README.md` is a
+  bug, fixed in the same change as the code.
+- **PRs branch from their predecessor's head and target `main`.** Never stack a
+  PR on another's branch, and never rebase a branch onto `main` to clean its
+  diff: that deletes the modules it imports. Commit subjects read
+  `feat(rungN): <the finding>` or `fix(web): <the finding>`.
+- **Modal costs money.** The launchers under `scripts/` that run on Modal are
+  started by a person, never by an agent on its own initiative.
+- **Never `git stash`.** Several agents work in parallel worktrees that share
+  one stash stack.
+
+## Resolver — read when the trigger fires
+
+| When you are about to… | Read |
+|---|---|
+| Touch a stylesheet, a `<style>` block or a component's classes under `web/` | `web/DESIGN.md`, the enforced UI standard |
+| Edit the homepage, the Rules tab or the Cover | `web/cover/README.md` (which pages are exports, which hand edits are pinned) |
+| Continue rung 4 | `docs/superpowers/specs/2026-10-07-deep-cfr-m1-design.md`, the PR ladder and its gates |
+| Change mini-drawmaha's deck, draw cap, betting tree or infoset key | the rung-3 plan, outside the repo on Alec's machine: `~/Desktop/Claude/poker/rung3-delta/rung3-delta-plan.md` (§3 rules, §4 census), with the census scripts beside it |
+| Ask why a decision was made | `docs/superpowers/specs/` for designs, `docs/superpowers/plans/` for the dated plans each PR was built from |
+| Write the walkthrough for a merged PR | the earlier ones under `~/Desktop/Claude/poker/code-walkthroughs/`, outside the repo |
+
+## Subtree map
+
+- `src/drawmaha_solver/` — the package: one subpackage per rung, plus the shared ledger, plotting and terminal-table modules.
+- `tests/` — pytest, one directory per rung, plus the static-site and instruction-file checks.
+- `scripts/` — hand-run entry points, grouped by what they serve: `scripts/site/`, `scripts/leduc/`, `scripts/minidrawmaha/`, `scripts/deepcfr/`.
+- `web/` — the site: `web/cover/` (three static pages), five Vite apps, `web/DESIGN.md`.
+- `figures/` — outputs of the analysis commands, committed as regression fingerprints.
+- `docs/superpowers/` — dated design specs and implementation plans.
+- `paper/` — the ML survey (`paper/drawmaha-ml-survey.tex`, figures from `paper/make_figures.py` and `paper/make_diagrams.sh`).
+- `research/` — the literature notes the survey was written from, and the range-UI studies that became `/solver`.
+- `writeups/` — the rung-0 writeup, LaTeX and PDF.
