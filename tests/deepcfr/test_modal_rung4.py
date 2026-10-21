@@ -365,7 +365,7 @@ def test_the_speed_report_projects_the_full_run_from_the_last_iteration(launcher
     graded = {"exact": {"grade_s": 60.0}, "pi": {"grade_s": 60.0, "pi_fit_s": 30.0}, "current": {"grade_s": 60.0}}
     report = launcher._speed_report(lines, graded, walks=1_000, workers=32, cpu_count=33)
     assert report["iterations"] == 4
-    assert report["seconds_per_iteration"] == pytest.approx((12.0 + 22.0 * 3) / 4)
+    assert report["smoke_mean_seconds_per_iteration"] == pytest.approx((12.0 + 22.0 * 3) / 4)
     assert report["seconds"]["fit"] == pytest.approx(20.0), "the last iteration's stages"
     assert report["seconds"]["collect"] == pytest.approx(2.0)
     # Only the walks scale with K: 2 s of collecting at K = 1,000 is 20 s at 10,000.

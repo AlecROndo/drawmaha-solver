@@ -475,11 +475,15 @@ def _speed_report(
     smoke would read low. A crashed-and-resumed t counts once (last line per
     t). Collect is the one stage that scales with K, so the projection takes
     it × `DeepConfig.walks / walks` and every other stage as measured at the
-    last iteration. Still a lower bound: the refit's sampling and the
-    reservoir's merges grow a little with the memory over 2,000 iterations.
-    The price is the trainer's cores and memory at Modal's listed rates for
-    the projected hours of `TARGET` iterations; `seconds_per_iteration` is
-    the mean over the smoke's iterations, for the record.
+    last iteration. Still a lower bound, in two ways: the refit's sampling
+    and the reservoir's merges grow a little with the memory over 2,000
+    iterations, and whether materialise, merge and fit move at all with K
+    is not measured here (the Mac's 35–39 s at K = 10,000 against 26 s at
+    K = 1,000 says the walks are nearly all of the difference). The price
+    is the trainer's cores and memory at Modal's listed rates for the
+    projected hours of `TARGET` iterations; `smoke_mean_seconds_per_iteration`
+    is the mean over the smoke's own iterations at its own K, for the
+    record, and is not the real run's cost.
     """
     last = {int(line["t"]): line for line in progress if "seconds" in line}
     final = last[max(last)]["seconds"]
@@ -498,7 +502,7 @@ def _speed_report(
         "cpu_count": cpu_count,
         "iterations": len(last),
         "seconds": {stage: round(s, 3) for stage, s in seconds.items()},
-        "seconds_per_iteration": round(per_iteration, 3),
+        "smoke_mean_seconds_per_iteration": round(per_iteration, 3),
         "projected_seconds_per_iteration": round(projected, 3),
         "projected_hours_for_full_run": round(hours, 2),
         "projected_usd_for_full_run": round(usd, 2),
