@@ -113,7 +113,7 @@ from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 
@@ -273,6 +273,7 @@ class Learner(Protocol):
 # whose σ is about to be sampled as the opponent, 1 − p.
 Observer = Callable[[PackedTable, int, int], None]
 
+@runtime_checkable
 class StatefulObserver(Protocol):
     """An observer that carries state across iterations: PR 5's exact average.
 
@@ -280,7 +281,8 @@ class StatefulObserver(Protocol):
     writes beside the memories (atomically, as `Reservoir.save` is: the
     observer's own `save` is trusted to be) and `state.json` names; a
     resumed run `load`s it before its first step. An observer without the
-    three attributes is stateless and is left alone.
+    three members is stateless and is left alone — `isinstance` on this
+    protocol is that test.
     """
 
     name: str
@@ -293,7 +295,7 @@ class StatefulObserver(Protocol):
 
 def _stateful(observers: Sequence[Observer]) -> list[StatefulObserver]:
     """The observers that carry state, in the order given; two with one name are refused."""
-    found = [o for o in observers if all(hasattr(o, a) for a in ("name", "save", "load"))]
+    found = [o for o in observers if isinstance(o, StatefulObserver)]
     names = [o.name for o in found]
     for name in names:
         if names.count(name) > 1:
@@ -455,15 +457,18 @@ def load_run(
     for name in named:
         if not (directory / name).exists():
             raise ValueError(f"{directory / STATE} names {name}, which is not in {directory}")
-    for observer in stateful:
-        observer.load(directory / saved[observer.name])
-    return DeepRun(
+    run = DeepRun(
         config=_config_of(state),
         t=int(state["t"]),
         nets=[None if name is None else learner.load(directory / name) for name in files["nets"]],
         advantage=tuple(Reservoir.load(directory / name) for name in files["advantage"]),
         policy=Reservoir.load(directory / files["policy"]),
     )
+    # Last, so a refused config or memory leaves the caller's observers as
+    # they were.
+    for observer in stateful:
+        observer.load(directory / saved[observer.name])
+    return run
 
 def saved_config(directory: Path) -> DeepConfig:
     """The config a save was made under, read from its `state.json` alone.

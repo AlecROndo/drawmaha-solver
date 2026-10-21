@@ -21,12 +21,18 @@ not stored and `strategy.average_rows` normalises, as it does for rung 3's
 I under σ is the sum, over the physical histories the key stands for, of the
 product of q's OWN action probabilities on the way there — the deck's and
 the opponent's probabilities left out. It is the weight CFR's average
-strategy carries (the textbook `π^q_t(I)`), and the reason is what it does
-not contain: chance and the opponent's play are the same at I whichever t
-it is, so they are a per-row constant that cancels when the row is
-normalised, and only q's own play, which moves with t, decides how much
-iteration t's σ(I) counts. Where q rarely arrives by its own choices, the
-spot's strategy barely matters and barely counts.
+strategy carries, the textbook `π^q_t(I)`, and the reason is Kuhn's
+theorem: the average strategy is the one behavioural strategy that plays
+like the uniform mixture of the σ_t, and the share of that mixture that
+arrives at I under iteration t is how often q's OWN choices under σ_t lead
+there. The opponent's choices are the opponent's, not part of q's strategy,
+so they do not enter — the opponent's play does move with t, and weighting
+σ_t(I) by it would average q's play by how the opponent happened to be
+playing, a different average with no guarantee. The deck's choices are the
+same at I whichever t it is, so they would be a per-row constant that
+cancels in the normalisation anyway, and the pass leaves them out. Where q
+rarely arrives by its own choices, the spot's strategy barely matters and
+barely counts.
 
 **Why a post-draw key has three predecessors.** The key keeps the hole, the
 card thrown and the board, and deliberately forgets which card was drawn
@@ -352,6 +358,11 @@ class ExactAverage:
     0's freshly refit at p = 1 — and each seat is added once per iteration.
     Only `seat`'s rows move: the other seat's reach is 0.0 and adding 0.0
     leaves its sums bitwise as they were.
+
+    Which refit each term is: seat 0's iteration-t term is its net refit at
+    t, seat 1's is its net refit at t − 1 (uniform play at t = 1), because
+    that is what the other seat's walks sample at iteration t. Over T
+    iterations seat 1's share therefore runs one refit behind seat 0's.
 
     `last[seat]` is the last t accumulated for that seat, and a call must
     bring `last[seat] + 1`: a resume from an older mark, a skipped phase or
