@@ -16,7 +16,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from drawmaha_solver.deepcfr.average import current_strategy, own_reach, predecessors
+from drawmaha_solver.deepcfr.average import (
+    ExactAverage,
+    current_strategy,
+    own_reach,
+    predecessors,
+)
+from drawmaha_solver.deepcfr.collect import Collector
+from drawmaha_solver.deepcfr.train import DeepConfig, OracleLearner, new_run, step
 from drawmaha_solver.minidrawmaha.rules.cards import DECK
 from drawmaha_solver.minidrawmaha.rules.enumeration import (
     PublicPoint,
@@ -249,3 +256,121 @@ def test_own_reach_refuses_a_listed_table_and_a_bad_seat():
         own_reach(listed, seat=0)
     with pytest.raises(ValueError, match="seat"):
         own_reach(random_table(0), seat=2)
+
+# ---------------------------------------------------------------------------
+# The running sum
+# ---------------------------------------------------------------------------
+
+def columns_of(seat: int) -> np.ndarray:
+    """Every column of `seat`'s rows, as a boolean mask over the flat arrays."""
+    built = layout()
+    mask = np.zeros(built.column_offset[-1], dtype=bool)
+    for p, point in enumerate(built.points):
+        if point.player == seat:
+            mask[built.column_offset[p] : built.column_offset[p + 1]] = True
+    return mask
+
+def test_a_new_average_is_empty_and_plays_uniform():
+    acc = ExactAverage()
+    assert acc.name == "exact" and acc.last == [0, 0]
+    assert acc.sums.dtype == np.float64 and acc.sums.shape == (layout().column_offset[-1],)
+    assert not acc.sums.any()
+    frozen = acc.frozen(iteration=0, seed=0)
+    assert frozen.info == StrategyInfo(rule="deep", column="exact", iteration=0, seed=0, workers=0)
+    np.testing.assert_array_equal(frozen.probabilities, uniform_strategy().probabilities)
+
+def test_accumulate_adds_t_times_reach_times_sigma_for_one_seat_only():
+    widths = PackedTable.whole_game().widths()
+    first, second = random_table(3), random_table(4)
+    acc = ExactAverage()
+    acc(first, 1, 1)
+    expected = 1 * np.repeat(own_reach(first, seat=1), widths) * current_strategy(first)
+    np.testing.assert_array_equal(acc.sums, expected)
+    assert not acc.sums[columns_of(0)].any() and acc.sums[columns_of(1)].any()
+    assert acc.last == [0, 1]
+    acc(first, 1, 0)
+    assert acc.last == [1, 1] and acc.sums[columns_of(0)].any()
+    acc.accumulate(second, 2, seat=1)
+    expected += 1 * np.repeat(own_reach(first, seat=0), widths) * current_strategy(first)
+    expected += 2 * np.repeat(own_reach(second, seat=1), widths) * current_strategy(second)
+    np.testing.assert_array_equal(acc.sums, expected)
+    assert acc.last == [1, 2]
+
+def test_the_frozen_average_is_the_normalised_sums_uniform_where_unreached():
+    table = random_table(5)
+    acc = ExactAverage()
+    acc(table, 1, 1)
+    frozen = acc.frozen(iteration=1, seed=5)
+    for key in some_keys(1):
+        _, start, width = table.slot_of(key)
+        row = acc.sums[start : start + width]
+        if row.sum() > 0:
+            np.testing.assert_allclose(frozen[key], (row / row.sum()).astype(np.float32), rtol=1e-6)
+    for key in some_keys(0):  # seat 0 was never accumulated: uniform everywhere
+        np.testing.assert_array_equal(frozen[key], np.full(len(key.legal_actions()), 1 / len(key.legal_actions()), np.float32))
+
+def test_accumulate_refuses_a_t_out_of_order_and_a_listed_table():
+    acc = ExactAverage()
+    table = random_table(6)
+    acc(table, 1, 0)
+    for bad in (1, 3, 0):
+        with pytest.raises(ValueError, match=r"seat 0.*expected t = 2.*got"):
+            acc(table, bad, 0)
+    acc(table, 1, 1)  # the seats are independent
+    with pytest.raises(ValueError, match="whole game"):
+        acc(PackedTable.listed(some_keys()[:5]), 2, 0)
+    with pytest.raises(ValueError, match="seat"):
+        acc(table, 2, 2)
+    assert acc.last == [1, 1]
+
+def test_the_file_round_trips_atomically(tmp_path):
+    acc = ExactAverage()
+    acc(random_table(7), 1, 1)
+    path = tmp_path / "exact-t00001.npz"
+    acc.save(path)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["exact-t00001.npz"]
+    back = ExactAverage()
+    back.load(path)
+    np.testing.assert_array_equal(back.sums, acc.sums)
+    assert back.last == acc.last == [0, 1]
+    with np.load(path) as saved:
+        keys = dict(saved)
+    for field, broken in (
+        ("last", None),
+        ("sums", keys["sums"][:-1]),
+        ("sums", keys["sums"].astype(np.float32)),
+        ("last", np.array([-1, 0])),
+        ("last", np.array([1, 2, 3])),
+    ):
+        bad = dict(keys)
+        if broken is None:
+            del bad[field]
+        else:
+            bad[field] = broken
+        with (tmp_path / "bad.npz").open("wb") as file:
+            np.savez(file, **bad)
+        with pytest.raises(ValueError, match=f"bad.npz.*{field}"):
+            ExactAverage().load(tmp_path / "bad.npz")
+
+def test_the_sums_accumulated_in_an_oracle_run_equal_a_replay_from_its_models():
+    config = DeepConfig(seed=5, walks=8, workers=0, capacity=100_000)
+    learner = OracleLearner()
+    acc = ExactAverage()
+    run = new_run(config)
+    kept = {0: (None, None)}
+    with Collector(seed=5, workers=0) as collector:
+        for _ in range(3):
+            step(run, collector, learner, observers=(acc,))
+            kept[run.t] = tuple(run.nets)
+    assert acc.last == [3, 3] and acc.sums.any()
+    replay = ExactAverage()
+    table = PackedTable.whole_game()
+    for t in (1, 2, 3):
+        learner.write(table, kept[t - 1])
+        replay(table, t, 1)
+        learner.write(table, (kept[t][0], kept[t - 1][1]))
+        replay(table, t, 0)
+    np.testing.assert_array_equal(replay.sums, acc.sums)
+    # The freeze is a distribution on every key (the constructor checks each
+    # row); the whole-game grade of it is gate 5, behind the slow flag.
+    assert len(acc.frozen(iteration=3, seed=5)) == len(table)

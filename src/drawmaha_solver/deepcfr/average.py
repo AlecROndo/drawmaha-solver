@@ -68,7 +68,17 @@ offsets, the same arithmetic `materialise` writes by, and refuses any other
 table by the same fingerprint. A `listed` table's rows are in whatever
 order the caller gave.
 
-Measured on this Mac (2026-10-21): see `ExactAverage`.
+Measured on this Mac (2026-10-21): the predecessor table builds in 1.9 s,
+once per process; one `own_reach` pass over the whole game takes 0.10–0.13 s
+and one `accumulate` (reach, σ and the add) 0.20 s, against the spec's ~1 s
+budget for the merges and this pass together; the sums are 114 MB. After
+five oracle iterations the frozen average from float32 sums differs from
+the float64 one by at most 6e-8, so precision is not why the sums are
+float64 — the bitwise replay and resume pins are. Nearly every row is
+reached (6,211,381 of 6,220,050 had positive weight after those five
+iterations): own reach is positive wherever every own action on the way
+has positive probability, which is almost everywhere, where rung 3's
+sampled `strategy_sum` left 2.7 million rows unbanked after 2M iterations.
 """
 
 from __future__ import annotations
@@ -265,3 +275,101 @@ def _require_whole_game(table: PackedTable) -> Layout:
             f"{len(table):,} rows that is not the whole game in the whole game's order"
         )
     return built
+
+# ---------------------------------------------------------------------------
+# The running sum
+# ---------------------------------------------------------------------------
+
+# What the file holds. `last` marks a file as an exact-average file: no other
+# checkpoint in the repo records a last-accumulated t per seat.
+_FILE_KEYS = ("sums", "last")
+
+class ExactAverage:
+    """The running `Σ_t t · own_reach_t · σ_t` per column, and its freeze: the spec's `accumulate_exact_average`.
+
+    A PR 4 `Observer`: the loop calls `self(table, t, 1 − p)` right after
+    each write, so `accumulate` sees exactly the σ the other seat's walks
+    are about to sample — seat 1's from the previous refit at p = 0, seat
+    0's freshly refit at p = 1 — and each seat is added once per iteration.
+    Only `seat`'s rows move: the other seat's reach is 0.0 and adding 0.0
+    leaves its sums bitwise as they were.
+
+    `last[seat]` is the last t accumulated for that seat, and a call must
+    bring `last[seat] + 1`: a resume from an older mark, a skipped phase or
+    a double call would weight the wrong σ by the wrong t and the average
+    would come out plausible and wrong, so it is refused by name instead.
+
+    The sums are float64, one per table column (114 MB for the whole game),
+    the table's own dtype: a resumed run must add the same bits as an
+    uninterrupted one, which an accumulation in float32 would not survive.
+    `save` and `load` carry both arrays through one file, written atomically.
+    """
+
+    name = "exact"
+
+    def __init__(self) -> None:
+        built = layout()
+        self.sums = np.zeros(int(built.column_offset[-1]))
+        self.last = [0, 0]
+
+    def __call__(self, table: PackedTable, t: int, seat: int) -> None:
+        self.accumulate(table, t, seat=seat)
+
+    def accumulate(self, table: PackedTable, t: int, *, seat: int) -> None:
+        """Add iteration t's `t · own_reach · σ` for `seat` into the sums."""
+        if seat not in SEATS:
+            raise ValueError(f"seat must be one of {SEATS}, got {seat!r}")
+        if t != self.last[seat] + 1:
+            raise ValueError(
+                f"the exact average for seat {seat} expected t = {self.last[seat] + 1} "
+                f"next, got {t!r}: an iteration was skipped, repeated or resumed from "
+                "the wrong save"
+            )
+        reach = own_reach(table, seat=seat)
+        self.sums += t * np.repeat(reach, table.widths()) * current_strategy(table)
+        self.last[seat] = t
+
+    def frozen(self, *, iteration: int, seed: int) -> FrozenStrategy:
+        """The average as a profile the grader reads: each row of the sums normalised, uniform where empty.
+
+        `iteration` and `seed` only label the file.
+        """
+        widths = PackedTable.whole_game().widths()
+        info = StrategyInfo(rule="deep", column="exact", iteration=iteration, seed=seed, workers=0)
+        return FrozenStrategy(average_rows(self.sums, widths), widths, info)
+
+    # -- the file ------------------------------------------------------------
+
+    def save(self, path: Path) -> None:
+        """Write the sums and `last` to one `.npz`, atomically: a temp file renamed into place."""
+        path = Path(path)
+        temporary = path.with_name(path.name + ".tmp")
+        # Through an open file, so NumPy does not append `.npz` to the name.
+        with temporary.open("wb") as file:
+            np.savez(file, sums=self.sums, last=np.asarray(self.last, dtype=np.int64))
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(temporary, path)
+
+    def load(self, path: Path) -> None:
+        """Pour a saved file into this accumulator, replacing what it held.
+
+        Refuses, naming the file and the field, a file without both arrays,
+        sums of another length or dtype, and a `last` that is not two
+        non-negative ints.
+        """
+        path = Path(path)
+        with np.load(path, allow_pickle=False) as saved:
+            missing = [key for key in _FILE_KEYS if key not in saved.files]
+            if missing:
+                raise ValueError(f"{path} is not an exact-average file (no {missing[0]!r})")
+            sums, last = saved["sums"], saved["last"]
+        if sums.shape != self.sums.shape or sums.dtype != self.sums.dtype:
+            raise ValueError(
+                f"{path}: sums must be {self.sums.dtype.name} {self.sums.shape}, "
+                f"got {sums.dtype.name} {sums.shape}"
+            )
+        if last.shape != (len(SEATS),) or not np.issubdtype(last.dtype, np.integer) or (last < 0).any():
+            raise ValueError(f"{path}: last must be {len(SEATS)} non-negative ints, got {last!r}")
+        self.sums[...] = sums
+        self.last = [int(t) for t in last]
