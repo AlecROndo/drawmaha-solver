@@ -50,6 +50,19 @@ Every figure's title is read off the data it draws, so a regrade that moves a
 number moves the title with it; the readings in this docstring are the
 committed data's.
 
+**Rung 4 reads its answer against this one.** `deep-analysis` (`deep_main`)
+takes `figures/rung4/grades.json` — rung 4's Deep CFR run graded three ways
+at each grid mark, keyed `deep/<t>/<exact|pi|current>` by
+`scripts/deepcfr/modal_rung4.py` — and this file's `grades.json`, and
+draws the price figure: exploitability against hands per seat for LCFR's
+linear average and for Deep CFR's exact average, Π and current iterate,
+with a second panel of each object's grade divided by LCFR's at EQUAL
+hands (`price_table`). That ratio is the spec's one number: how much more
+exploitable the net is than the table once both have seen the same hands.
+It lives here, beside rung 3's figures, because it is a reading of rung 3's
+record as much as rung 4's, and because the grader, the keys and the
+figure style are all this module's.
+
 Figures 3 and 4 average the strategy over every physical deal of a category
 with equal weight: they answer "holding this, what does the solution do", not
 "how often does this line happen". A spot's reach is not in them, and neither
@@ -70,6 +83,7 @@ from pathlib import Path
 
 import numpy as np
 from matplotlib.colors import to_hex, to_rgb
+from matplotlib.ticker import FormatStrFormatter
 
 from drawmaha_solver.minidrawmaha.rules.cards import DECK, Card
 from drawmaha_solver.minidrawmaha.exploitability import (
@@ -108,6 +122,7 @@ from drawmaha_solver.plotting import (
     new_axes,
     save,
 )
+from drawmaha_solver.plotting import GRID as GRID_COLOUR
 
 # ---------------------------------------------------------------------------
 # Files, keys and the four rules
@@ -161,6 +176,31 @@ COLUMN_COLOURS = {
     Average.LINEAR: CATEGORICAL[0],
     Average.UNIFORM: CATEGORICAL[1],
     Average.QUADRATIC: CATEGORICAL[2],
+}
+
+# Rung 4's files, and the three graded objects of one Deep CFR grid mark.
+RUNG4 = Path("figures/rung4")
+DEEP_GRADES = RUNG4 / "grades.json"
+# The first word of a rung-4 key, and the `rule` its frozen strategies carry.
+DEEP = "deep"
+# In the spec's order; the column each `FrozenStrategy` names in its info.
+DEEP_COLUMNS = ("exact", "pi", "current")
+
+@dataclass(frozen=True, slots=True)
+class _DeepLine:
+    """How one graded object is drawn: its legend label and its ink."""
+
+    label: str
+    colour: str
+    linestyle: str | tuple[int, tuple[int, int]]
+
+# LCFR keeps its race colour; the exact average, the headline object, takes
+# the first categorical ink, Π the second, and the current iterate — the one
+# that cycles and never converges — is dashed in the secondary ink.
+DEEP_LINES = {
+    "exact": _DeepLine("Deep CFR, exact average", CATEGORICAL[0], "-"),
+    "pi": _DeepLine("Deep CFR, Π (policy net)", CATEGORICAL[1], "-"),
+    "current": _DeepLine("Deep CFR, current iterate", SECONDARY, (0, (4, 3))),
 }
 
 @dataclass(frozen=True, slots=True)
@@ -639,6 +679,231 @@ def print_summary(sheet: dict) -> None:
     for rule, value in sheet["race_final_linear"].items():
         print(f"    {rule:<8} {value['exploitability'] * 100:6.2f} per 100 "
               f"at {value['hands_per_seat']:,} hands")
+
+# ---------------------------------------------------------------------------
+# Rung 4: the price of the net at equal hands
+# ---------------------------------------------------------------------------
+
+def deep_main(argv: list[str] | None = None) -> None:
+    """Draw the price figure and write rung 4's answer sheet from the two committed grade files.
+
+    Steps:
+      1. Read rung 4's grades (`--grades`), rung 3's (`--rung3`) and, if the
+         file exists, the net-size sweep (`--sweep`).
+      2. Build the sheet, which refuses a grades file of two runs, BEFORE
+         anything is written: a refusal must leave the committed figure as
+         it was, not a figure that disagrees with the sheet.
+      3. Draw `price.png` into `--out`, write `answer_sheet.json` beside it,
+         and print the price table.
+    """
+    parser = argparse.ArgumentParser(description="Rung-4 analysis: the price of the net at equal hands")
+    parser.add_argument("--grades", type=Path, default=DEEP_GRADES)
+    parser.add_argument("--rung3", type=Path, default=GRADES, help="rung 3's grades.json")
+    parser.add_argument("--sweep", type=Path, default=RUNG4 / "sweep.json")
+    parser.add_argument("--out", type=Path, default=RUNG4)
+    args = parser.parse_args(argv)
+
+    # Step 1: the inputs
+    rung3 = json.loads(args.rung3.read_text())
+    rung4 = json.loads(args.grades.read_text())
+    sweep = json.loads(args.sweep.read_text()) if args.sweep.exists() else None
+
+    # Step 2: the sheet, as the check
+    sheet = deep_answer_sheet(rung3, rung4, sweep=sweep)
+
+    # Step 3: the figure and the files
+    fig_price(rung3, rung4, args.out / "price.png")
+    args.out.mkdir(parents=True, exist_ok=True)
+    (args.out / "answer_sheet.json").write_text(json.dumps(sheet, indent=2) + "\n")
+    print(f"wrote {(args.out / 'answer_sheet.json').resolve()}")
+    print_deep_summary(sheet)
+
+def deep_key(t: int, column: str) -> str:
+    """The `grades.json` key of one graded object at grid mark t: `deep/<t>/<column>`.
+
+    Five digits, the width of `train.mark_name`, so the keys sort in
+    training order; an object outside `DEEP_COLUMNS` is refused by name.
+    """
+    if column not in DEEP_COLUMNS:
+        raise ValueError(f"{column!r} is not one of rung 4's graded objects {DEEP_COLUMNS}")
+    return f"{DEEP}/{int(t):05d}/{column}"
+
+@dataclass(frozen=True, slots=True)
+class _Mark:
+    """One graded object of one grid mark, its key parsed and checked."""
+
+    iteration: int
+    column: str
+    grade: Grade
+
+def _marks(grades: Mapping[str, Grade]) -> Iterator[_Mark]:
+    """Every entry of rung 4's file, refusing any key that is not `deep/<t>/<column>`."""
+    for key, value in grades.items():
+        parts = key.split("/")
+        if len(parts) != 3 or parts[0] != DEEP or not parts[1].isdigit() or parts[2] not in DEEP_COLUMNS:
+            raise ValueError(
+                f"{key!r} is not a rung-4 key; expected {DEEP}/<iteration>/<{'|'.join(DEEP_COLUMNS)}>"
+            )
+        yield _Mark(iteration=int(parts[1]), column=parts[2], grade=value)
+
+def deep_series(grades: Mapping[str, Grade], column: str) -> list[tuple[int, float]]:
+    """(hands per seat, exploitability) for one graded object, in training order."""
+    return sorted(
+        (int(mark.grade["hands_per_seat"]), float(mark.grade["exploitability"]))
+        for mark in _marks(grades)
+        if mark.column == column
+    )
+
+def price_table(rung3: Mapping[str, Grade], rung4: Mapping[str, Grade]) -> list[dict]:
+    """One row per grid mark: each object's grade, LCFR's at the same hands, and the ratios.
+
+    Equal hands is the spec's comparison: a Deep CFR mark at t · K hands
+    per seat is set against LCFR's linear average at the lockstep iteration
+    that sampled as many, `hands / workers`. That division assumes what
+    rung 3's lockstep is (`solver/lockstep.py`): every iteration, each of
+    the W workers walks exactly one hand per seat, so a checkpoint at
+    iteration n has sampled n · W hands per seat; `_workers` reads W off the
+    grades and the figures' hand counts are built on it. Hands, not wall
+    clock or compute, because a net iteration costs far more than a table
+    update and the spec asks what the net gives up per hand seen. A mark
+    with no LCFR grade at its hands is refused by name rather than matched
+    to a neighbour.
+    """
+    workers = _workers(rung3)
+    by_iteration: dict[int, dict[str, Grade]] = {}
+    for mark in _marks(rung4):
+        by_iteration.setdefault(mark.iteration, {})[mark.column] = mark.grade
+    rows = []
+    for t in sorted(by_iteration):
+        objects = by_iteration[t]
+        missing = [column for column in DEEP_COLUMNS if column not in objects]
+        if missing:
+            raise ValueError(f"mark {t} is graded without {missing}; every mark carries all of {DEEP_COLUMNS}")
+        hands = {int(objects[column]["hands_per_seat"]) for column in DEEP_COLUMNS}
+        if len(hands) != 1:
+            raise ValueError(f"mark {t}'s objects disagree on hands per seat: {sorted(hands)}")
+        hands = hands.pop()
+        key = grade_key("lcfr", hands // workers, PRIMARY_AVERAGE)
+        if hands % workers or key not in rung3:
+            raise ValueError(
+                f"rung 3 has no LCFR grade at {hands:,} hands per seat ({key}) to price mark {t} against"
+            )
+        lcfr = float(rung3[key]["exploitability"])
+        graded = {column: float(objects[column]["exploitability"]) for column in DEEP_COLUMNS}
+        rows.append({
+            "iteration": t,
+            "hands_per_seat": hands,
+            "lcfr": lcfr,
+            **graded,
+            "price": {column: value / lcfr for column, value in graded.items()},
+            "wall_clock_s": float(objects["exact"]["wall_clock_s"]),
+        })
+    return rows
+
+def fig_price(rung3: Mapping[str, Grade], rung4: Mapping[str, Grade], out: Path) -> None:
+    """Exploitability against hands for LCFR and the three Deep CFR objects, and below it the ratio.
+
+    Both panels share the hands axis. The upper one is the race figure's
+    frame — log–log, the uniform line dashed — with LCFR's linear average
+    and the three objects; the lower one is each object's grade divided by
+    LCFR's at the same hands, a line at 1 marking "as good as the table".
+    The title reads the three ratios off the last mark. Refuses grades
+    without the uniform reference line, as `fig_race` does.
+    """
+    if UNIFORM_RANDOM not in rung3:
+        raise ValueError(f"no {UNIFORM_RANDOM!r} line to draw the price against")
+    table = price_table(rung3, rung4)
+    last = table[-1]
+    title = (
+        f"Deep CFR ÷ LCFR at {_in_millions(last['hands_per_seat'])} hands: "
+        + ", ".join(
+            f"{_SHORT[column]} {last['price'][column]:.2f}" for column in DEEP_COLUMNS
+        )
+    )
+    fig, ax = new_axes(title, figsize=(8.5, 7.5))
+    below = _panel_below(fig, ax)
+    hands, lcfr = zip(*series(rung3, "lcfr"))
+    ax.plot(hands, np.array(lcfr) * 100, color=RULES["lcfr"].colour, linewidth=1.8,
+            marker="o", markersize=3.5, label="LCFR, linear average (rung 3)")
+    for column, line in DEEP_LINES.items():
+        hands, value = zip(*deep_series(rung4, column))
+        ax.plot(hands, np.array(value) * 100, color=line.colour, linestyle=line.linestyle,
+                linewidth=1.8, marker="o", markersize=3.5, label=line.label)
+        below.plot([row["hands_per_seat"] for row in table], [row["price"][column] for row in table],
+                   color=line.colour, linestyle=line.linestyle, linewidth=1.8, marker="o", markersize=3.5)
+    ax.axhline(rung3[UNIFORM_RANDOM]["exploitability"] * 100, color=BASELINE,
+               linewidth=1.2, linestyle="--", label="uniform random play")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_ylabel("exploitability (chips per 100 hands, ante 1)", color=MUTED, fontsize=9)
+    ax.tick_params(labelbottom=False)
+    legend(ax, loc="lower left")
+    below.axhline(1.0, color=BASELINE, linewidth=1.2, linestyle="--")
+    below.set_xscale("log")
+    below.set_yscale("log")
+    # A ratio reads as 0.2 or 3, not as 2 × 10⁻¹; minor ticks too, since a
+    # log axis spanning under a decade is labelled by them.
+    below.yaxis.set_major_formatter(FormatStrFormatter("%g"))
+    below.yaxis.set_minor_formatter(FormatStrFormatter("%g"))
+    below.set_xlabel("hands sampled per seat (equal for both solvers at each mark)", color=MUTED, fontsize=9)
+    below.set_ylabel("Deep CFR ÷ LCFR", color=MUTED, fontsize=9)
+    save(fig, out)
+
+# The objects as the figure title names them.
+_SHORT = {"exact": "exact average", "pi": "Π", "current": "current iterate"}
+
+def _panel_below(fig, ax):
+    """Shrink `ax` to the upper part of its figure and return a second axes beneath it, styled alike."""
+    box = ax.get_position()
+    gap = 0.04 * box.height
+    ax.set_position([box.x0, box.y0 + 0.36 * box.height + gap, box.width, 0.64 * box.height - gap])
+    below = fig.add_axes([box.x0, box.y0, box.width, 0.36 * box.height], sharex=ax)
+    below.set_facecolor(ax.get_facecolor())
+    below.grid(axis="y", color=GRID_COLOUR, linewidth=0.8)
+    below.set_axisbelow(True)
+    for side in ("top", "right"):
+        below.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        below.spines[side].set_color(BASELINE)
+    below.tick_params(colors=MUTED, labelsize=8.5)
+    return below
+
+def deep_answer_sheet(
+    rung3: Mapping[str, Grade], rung4: Mapping[str, Grade], *, sweep: Mapping | None = None
+) -> dict:
+    """Every number rung 4's README quotes, as plain JSON.
+
+    `marks` is the price table; `headline` its last row; `run` the config
+    every graded entry carries (refused if they disagree); `sweep` the
+    net-size sweep's sheet when there is one, else None.
+    """
+    table = price_table(rung3, rung4)
+    configs = {json.dumps(mark.grade["config"], sort_keys=True) for mark in _marks(rung4)}
+    if len(configs) != 1:
+        raise ValueError(f"the graded marks come from {len(configs)} different runs; one file holds one run")
+    return {
+        "question": "exploitability of Deep CFR's average ÷ LCFR's linear average, at equal hands per seat",
+        "headline": table[-1],
+        "marks": table,
+        "run": json.loads(configs.pop()),
+        "uniform_random": rung3[UNIFORM_RANDOM]["exploitability"],
+        "sweep": None if sweep is None else dict(sweep),
+    }
+
+def print_deep_summary(sheet: dict) -> None:
+    """The price table, for the terminal."""
+    run = sheet["run"]
+    print(f"\nrung 4: Deep CFR, {run['width']} × {run['depth']}, K = {run['walks']:,} walks per seat "
+          f"per iteration, seed {run['seed']}; LCFR from rung 3\n")
+    print(f"  {'hands':>7} {'LCFR':>7} {'exact':>7} {'Π':>7} {'current':>8}   "
+          f"{'exact÷':>7} {'Π÷':>7} {'curr÷':>7}   {'train h':>7}")
+    for row in sheet["marks"]:
+        price = row["price"]
+        print(f"  {_in_millions(row['hands_per_seat']):>7} {row['lcfr']:7.3f} {row['exact']:7.3f} "
+              f"{row['pi']:7.3f} {row['current']:8.3f}   {price['exact']:7.2f} {price['pi']:7.2f} "
+              f"{price['current']:7.2f}   {row['wall_clock_s'] / 3600:7.2f}")
+    if sheet["sweep"] is not None:
+        print(f"\n  net-size sweep at {sheet['sweep']['iterations']} iterations: winner {sheet['sweep']['winner']}")
 
 if __name__ == "__main__":
     main()

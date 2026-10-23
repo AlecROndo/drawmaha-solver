@@ -1,0 +1,87 @@
+{
+  "question": "exploitability of Deep CFR's average \u00f7 LCFR's linear average, at equal hands per seat",
+  "headline": {
+    "iteration": 50,
+    "hands_per_seat": 500000,
+    "lcfr": 1.8762885000000002,
+    "exact": 0.39628631340970066,
+    "pi": 0.45908519703498674,
+    "current": 0.5486776433170991,
+    "price": {
+      "exact": 0.2112075586508688,
+      "pi": 0.24467729618072417,
+      "current": 0.2924271205185658
+    },
+    "wall_clock_s": 2260.125
+  },
+  "marks": [
+    {
+      "iteration": 10,
+      "hands_per_seat": 100000,
+      "lcfr": 3.0483475,
+      "exact": 0.5809657655852687,
+      "pi": 0.6097319092952932,
+      "current": 0.6580991446812905,
+      "price": {
+        "exact": 0.19058383782861654,
+        "pi": 0.20002047315645383,
+        "current": 0.21588717975273175
+      },
+      "wall_clock_s": 385.388
+    },
+    {
+      "iteration": 20,
+      "hands_per_seat": 200000,
+      "lcfr": 2.6965285000000003,
+      "exact": 0.44406233969815456,
+      "pi": 0.48876063981885587,
+      "current": 0.6474875965561582,
+      "price": {
+        "exact": 0.16467926806564606,
+        "pi": 0.1812555067817217,
+        "current": 0.2401189516655055
+      },
+      "wall_clock_s": 817.752
+    },
+    {
+      "iteration": 50,
+      "hands_per_seat": 500000,
+      "lcfr": 1.8762885000000002,
+      "exact": 0.39628631340970066,
+      "pi": 0.45908519703498674,
+      "current": 0.5486776433170991,
+      "price": {
+        "exact": 0.2112075586508688,
+        "pi": 0.24467729618072417,
+        "current": 0.2924271205185658
+      },
+      "wall_clock_s": 2260.125
+    }
+  ],
+  "run": {
+    "batch": 10000,
+    "capacity": 50000000,
+    "clip": 1.0,
+    "depth": 3,
+    "grid": [
+      10,
+      20,
+      50,
+      100,
+      200,
+      500,
+      1000,
+      2000
+    ],
+    "lr": 0.001,
+    "save_every_s": 1800.0,
+    "seed": 0,
+    "steps": 4000,
+    "threads": 8,
+    "walks": 10000,
+    "width": 64,
+    "workers": 8
+  },
+  "uniform_random": 4.842406076055198,
+  "sweep": null
+}
