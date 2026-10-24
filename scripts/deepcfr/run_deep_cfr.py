@@ -4,9 +4,10 @@
 
 Re-running the same command resumes from `<out>/resume`, the exact average
 (`deepcfr.average`) included. Ctrl-C (or SIGTERM) finishes the iteration and
-saves. See `deepcfr.train` for what is kept and
-which flags a resume may change (`--workers` yes; the seed, the walks, the
-capacity and the net's size no).
+saves. See `deepcfr.train` for what is kept and which flags a resume may
+change (`--workers` and `--device` yes; the seed, the walks, the capacity
+and the net's size no). `--device mps` is checked against the machine
+before the run is loaded, so a missing GPU costs no walks.
 """
 
 import argparse
@@ -14,7 +15,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from drawmaha_solver.deepcfr.average import ExactAverage
-from drawmaha_solver.deepcfr.train import DeepConfig, run_deep
+from drawmaha_solver.deepcfr.train import DEVICES, DeepConfig, run_deep
 
 def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """The command line: `--out` and `--target`, then one flag per run parameter."""
@@ -36,8 +37,20 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--threads", type=int, default=defaults.threads, help="torch threads for the refit"
     )
+    parser.add_argument(
+        "--device", choices=DEVICES, default=defaults.device, help="where the refit runs"
+    )
     parser.add_argument("--seed", type=int, default=defaults.seed)
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.device == "mps" and not mps_available():
+        parser.error("--device mps needs an Apple GPU that torch can use; this machine has none")
+    return args
+
+def mps_available() -> bool:
+    """Whether torch can see an Apple GPU here; imported only when `--device mps` asks."""
+    import torch
+
+    return torch.backends.mps.is_available()
 
 def config_from_args(args: argparse.Namespace) -> DeepConfig:
     """The run the flags describe; refused by name if a value could not be used."""
@@ -51,6 +64,7 @@ def config_from_args(args: argparse.Namespace) -> DeepConfig:
         steps=args.steps,
         batch=args.batch,
         threads=args.threads,
+        device=args.device,
     )
 
 def main() -> None:

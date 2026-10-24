@@ -65,12 +65,14 @@ an observer whose file the state lacks, because either would make the
 average silently wrong. The files carry their iteration in their names for that
 reason — overwriting fixed names would let a crash between two memories put
 two iterations under one `state.json`. The configuration travels in the
-state, and a resume whose seed, K, C, net size or any refit field differs
-is refused by the field's name, as rung 3 refuses a W change: each changes
-the sample or the fit — the thread count too, since a matmul's summation
-order can follow it, so a run begun at 8 threads resumes at 8. W itself may
-change, because the collector's rows are a function of (seed, t, seat, k)
-and never of W.
+state, and a resume whose seed, K, C, net size or any refit field but the
+device differs is refused by the field's name, as rung 3 refuses a W
+change: each changes the sample or the fit — the thread count too, since a
+matmul's summation order can follow it, so a run begun at 8 threads resumes
+at 8. W itself may change, because the collector's rows are a function of
+(seed, t, seat, k) and never of W. The device may change too, but not for
+W's reason: it is let through on purpose, so a run can move to the GPU,
+and a run that did is no longer reproducible from its seed and config.
 
 **Determinism.** Everything is a function of (seed, t, seat, k): the walks
 draw from `lockstep.stream`, the memories from `reservoir_stream`, the refit
@@ -134,6 +136,10 @@ from drawmaha_solver.minidrawmaha.answer.strategy import FrozenStrategy, Strateg
 # 10,000 × 10 hands, and so on up to the race's own endpoint.
 GRID = (10, 20, 50, 100, 200, 500, 1_000, 2_000)
 
+# Where a refit may run. `fit.FitConfig` spells the same two out, since it
+# must not import this module's loop; a test keeps them equal.
+DEVICES = ("cpu", "mps")
+
 # ---------------------------------------------------------------------------
 # The run
 # ---------------------------------------------------------------------------
@@ -143,8 +149,10 @@ class DeepConfig:
     """Everything a run is: the sample, the net and refit, the marks, the save cadence.
 
     Written into every checkpoint. The net and refit fields are `FitConfig`'s
-    seven, carried flat because `fit.py` imports torch at its top and this
-    module must not; `NetLearner` builds the `FitConfig` when it is asked to.
+    eight, the device among them, carried flat because `fit.py` imports
+    torch at its top and this module must not; `NetLearner` builds the
+    `FitConfig` when it is asked to. A `state.json` written before the
+    device existed loads with its default, "cpu", which is where it ran.
     """
 
     seed: int = 0
@@ -157,7 +165,20 @@ class DeepConfig:
     batch: int = 10_000
     lr: float = 1e-3
     clip: float = 1.0
+    # Read by the cpu refit only; an mps refit ignores it. It stays a sample
+    # field all the same, so a run begun at 8 threads that moves to mps and
+    # back resumes on the cpu at 8, and a move must repeat the run's count.
     threads: int = 8
+    # Where the refit runs: "cpu", or "mps" for Apple's GPU. A resume may
+    # change it, but not as it may change W, which changes nothing: the
+    # device orders the refit's arithmetic, so a moved run is the same rule
+    # with different nets from the move on, and its seed and config no
+    # longer reproduce it bit for bit. The device is let through anyway so
+    # a long run can move to the GPU mid-way. Only the name is checked here,
+    # since this module must not import torch: whether the machine has the
+    # GPU is checked by `run_deep_cfr.py` at parse time, and otherwise by the
+    # first refit, after that iteration's walks.
+    device: str = "cpu"
     grid: tuple[int, ...] = GRID
     # The resume state carries 3.6 GB of memories at the run's C, so 30
     # minutes rather than rung 3's 10.
@@ -182,12 +203,16 @@ class DeepConfig:
             a >= b for a, b in zip(marks, marks[1:], strict=False)
         ):
             raise ValueError(f"grid must be strictly increasing positive ints, got {self.grid!r}")
+        if self.device not in DEVICES:
+            raise ValueError(f"device must be one of {DEVICES}, got {self.device!r}")
         if not self.save_every_s >= 0:
             raise ValueError(f"save_every_s must be non-negative, got {self.save_every_s!r}")
 
 # The fields a resume may not change: each one changes the sample or the
 # fit, so a run continued under a different value would be a different run.
 # W, the grid and the save cadence change nothing the walks or the nets see.
+# The device does change the nets, and is let through on purpose, so a run
+# can move to the GPU mid-way (see `DeepConfig.device`).
 SAMPLE_FIELDS = (
     "seed",
     "walks",
@@ -601,7 +626,13 @@ def run_deep(
     _stateful(observers)
 
     # Step 1: open the run
+    resumed_on = saved_config(out / RESUME).device if (out / RESUME / STATE).exists() else None
     run = _open(out, config, learner=learner, observers=observers)
+    # A resume may move the refit (see `DeepConfig.device`), and the CLI's
+    # default is the cpu, so a restart that forgot `--device mps` would move
+    # the run back without a word; the move is always said.
+    if resumed_on is not None and resumed_on != config.device:
+        log(f"deep: the refit moves from {resumed_on} to {config.device} at iteration {run.t:,}")
 
     # Step 2: nothing to do
     if run.t >= target:
@@ -613,7 +644,10 @@ def run_deep(
         # The workers come up under ignored signals, before the parent's
         # handlers go in (see the module docstring on stopping).
         _spawn_ignoring_signals(collector, workers=config.workers)
-        log(f"deep: from {run.t:,} to {target:,}, K = {config.walks:,} on {config.workers} workers")
+        log(
+            f"deep: from {run.t:,} to {target:,}, K = {config.walks:,} on {config.workers} workers,"
+            f" refit on {config.device}"
+        )
         # The pace and the save clock start once the workers are up, as the
         # resume state on disk is as fresh as the open.
         saves = _Saves(
@@ -895,6 +929,7 @@ class NetLearner:
                 lr=c.lr,
                 clip=c.clip,
                 threads=c.threads,
+                device=c.device,
             )
         return self._fit_config
 

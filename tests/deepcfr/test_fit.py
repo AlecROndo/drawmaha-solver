@@ -18,6 +18,10 @@ What is pinned here, and why:
   config's value, and every parameter stays finite.
 - The process-global thread count is put back after a fit, so one fit's
   config never changes another test's arithmetic.
+- The device loop, run on the cpu, is the cpu fit bit for bit, so its
+  gathers and the shared loss are covered without a GPU; on an Apple GPU
+  the fit reaches the cpu fit's loss on the memory (not its weights), and
+  asked for without one it is refused by name.
 
 Every test skips without torch.
 """
@@ -241,3 +245,69 @@ def test_fit_refuses_rows_or_t_that_are_not_one_dimensional_ints():
         fit_from_scratch(rows[:, None], t, targets, seed=(0,), config=SMALL)
     with pytest.raises(ValueError, match="integer"):
         fit_from_scratch(rows.astype(np.float64), t, targets, seed=(0,), config=SMALL)
+
+# ---------------------------------------------------------------------------
+# The GPU path
+# ---------------------------------------------------------------------------
+
+needs_mps = pytest.mark.skipif(
+    not torch.backends.mps.is_available(), reason="no Apple GPU on this machine"
+)
+
+def test_the_device_loop_on_the_cpu_is_the_cpu_fit_bit_for_bit():
+    # The device loop's gathers and the shared loss, run where the cpu fit
+    # runs: the same init, draws and arithmetic, so the same weights. This
+    # is the coverage the loop has on a machine without a GPU.
+    rows, t, targets = real_rows(2_000, seed=12)
+    cpu = fit_from_scratch(rows, t, targets, seed=(0, 2, 1), config=SMALL)
+    threads_before = torch.get_num_threads()
+    torch.set_num_threads(SMALL.threads)
+    try:
+        moved = fit_module._fit_on_device(
+            rows.astype(np.int64),
+            t,
+            targets.astype(np.float32),
+            fit_module._fold_seed((0, 2, 1)),
+            SMALL,
+            device="cpu",
+        )
+    finally:
+        torch.set_num_threads(threads_before)
+    assert not moved.training
+    for a, b in zip(cpu.parameters(), moved.parameters(), strict=True):
+        assert torch.equal(a, b)
+
+@needs_mps
+def test_mps_fit_fits_the_memory_as_well_as_the_cpu_fit():
+    # Same init, same draws, same loss: only the order of the arithmetic
+    # differs, and Adam can carry that rounding into visibly different
+    # weights (0.04 apart on this memory), so the pin is the loss on the
+    # memory, which stayed within 2% of the cpu fit's on twelve memories.
+    rows, t, targets = real_rows(2_000, seed=12)
+    cpu = fit_from_scratch(rows, t, targets, seed=(0, 2, 1), config=SMALL)
+    mps = fit_from_scratch(
+        rows, t, targets, seed=(0, 2, 1), config=FitConfig(steps=300, batch=256, device="mps")
+    )
+    assert next(mps.parameters()).device.type == "cpu"
+    assert not mps.training
+    with torch.no_grad():
+        cpu_loss = float(batch_loss(cpu, rows, t, targets))
+        mps_loss = float(batch_loss(mps, rows, t, targets))
+    assert mps_loss == pytest.approx(cpu_loss, rel=0.05)
+
+def test_an_mps_fit_without_a_gpu_is_refused_by_name(monkeypatch):
+    monkeypatch.setattr(torch.backends.mps, "is_available", lambda: False)
+    rows, t, targets = real_rows(100, seed=11)
+    with pytest.raises(RuntimeError, match="mps"):
+        fit_from_scratch(rows, t, targets, seed=(0,), config=FitConfig(steps=1, device="mps"))
+
+def test_config_refuses_an_unknown_device():
+    with pytest.raises(ValueError, match="device"):
+        FitConfig(device="cuda")
+
+def test_the_fit_and_the_loop_name_the_same_devices():
+    from drawmaha_solver.deepcfr.train import DEVICES
+
+    for device in DEVICES:
+        FitConfig(device=device)
+    assert DEVICES == ("cpu", "mps")
