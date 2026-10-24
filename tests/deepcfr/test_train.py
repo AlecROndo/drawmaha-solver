@@ -697,3 +697,31 @@ def test_every_worker_ignores_the_signals_the_parent_catches():
         seen = {pid: (on_int, on_term) for pid, on_int, on_term in (job.result() for job in jobs)}
     assert len(seen) == 3
     assert all(handlers == (signal.SIG_IGN, signal.SIG_IGN) for handlers in seen.values())
+
+# ---------------------------------------------------------------------------
+# The regret rules' per-sample form
+# ---------------------------------------------------------------------------
+
+def test_dcfr_targets_carry_the_discounts_owed_since_their_iteration():
+    from drawmaha_solver.deepcfr.train import rule_targets
+
+    t = np.array([1, 3, 5])
+    targets = np.tile(np.array([[2.0, -2.0, 0.0, 0.0]], dtype=np.float32), (3, 1))
+    out = rule_targets(targets, t, now=5, rule="dcfr")
+    owed = [np.prod([k**1.5 / (k**1.5 + 1) for k in range(s, 5)]) for s in (1, 3, 5)]
+    np.testing.assert_allclose(out[:, 0], 2.0 * np.array(owed), rtol=1e-6)
+    np.testing.assert_allclose(out[:, 1], -2.0 * 0.5 ** np.array([4, 2, 0]), rtol=1e-6)
+
+def test_cfr_plus_targets_keep_positives_and_only_this_iterations_negatives():
+    from drawmaha_solver.deepcfr.train import rule_targets
+
+    t = np.array([2, 7])
+    targets = np.array([[1.0, -1.0, 0.5, -0.5]] * 2, dtype=np.float32)
+    out = rule_targets(targets, t, now=7, rule="cfr+")
+    np.testing.assert_array_equal(out, [[1.0, 0.0, 0.5, 0.0], [1.0, -1.0, 0.5, -0.5]])
+
+def test_the_rule_is_part_of_the_run():
+    with pytest.raises(ValueError, match="rule"):
+        DeepConfig(rule="vanilla")
+    with pytest.raises(ValueError, match="rule"):
+        require_same_run(DeepConfig(), DeepConfig(rule="dcfr"))

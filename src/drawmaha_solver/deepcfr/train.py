@@ -139,6 +139,9 @@ GRID = (10, 20, 50, 100, 200, 500, 1_000, 2_000)
 # Where a refit may run. `fit.FitConfig` spells the same two out, since it
 # must not import this module's loop; a test keeps them equal.
 DEVICES = ("cpu", "mps")
+# The regret rules a refit can fit (`rule_targets`): LCFR, the spec's, and two
+# screens of the discounting rules rung 3 raced, by their per-sample form.
+RULES = ("linear", "dcfr", "cfr+")
 
 # ---------------------------------------------------------------------------
 # The run
@@ -179,6 +182,8 @@ class DeepConfig:
     # GPU is checked by `run_deep_cfr.py` at parse time, and otherwise by the
     # first refit, after that iteration's walks.
     device: str = "cpu"
+    # Which regret rule the refit's targets follow; see `rule_targets`.
+    rule: str = "linear"
     grid: tuple[int, ...] = GRID
     # The resume state carries 3.6 GB of memories at the run's C, so 30
     # minutes rather than rung 3's 10.
@@ -203,6 +208,8 @@ class DeepConfig:
             a >= b for a, b in zip(marks, marks[1:], strict=False)
         ):
             raise ValueError(f"grid must be strictly increasing positive ints, got {self.grid!r}")
+        if self.rule not in RULES:
+            raise ValueError(f"rule must be one of {RULES}, got {self.rule!r}")
         if self.device not in DEVICES:
             raise ValueError(f"device must be one of {DEVICES}, got {self.device!r}")
         if not self.save_every_s >= 0:
@@ -224,6 +231,7 @@ SAMPLE_FIELDS = (
     "lr",
     "clip",
     "threads",
+    "rule",
 )
 
 def require_same_run(saved: DeepConfig, asked: DeepConfig) -> None:
@@ -863,6 +871,50 @@ class _Saves:
 # The real learner
 # ---------------------------------------------------------------------------
 
+def rule_targets(targets: np.ndarray, t: np.ndarray, *, now: int, rule: str) -> np.ndarray:
+    """The memory's regret samples rescaled to what `rule` would weigh them at iteration `now`.
+
+    Deep CFR keeps no running regret: each refit learns the weighted MEAN of
+    every sample the memory holds, and regret matching reads only that mean's
+    sign pattern and ratios, so any rule that is a weight per iteration is a
+    rescaling of each sample. LCFR's weight t is the spec's and rides in the
+    loss (`fit.batch_loss`); the rules here rescale the target instead and
+    leave the loss unweighted, which `NetLearner.fit` does by passing t = 1.
+
+    DCFR (Brown & Sandholm 2019, α = 1.5, β = 0) multiplies the running sum
+    after iteration k by k^1.5/(k^1.5 + 1) where it is positive and by 1/2
+    where it is negative, so a sample from iteration s carries, at `now`,
+
+        positive:  ∏ₖ₌ₛ^(now−1) k^1.5 / (k^1.5 + 1)
+        negative:  (1/2)^(now − s)
+
+    CFR+ is DCFR(∞, −∞) — the paper's own identity: positive samples keep
+    weight 1 forever, negative ones count only on the iteration they were
+    drawn. (DCFR(1, 1) gives s/now, LCFR's weight up to a common factor.)
+
+    The approximation, and the reason this is a screen and not the rules:
+    both act on the sign of the CUMULATIVE regret, which Deep CFR never
+    stores, so here the sign is each sample's own. Padding columns are
+    rescaled too and stay ignored by the loss.
+    """
+    t = np.asarray(t, dtype=np.int64)
+    targets = np.asarray(targets, dtype=np.float32)
+    if rule == "cfr+":
+        positive = np.ones(len(t))
+        negative = (t == now).astype(np.float64)
+    elif rule == "dcfr":
+        k = np.arange(1, now + 1, dtype=np.float64)
+        # tail[s] = Σ_{k=s}^{now−1} log(k^1.5/(k^1.5 + 1)); tail[now] = 0.
+        logs = np.log(k**1.5 / (k**1.5 + 1))
+        tail = np.zeros(now + 2)
+        tail[1:now] = np.cumsum(logs[: now - 1][::-1])[::-1]
+        positive = np.exp(tail[t])
+        negative = 0.5 ** (now - t).astype(np.float64)
+    else:
+        raise ValueError(f"no per-sample form for rule {rule!r}")
+    scale = np.where(targets > 0, positive[:, None], negative[:, None])
+    return (targets * scale).astype(np.float32)
+
 # The word added to a fit's seed to draw its held batch: "HELD" in ASCII.
 _HELD_TAG = 0x48454C44
 
@@ -893,6 +945,9 @@ class NetLearner:
         from drawmaha_solver.deepcfr.fit import _fold_seed, batch_loss, fit_from_scratch
 
         config = self.fit_config()
+        if self._config.rule != "linear":
+            targets = rule_targets(targets, t, now=seed[1], rule=self._config.rule)
+            t = np.ones(len(t), dtype=np.float32)
         net = fit_from_scratch(rows, t, targets, seed=seed, config=config)
         draw = torch.Generator().manual_seed(_fold_seed((*seed, _HELD_TAG)))
         held = torch.randint(len(rows), (config.batch,), generator=draw).numpy()
