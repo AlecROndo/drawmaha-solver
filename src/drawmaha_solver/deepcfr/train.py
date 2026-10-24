@@ -165,13 +165,19 @@ class DeepConfig:
     batch: int = 10_000
     lr: float = 1e-3
     clip: float = 1.0
+    # Read by the cpu refit only; an mps refit ignores it. It stays a sample
+    # field all the same, so a run begun at 8 threads that moves to mps and
+    # back resumes on the cpu at 8, and a move must repeat the run's count.
     threads: int = 8
     # Where the refit runs: "cpu", or "mps" for Apple's GPU. A resume may
     # change it, but not as it may change W, which changes nothing: the
     # device orders the refit's arithmetic, so a moved run is the same rule
     # with different nets from the move on, and its seed and config no
     # longer reproduce it bit for bit. The device is let through anyway so
-    # a long run can move to the GPU mid-way.
+    # a long run can move to the GPU mid-way. Only the name is checked here,
+    # since this module must not import torch: whether the machine has the
+    # GPU is checked by `run_deep_cfr.py` at parse time, and otherwise by the
+    # first refit, after that iteration's walks.
     device: str = "cpu"
     grid: tuple[int, ...] = GRID
     # The resume state carries 3.6 GB of memories at the run's C, so 30
@@ -620,7 +626,13 @@ def run_deep(
     _stateful(observers)
 
     # Step 1: open the run
+    resumed_on = saved_config(out / RESUME).device if (out / RESUME / STATE).exists() else None
     run = _open(out, config, learner=learner, observers=observers)
+    # A resume may move the refit (see `DeepConfig.device`), and the CLI's
+    # default is the cpu, so a restart that forgot `--device mps` would move
+    # the run back without a word; the move is always said.
+    if resumed_on is not None and resumed_on != config.device:
+        log(f"deep: the refit moves from {resumed_on} to {config.device} at iteration {run.t:,}")
 
     # Step 2: nothing to do
     if run.t >= target:
@@ -632,7 +644,10 @@ def run_deep(
         # The workers come up under ignored signals, before the parent's
         # handlers go in (see the module docstring on stopping).
         _spawn_ignoring_signals(collector, workers=config.workers)
-        log(f"deep: from {run.t:,} to {target:,}, K = {config.walks:,} on {config.workers} workers")
+        log(
+            f"deep: from {run.t:,} to {target:,}, K = {config.walks:,} on {config.workers} workers,"
+            f" refit on {config.device}"
+        )
         # The pace and the save clock start once the workers are up, as the
         # resume state on disk is as fresh as the open.
         saves = _Saves(

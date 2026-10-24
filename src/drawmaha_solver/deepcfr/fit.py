@@ -56,7 +56,8 @@ the same net. Adam divides by √v, so a near-zero gradient component turns
 rounding into a full-size step and the two fits can part: over 300 steps on
 2,000 real rows the predictions agreed to 1e-6 on some memories and parted
 by 0.04 on another, while the loss on the memory stayed within 2% of the
-cpu fit's on all twelve tried. The test pins that, the loss, not the weights.
+cpu fit's on all twelve tried. The test pins the loss, not the weights, at
+5% for headroom over that 2%.
 Measured on this Mac (M5 Pro) on a real 17M-row memory, per step: 4 x 256
 at 5.0 ms against 23.9 ms on the cpu, 3 x 128 at 2.5 ms against 9.5 ms.
 """
@@ -210,8 +211,10 @@ def fit_from_scratch(
     if not np.isfinite(targets[legal_gather()[point] != NO_ACTION]).all():
         raise ValueError("every target at a legal column must be finite")
     folded = _fold_seed(seed)
-    if config.device == "mps":
-        return _fit_on_device(rows, t, targets, folded, config, device="mps")
+    # Any device but the cpu takes the device loop, which is written for
+    # any torch device, so a name added to the config can never run here.
+    if config.device != "cpu":
+        return _fit_on_device(rows, t, targets, folded, config, device=config.device)
     threads_before = torch.get_num_threads()
     torch.set_num_threads(config.threads)
     try:

@@ -647,6 +647,17 @@ def test_cli_passes_the_device_through():
     with pytest.raises(SystemExit):
         cli.parse(["--out", "y", "--device", "cuda"])
 
+def test_a_resume_that_moves_the_refit_says_so(tmp_path):
+    # The oracle learner fits nothing, so an mps config runs on any machine.
+    drive(tmp_path, 1)
+    moved = replace(DRIVEN, device="mps")
+    said = []
+    run_deep(tmp_path, moved, target=2, learner=OracleLearner(), log=said.append)
+    assert "deep: the refit moves from cpu to mps at iteration 1" in said
+    said.clear()
+    run_deep(tmp_path, moved, target=3, learner=OracleLearner(), log=said.append)
+    assert not any("moves" in line for line in said)
+
 def test_a_state_written_before_the_device_existed_loads_on_the_cpu(tmp_path):
     drive(tmp_path, 1)
     state_path = tmp_path / RESUME / STATE
