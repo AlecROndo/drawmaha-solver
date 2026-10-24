@@ -143,7 +143,7 @@ class DeepConfig:
     """Everything a run is: the sample, the net and refit, the marks, the save cadence.
 
     Written into every checkpoint. The net and refit fields are `FitConfig`'s
-    seven, carried flat because `fit.py` imports torch at its top and this
+    eight (the device among them), carried flat because `fit.py` imports torch at its top and this
     module must not; `NetLearner` builds the `FitConfig` when it is asked to.
     """
 
@@ -158,6 +158,10 @@ class DeepConfig:
     lr: float = 1e-3
     clip: float = 1.0
     threads: int = 8
+    # Where the refit runs: "cpu", or "mps" for Apple's GPU. A resume may
+    # change it, as it may change W: the device orders the refit's
+    # arithmetic, so a moved run is the same rule, not the same weights.
+    device: str = "cpu"
     grid: tuple[int, ...] = GRID
     # The resume state carries 3.6 GB of memories at the run's C, so 30
     # minutes rather than rung 3's 10.
@@ -182,12 +186,15 @@ class DeepConfig:
             a >= b for a, b in zip(marks, marks[1:], strict=False)
         ):
             raise ValueError(f"grid must be strictly increasing positive ints, got {self.grid!r}")
+        if self.device not in ("cpu", "mps"):
+            raise ValueError(f"device must be 'cpu' or 'mps', got {self.device!r}")
         if not self.save_every_s >= 0:
             raise ValueError(f"save_every_s must be non-negative, got {self.save_every_s!r}")
 
 # The fields a resume may not change: each one changes the sample or the
 # fit, so a run continued under a different value would be a different run.
-# W, the grid and the save cadence change nothing the walks or the nets see.
+# W, the grid and the save cadence change nothing the walks or the nets see;
+# the device is let through too, so a run can move to the GPU mid-way.
 SAMPLE_FIELDS = (
     "seed",
     "walks",
@@ -895,6 +902,7 @@ class NetLearner:
                 lr=c.lr,
                 clip=c.clip,
                 threads=c.threads,
+                device=c.device,
             )
         return self._fit_config
 

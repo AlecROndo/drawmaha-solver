@@ -42,6 +42,15 @@ Measured on this Mac (6 cores): one default refit — 4,000 steps of
 10,000 rows drawn from 1M real rows, features gathered on the fly — in
 15.1 s at `threads=8` and 14.2 s at 6, against the spec's 10.8 s for the
 bare net on ready-made features. The gather alone is 3.9 s of it.
+
+**The GPU.** `device="mps"` is the same fit on Apple's GPU: the same init,
+the same minibatch draws (still from a cpu generator), the same loss. The
+memory, the layout's two feature halves and the legal gather go to the
+device once per fit and each batch's features are gathered there, so no
+step goes back through numpy. Only the order of the arithmetic changes, so
+an mps net tracks the cpu one to float32 drift, not bit for bit. Measured
+on this Mac (M5 Pro) on a real 17M-row memory, per step: 4 x 256 at 5.0 ms
+against 23.9 ms on the cpu, 3 x 128 at 2.5 ms against 9.5 ms.
 """
 
 from __future__ import annotations
@@ -61,11 +70,12 @@ from drawmaha_solver.minidrawmaha.rules.features import MAX_WIDTH, NO_ACTION, la
 
 @dataclass(frozen=True)
 class FitConfig:
-    """What one refit is: the net's size, the steps, the batch, Adam's rate, the clip, the threads.
+    """What one refit is: the net's size, the steps, the batch, Adam's rate, the clip, the threads, the device.
 
     The defaults are the spec's: 3 x 64, 4,000 steps of 10,000 rows, lr
     1e-3, norm clipped to 1. `threads` is handed to `torch.set_num_threads`
-    for the fit's duration.
+    for the fit's duration. `device` "mps" runs the steps on Apple's GPU
+    (`_fit_on_device`), and `threads` is then not set.
     """
 
     width: int = 64
@@ -75,11 +85,16 @@ class FitConfig:
     lr: float = 1e-3
     clip: float = 1.0
     threads: int = 8
+    # "cpu", or "mps" for Apple's GPU: the device only orders the arithmetic,
+    # so an mps fit is the same rule but not the same weights bit for bit.
+    device: str = "cpu"
 
     def __post_init__(self) -> None:
         for name in ("steps", "batch", "threads"):
             if getattr(self, name) < 1:
                 raise ValueError(f"{name} must be at least 1, got {getattr(self, name)}")
+        if self.device not in ("cpu", "mps"):
+            raise ValueError(f"device must be 'cpu' or 'mps', got {self.device!r}")
         # `not > 0` rather than `<= 0`: a NaN is neither, and a clip of 0
         # would scale every gradient to nothing and fit in silence.
         for name in ("lr", "clip"):
@@ -169,6 +184,8 @@ def fit_from_scratch(
     if not np.isfinite(targets[legal_gather()[point] != NO_ACTION]).all():
         raise ValueError("every target at a legal column must be finite")
     folded = _fold_seed(seed)
+    if config.device != "cpu":
+        return _fit_on_device(rows, t, targets, folded, config)
     threads_before = torch.get_num_threads()
     torch.set_num_threads(config.threads)
     try:
@@ -187,6 +204,56 @@ def fit_from_scratch(
         torch.set_num_threads(threads_before)
     # A diverged fit would materialise to uniform play with nothing in the
     # log; it is an error here, where the run can see it.
+    if not all(torch.isfinite(parameter).all() for parameter in net.parameters()):
+        raise ValueError("the fit diverged: a weight is not finite")
+    net.eval()
+    return net
+
+def _fit_on_device(
+    rows: np.ndarray, t: np.ndarray, targets: np.ndarray, folded: int, config: FitConfig
+) -> Net:
+    """`fit_from_scratch`'s loop on a GPU, the net returned on the cpu in `eval()` mode.
+
+    The same init, the same minibatch draws (from a cpu generator, so they
+    match the cpu fit's), the same loss as `batch_loss`. What changes is
+    where the work happens: the memory, the layout's two halves and the
+    legal gather go to the device once, and each step's features are
+    gathered there, so no step goes back to numpy.
+    """
+    device = torch.device(config.device)
+    built = layout()
+    row_offset = torch.from_numpy(built.row_offset).to(device)
+    private_offset = torch.from_numpy(built.private_offset).to(device)
+    private = torch.from_numpy(np.array(built.private)).to(device)
+    public = torch.from_numpy(np.array(built.public)).to(device)
+    gather_all = torch.from_numpy(legal_gather().astype(np.int64)).to(device)
+    memory_rows = torch.from_numpy(rows).to(device)
+    memory_t = torch.from_numpy(np.asarray(t, dtype=np.float32)).to(device)
+    memory_targets = torch.from_numpy(np.require(targets, requirements="W")).to(device)
+
+    torch.manual_seed(folded)
+    net = Net(width=config.width, depth=config.depth).to(device)
+    draw = torch.Generator().manual_seed(folded)
+    optimiser = torch.optim.Adam(net.parameters(), lr=config.lr)
+    net.train()
+    for _ in range(config.steps):
+        picked = torch.randint(len(rows), (config.batch,), generator=draw).to(device)
+        batch_rows = memory_rows[picked]
+        point = torch.searchsorted(row_offset, batch_rows, right=True) - 1
+        position = batch_rows - row_offset[point]
+        features = torch.cat([private[private_offset[point] + position], public[point]], dim=1)
+        gather = gather_all[point]
+        legal = gather != NO_ACTION
+        predicted = net(features).gather(1, gather.clamp(min=0))
+        target = torch.where(legal, memory_targets[picked], 0.0)
+        error = torch.where(legal, (predicted - target) ** 2, 0.0).sum(dim=1)
+        weight = memory_t[picked]
+        weight = weight / weight.mean()
+        optimiser.zero_grad()
+        (weight * error).mean().backward()
+        clip_grad_norm_(net.parameters(), config.clip)
+        optimiser.step()
+    net = net.to("cpu")
     if not all(torch.isfinite(parameter).all() for parameter in net.parameters()):
         raise ValueError("the fit diverged: a weight is not finite")
     net.eval()

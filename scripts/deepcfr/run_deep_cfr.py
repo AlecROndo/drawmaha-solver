@@ -5,7 +5,7 @@
 Re-running the same command resumes from `<out>/resume`, the exact average
 (`deepcfr.average`) included. Ctrl-C (or SIGTERM) finishes the iteration and
 saves. See `deepcfr.train` for what is kept and
-which flags a resume may change (`--workers` yes; the seed, the walks, the
+which flags a resume may change (`--workers` and `--device` yes; the seed, the walks, the
 capacity and the net's size no).
 """
 
@@ -36,6 +36,9 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--threads", type=int, default=defaults.threads, help="torch threads for the refit"
     )
+    parser.add_argument(
+        "--device", choices=("cpu", "mps"), default=defaults.device, help="where the refit runs"
+    )
     parser.add_argument("--seed", type=int, default=defaults.seed)
     return parser.parse_args(argv)
 
@@ -51,6 +54,7 @@ def config_from_args(args: argparse.Namespace) -> DeepConfig:
         steps=args.steps,
         batch=args.batch,
         threads=args.threads,
+        device=args.device,
     )
 
 def main() -> None:

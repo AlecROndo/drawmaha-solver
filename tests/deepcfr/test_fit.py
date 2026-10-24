@@ -241,3 +241,30 @@ def test_fit_refuses_rows_or_t_that_are_not_one_dimensional_ints():
         fit_from_scratch(rows[:, None], t, targets, seed=(0,), config=SMALL)
     with pytest.raises(ValueError, match="integer"):
         fit_from_scratch(rows.astype(np.float64), t, targets, seed=(0,), config=SMALL)
+
+# ---------------------------------------------------------------------------
+# The GPU path
+# ---------------------------------------------------------------------------
+
+needs_mps = pytest.mark.skipif(
+    not torch.backends.mps.is_available(), reason="no Apple GPU on this machine"
+)
+
+@needs_mps
+def test_mps_fit_tracks_the_cpu_fit():
+    # Same init, same draws, same loss: only the order of the arithmetic
+    # differs, so the two nets agree to float32 drift, not bit for bit.
+    rows, t, targets = real_rows(2_000, seed=11)
+    cpu = fit_from_scratch(rows, t, targets, seed=(0, 2, 1), config=SMALL)
+    mps = fit_from_scratch(
+        rows, t, targets, seed=(0, 2, 1), config=FitConfig(steps=300, batch=256, device="mps")
+    )
+    assert next(mps.parameters()).device.type == "cpu"
+    assert not mps.training
+    built = layout()
+    features = built.features(rows[:500])
+    np.testing.assert_allclose(predict(mps, features), predict(cpu, features), atol=1e-3)
+
+def test_config_refuses_an_unknown_device():
+    with pytest.raises(ValueError, match="device"):
+        FitConfig(device="cuda")
