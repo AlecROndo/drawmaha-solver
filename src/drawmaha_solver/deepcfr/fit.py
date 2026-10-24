@@ -211,8 +211,9 @@ def fit_from_scratch(
     if not np.isfinite(targets[legal_gather()[point] != NO_ACTION]).all():
         raise ValueError("every target at a legal column must be finite")
     folded = _fold_seed(seed)
-    # Any device but the cpu takes the device loop, which is written for
-    # any torch device, so a name added to the config can never run here.
+    # Any device but the cpu takes the device loop, so a name added to the
+    # config can never quietly run the cpu loop; the device loop checks only
+    # mps's availability, so a new name must add its own check there.
     if config.device != "cpu":
         return _fit_on_device(rows, t, targets, folded, config, device=config.device)
     threads_before = torch.get_num_threads()
@@ -224,6 +225,8 @@ def fit_from_scratch(
         optimiser = torch.optim.Adam(net.parameters(), lr=config.lr)
         net.train()
         for _ in range(config.steps):
+            # The same draw as `_fit_on_device`'s; change both or neither
+            # (the cpu-parity test in test_fit.py is the guard).
             picked = torch.randint(len(rows), (config.batch,), generator=draw).numpy()
             optimiser.zero_grad()
             batch_loss(net, rows[picked], t[picked], targets[picked]).backward()
@@ -255,7 +258,8 @@ def _fit_on_device(
     and the legal gather go to the device once, and each step's features
     are gathered there, so no step goes back to numpy. `device` is a
     parameter, not read off `config`, so a test can run this loop on the
-    cpu, where it must match `batch_loss`'s fit, on a machine without a GPU.
+    cpu, where it must match `batch_loss`'s fit, on a machine without a GPU;
+    `config.device` and `config.threads` are not read here.
     An "mps" asked for on a machine without one is refused here, before
     anything is copied, rather than failing inside the first `.to`.
     """
@@ -280,6 +284,8 @@ def _fit_on_device(
     optimiser = torch.optim.Adam(net.parameters(), lr=config.lr)
     net.train()
     for _ in range(config.steps):
+        # The same draw as the cpu loop's in `fit_from_scratch`; change both
+        # or neither (the cpu-parity test in test_fit.py is the guard).
         picked = torch.randint(len(rows), (config.batch,), generator=draw).to(device)
         batch_rows = memory_rows[picked]
         point = torch.searchsorted(row_offset, batch_rows, right=True) - 1
