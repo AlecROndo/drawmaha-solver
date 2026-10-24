@@ -44,13 +44,21 @@ Measured on this Mac (6 cores): one default refit — 4,000 steps of
 bare net on ready-made features. The gather alone is 3.9 s of it.
 
 **The GPU.** `device="mps"` is the same fit on Apple's GPU: the same init,
-the same minibatch draws (still from a cpu generator), the same loss. The
-memory, the layout's two feature halves and the legal gather go to the
-device once per fit and each batch's features are gathered there, so no
-step goes back through numpy. Only the order of the arithmetic changes, so
-an mps net tracks the cpu one to float32 drift, not bit for bit. Measured
-on this Mac (M5 Pro) on a real 17M-row memory, per step: 4 x 256 at 5.0 ms
-against 23.9 ms on the cpu, 3 x 128 at 2.5 ms against 9.5 ms.
+the same minibatch draws (still from a cpu generator), the same loss, one
+`_weighted_loss` shared by both paths. The memory, the layout's two
+feature halves and the legal gather go to the device once per fit and each
+batch's features are gathered there, so no step goes back through numpy.
+That copy holds the whole memory a second time for the fit's duration
+(rows, t, and `MAX_WIDTH` float32 targets per row), so peak memory is
+about twice the memory's; unified memory makes the copy cheap, not free.
+Only the order of the arithmetic changes, so it is the same rule but not
+the same net. Adam divides by √v, so a near-zero gradient component turns
+rounding into a full-size step and the two fits can part: over 300 steps on
+2,000 real rows the predictions agreed to 1e-6 on some memories and parted
+by 0.04 on another, while the loss on the memory stayed within 2% of the
+cpu fit's on all twelve tried. The test pins that, the loss, not the weights.
+Measured on this Mac (M5 Pro) on a real 17M-row memory, per step: 4 x 256
+at 5.0 ms against 23.9 ms on the cpu, 3 x 128 at 2.5 ms against 9.5 ms.
 """
 
 from __future__ import annotations
@@ -70,7 +78,7 @@ from drawmaha_solver.minidrawmaha.rules.features import MAX_WIDTH, NO_ACTION, la
 
 @dataclass(frozen=True)
 class FitConfig:
-    """What one refit is: the net's size, the steps, the batch, Adam's rate, the clip, the threads, the device.
+    """What one refit is: the net's size, steps, batch, Adam's rate, clip, threads and device.
 
     The defaults are the spec's: 3 x 64, 4,000 steps of 10,000 rows, lr
     1e-3, norm clipped to 1. `threads` is handed to `torch.set_num_threads`
@@ -87,6 +95,8 @@ class FitConfig:
     threads: int = 8
     # "cpu", or "mps" for Apple's GPU: the device only orders the arithmetic,
     # so an mps fit is the same rule but not the same weights bit for bit.
+    # The two names are `train.DEVICES`, spelled out here because this
+    # module must not import the loop; a test keeps the two equal.
     device: str = "cpu"
 
     def __post_init__(self) -> None:
@@ -116,15 +126,31 @@ def batch_loss(net: Net, rows: np.ndarray, t: np.ndarray, targets: np.ndarray) -
     built = layout()
     point, _ = built.locate_rows(rows)
     gather = torch.from_numpy(legal_gather()[point].astype(np.int64))
+    return _weighted_loss(
+        net(torch.from_numpy(built.features(rows))),
+        gather,
+        torch.from_numpy(np.asarray(targets, dtype=np.float32)),
+        torch.from_numpy(np.asarray(t, dtype=np.float32)),
+    )
+
+def _weighted_loss(
+    outputs: torch.Tensor, gather: torch.Tensor, targets: torch.Tensor, t: torch.Tensor
+) -> torch.Tensor:
+    """The loss from the net's outputs on: the one copy both the cpu and the device fit call.
+
+    `outputs` (b, head) the net's raw head, `gather` (b, MAX_WIDTH) each
+    row's ledger columns with `NO_ACTION` padding, `targets` (b, MAX_WIDTH)
+    and `t` (b,) float32, all on one device. Everything before this — the
+    features, the gather's rows — differs between the paths only in where
+    it is looked up, never in what it is.
+    """
     legal = gather != NO_ACTION
-    outputs = net(torch.from_numpy(built.features(rows)))
     predicted = outputs.gather(1, gather.clamp(min=0))
     # The padding is replaced before the subtraction: a NaN there would
     # survive `where` in the backward pass, where 0 * NaN is NaN.
-    target = torch.where(legal, torch.from_numpy(np.asarray(targets, dtype=np.float32)), 0.0)
+    target = torch.where(legal, targets, 0.0)
     error = torch.where(legal, (predicted - target) ** 2, 0.0).sum(dim=1)
-    weight = torch.from_numpy(np.asarray(t, dtype=np.float32))
-    weight = weight / weight.mean()
+    weight = t / t.mean()
     return (weight * error).mean()
 
 # ---------------------------------------------------------------------------
@@ -184,8 +210,8 @@ def fit_from_scratch(
     if not np.isfinite(targets[legal_gather()[point] != NO_ACTION]).all():
         raise ValueError("every target at a legal column must be finite")
     folded = _fold_seed(seed)
-    if config.device != "cpu":
-        return _fit_on_device(rows, t, targets, folded, config)
+    if config.device == "mps":
+        return _fit_on_device(rows, t, targets, folded, config, device="mps")
     threads_before = torch.get_num_threads()
     torch.set_num_threads(config.threads)
     try:
@@ -210,17 +236,29 @@ def fit_from_scratch(
     return net
 
 def _fit_on_device(
-    rows: np.ndarray, t: np.ndarray, targets: np.ndarray, folded: int, config: FitConfig
+    rows: np.ndarray,
+    t: np.ndarray,
+    targets: np.ndarray,
+    folded: int,
+    config: FitConfig,
+    *,
+    device: str,
 ) -> Net:
-    """`fit_from_scratch`'s loop on a GPU, the net returned on the cpu in `eval()` mode.
+    """`fit_from_scratch`'s loop on `device`, the net returned on the cpu in `eval()` mode.
 
     The same init, the same minibatch draws (from a cpu generator, so they
-    match the cpu fit's), the same loss as `batch_loss`. What changes is
-    where the work happens: the memory, the layout's two halves and the
-    legal gather go to the device once, and each step's features are
-    gathered there, so no step goes back to numpy.
+    match the cpu fit's), the same `_weighted_loss` as `batch_loss`. What
+    changes is where the work happens: the memory, the layout's two halves
+    and the legal gather go to the device once, and each step's features
+    are gathered there, so no step goes back to numpy. `device` is a
+    parameter, not read off `config`, so a test can run this loop on the
+    cpu, where it must match `batch_loss`'s fit, on a machine without a GPU.
+    An "mps" asked for on a machine without one is refused here, before
+    anything is copied, rather than failing inside the first `.to`.
     """
-    device = torch.device(config.device)
+    if device == "mps" and not torch.backends.mps.is_available():
+        raise RuntimeError("device 'mps' was asked for, but this machine has no usable Apple GPU")
+    device = torch.device(device)
     built = layout()
     row_offset = torch.from_numpy(built.row_offset).to(device)
     private_offset = torch.from_numpy(built.private_offset).to(device)
@@ -229,6 +267,8 @@ def _fit_on_device(
     gather_all = torch.from_numpy(legal_gather().astype(np.int64)).to(device)
     memory_rows = torch.from_numpy(rows).to(device)
     memory_t = torch.from_numpy(np.asarray(t, dtype=np.float32)).to(device)
+    # `from_numpy` warns on a read-only array (a memory loaded from a file
+    # can be one); `require` copies only in that case.
     memory_targets = torch.from_numpy(np.require(targets, requirements="W")).to(device)
 
     torch.manual_seed(folded)
@@ -242,15 +282,11 @@ def _fit_on_device(
         point = torch.searchsorted(row_offset, batch_rows, right=True) - 1
         position = batch_rows - row_offset[point]
         features = torch.cat([private[private_offset[point] + position], public[point]], dim=1)
-        gather = gather_all[point]
-        legal = gather != NO_ACTION
-        predicted = net(features).gather(1, gather.clamp(min=0))
-        target = torch.where(legal, memory_targets[picked], 0.0)
-        error = torch.where(legal, (predicted - target) ** 2, 0.0).sum(dim=1)
-        weight = memory_t[picked]
-        weight = weight / weight.mean()
+        loss = _weighted_loss(
+            net(features), gather_all[point], memory_targets[picked], memory_t[picked]
+        )
         optimiser.zero_grad()
-        (weight * error).mean().backward()
+        loss.backward()
         clip_grad_norm_(net.parameters(), config.clip)
         optimiser.step()
     net = net.to("cpu")

@@ -33,10 +33,13 @@ itself is complete; what remains is the paid run and its grades.
   σ is about to be sampled as the opponent.
 - **The resume state** is the three memories, the two latest nets, and a
   `state.json` written last and atomically as the commit point, every file
-  named by its iteration. A resume may change the worker count and the
-  refit's device (cpu or mps); the seed, the walks, the capacity, the net's
-  size, the other refit fields and the thread count are refused by name,
-  because each changes the sample or the fit.
+  named by its iteration. A resume may change the worker count, which
+  changes nothing, and the refit's device (cpu or mps), which changes the
+  nets from the move on and is let through on purpose so a run can move to
+  the GPU; a moved run is no longer reproducible from its seed and config.
+  The seed, the walks, the capacity, the net's size, the other refit fields
+  and the thread count are refused by name, because each changes the sample
+  or the fit.
 - **An observer that carries state has `name`, `save` and `load`**
   (`StatefulObserver` in `train.py`; `ExactAverage` in `average.py` is the one). Its file
   joins the resume set and every mark, named in `state.json`. A resume

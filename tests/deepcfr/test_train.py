@@ -46,6 +46,7 @@ from drawmaha_solver.deepcfr.train import (
     require_same_run,
     run_deep,
     save_run,
+    saved_config,
     step,
 )
 from drawmaha_solver.minidrawmaha.rules.enumeration import private_keys, public_decision_points
@@ -163,6 +164,7 @@ def test_config_defaults_are_the_specs():
         ("grid", (20, 10)),
         ("grid", (0, 10)),
         ("save_every_s", -1.0),
+        ("device", "cuda"),
     ],
 )
 def test_config_refuses_bad_values_by_name(field, value):
@@ -177,6 +179,13 @@ def test_require_same_run_names_every_changed_sample_field():
         assert free not in str(caught.value)
     assert free not in SAMPLE_FIELDS
     require_same_run(DeepConfig(), DeepConfig(workers=2, grid=(1,), save_every_s=0.0))
+
+def test_a_resume_may_move_the_refit_to_the_gpu_but_not_change_its_threads():
+    assert "device" not in SAMPLE_FIELDS
+    require_same_run(DeepConfig(), DeepConfig(device="mps"))
+    with pytest.raises(ValueError, match="threads") as caught:
+        require_same_run(DeepConfig(), DeepConfig(device="mps", threads=4))
+    assert "device" not in str(caught.value)
 
 def test_new_run_is_empty():
     run = new_run(SMALL)
@@ -619,6 +628,33 @@ def test_cli_parses_the_flags_into_a_config():
     assert args.out == Path("runs/x") and args.target == 3
     assert cli.config_from_args(cli.parse(["--out", "y"])) == DeepConfig()
     assert cli.parse(["--out", "y"]).target == 2_000
+
+def test_cli_passes_the_device_through():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "run_deep_cfr", Path(__file__).parents[2] / "scripts" / "deepcfr" / "run_deep_cfr.py"
+    )
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    assert cli.config_from_args(cli.parse(["--out", "y", "--device", "cpu"])).device == "cpu"
+    cli.mps_available = lambda: True
+    assert cli.config_from_args(cli.parse(["--out", "y", "--device", "mps"])).device == "mps"
+    # Refused at the command line, before a run is loaded or a walk is spent.
+    cli.mps_available = lambda: False
+    with pytest.raises(SystemExit):
+        cli.parse(["--out", "y", "--device", "mps"])
+    with pytest.raises(SystemExit):
+        cli.parse(["--out", "y", "--device", "cuda"])
+
+def test_a_state_written_before_the_device_existed_loads_on_the_cpu(tmp_path):
+    drive(tmp_path, 1)
+    state_path = tmp_path / RESUME / STATE
+    state = json.loads(state_path.read_text())
+    del state["config"]["device"]
+    state_path.write_text(json.dumps(state))
+    assert saved_config(tmp_path / RESUME).device == "cpu"
+    assert drive(tmp_path, 2).t == 2
 
 def test_a_changed_config_is_refused_before_the_memories_are_read(tmp_path):
     drive(tmp_path, 2)
