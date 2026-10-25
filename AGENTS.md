@@ -66,7 +66,8 @@ three static pages, deployed by Vercel from `vercel.json`.
 | Continue rung 4 | `docs/superpowers/specs/2026-10-07-deep-cfr-m1-design.md`, the PR ladder and its gates |
 | Change mini-drawmaha's deck, draw cap, betting tree or infoset key | the rung-3 plan, outside the repo on Alec's machine: `~/Desktop/Claude/poker/rung3-delta/rung3-delta-plan.md` (§3 rules, §4 census), with the census scripts beside it |
 | Ask why a decision was made | `docs/superpowers/specs/` for designs, `docs/superpowers/plans/` for the dated plans each PR was built from |
-| Write the walkthrough for a merged PR | the earlier ones under `~/Desktop/Claude/poker/code-walkthroughs/`, outside the repo |
+| Plan a rung-4 run, or try a regret rule other than linear | `docs/notes/rung4-run-log.md` (every arm and its grades) and `docs/notes/regret-rules-dcfr-cfrplus.md` (why DCFR and CFR+ lost twice) |
+| Write the walkthrough for a merged PR | `docs/notes/walkthrough-pr62-regret-rule-screen.md` for the Markdown form used from #61 on; the earlier PDFs are under `~/Desktop/Claude/poker/code-walkthroughs/`, outside the repo |
 
 ## Subtree map
 
@@ -75,7 +76,7 @@ three static pages, deployed by Vercel from `vercel.json`.
 - `scripts/` — hand-run entry points, grouped by what they serve: `scripts/site/`, `scripts/leduc/`, `scripts/minidrawmaha/`, `scripts/deepcfr/`.
 - `web/` — the site: `web/cover/` (three static pages), five Vite apps, `web/DESIGN.md`.
 - `figures/` — outputs of the analysis commands, committed as regression fingerprints.
-- `docs/superpowers/` — dated design specs and implementation plans.
+- `docs/` — dated design specs and implementation plans under `docs/superpowers/`, and living findings notes and PR walkthroughs under `docs/notes/`.
 - `paper/` — the ML survey (`paper/drawmaha-ml-survey.tex`, figures from `paper/make_figures.py` and `paper/make_diagrams.sh`).
 - `research/` — the literature notes the survey was written from, and the range-UI studies that became `/solver`.
 - `writeups/` — the rung-0 writeup, LaTeX and PDF.

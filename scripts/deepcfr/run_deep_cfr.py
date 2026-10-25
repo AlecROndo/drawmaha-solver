@@ -34,6 +34,7 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--depth", type=int, default=defaults.depth)
     parser.add_argument("--steps", type=int, default=defaults.steps, help="Adam steps per refit")
     parser.add_argument("--batch", type=int, default=defaults.batch, help="rows per step")
+    parser.add_argument("--lr", type=float, default=defaults.lr, help="Adam's rate for every refit step")
     parser.add_argument(
         "--threads", type=int, default=defaults.threads, help="torch threads for the refit"
     )
@@ -43,6 +44,10 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--rule", choices=("linear", "dcfr", "cfr+"), default=defaults.rule,
         help="regret rule of the refit's targets",
+    )
+    parser.add_argument(
+        "--save-every-s", type=float, default=defaults.save_every_s,
+        help="seconds between resume saves; a resume may change it",
     )
     parser.add_argument("--seed", type=int, default=defaults.seed)
     args = parser.parse_args(argv)
@@ -67,9 +72,11 @@ def config_from_args(args: argparse.Namespace) -> DeepConfig:
         depth=args.depth,
         steps=args.steps,
         batch=args.batch,
+        lr=args.lr,
         threads=args.threads,
         device=args.device,
         rule=args.rule,
+        save_every_s=args.save_every_s,
     )
 
 def main() -> None:

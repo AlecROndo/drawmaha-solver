@@ -22,6 +22,15 @@ run's config beside each grade. `deep-analysis` reads it with `rung3/grades.json
 and writes `rung4/price.png` and `rung4/answer_sheet.json`; the net-size
 sweep's verdict, written by `sweep --grade`, lands beside them as `sweep.json`.
 
+The other `rung4/sweep_*.json` files grade the size and refit arms trained on
+this machine after the sweep (`sweep_128x3_t200.json`, `sweep_128x3-s8000.json`,
+`sweep_128x4.json`, `sweep_256x4.json`, `sweep_256x4-s8000.json`,
+`sweep_256x4-s16000-lr5e-4.json`), each written by `modal_rung4.py::grade
+--local runs/<arm> --grades figures/rung4/sweep_<arm>.json` and keyed as in
+`grades.json`. The file name is width x depth plus any refit setting that
+differs from the spec's; each grade carries the full config. Which arm is which,
+and what they showed, is `docs/notes/rung4-run-log.md`.
+
 `rung4/rule_dcfr-256x4.json` and `rung4/rule_cfrplus-256x4.json` grade the
 regret-rule screen: the 256 × 4 net trained to 50 iterations on this machine
 by `run_deep_cfr.py --rule dcfr` and `--rule cfr+`, its marks graded by

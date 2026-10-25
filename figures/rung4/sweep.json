@@ -1,0 +1,314 @@
+{
+  "iterations": 100,
+  "hands_per_seat": 1000000,
+  "rule": "64x3 unless another size's exact average is lower by more than 10% of its exploitability",
+  "winner": "128x3",
+  "sizes": {
+    "64x3": {
+      "exact": {
+        "br0": 0.3032633322041831,
+        "br1": 0.4615195640712468,
+        "exploitability": 0.382391448137715,
+        "value_p0": -0.14601689562410403,
+        "hands_per_seat": 1000000,
+        "wall_clock_s": 10992.772,
+        "config": {
+          "seed": 0,
+          "walks": 10000,
+          "workers": 32,
+          "capacity": 50000000,
+          "width": 64,
+          "depth": 3,
+          "steps": 4000,
+          "batch": 10000,
+          "lr": 0.001,
+          "clip": 1.0,
+          "threads": 8,
+          "grid": [
+            10,
+            20,
+            50,
+            100,
+            200,
+            500,
+            1000,
+            2000
+          ],
+          "save_every_s": 1800.0
+        },
+        "grade_s": 237.1
+      },
+      "pi": {
+        "br0": 0.3725012600165951,
+        "br1": 0.534593908450119,
+        "exploitability": 0.45354758423335706,
+        "value_p0": -0.15717694931091075,
+        "hands_per_seat": 1000000,
+        "wall_clock_s": 10992.772,
+        "config": {
+          "seed": 0,
+          "walks": 10000,
+          "workers": 32,
+          "capacity": 50000000,
+          "width": 64,
+          "depth": 3,
+          "steps": 4000,
+          "batch": 10000,
+          "lr": 0.001,
+          "clip": 1.0,
+          "threads": 8,
+          "grid": [
+            10,
+            20,
+            50,
+            100,
+            200,
+            500,
+            1000,
+            2000
+          ],
+          "save_every_s": 1800.0
+        },
+        "grade_s": 216.6,
+        "pi_fit_s": 61.9
+      },
+      "current": {
+        "br0": 0.600432592172906,
+        "br1": 0.7121279138276159,
+        "exploitability": 0.6562802530002609,
+        "value_p0": -0.16519732700588918,
+        "hands_per_seat": 1000000,
+        "wall_clock_s": 10992.772,
+        "config": {
+          "seed": 0,
+          "walks": 10000,
+          "workers": 32,
+          "capacity": 50000000,
+          "width": 64,
+          "depth": 3,
+          "steps": 4000,
+          "batch": 10000,
+          "lr": 0.001,
+          "clip": 1.0,
+          "threads": 8,
+          "grid": [
+            10,
+            20,
+            50,
+            100,
+            200,
+            500,
+            1000,
+            2000
+          ],
+          "save_every_s": 1800.0
+        },
+        "grade_s": 197.7
+      }
+    },
+    "64x4": {
+      "exact": {
+        "br0": 0.3014474201035158,
+        "br1": 0.448550487113824,
+        "exploitability": 0.37499895360866986,
+        "value_p0": -0.14542892777659933,
+        "hands_per_seat": 1000000,
+        "wall_clock_s": 14361.834,
+        "config": {
+          "seed": 0,
+          "walks": 10000,
+          "workers": 32,
+          "capacity": 50000000,
+          "width": 64,
+          "depth": 4,
+          "steps": 4000,
+          "batch": 10000,
+          "lr": 0.001,
+          "clip": 1.0,
+          "threads": 8,
+          "grid": [
+            10,
+            20,
+            50,
+            100,
+            200,
+            500,
+            1000,
+            2000
+          ],
+          "save_every_s": 1800.0
+        },
+        "grade_s": 319.8
+      },
+      "pi": {
+        "br0": 0.36700858327718244,
+        "br1": 0.5212731490642657,
+        "exploitability": 0.44414086617072407,
+        "value_p0": -0.16503959085453995,
+        "hands_per_seat": 1000000,
+        "wall_clock_s": 14361.834,
+        "config": {
+          "seed": 0,
+          "walks": 10000,
+          "workers": 32,
+          "capacity": 50000000,
+          "width": 64,
+          "depth": 4,
+          "steps": 4000,
+          "batch": 10000,
+          "lr": 0.001,
+          "clip": 1.0,
+          "threads": 8,
+          "grid": [
+            10,
+            20,
+            50,
+            100,
+            200,
+            500,
+            1000,
+            2000
+          ],
+          "save_every_s": 1800.0
+        },
+        "grade_s": 285.0,
+        "pi_fit_s": 87.1
+      },
+      "current": {
+        "br0": 0.3033484374135593,
+        "br1": 0.5321857760241403,
+        "exploitability": 0.4177671067188498,
+        "value_p0": -0.12222940540878183,
+        "hands_per_seat": 1000000,
+        "wall_clock_s": 14361.834,
+        "config": {
+          "seed": 0,
+          "walks": 10000,
+          "workers": 32,
+          "capacity": 50000000,
+          "width": 64,
+          "depth": 4,
+          "steps": 4000,
+          "batch": 10000,
+          "lr": 0.001,
+          "clip": 1.0,
+          "threads": 8,
+          "grid": [
+            10,
+            20,
+            50,
+            100,
+            200,
+            500,
+            1000,
+            2000
+          ],
+          "save_every_s": 1800.0
+        },
+        "grade_s": 264.0
+      }
+    },
+    "128x3": {
+      "exact": {
+        "br0": 0.16147233330413657,
+        "br1": 0.3254538627459351,
+        "exploitability": 0.24346309802503582,
+        "value_p0": -0.12910802175795139,
+        "hands_per_seat": 1000000,
+        "wall_clock_s": 21644.633,
+        "config": {
+          "seed": 0,
+          "walks": 10000,
+          "workers": 32,
+          "capacity": 50000000,
+          "width": 128,
+          "depth": 3,
+          "steps": 4000,
+          "batch": 10000,
+          "lr": 0.001,
+          "clip": 1.0,
+          "threads": 8,
+          "grid": [
+            10,
+            20,
+            50,
+            100,
+            200,
+            500,
+            1000,
+            2000
+          ],
+          "save_every_s": 1800.0
+        },
+        "grade_s": 301.6
+      },
+      "pi": {
+        "br0": 0.21285842865457746,
+        "br1": 0.3798232531959878,
+        "exploitability": 0.2963408409252826,
+        "value_p0": -0.14024598752234024,
+        "hands_per_seat": 1000000,
+        "wall_clock_s": 21644.633,
+        "config": {
+          "seed": 0,
+          "walks": 10000,
+          "workers": 32,
+          "capacity": 50000000,
+          "width": 128,
+          "depth": 3,
+          "steps": 4000,
+          "batch": 10000,
+          "lr": 0.001,
+          "clip": 1.0,
+          "threads": 8,
+          "grid": [
+            10,
+            20,
+            50,
+            100,
+            200,
+            500,
+            1000,
+            2000
+          ],
+          "save_every_s": 1800.0
+        },
+        "grade_s": 280.6,
+        "pi_fit_s": 153.0
+      },
+      "current": {
+        "br0": 0.20989087668559486,
+        "br1": 0.5228235389228579,
+        "exploitability": 0.3663572078042264,
+        "value_p0": -0.141086743229984,
+        "hands_per_seat": 1000000,
+        "wall_clock_s": 21644.633,
+        "config": {
+          "seed": 0,
+          "walks": 10000,
+          "workers": 32,
+          "capacity": 50000000,
+          "width": 128,
+          "depth": 3,
+          "steps": 4000,
+          "batch": 10000,
+          "lr": 0.001,
+          "clip": 1.0,
+          "threads": 8,
+          "grid": [
+            10,
+            20,
+            50,
+            100,
+            200,
+            500,
+            1000,
+            2000
+          ],
+          "save_every_s": 1800.0
+        },
+        "grade_s": 272.4
+      }
+    }
+  }
+}
