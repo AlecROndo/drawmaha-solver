@@ -628,6 +628,10 @@ def test_cli_parses_the_flags_into_a_config():
     assert args.out == Path("runs/x") and args.target == 3
     assert cli.config_from_args(cli.parse(["--out", "y"])) == DeepConfig()
     assert cli.parse(["--out", "y"]).target == 2_000
+    assert cli.config_from_args(cli.parse(["--out", "y", "--lr", "5e-4"])).lr == 5e-4
+    # A rate DeepConfig cannot use is refused by name, not trained on.
+    with pytest.raises(ValueError, match="lr"):
+        cli.config_from_args(cli.parse(["--out", "y", "--lr", "0"]))
 
 def test_cli_passes_the_device_through():
     import importlib.util

@@ -34,6 +34,7 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--depth", type=int, default=defaults.depth)
     parser.add_argument("--steps", type=int, default=defaults.steps, help="Adam steps per refit")
     parser.add_argument("--batch", type=int, default=defaults.batch, help="rows per step")
+    parser.add_argument("--lr", type=float, default=defaults.lr, help="Adam's rate for every refit step")
     parser.add_argument(
         "--threads", type=int, default=defaults.threads, help="torch threads for the refit"
     )
@@ -67,6 +68,7 @@ def config_from_args(args: argparse.Namespace) -> DeepConfig:
         depth=args.depth,
         steps=args.steps,
         batch=args.batch,
+        lr=args.lr,
         threads=args.threads,
         device=args.device,
         rule=args.rule,
