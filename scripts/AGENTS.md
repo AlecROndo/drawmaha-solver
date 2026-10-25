@@ -15,7 +15,9 @@ docstring opens with the exact command to run it.
 - `deepcfr/` — `run_deep_cfr.py`, Deep CFR on this machine, resumable;
   `modal_rung4.py`, the same run on Modal (`train`), one grader per grid
   mark (`grade`, writes `figures/rung4/grades.json`), the `smoke`, the
-  net-size `sweep` and `status`.
+  net-size `sweep` and `status`; `rule_sign_flips.py`, how much a
+  per-sample regret rule bends a run's advantage memory (writes
+  `figures/rung4/rule_sign_flips.json`).
 
 ## Rules
 

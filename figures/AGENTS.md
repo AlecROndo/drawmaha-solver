@@ -21,3 +21,11 @@ volume `drawmaha-rung4`, with `hands_per_seat`, the training clock and the
 run's config beside each grade. `deep-analysis` reads it with `rung3/grades.json`
 and writes `rung4/price.png` and `rung4/answer_sheet.json`; the net-size
 sweep's verdict, written by `sweep --grade`, lands beside them as `sweep.json`.
+
+`rung4/rule_dcfr-256x4.json` and `rung4/rule_cfrplus-256x4.json` grade the
+regret-rule screen: the 256 × 4 net trained to 50 iterations on this machine
+by `run_deep_cfr.py --rule dcfr` and `--rule cfr+`, its marks graded by
+`modal_rung4.py::grade --local <run dir> --grades <file>`, keyed as in
+`grades.json`. `rung4/rule_sign_flips.json` is the measurement of why they
+lost, written by `scripts/deepcfr/rule_sign_flips.py` from the same runs'
+advantage memories.
