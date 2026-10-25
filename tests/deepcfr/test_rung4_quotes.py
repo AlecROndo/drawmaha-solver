@@ -39,6 +39,7 @@ def rows(text: str, header_start: str) -> list[list[str]]:
     starts = [i for i, line in enumerate(lines) if line.startswith(header_start)]
     assert len(starts) == 1, f"expected one table headed {header_start!r}, found {len(starts)}"
     start = starts[0]
+    assert re.fullmatch(r"\|(\s*-+\s*\|)+", lines[start + 1]), f"no separator row under {header_start!r}"
     body = []
     for line in lines[start + 2 :]:
         if not line.startswith("|"):
@@ -60,6 +61,7 @@ def test_the_readme_rung4_table_quotes_the_committed_grades():
     table = rows(readme, "| hands per seat | LCFR | 3 × 64 |")
     columns = (
         lambda t: lcfr(t),
+        # The Mac 3 × 64 run was graded to t = 50; its 1M point is the Modal sweep's.
         lambda t: mark("figures/rung4/grades.json", t) if t <= 50 else sweep("64x3"),
         lambda t: sweep("128x3") if t == 100 else mark("figures/rung4/sweep_128x3_t200.json", t),
         lambda t: mark("figures/rung4/sweep_256x4.json", t),
@@ -68,9 +70,9 @@ def test_the_readme_rung4_table_quotes_the_committed_grades():
     checked = 0
     for hands, *cells in table:
         t = HANDS[hands]
-        for source, cell in zip(columns, cells, strict=True):
+        for column, (source, cell) in enumerate(zip(columns, cells, strict=True), start=1):
             if (value := quoted(cell)) is not None:
-                assert value == round(source(t), 3), (hands, cell)
+                assert value == round(source(t), 3), (hands, column, cell)
                 checked += 1
     # Every cell with a digit is checked or fails in quoted(), so this guards only an empty table.
     assert checked > 0
