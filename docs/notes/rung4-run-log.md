@@ -27,7 +27,7 @@ the same config see identical data. Only the refit's arithmetic order can differ
 | 4 × 128 | Mac | 4 × 128 | 4,000 | 1e-3 | | | 0.220 | 0.221 | | `figures/rung4/sweep_128x4.json` |
 | 4 × 256 | Mac | 4 × 256 | 4,000 | 1e-3 | | 0.294 | 0.173 | 0.152 | | `figures/rung4/sweep_256x4.json` |
 | **4 × 256, double fit** | Mac (cpu, then mps from t = 37) | 4 × 256 | 8,000 | 1e-3 | | 0.330 | 0.167 | **0.134** | | `figures/rung4/sweep_256x4-s8000.json` |
-| 4 × 256, 4× fit, half rate | Mac, mps | 4 × 256 | 16,000 | 5e-4 | running | | | | | `figures/rung4/sweep_256x4-s16000-lr5e-4.json` |
+| 4 × 256, 4× fit, half rate | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 0.643 | running | | | | `figures/rung4/sweep_256x4-s16000-lr5e-4.json` |
 | DCFR screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 1.515 | 2.227 | 2.870 | | | `figures/rung4/rule_dcfr-256x4.json` |
 | CFR+ screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 2.539 | 2.858 | 3.092 | | | `figures/rung4/rule_cfrplus-256x4.json` |
 
@@ -60,7 +60,8 @@ whether a bigger fit moves the floor, is the open question rung 4 is now answeri
 average beats Π at every graded mark of every linear arm. The current iterate is usually worst
 but not always: in the Modal sweep, 4 × 64's current iterate (0.418) beats its Π (0.444), and in
 4 × 256 at t = 20 with the double fit the current iterate and the exact average tie (0.3299 and
-0.3300). CFR promises nothing about the current iterate, so neither is a bug.
+0.3300). The 16,000-step arm's current iterate beats both averages at t = 10 (0.528 against
+exact 0.643 and Π 0.663). CFR promises nothing about the current iterate, so none of these is a bug.
 
 **5. Per-sample DCFR and CFR+ lose to linear by 17× and get worse with training.** See
 `docs/notes/regret-rules-dcfr-cfrplus.md` for the mechanism. The linear rule is the only one
