@@ -1,7 +1,7 @@
 # `docs/` — dated designs and plans, and the notes on what was found
 
 `superpowers/specs/` are design documents (what is being built and why); `superpowers/plans/` are the
-step-by-step implementation plans the PRs were executed from. They are dated
+step-by-step implementation plans the PRs were executed from. Those two are dated
 records. Do not rewrite one to match what shipped; a change of direction gets
 a new document, and the old one stays as the reason the code looks the way it
 does. The live document for current work is

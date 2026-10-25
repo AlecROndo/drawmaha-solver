@@ -104,7 +104,7 @@ lucky walks. When the negative samples are discounted away and the lucky positiv
 fitted mean turns positive. 36–38% of the seat-0 cells that are negative under linear weights
 turn positive by t = 50 (24–26% for seat 1), up from 8–11% at t = 10. Regret matching plays
 every positive cell, so those are bad actions the net is being taught to play, and more of them
-every iteration. That is why the curve rises.
+every iteration. That fits the rising curve; no ablation has isolated it as the only cause.
 
 A small worked case shows the shape. Take two actions' samples: b = {+1, −3, +1, −3} (bad on
 average, −1 per sample) and c = {+0.5, +0.5, +0.5, +0.5} (mildly good). With per-sample

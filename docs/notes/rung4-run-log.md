@@ -3,8 +3,9 @@
 A lab notebook, not a design. The spec (`docs/superpowers/specs/2026-10-07-deep-cfr-m1-design.md`)
 says what rung 4 is meant to measure. This file records what has actually been run, with
 which settings, and what the exact grader said. Every number below is read from a committed
-file under `figures/rung4/` (or `figures/rung3/grades.json` for LCFR) and is regenerated, not
-hand-entered: if a number here disagrees with its file, the file wins and this note is the bug.
+file under `figures/rung4/` (or `figures/rung3/grades.json` for LCFR). They are copied by hand,
+and `tests/deepcfr/test_rung4_quotes.py` checks the scoreboard and the README's rung-4 table
+against those files: if a number here disagrees with its file, the file wins and this note is the bug.
 
 Exploitability is in chips per hand, ante 1, from the exact best-response walk. Uniform random
 play is 4.842. All runs are seed 0, K = 10,000 walks per seat per iteration, 50M-row
@@ -21,7 +22,7 @@ the same config see identical data. Only the refit's arithmetic order can differ
 | 3 × 64 | Mac, W = 8 | 3 × 64 | 4,000 | 1e-3 | 0.581 | 0.444 | 0.396 | | | `figures/rung4/grades.json` |
 | sweep 3 × 64 | Modal | 3 × 64 | 4,000 | 1e-3 | | | | 0.382 | | `figures/rung4/sweep.json` |
 | sweep 4 × 64 | Modal | 4 × 64 | 4,000 | 1e-3 | | | | 0.375 | | `figures/rung4/sweep.json` |
-| sweep 3 × 128 | Modal | 3 × 128 | 4,000 | 1e-3 | | | | 0.244 | | `figures/rung4/sweep.json` |
+| sweep 3 × 128 | Modal | 3 × 128 | 4,000 | 1e-3 | | | | 0.243 | | `figures/rung4/sweep.json` |
 | 3 × 128 to t = 200 | Mac | 3 × 128 | 4,000 | 1e-3 | | | | | 0.234 | `figures/rung4/sweep_128x3_t200.json` |
 | 3 × 128, double fit | Mac | 3 × 128 | 8,000 | 1e-3 | | | 0.213 | 0.184 | | `figures/rung4/sweep_128x3-s8000.json` |
 | 4 × 128 | Mac | 4 × 128 | 4,000 | 1e-3 | | | 0.220 | 0.221 | | `figures/rung4/sweep_128x4.json` |
@@ -38,22 +39,26 @@ plus each seat's best response, the training clock and the full config.
 ## What the arms say
 
 **1. Width is the lever that mattered.** At 1M hands per seat (t = 100), 3 × 64 → 3 × 128 cut
-the exact average from 0.382 to 0.244 (−36%). Depth did little at either width: 4 × 64 is 0.375
-against 3 × 64's 0.382, and 4 × 128 is 0.221 against 3 × 128's 0.244. The widest net, 4 × 256,
+the exact average from 0.382 to 0.243 (−36%). Depth did less at either width: 4 × 64 is 0.375
+against 3 × 64's 0.382 (−2%), and 4 × 128 is 0.221 against 3 × 128's 0.243 (−9%, just under the
+sweep's 10% bar). The widest net, 4 × 256,
 reached 0.152. The sweep's pre-registered rule (stay at 3 × 64 unless another size is lower by
 more than 10%) picked 3 × 128, and the later Mac arms went wider still.
 
 **2. A longer refit helps, by less than a wider net.** Doubling the refit from 4,000 to 8,000
-Adam steps took 3 × 128 from 0.244 to 0.184 at t = 100 (−24%) and 4 × 256 from 0.152 to 0.134
+Adam steps took 3 × 128 from 0.243 to 0.184 at t = 100 (−24%) and 4 × 256 from 0.152 to 0.134
 (−12%). The gain shrinks as the net grows, which is what you would expect if the small net was
 under-fit and the large one is closer to its fit's floor. Early on the longer fit can be worse
 (4 × 256 at t = 20: 0.330 against 0.294), so compare arms at t ≥ 50.
 
-**3. Deep CFR is far ahead of the table early, and flattening.** At equal hands the best arm is
-0.134 against LCFR's 1.131 at t = 100, an eighth of the table's exploitability. The one arm
-graded at t = 200 moved from 0.244 to 0.234 between t = 100 and t = 200 while LCFR halved
-(1.131 → 0.630). LCFR reaches 0.264 at t = 500 and 0.061 at t = 2,000, so if the nets keep
-flattening near 0.13–0.23, the two curves cross somewhere around t = 500. Where they cross, and
+**3. Deep CFR is far ahead of the table early, and the one arm graded past t = 100 is
+flattening.** At equal hands the best arm is 0.134 against LCFR's 1.131 at t = 100, an eighth of
+the table's exploitability. The one arm graded at t = 200, 3 × 128, moved from 0.243 (the Modal
+sweep) to 0.234 (a Mac run of the same config) between t = 100 and t = 200, a 4% change on one
+seed, while LCFR fell 44% (1.131 → 0.630). 4 × 256 has no grade past t = 100. LCFR reaches 0.264
+at t = 500 and 0.061 at t = 2,000, so if each net stayed at its last grade, LCFR would pass
+3 × 128's 0.234 a little after t = 500 and 4 × 256's 0.134 somewhere between t = 500 and
+t = 2,000. That is an extrapolation from one seed, not a measurement. Where they cross, and
 whether a bigger fit moves the floor, is the open question rung 4 is now answering.
 
 **4. The three graded objects usually order exact < Π < current, not always.** The exact
