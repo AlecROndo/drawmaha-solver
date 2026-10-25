@@ -632,6 +632,7 @@ def test_cli_parses_the_flags_into_a_config():
     # A rate DeepConfig cannot use is refused by name, not trained on.
     with pytest.raises(ValueError, match="lr"):
         cli.config_from_args(cli.parse(["--out", "y", "--lr", "0"]))
+    assert cli.config_from_args(cli.parse(["--out", "y", "--save-every-s", "600"])).save_every_s == 600.0
 
 def test_cli_passes_the_device_through():
     import importlib.util

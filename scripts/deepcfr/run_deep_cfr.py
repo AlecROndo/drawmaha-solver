@@ -45,6 +45,10 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--rule", choices=("linear", "dcfr", "cfr+"), default=defaults.rule,
         help="regret rule of the refit's targets",
     )
+    parser.add_argument(
+        "--save-every-s", type=float, default=defaults.save_every_s,
+        help="seconds between resume saves; a resume may change it",
+    )
     parser.add_argument("--seed", type=int, default=defaults.seed)
     args = parser.parse_args(argv)
     if args.device == "mps" and not mps_available():
@@ -72,6 +76,7 @@ def config_from_args(args: argparse.Namespace) -> DeepConfig:
         threads=args.threads,
         device=args.device,
         rule=args.rule,
+        save_every_s=args.save_every_s,
     )
 
 def main() -> None:
