@@ -46,7 +46,11 @@ def rows(text: str, header_start: str) -> list[list[str]]:
 
 
 def quoted(cell: str) -> float | None:
-    return float(cell) if re.fullmatch(r"\d+\.\d{3}", cell) else None
+    """A grade cell's value, or None for a blank or a word; a grade at any other precision fails."""
+    if not re.fullmatch(r"\d+\.\d+", cell):
+        return None
+    assert re.fullmatch(r"\d+\.\d{3}", cell), f"grades are quoted to three decimals: {cell!r}"
+    return float(cell)
 
 
 def test_the_readme_rung4_table_quotes_the_committed_grades():
@@ -67,6 +71,22 @@ def test_the_readme_rung4_table_quotes_the_committed_grades():
                 assert value == round(source(t), 3), (hands, cell)
                 checked += 1
     assert checked >= 14
+
+
+def test_the_readme_rung4_columns_are_the_refits_the_caption_says():
+    # The caption: Adam at 1e-3 and a 4,000-step refit unless the header says otherwise.
+    def refit(file: str, key: str) -> tuple[int, float]:
+        config = load(file)[key]["config"]
+        return config["steps"], config["lr"]
+
+    spec = (4_000, 1e-3)
+    assert refit("figures/rung4/grades.json", "deep/00010/exact") == spec
+    sizes = load("figures/rung4/sweep.json")["sizes"]
+    for size in ("64x3", "128x3"):
+        assert (sizes[size]["exact"]["config"]["steps"], sizes[size]["exact"]["config"]["lr"]) == spec
+    assert refit("figures/rung4/sweep_128x3_t200.json", "deep/00200/exact") == spec
+    assert refit("figures/rung4/sweep_256x4.json", "deep/00100/exact") == spec
+    assert refit("figures/rung4/sweep_256x4-s8000.json", "deep/00100/exact") == (8_000, 1e-3)
 
 
 def test_the_run_log_scoreboard_quotes_the_committed_grades():

@@ -47,17 +47,19 @@ more than 10%) picked 3 × 128, and the later Mac arms went wider still.
 
 **2. A longer refit helps, by less than a wider net.** Doubling the refit from 4,000 to 8,000
 Adam steps took 3 × 128 from 0.243 to 0.184 at t = 100 (−24%) and 4 × 256 from 0.152 to 0.134
-(−12%). The gain shrinks as the net grows, which is what you would expect if the small net was
+(−12%). The 3 × 128 baseline is the Modal sweep and the 4 × 256 one a Mac run; the rows do
+not depend on W, so each pair saw the same hands. The gain shrinks as the net grows, which is what you would expect if the small net was
 under-fit and the large one is closer to its fit's floor. Early on the longer fit can be worse
 (4 × 256 at t = 20: 0.330 against 0.294), so compare arms at t ≥ 50.
 
-**3. Deep CFR is far ahead of the table early, and the one arm graded past t = 100 is
-flattening.** At equal hands the best arm is 0.134 against LCFR's 1.131 at t = 100, an eighth of
+**3. Deep CFR is far ahead of the table early, and the one arm graded past t = 100 may
+be flattening.** At equal hands the best arm is 0.134 against LCFR's 1.131 at t = 100, an eighth of
 the table's exploitability. The one arm graded at t = 200, 3 × 128, moved from 0.243 (the Modal
-sweep) to 0.234 (a Mac run of the same config) between t = 100 and t = 200, a 4% change on one
+sweep) to 0.234 (a Mac run of the same config, whose own t = 100 mark
+is not graded) between t = 100 and t = 200, a 4% change on one
 seed, while LCFR fell 44% (1.131 → 0.630). 4 × 256 has no grade past t = 100. LCFR reaches 0.264
 at t = 500 and 0.061 at t = 2,000, so if each net stayed at its last grade, LCFR would pass
-3 × 128's 0.234 a little after t = 500 and 4 × 256's 0.134 somewhere between t = 500 and
+3 × 128's 0.234 near t = 500 and 4 × 256's 0.134 somewhere between t = 500 and
 t = 2,000. That is an extrapolation from one seed, not a measurement. Where they cross, and
 whether a bigger fit moves the floor, is the open question rung 4 is now answering.
 
