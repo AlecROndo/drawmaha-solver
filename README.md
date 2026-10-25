@@ -342,7 +342,7 @@ uv run --with modal modal run scripts/deepcfr/modal_rung4.py::grade            #
 uv run deep-analysis                                                          # figures/rung4/price.png and answer_sheet.json
 ```
 
-The sweep's verdict is fixed before its numbers exist: the run uses 3 × 64 unless another size's exact average grades lower by more than 10% of 3 × 64's at 100 iterations. It picked 3 × 128 (0.244 against 3 × 64's 0.382 and 4 × 64's 0.375 at 1M hands per seat, `figures/rung4/sweep.json`). The same loop runs on a Mac with `scripts/deepcfr/run_deep_cfr.py`, and `::grade --local DIR` grades such a run's marks here.
+The sweep's verdict is fixed before its numbers exist: the run uses 3 × 64 unless another size's exact average grades lower by more than 10% of 3 × 64's at 100 iterations. It picked 3 × 128 (0.243 against 3 × 64's 0.382 and 4 × 64's 0.375 at 1M hands per seat, `figures/rung4/sweep.json`). The same loop runs on a Mac with `scripts/deepcfr/run_deep_cfr.py`, and `::grade --local DIR` grades such a run's marks here.
 
 ### The answer so far
 
@@ -350,16 +350,22 @@ The 2,000-iteration Modal run has not been made. A 3 × 64 Modal run was started
 
 | hands per seat | LCFR | 3 × 64 | 3 × 128 | 4 × 256 | 4 × 256, 8,000-step refit |
 |---|---|---|---|---|---|
+| 100k | 3.048 | 0.581 | | | |
 | 200k | 2.697 | 0.444 | | 0.294 | 0.330 |
 | 500k | 1.876 | 0.396 | | 0.173 | 0.167 |
-| 1M | 1.131 | 0.382 | 0.244 | 0.152 | **0.134** |
+| 1M | 1.131 | 0.382 | 0.243 | 0.152 | **0.134** |
 | 2M | 0.630 | | 0.234 | | |
 
-Uniform random play is 4.842 (`figures/rung4/answer_sheet.json`). The 3 × 64 column is the Mac run in `figures/rung4/grades.json` plus the sweep's 1M point, and the others are `figures/rung4/sweep*.json`. Every arm, with its Π and current-iterate grades, is in `docs/notes/rung4-run-log.md`.
+Uniform random play is 4.842 (`figures/rung4/answer_sheet.json`). Every column uses Adam at 1e-3 and a 4,000-step refit unless its header says otherwise. The 3 × 64 column joins two runs of that config: the Mac run in `figures/rung4/grades.json` (W = 8) to 500k, and the Modal sweep (W = 32, `figures/rung4/sweep.json`) at 1M. In the 3 × 128 column, 1M is the Modal sweep and 2M is a separate Mac run (`figures/rung4/sweep_128x3_t200.json`). The 4 × 256 columns are Mac runs (`figures/rung4/sweep_256x4.json`, `figures/rung4/sweep_256x4-s8000.json`). Every arm, with its Π and current-iterate grades, is in `docs/notes/rung4-run-log.md`.
 
 ![Deep CFR ÷ LCFR at equal hands](figures/rung4/price.png)
 
-Four readings, all on one seed. **Width is the lever, and a longer refit helps less.** 3 × 64 → 3 × 128 cut the 1M-hand grade by 36%, while an extra layer did almost nothing at either width. Doubling the refit to 8,000 steps took 12% off 4 × 256. **At 1M hands the best net is an eighth as exploitable as the table.** That is consistent with generalisation: one learned strategy covers spots the table has not yet banked. Equal hands is not equal compute, though: an iteration with two large refits costs far more than ten table updates. **The nets are flattening while the table is not.** 3 × 128 moved from 0.244 to 0.234 between 1M and 2M hands while LCFR halved. LCFR reaches 0.264 at 5M and 0.061 at 20M, so unless a bigger fit lowers the floor, the curves cross near 5M hands. A 4 × 256 arm with a 16,000-step refit at half the learning rate is running to test that, against a stop rule fixed before its grades (`docs/notes/rung4-run-log.md`). **Per-sample DCFR and CFR+ lose to linear by 17×** at 500k hands (2.87 and 3.09 against 0.173) and get worse with training, because testing each sample's sign instead of a running total's erases a bad action's negative regret (`figures/rung4/rule_sign_flips.json`; `docs/notes/regret-rules-dcfr-cfrplus.md`).
+Four readings, all on one seed, so a difference under about 10% is suggestive rather than settled:
+
+- **Width is the lever, and a longer refit helps less.** 3 × 64 → 3 × 128 cut the 1M-hand grade by 36%. An extra layer did less: 2% at 64 wide (0.382 → 0.375) and 9% at 128 wide (0.243 → 0.221, `figures/rung4/sweep_128x4.json`). Doubling the refit to 8,000 steps took 12% off 4 × 256 (0.152 → 0.134).
+- **At 1M hands the best net is an eighth as exploitable as the table** (0.134 against 1.131). That is consistent with generalisation, where one learned strategy covers spots the table has not yet banked, but the share of its rows LCFR had visited at 1M hands is not measured here. Equal hands is not equal compute: an iteration with two large refits costs tens of seconds to minutes of training (`docs/notes/rung4-run-log.md`, finding 6), far more than ten table updates.
+- **The one net graded past 1M hands may be flattening.** 3 × 128 went from 0.243 at 1M (the Modal sweep) to 0.234 at 2M (a Mac run of the same config, whose own 1M mark is not graded), a 4% change inside the one-seed noise band, while LCFR fell 44% (1.131 → 0.630). 4 × 256 has no grade past 1M, so whether it flattens too is not yet known. LCFR reaches 0.264 at 5M and 0.061 at 20M. If the nets stayed where they are, LCFR would pass 3 × 128's 0.234 near 5M hands and 4 × 256's 0.134 somewhere between 5M and 20M; that is an extrapolation, not a measurement. A 4 × 256 arm with a 16,000-step refit at half the learning rate is running to test whether a bigger fit lowers the floor, against a stop rule fixed before its grades (`docs/notes/rung4-run-log.md`).
+- **Per-sample DCFR and CFR+ lose to linear by about 17×** at 500k hands (2.870 and 3.092 against 0.173, 16.6× and 17.9×) and get worse with training. The measured mechanism is consistent with that: testing each sample's sign instead of a running total's lets a bad action's positive samples outvote its negative regret, in a share of cells that grows with t (`figures/rung4/rule_sign_flips.json`; `docs/notes/regret-rules-dcfr-cfrplus.md`).
 
 ## The site
 
@@ -388,6 +394,6 @@ Rung 2's solver is complete and checked against an outside referee: it reaches t
 
 Rung 3 is solved tabularly. Four regret rules raced to 20M hands per seat on Modal, and LCFR won at 0.061 chips/hand by the exact grader. Its average is frozen as a release asset, and the rung ships `minidraw-analysis`, four figures, `minidraw-play`, and the `/rung3` page: the research with its figures and the browser trainer over a pre-dealt pack. Next was rung 4, Deep CFR, with mini-drawmaha itself as the first target.
 
-Rung 4's engine is complete and gated: the loop reproduces rung 3's LCFR bit for bit with a perfect net, a resumed run equals an uninterrupted one, and the exact average replays from the kept nets. The Modal launcher, the grader and the price figure are in; the app is deployed, The net-size sweep picked 3 × 128, and Mac arms since then have reached 0.134 at 1M hands with a 4 × 256 net, an eighth of LCFR's exploitability at equal hands, while flattening. Per-sample DCFR and CFR+ were screened and lose to linear by 17×. Next: settle the refit size with the running 16,000-step arm, then make the paid 2,000-iteration Modal run at the chosen net.
+Rung 4's engine is complete and gated: the loop reproduces rung 3's LCFR bit for bit with a perfect net, a resumed run equals an uninterrupted one, and the exact average replays from the kept nets. The Modal launcher, the grader and the price figure are in; the app is deployed. The net-size sweep picked 3 × 128, and Mac arms since then have reached 0.134 at 1M hands with a 4 × 256 net, an eighth of LCFR's exploitability at equal hands; the one net graded to 2M hands (3 × 128) may be flattening. Per-sample DCFR and CFR+ were screened and lose to linear by about 17×. Next: settle the refit size with the running 16,000-step arm, then the paid 2,000-iteration Modal run at the chosen net, which Alec launches.
 
 One gap worth naming: **CI runs no tests.** The only workflow is an automated code review, so the 500-plus-test suite is run by hand rather than enforced on a pull request. Next: a test job.
