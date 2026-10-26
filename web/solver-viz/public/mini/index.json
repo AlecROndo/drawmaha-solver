@@ -1,11 +1,19 @@
 {
  "strategy": {
   "sha256": "d49f0f3792627cd5b0279956c7b67690af1507b5beec264cbf5e4606f437b6b8",
+  "release": "rung3-lcfr-2m",
+  "asset": "strategy-lcfr-2m.npz",
   "rule": "lcfr",
   "column": "linear",
   "iteration": 2000000,
   "workers": 10,
   "seed": 0
+ },
+ "grade": {
+  "exploitability": 0.06134626307457512,
+  "handsPerSeat": 20000000,
+  "file": "figures/rung3/answer_sheet.json",
+  "key": "frozen_strategy"
  },
  "deck": {
   "ranks": "23456",

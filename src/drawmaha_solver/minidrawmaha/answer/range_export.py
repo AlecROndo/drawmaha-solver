@@ -36,6 +36,20 @@ it, the draw order, both hand scores. The browser ports exactly those four
 pieces of `game.py`/`hands.py` and nothing else, and the fixtures are what
 pin the port to the original. Every number the page shows is read off the
 export; the port only has to NAME things the same way.
+
+The site ships three strategies of the same game, one export each
+(`RELEASES`): rung 3's tabular LCFR average, and rung 4's two Deep CFR
+answers at iteration 500 — Π, the policy net, which is the average a game
+too big for tables can keep, and the exact running average, which
+mini-drawmaha is small enough to hold beside it. Each is a GitHub release
+asset fetched by digest, and each `index.json` carries its grade copied from
+the committed grades file, so the page's status line quotes a number with a
+committed source and the tests hold the copy to the file. The three exports
+share their key tables and their point walk byte for byte — only the chunks
+differ — which is what lets the page switch strategy under a spot without
+changing what the spot's states are. The fixtures depend on the rules alone,
+so exporting another strategy must leave them untouched: `settle_fixtures`
+refuses to overwrite a committed file that differs.
 """
 
 from __future__ import annotations
@@ -81,6 +95,9 @@ from drawmaha_solver.minidrawmaha.rules.hands import (
     outer_score,
 )
 from drawmaha_solver.minidrawmaha.answer.strategy import (
+    RELEASE_TAG,
+    STRATEGY_FILE,
+    STRATEGY_SHA256,
     StrategyInfo,
     fetch_strategy,
     load_strategy,
@@ -156,6 +173,123 @@ FLUSH_PICTURES = (
 )
 
 # ---------------------------------------------------------------------------
+# The releases: the strategies the site ships
+# ---------------------------------------------------------------------------
+
+# The repo root, for the grades files a release names. The package is
+# installed editable, so this file sits under `src/` in the checkout.
+REPO = Path(__file__).resolve().parents[4]
+
+# Where the exports land, relative to the repo root the CLI is run from.
+PUBLIC = Path("web/solver-viz/public")
+
+GITHUB_RELEASES = "https://github.com/AlecROndo/drawmaha-solver/releases/download"
+
+@dataclass(frozen=True, slots=True)
+class Release:
+    """One strategy the site ships: where its file is published, and where its grade is recorded.
+
+    `name` is what `--release` takes and `directory` where the export lands
+    under `web/solver-viz/public/`. The asset is fetched by `tag` and `asset`
+    and refused unless it hashes to `sha256`, so the export is reproducible
+    from a clean checkout. `grade_file` is the committed record the page
+    quotes and `grade_key` the object in it that holds the strategy's
+    `exploitability`; the exporter copies the number into `index.json`, and
+    `test_range_export.py` holds the committed copy to the file.
+    """
+
+    name: str
+    directory: str
+    tag: str
+    asset: str
+    sha256: str
+    grade_file: str
+    grade_key: str
+
+    @property
+    def url(self) -> str:
+        return f"{GITHUB_RELEASES}/{self.tag}/{self.asset}"
+
+    @property
+    def out(self) -> Path:
+        return PUBLIC / self.directory
+
+RELEASES: dict[str, Release] = {
+    release.name: release
+    for release in (
+        Release(
+            name="tabular",
+            directory="mini",
+            tag=RELEASE_TAG,
+            asset=STRATEGY_FILE,
+            sha256=STRATEGY_SHA256,
+            grade_file="figures/rung3/answer_sheet.json",
+            grade_key="frozen_strategy",
+        ),
+        Release(
+            name="deep-pi",
+            directory="mini-deep-pi",
+            tag="rung4-deep-t500",
+            asset="deep-256x4-s16000-lr5e-4-t500-pi.npz",
+            sha256="7aa08383a7f6389bc60633904b050793ed7a3d42cb017c877c3d26ca5a2058a5",
+            grade_file="figures/rung4/sweep_256x4-s16000-lr5e-4.json",
+            grade_key="deep/00500/pi",
+        ),
+        Release(
+            name="deep-exact",
+            directory="mini-deep-exact",
+            tag="rung4-deep-t500",
+            asset="deep-256x4-s16000-lr5e-4-t500-exact.npz",
+            sha256="117c936030b0271c73db516ec4bcedaf83162952ee2a9740e8fd4832424115aa",
+            grade_file="figures/rung4/sweep_256x4-s16000-lr5e-4.json",
+            grade_key="deep/00500/exact",
+        ),
+    )
+}
+
+def release_of(sha256: str) -> Release | None:
+    """The release whose asset hashes to `sha256`, so a local copy of one is treated as it."""
+    return next((release for release in RELEASES.values() if release.sha256 == sha256), None)
+
+@dataclass(frozen=True, slots=True)
+class Grade:
+    """The strategy's exact exploitability as the page quotes it, and where the number was read from."""
+
+    exploitability: float
+    hands_per_seat: int
+    file: str
+    key: str
+
+    def as_json(self) -> dict[str, object]:
+        return {
+            "exploitability": self.exploitability,
+            "handsPerSeat": self.hands_per_seat,
+            "file": self.file,
+            "key": self.key,
+        }
+
+def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Grade:
+    """`release`'s grade from its committed file under `root`.
+
+    The entry's `hands_per_seat` is kept when it is there (rung 4's grades
+    carry it). Rung 3's answer sheet predates the field, and lockstep plays
+    one hand per seat per worker per iteration, so there it is
+    iteration × workers. A file without the key is refused by that key rather
+    than read as a zero the page would then print.
+    """
+    recorded = json.loads((root / release.grade_file).read_text())
+    if release.grade_key not in recorded:
+        raise KeyError(f"{release.grade_file} has no {release.grade_key}; it holds {sorted(recorded)}")
+    entry = recorded[release.grade_key]
+    hands = int(entry.get("hands_per_seat") or info.iteration * info.workers)
+    return Grade(
+        exploitability=float(entry["exploitability"]),
+        hands_per_seat=hands,
+        file=release.grade_file,
+        key=release.grade_key,
+    )
+
+# ---------------------------------------------------------------------------
 # The manifest
 # ---------------------------------------------------------------------------
 
@@ -211,10 +345,19 @@ class PointMeta:
 
 @dataclass(frozen=True, slots=True)
 class Manifest:
-    """`index.json`: where the strategy came from, the deck, the scale, the tables."""
+    """`index.json`: where the strategy came from and how it grades, the deck, the scale, the tables.
+
+    `release` and `grade` are `None` for a file that is not a shipped
+    strategy (a stand-in in the tests, or an experiment exported with
+    `--strategy --out`): the page then has provenance but no number to quote,
+    and says so rather than inventing one.
+    """
 
     info: StrategyInfo
     sha256: str
+    asset: str
+    release: Release | None
+    grade: Grade | None
     scale: int
     shapes: tuple[ShapeMeta, ...]
     points: tuple[PointMeta, ...]
@@ -223,12 +366,15 @@ class Manifest:
         return {
             "strategy": {
                 "sha256": self.sha256,
+                "release": self.release.tag if self.release else None,
+                "asset": self.asset,
                 "rule": self.info.rule,
                 "column": self.info.column,
                 "iteration": self.info.iteration,
                 "workers": self.info.workers,
                 "seed": self.info.seed,
             },
+            "grade": self.grade.as_json() if self.grade else None,
             "deck": {"ranks": RANK_SYMBOL, "suits": SUIT_SYMBOL},
             "scale": self.scale,
             "shapes": {shape.name: shape.as_json() for shape in self.shapes},
@@ -343,6 +489,9 @@ def export_ranges(
     scale: int = SCALE,
     info: StrategyInfo,
     sha256: str,
+    asset: str,
+    release: Release | None = None,
+    grade: Grade | None = None,
 ) -> Manifest:
     """Write `index.json`, one key table per shape and one chunk per point under `out`.
 
@@ -352,7 +501,8 @@ def export_ranges(
     the shapes a decision point stands on get a key table; the chunks are
     gzipped at `GZIP_LEVEL` with no timestamp, so
     the same strategy exports to the same bytes and a re-export shows up in
-    git only when the numbers moved.
+    git only when the numbers moved. `asset` is the strategy file's name,
+    `release` and `grade` its provenance when it is a shipped strategy.
     """
     out.mkdir(parents=True, exist_ok=True)
     for pattern in STALE_PATTERNS:
@@ -378,7 +528,14 @@ def export_ranges(
         metas.append(meta)
 
     manifest = Manifest(
-        info=info, sha256=sha256, scale=scale, shapes=tuple(shapes), points=tuple(metas)
+        info=info,
+        sha256=sha256,
+        asset=asset,
+        release=release,
+        grade=grade,
+        scale=scale,
+        shapes=tuple(shapes),
+        points=tuple(metas),
     )
     (out / "index.json").write_text(json.dumps(manifest.as_json(), indent=1))
     return manifest
@@ -482,36 +639,113 @@ def write_fixtures(path: Path, *, seed: int = 7, n: int = 400) -> int:
     path.write_text(json.dumps({"cases": cases}, separators=(",", ":")))
     return len(cases)
 
+def settle_fixtures(path: Path, *, write: bool = False, seed: int = 7, n: int = 400) -> int:
+    """Write the fixtures to `path` if absent, leave them if identical, refuse if they differ; returns the count.
+
+    The fixtures depend on the rules alone, never on the strategy, so a
+    second export must not change them: a difference means the key, the draw
+    order or a ranking moved, and the browser's port needs re-pinning on
+    purpose — `--write-fixtures` — not as a side effect of exporting another
+    strategy. The fresh file is written beside `path` and compared byte for
+    byte, so the committed file is untouched unless the caller said so, and
+    the fresh one is removed whichever way it goes.
+    """
+    fresh = path.with_name(path.name + ".fresh")
+    try:
+        count = write_fixtures(fresh, seed=seed, n=n)
+        if path.exists() and not write and fresh.read_bytes() != path.read_bytes():
+            raise ValueError(
+                f"the fixtures at {path} differ from the rules' answers; the key, the draw "
+                "order or a ranking moved, so re-pin the browser's port on purpose with "
+                "--write-fixtures and re-export every strategy"
+            )
+        if not path.exists() or write:
+            fresh.replace(path)
+    finally:
+        fresh.unlink(missing_ok=True)
+    return count
+
 # ---------------------------------------------------------------------------
 # The CLI
 # ---------------------------------------------------------------------------
 
 def main(argv: list[str] | None = None) -> None:
-    """Export the ranges and the fixtures from the release strategy, or `--strategy PATH`."""
+    """Export one shipped strategy's ranges (`--release`, default tabular) or a local file's (`--strategy`), and settle the fixtures.
+
+    A local file that hashes to a release's asset is treated as that release
+    — its export lands in the release's directory with its grade — so a copy
+    already on this machine needs no download. Any other file is an
+    experiment: it gets no grade, and `--out` must say where it goes, so an
+    experiment can never overwrite a shipped export by default.
+    """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--out", type=Path, default=Path("web/solver-viz/public/mini"))
+    parser.add_argument(
+        "--release",
+        choices=sorted(RELEASES),
+        help="which shipped strategy to fetch and export (default: tabular)",
+    )
+    parser.add_argument(
+        "--strategy",
+        type=Path,
+        help="a frozen strategy .npz instead of the download; a release's own file is known by its digest",
+    )
+    parser.add_argument(
+        "--out", type=Path, help="the export directory; a release's own under web/solver-viz/public/"
+    )
     parser.add_argument(
         "--fixtures", type=Path, default=Path("web/solver-viz/src/mini/fixtures.json")
     )
-    parser.add_argument("--strategy", type=Path, help="a frozen strategy .npz")
+    parser.add_argument(
+        "--write-fixtures",
+        action="store_true",
+        help="overwrite fixtures that differ (the rules changed on purpose)",
+    )
     parser.add_argument("--scale", type=int, default=SCALE)
     args = parser.parse_args(argv)
 
-    path = args.strategy or fetch_strategy()
-    strategy = load_strategy(path)
-    manifest = export_ranges(
-        strategy, out=args.out, scale=args.scale, info=strategy.info, sha256=sha256_of(path)
-    )
-    cases = write_fixtures(args.fixtures)
+    if args.strategy:
+        path = args.strategy
+        digest = sha256_of(path)
+        release = release_of(digest)
+        if args.release and (release is None or release.name != args.release):
+            raise ValueError(
+                f"{path} hashes to {digest}, not to release {args.release}'s "
+                f"{RELEASES[args.release].sha256}"
+            )
+    else:
+        release = RELEASES[args.release or "tabular"]
+        path = fetch_strategy(url=release.url, sha256=release.sha256)
+        digest = release.sha256
+    if release is None and args.out is None:
+        parser.error(f"{path} is not a shipped strategy; say where its export goes with --out")
+    out = args.out or release.out
 
-    total = sum(file.stat().st_size for file in args.out.iterdir())
-    largest = max(args.out.glob("point-*.bin.gz"), key=lambda file: file.stat().st_size)
+    # The fixtures first: a rules change fails here, before the walk writes anything.
+    cases = settle_fixtures(args.fixtures, write=args.write_fixtures)
+    strategy = load_strategy(path)
+    grade = read_grade(release, strategy.info) if release else None
+    manifest = export_ranges(
+        strategy,
+        out=out,
+        scale=args.scale,
+        info=strategy.info,
+        sha256=digest,
+        asset=path.name,
+        release=release,
+        grade=grade,
+    )
+
+    total = sum(file.stat().st_size for file in out.iterdir())
+    largest = max(out.glob("point-*.bin.gz"), key=lambda file: file.stat().st_size)
+    source = f"release {release.name} ({release.tag}/{release.asset})" if release else str(path)
+    graded = f", exploitability {grade.exploitability:.4f}" if grade else ", no grade"
+    print(f"strategy: {source}{graded}")
     print(
-        f"wrote {len(manifest.points)} points over {len(manifest.shapes)} shapes to {args.out}: "
+        f"wrote {len(manifest.points)} points over {len(manifest.shapes)} shapes to {out}: "
         f"{total / 1e6:.2f} MB, largest chunk {largest.name} at "
         f"{largest.stat().st_size / 1e3:.0f} kB gzipped"
     )
-    print(f"wrote {cases} fixture cases to {args.fixtures} ({args.fixtures.stat().st_size / 1e3:.0f} kB)")
+    print(f"settled {cases} fixture cases at {args.fixtures} ({args.fixtures.stat().st_size / 1e3:.0f} kB)")
 
 if __name__ == "__main__":
     main()
