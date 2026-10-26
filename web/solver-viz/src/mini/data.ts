@@ -57,8 +57,30 @@ export interface ShapeMeta {
   stride: number
 }
 
+/** Where the strategy came from: `release` is the GitHub release tag, or null for a file that is not a shipped one. */
+export interface StrategyMeta {
+  sha256: string
+  release: string | null
+  asset: string
+  rule: string
+  column: string
+  iteration: number
+  workers: number
+  seed: number
+}
+
+/** The exact best response's verdict, copied from the committed grades file (`file`, object `key`) at export time. */
+export interface GradeMeta {
+  exploitability: number
+  handsPerSeat: number
+  file: string
+  key: string
+}
+
 export interface MiniIndex {
-  strategy: { sha256: string; rule: string; column: string; iteration: number; workers: number; seed: number }
+  strategy: StrategyMeta
+  /** null for an export of a strategy nobody graded; the page then quotes nothing */
+  grade: GradeMeta | null
   deck: { ranks: string; suits: string }
   /** a byte in a chunk is probability × scale */
   scale: number
@@ -143,15 +165,26 @@ export class MiniData {
   }
 
   /**
+   * Fetch and check `${base}index.json` alone — enough to name the strategy
+   * and quote its grade before (or without) loading its tables.
+   */
+  static async manifest(base: string, fetcher: Fetcher = defaultFetcher): Promise<MiniIndex> {
+    const index = (await (await fetchOk(fetcher, `${base}index.json`)).json()) as MiniIndex
+    if (!Number.isInteger(index.scale) || index.scale <= 0) throw new Error(`${base}index.json has no positive integer scale: ${String(index.scale)}`)
+    if (!Array.isArray(index.points) || index.points.length === 0) throw new Error(`${base}index.json lists no public points`)
+    if (typeof index.strategy?.rule !== 'string') throw new Error(`${base}index.json names no strategy`)
+    if (index.grade !== null && typeof index.grade?.exploitability !== 'number') throw new Error(`${base}index.json has a grade with no exploitability`)
+    return index
+  }
+
+  /**
    * Fetch `${base}index.json` and the key table of every shape it names.
    * `base` is the directory the exporter wrote to, with its trailing slash
    * (`/solver/mini/`). Throws on a failed fetch, a key table whose length
    * disagrees with its manifest, or a duplicated key.
    */
   static async load(base: string, fetcher: Fetcher = defaultFetcher): Promise<MiniData> {
-    const index = (await (await fetchOk(fetcher, `${base}index.json`)).json()) as MiniIndex
-    if (!Number.isInteger(index.scale) || index.scale <= 0) throw new Error(`index.json has no positive integer scale: ${String(index.scale)}`)
-    if (!Array.isArray(index.points) || index.points.length === 0) throw new Error('index.json lists no public points')
+    const index = await MiniData.manifest(base, fetcher)
     const names = Object.keys(index.shapes)
     const tables = await Promise.all(
       names.map(async (name) => {

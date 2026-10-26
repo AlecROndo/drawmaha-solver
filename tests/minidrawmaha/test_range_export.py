@@ -8,6 +8,8 @@ and that is the cost worth paying once, not per test.
 
 import gzip
 import json
+import re
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -39,18 +41,26 @@ from drawmaha_solver.minidrawmaha.rules.hands import (
     outer_score,
 )
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.answer import range_export
 from drawmaha_solver.minidrawmaha.answer.range_export import (
     ACTION_CODE,
     FLUSH_PICTURES,
+    RELEASES,
+    REPO,
     SCALE,
     encode_keys,
     main,
     point_meta,
     quantise,
+    read_grade,
+    release_of,
+    settle_fixtures,
+    sha256_of,
     shape_name,
     write_fixtures,
 )
 from drawmaha_solver.minidrawmaha.answer.strategy import (
+    RELEASE_URL,
     STRATEGY_SHA256,
     FrozenStrategy,
     StrategyInfo,
@@ -60,8 +70,9 @@ from drawmaha_solver.minidrawmaha.answer.strategy import (
 
 INFO = StrategyInfo(rule="test", column="linear", iteration=1, seed=0, workers=1)
 
-# The export of the release strategy as committed for `/solver`.
-COMMITTED = Path(__file__).resolve().parents[2] / "web" / "solver-viz" / "public" / "mini"
+# The exports of the released strategies as committed for `/solver`, one directory each.
+PUBLIC = Path(__file__).resolve().parents[2] / "web" / "solver-viz" / "public"
+COMMITTED = PUBLIC / "mini"
 
 # The rows the stand-in pins away from uniform: (which point, which key, the mix).
 ROOT_MIX = (0.3, 0.7)
@@ -327,44 +338,263 @@ def test_a_draw_point_s_uniform_rows_quantise_to_63_63_62_62(exported, manifest)
 # themselves need the 18 MB release file and are not re-derived.
 
 
-@pytest.fixture(scope="module")
-def committed():
-    assert COMMITTED.is_dir(), f"the committed export is missing at {COMMITTED}"
-    return json.loads((COMMITTED / "index.json").read_text())
+def _committed(release):
+    out = PUBLIC / release.directory
+    assert out.is_dir(), f"the committed export of {release.name} is missing at {out}"
+    return out, json.loads((out / "index.json").read_text())
 
 
-def test_the_committed_manifest_names_the_release_strategy_at_this_scale(committed):
-    assert committed["strategy"]["sha256"] == STRATEGY_SHA256
-    assert committed["scale"] == SCALE
-    assert committed["deck"] == {"ranks": "23456", "suits": "cdh"}
+@pytest.fixture(scope="module", params=sorted(RELEASES), ids=sorted(RELEASES))
+def committed(request):
+    """One committed export: the release, its directory and its manifest, once per release."""
+    release = RELEASES[request.param]
+    return (release, *_committed(release))
+
+
+def test_the_committed_manifest_names_its_release_and_its_grade(committed):
+    release, _, manifest = committed
+    assert manifest["strategy"]["sha256"] == release.sha256
+    assert manifest["strategy"]["release"] == release.tag
+    assert manifest["strategy"]["asset"] == release.asset
+    assert manifest["scale"] == SCALE
+    assert manifest["deck"] == {"ranks": "23456", "suits": "cdh"}
+    # The grade is copied at export time; a re-grade without a re-export must fail here.
+    recorded = json.loads((REPO / release.grade_file).read_text())[release.grade_key]
+    assert manifest["grade"]["exploitability"] == recorded["exploitability"]
+    assert manifest["grade"]["file"] == release.grade_file
+    assert manifest["grade"]["key"] == release.grade_key
+    assert manifest["grade"]["handsPerSeat"] > 0
 
 
 def test_the_committed_manifest_is_the_current_point_walk(committed):
+    _, _, manifest = committed
     points = public_decision_points()
-    assert committed["points"] == [
+    assert manifest["points"] == [
         point_meta(point, index).as_json() for index, point in enumerate(points)
     ]
 
 
 def test_the_committed_key_tables_are_the_current_private_keys(committed):
-    assert set(committed["shapes"]) == set(EXPECTED_SHAPES)
-    for name, shape in committed["shapes"].items():
+    _, out, manifest = committed
+    assert set(manifest["shapes"]) == set(EXPECTED_SHAPES)
+    for name, shape in manifest["shapes"].items():
         board_cards, discards = int(name[1]), int(name[3])
         expected = encode_keys(private_keys(board_cards=board_cards, discards=discards))
         assert (shape["n"], shape["stride"]) == expected.shape
-        assert (COMMITTED / shape["file"]).read_bytes() == expected.tobytes(), name
-    assert sorted(path.name for path in COMMITTED.glob("keys-*.bin")) == sorted(
-        shape["file"] for shape in committed["shapes"].values()
+        assert (out / shape["file"]).read_bytes() == expected.tobytes(), name
+    assert sorted(path.name for path in out.glob("keys-*.bin")) == sorted(
+        shape["file"] for shape in manifest["shapes"].values()
     )
 
 
 def test_every_committed_chunk_is_well_formed_and_none_is_stale(committed):
-    for meta in committed["points"]:
-        sums = _chunk(COMMITTED, meta).sum(axis=1, dtype=np.int64)
-        assert (sums == committed["scale"]).all(), meta["file"]
-    assert sorted(path.name for path in COMMITTED.glob("point-*.bin.gz")) == sorted(
-        meta["file"] for meta in committed["points"]
+    _, out, manifest = committed
+    for meta in manifest["points"]:
+        sums = _chunk(out, meta).sum(axis=1, dtype=np.int64)
+        assert (sums == manifest["scale"]).all(), meta["file"]
+    assert sorted(path.name for path in out.glob("point-*.bin.gz")) == sorted(
+        meta["file"] for meta in manifest["points"]
     )
+
+
+def test_the_three_committed_exports_differ_only_in_their_chunks():
+    """The switch keeps the spot and the filters, which is only honest if the states are shared."""
+    tabular, manifest = _committed(RELEASES["tabular"])
+    for name in ("deep-pi", "deep-exact"):
+        out, other = _committed(RELEASES[name])
+        assert other["points"] == manifest["points"]
+        assert other["shapes"] == manifest["shapes"]
+        for shape in manifest["shapes"].values():
+            assert (out / shape["file"]).read_bytes() == (tabular / shape["file"]).read_bytes()
+        assert other["strategy"]["sha256"] != manifest["strategy"]["sha256"]
+
+
+def test_pi_is_a_real_mix_where_the_exact_average_is_flat():
+    """The design record's claim about an unvisited row, checked on the committed exports.
+
+    The exact average is uniform at a row Deep CFR never visited (an empty
+    row averages to uniform); Π, a net, generalises there from the rows it
+    did see. So over every row where the exact export holds the flat byte
+    row, Π should hold something else nearly everywhere — on the shipped
+    t = 500 exports it is 1,207,173 such rows and Π is flat at 711 of them.
+    The bar is loose (nine in ten) so a re-export at another mark passes;
+    a Π that came out flat at unvisited rows would fail it by a mile.
+    """
+    _, exact_manifest = _committed(RELEASES["deep-exact"])
+    exact_out = PUBLIC / RELEASES["deep-exact"].directory
+    pi_out = PUBLIC / RELEASES["deep-pi"].directory
+    flat_in_exact = flat_in_both = 0
+    for meta in exact_manifest["points"]:
+        width = len(meta["actions"])
+        flat = quantise(np.full((1, width), 1 / width), scale=exact_manifest["scale"])[0]
+        exact_flat = (_chunk(exact_out, meta) == flat).all(axis=1)
+        pi_flat = (_chunk(pi_out, meta) == flat).all(axis=1)
+        flat_in_exact += int(exact_flat.sum())
+        flat_in_both += int((exact_flat & pi_flat).sum())
+    # Deep CFR at t = 500 has left a good share of the 6.2 million rows unvisited.
+    assert flat_in_exact > 100_000, flat_in_exact
+    assert flat_in_both < flat_in_exact / 10, (flat_in_both, flat_in_exact)
+
+
+# ---------------------------------------------------------------------------
+# The releases
+# ---------------------------------------------------------------------------
+
+
+def test_the_three_releases_have_their_own_directories_and_digests():
+    assert set(RELEASES) == {"tabular", "deep-pi", "deep-exact"}
+    assert len({release.directory for release in RELEASES.values()}) == 3
+    assert len({release.sha256 for release in RELEASES.values()}) == 3
+    assert RELEASES["tabular"].sha256 == STRATEGY_SHA256
+    assert RELEASES["tabular"].url == RELEASE_URL
+    assert RELEASES["tabular"].directory == "mini"
+    for name, release in RELEASES.items():
+        assert release.name == name
+        assert release.out == Path("web/solver-viz/public") / release.directory
+        assert release.url.endswith(f"/{release.tag}/{release.asset}")
+        assert (REPO / release.grade_file).exists(), release.grade_file
+
+
+def test_release_of_finds_a_release_by_digest_and_nothing_otherwise():
+    assert release_of(STRATEGY_SHA256) is RELEASES["tabular"]
+    assert release_of(RELEASES["deep-exact"].sha256) is RELEASES["deep-exact"]
+    assert release_of("0" * 64) is None
+
+
+def test_read_grade_quotes_the_committed_grades_files():
+    lcfr = StrategyInfo(rule="lcfr", column="linear", iteration=2_000_000, seed=0, workers=10)
+    tabular = read_grade(RELEASES["tabular"], lcfr)
+    sheet = json.loads((REPO / "figures/rung3/answer_sheet.json").read_text())
+    assert tabular.exploitability == sheet["frozen_strategy"]["exploitability"]
+    # Lockstep plays one hand per seat per worker per iteration.
+    assert tabular.hands_per_seat == 20_000_000
+    assert (tabular.file, tabular.key) == ("figures/rung3/answer_sheet.json", "frozen_strategy")
+
+    deep = StrategyInfo(rule="deep", column="pi", iteration=500, seed=0, workers=0)
+    pi = read_grade(RELEASES["deep-pi"], deep)
+    grades = json.loads((REPO / RELEASES["deep-pi"].grade_file).read_text())
+    assert pi.exploitability == grades["deep/00500/pi"]["exploitability"]
+    assert pi.hands_per_seat == 5_000_000
+    assert pi.key == "deep/00500/pi"
+
+
+def test_read_grade_refuses_a_grades_file_without_the_key(tmp_path):
+    (tmp_path / "grades.json").write_text(json.dumps({"deep/00500/exact": {"exploitability": 0.1}}))
+    orphan = replace(RELEASES["deep-pi"], grade_file="grades.json")
+    deep = StrategyInfo(rule="deep", column="pi", iteration=500, seed=0, workers=0)
+    with pytest.raises(KeyError, match="deep/00500/pi"):
+        read_grade(orphan, deep, root=tmp_path)
+
+
+def test_read_grade_names_a_missing_grades_file(tmp_path):
+    deep = StrategyInfo(rule="deep", column="pi", iteration=500, seed=0, workers=0)
+    with pytest.raises(FileNotFoundError, match=re.escape(RELEASES["deep-pi"].grade_file)):
+        read_grade(RELEASES["deep-pi"], deep, root=tmp_path)
+
+
+def test_read_grade_refuses_a_deep_entry_that_records_no_hands(tmp_path):
+    """A deep strategy has workers=0, so without `hands_per_seat` the fallback is 0 × iteration."""
+    (tmp_path / "grades.json").write_text(json.dumps({"deep/00500/pi": {"exploitability": 0.1}}))
+    bare = replace(RELEASES["deep-pi"], grade_file="grades.json")
+    deep = StrategyInfo(rule="deep", column="pi", iteration=500, seed=0, workers=0)
+    with pytest.raises(ValueError, match="500 × 0"):
+        read_grade(bare, deep, root=tmp_path)
+    # The tabular fallback still stands where lockstep gives it meaning.
+    lcfr = StrategyInfo(rule="lcfr", column="linear", iteration=500, seed=0, workers=10)
+    assert read_grade(bare, lcfr, root=tmp_path).hands_per_seat == 5_000
+    # A recorded zero is a recorded zero, not a missing field: no fallback hides it.
+    (tmp_path / "grades.json").write_text(
+        json.dumps({"deep/00500/pi": {"exploitability": 0.1, "hands_per_seat": 0}})
+    )
+    with pytest.raises(ValueError, match="hands_per_seat = 0"):
+        read_grade(bare, lcfr, root=tmp_path)
+    # A float would be truncated silently by int(), and a bool is an int to isinstance;
+    # neither is a count of hands, so neither is read.
+    for not_a_count in (5e6, 1.5, True):
+        (tmp_path / "grades.json").write_text(
+            json.dumps({"deep/00500/pi": {"exploitability": 0.1, "hands_per_seat": not_a_count}})
+        )
+        with pytest.raises(ValueError, match="not an integer"):
+            read_grade(bare, lcfr, root=tmp_path)
+
+
+def test_a_stand_in_export_names_no_release_and_no_grade(manifest):
+    assert manifest["strategy"]["release"] is None
+    assert manifest["strategy"]["asset"] == "standin.npz"
+    assert manifest["grade"] is None
+
+
+def test_a_strategy_that_is_no_release_needs_an_out_directory(exported, tmp_path):
+    out, _, _ = exported
+    with pytest.raises(SystemExit):
+        main(["--strategy", str(out.parent / "standin.npz"), "--fixtures", str(tmp_path / "f.json")])
+    assert not (tmp_path / "f.json").exists()
+
+
+def test_naming_a_release_the_file_does_not_hash_to_is_refused(exported, tmp_path):
+    out, _, _ = exported
+    saved = out.parent / "standin.npz"
+    with pytest.raises(ValueError, match="deep-pi"):
+        main(["--release", "deep-pi", "--strategy", str(saved), "--out", str(tmp_path / "mini"), "--fixtures", str(tmp_path / "f.json")])
+    assert not (tmp_path / "mini").exists()
+
+
+def test_a_local_file_that_hashes_to_a_release_exports_as_that_release(exported, tmp_path, monkeypatch):
+    """The documented shortcut: a copy already on this machine is known by its digest and needs no download."""
+    out, _, _ = exported
+    saved = out.parent / "standin.npz"
+    grades = tmp_path / "grades.json"
+    grades.write_text(json.dumps({"test/standin": {"exploitability": 0.25, "hands_per_seat": 7}}))
+    # `grade_file` is joined onto the repo root; an absolute path survives the join.
+    standin = replace(
+        RELEASES["deep-pi"], sha256=sha256_of(saved), grade_file=str(grades), grade_key="test/standin"
+    )
+    monkeypatch.setattr(range_export, "RELEASES", {standin.name: standin})
+    main(["--release", "deep-pi", "--strategy", str(saved), "--out", str(tmp_path / "mini"), "--fixtures", str(tmp_path / "f.json")])
+    manifest = json.loads((tmp_path / "mini" / "index.json").read_text())
+    assert manifest["strategy"]["sha256"] == standin.sha256
+    assert manifest["strategy"]["release"] == standin.tag
+    assert manifest["strategy"]["asset"] == "standin.npz"
+    assert manifest["grade"] == {"exploitability": 0.25, "handsPerSeat": 7, "file": str(grades), "key": "test/standin"}
+
+
+# ---------------------------------------------------------------------------
+# Settling the fixtures
+# ---------------------------------------------------------------------------
+
+
+def test_settle_fixtures_writes_a_missing_file_and_leaves_an_identical_one_alone(tmp_path):
+    path = tmp_path / "fixtures.json"
+    assert settle_fixtures(path) == 400 + len(FLUSH_PICTURES)
+    written = path.read_bytes()
+    assert settle_fixtures(path) == 400 + len(FLUSH_PICTURES)
+    assert path.read_bytes() == written
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["fixtures.json"]
+
+
+def test_settle_fixtures_refuses_a_committed_file_that_differs_unless_told_to_write(tmp_path):
+    path = tmp_path / "fixtures.json"
+    path.write_text("{}")
+    with pytest.raises(ValueError, match=re.escape(str(path))):
+        settle_fixtures(path)
+    assert path.read_text() == "{}"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["fixtures.json"]
+    settle_fixtures(path, write=True)
+    written = path.read_bytes()
+    assert json.loads(written)["cases"]
+    # told to write over an identical file, it writes the same bytes and leaves nothing beside
+    settle_fixtures(path, write=True)
+    assert path.read_bytes() == written
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["fixtures.json"]
+
+
+def test_main_settles_the_fixtures_before_it_writes_any_export(exported, tmp_path):
+    out, _, _ = exported
+    stale = tmp_path / "fixtures.json"
+    stale.write_text("{}")
+    with pytest.raises(ValueError, match=re.escape(str(stale))):
+        main(["--strategy", str(out.parent / "standin.npz"), "--out", str(tmp_path / "mini"), "--fixtures", str(stale)])
+    assert not (tmp_path / "mini").exists()
 
 
 # ---------------------------------------------------------------------------

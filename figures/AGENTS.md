@@ -31,6 +31,16 @@ this machine after the sweep (`sweep_128x3_t200.json`, `sweep_128x3-s8000.json`,
 differs from the spec's; each grade carries the full config. Which arm is which,
 and what they showed, is `docs/notes/rung4-run-log.md`.
 
+Two of these files are also what `/solver` quotes. `rung3/answer_sheet.json`'s
+`frozen_strategy` object and the Π and exact objects of mark 500 in
+`rung4/sweep_256x4-s16000-lr5e-4.json` are the grades of the three released
+strategies the range exporter ships (`RELEASES` in
+`src/drawmaha_solver/minidrawmaha/answer/range_export.py`); each export's
+`index.json` under `web/solver-viz/public/` carries a copy, written at export
+time and held to the file by `tests/minidrawmaha/test_range_export.py`. A
+re-grade of one of those marks therefore means re-exporting its strategy
+(`uv run minidraw-ranges --release <name>`) in the same change.
+
 `rung4/rule_dcfr-256x4.json` and `rung4/rule_cfrplus-256x4.json` grade the
 regret-rule screen: the 256 × 4 net trained to 50 iterations on this machine
 by `run_deep_cfr.py --rule dcfr` and `--rule cfr+`, its marks graded by

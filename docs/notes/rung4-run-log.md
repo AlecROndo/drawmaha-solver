@@ -28,7 +28,7 @@ the same config see identical data. Only the refit's arithmetic order can differ
 | 4 × 128 | Mac | 4 × 128 | 4,000 | 1e-3 | | | 0.220 | 0.221 | | `figures/rung4/sweep_128x4.json` |
 | 4 × 256 | Mac | 4 × 256 | 4,000 | 1e-3 | | 0.294 | 0.173 | 0.152 | | `figures/rung4/sweep_256x4.json` |
 | **4 × 256, double fit** | Mac (cpu, then mps from t = 37) | 4 × 256 | 8,000 | 1e-3 | | 0.330 | 0.167 | **0.134** | | `figures/rung4/sweep_256x4-s8000.json` |
-| 4 × 256, 4× fit, half rate | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 0.643 | running | | | | `figures/rung4/sweep_256x4-s16000-lr5e-4.json` |
+| 4 × 256, 4× fit, half rate (to t = 500: 0.108) | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 0.643 | 0.330 | 0.169 | 0.133 | 0.115 | `figures/rung4/sweep_256x4-s16000-lr5e-4.json` |
 | DCFR screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 1.515 | 2.227 | 2.870 | | | `figures/rung4/rule_dcfr-256x4.json` |
 | CFR+ screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 2.539 | 2.858 | 3.092 | | | `figures/rung4/rule_cfrplus-256x4.json` |
 
@@ -57,11 +57,15 @@ be flattening.** At equal hands the best arm is 0.134 against LCFR's 1.131 at t 
 the table's exploitability. The one arm graded at t = 200, 3 × 128, moved from 0.243 (the Modal
 sweep) to 0.234 (a Mac run of the same config, whose own t = 100 mark
 is not graded) between t = 100 and t = 200, a 4% change on one
-seed, while LCFR fell 44% (1.131 → 0.630). 4 × 256 has no grade past t = 100. LCFR reaches 0.264
-at t = 500 and 0.061 at t = 2,000, so if each net stayed at its last grade, LCFR would pass
-3 × 128's 0.234 near t = 500 and 4 × 256's 0.134 somewhere between t = 500 and
-t = 2,000. That is an extrapolation from one seed, not a measurement. Where they cross, and
-whether a bigger fit moves the floor, is the open question rung 4 is now answering.
+seed, while LCFR fell 44% (1.131 → 0.630). The 16,000-step 4 × 256 arm — a different net and
+a different fit, so a second reading rather than a confirmation — is the one net graded to 5M
+hands, and its curve has the same shape: its exact average went 0.133 → 0.115 → 0.108
+from t = 100 to t = 200 to t = 500 (−19% over five times the hands) while LCFR went
+1.131 → 0.630 → 0.264 (−77%). At t = 500 Deep CFR is still 2.4× better at equal hands, but LCFR
+reaches 0.061 at t = 2,000, so if the net stays near 0.108 the table passes it somewhere between
+t = 500 and t = 2,000. That is one seed, and whether a bigger net or a different fit moves the
+floor is the open question; the arm was stopped at t = 506 and its two averages at t = 500 are
+what `/solver` shows beside the table (below).
 
 **4. The three graded objects usually order exact < Π < current, not always.** The exact
 average beats Π at every graded mark of every linear arm. The current iterate is usually worst
@@ -89,9 +93,10 @@ them has been graded. Because the sweep superseded its net size, it is a dead ar
 would only be worth grading as a Modal-vs-Mac reproducibility check of
 `figures/rung4/grades.json`, which is the same config.
 
-## The running arm: 4 × 256, 16,000 steps at half the learning rate
+## The 16,000-step arm: 4 × 256 at half the learning rate, run to t = 506, graded to t = 500, flat
 
-`runs/sweep-256x4-s16000-lr5e-4`, started 2026-10-25 02:11 EDT on this Mac:
+`runs/sweep-256x4-s16000-lr5e-4`, started 2026-10-25 02:11 EDT on this Mac and stopped at
+t = 506 on 2026-10-26 once the t = 500 grade showed the curve had flattened:
 
     uv run --extra deep python scripts/deepcfr/run_deep_cfr.py --out runs/sweep-256x4-s16000-lr5e-4 \
         --target 1000 --walks 10000 --workers 16 --width 256 --depth 4 --steps 16000 \
@@ -107,6 +112,19 @@ same 10% bar the size sweep used). If it is not, the extra fit buys nothing at t
 and the remaining ~38 hours are better spent elsewhere. t = 50 (bar: 0.167) is an early warning
 only, because a longer fit has been worse early before (finding 2).
 
+**What it said.** The exact average at t = 100 was 0.133 — under the double-fit arm's 0.134 by
+less than 1%, nowhere near the 0.121 bar — so by the rule the longer fit buys nothing at this
+net size. The arm was run on anyway to see the shape of the curve past 1M hands, which no other
+net had shown: 0.115 at t = 200 and 0.108 at t = 500 (Π 0.136, the current iterate 0.265), and
+it was stopped at t = 506. Finding 3 reads the slope. The marks t = 10, 20 and 50 were graded
+after the fact so the file holds every kept mark.
+
+**What shipped from it.** Its two averages at t = 500 are the release `rung4-deep-t500`
+(`deep-256x4-s16000-lr5e-4-t500-pi.npz` and `…-exact.npz`, the files `grade` wrote under
+`runs/…/frozen/`), and `uv run minidraw-ranges --release deep-pi` / `--release deep-exact`
+export them for `/solver`, where a switch shows either beside rung 3's tabular strategy with
+the grade quoted from this file (see `figures/AGENTS.md`).
+
 Grade a mark as it lands, without Modal spend:
 
     uv run --extra deep --with modal modal run scripts/deepcfr/modal_rung4.py::grade \
@@ -114,12 +132,13 @@ Grade a mark as it lands, without Modal spend:
         --grades figures/rung4/sweep_256x4-s16000-lr5e-4.json
 
 A grade takes several minutes and competes with the trainer for cores, so grade one mark at a
-time.
+time while a trainer is live.
 
 ## Not yet run
 
-- The 2,000-iteration Modal run at the chosen size. It was the spec's headline and is now
-  waiting on the running arm's answer about fit size.
+- The 2,000-iteration Modal run at the chosen size. It was the spec's headline. The
+  16,000-step arm answered the fit-size question in the negative (a longer refit does not move
+  the 4 × 256 floor), so the run's net and refit are Alec's call from the arms above.
 - The tᵞ sample-weight arm (γ = 0 vanilla, γ = 2 quadratic). Linear is γ = 1.
 - A second seed for any arm. Every comparison above is one seed, so differences under ~10% are
   suggestive, not settled.

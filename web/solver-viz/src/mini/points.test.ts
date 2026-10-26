@@ -17,7 +17,8 @@ const POINTS: PointMeta[] = [
 ]
 
 const index: MiniIndex = {
-  strategy: { sha256: '', rule: 'lcfr', column: 'linear', iteration: 2_000_000, workers: 10, seed: 0 },
+  strategy: { sha256: '', release: null, asset: '', rule: 'lcfr', column: 'linear', iteration: 2_000_000, workers: 10, seed: 0 },
+  grade: null,
   deck: { ranks: '23456', suits: 'cdh' },
   scale: 250,
   shapes: {},

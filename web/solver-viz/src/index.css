@@ -1527,6 +1527,60 @@ button.lrow:hover {
   border-top: 0;
 }
 
+/* The strategy switch: a labelled segmented control above the score; the
+   buttons are the stylesheet's .seg pressables, so they already press,
+   hover and quiet under reduced motion like every other segment. */
+.strat {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 22px 0 -8px;
+}
+
+.strat .lbl {
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+}
+
+/* The three choices share one row and the hint takes the next. */
+.strat .seg {
+  flex: 1 1 0;
+  flex-wrap: nowrap;
+}
+
+.strat .seg button {
+  flex: 1 1 0;
+  text-align: left;
+  padding: 7px 11px;
+}
+
+.strat .hint {
+  flex-basis: 100%;
+}
+
+.strat .seg button b {
+  display: block;
+  font-weight: 500;
+}
+
+.strat .seg button span {
+  display: block;
+  margin-top: 3px;
+  color: var(--iv-45);
+}
+
+.strat .seg button.on span {
+  color: var(--iv-60);
+}
+
+.strat .hint {
+  font: 400 11px/1.4 var(--mono);
+  color: var(--iv-45);
+}
+
 .score .chips {
   gap: 6px;
   flex-wrap: wrap;
