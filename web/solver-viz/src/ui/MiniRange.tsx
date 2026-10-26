@@ -1,10 +1,19 @@
 /**
- * Mini-drawmaha's range window, over the rung-3 frozen LCFR strategy: the
- * two-lane score with the hand so far and the next actions, then the window
- * — the spot header whose controls open the secondary views, the two-half
- * grid beside the ribbon and the plane, the ledger under the grid, the draw
- * board in the grid's place at a draw decision — and, on the second tab,
- * the other seat's range beside yours with exact showdown equities.
+ * Mini-drawmaha's range window, over a frozen strategy: the two-lane score
+ * with the hand so far and the next actions, then the window — the spot
+ * header whose controls open the secondary views, the two-half grid beside
+ * the ribbon and the plane, the ledger under the grid, the draw board in
+ * the grid's place at a draw decision — and, on the second tab, the other
+ * seat's range beside yours with exact showdown equities.
+ *
+ * Which strategy is a switch above the score (`mini/strategies.ts`): rung
+ * 3's tabular LCFR average, or rung 4's Deep CFR at iteration 500 as Π, the
+ * policy net, or as the exact average. The switch changes one thing, the
+ * export the ranges are read from; the line, the held cards, the filters,
+ * the pin and the sort are view state and stay put, which is honest because
+ * the three exports enumerate the same states at every spot and differ only
+ * in each state's mix. The status line names the strategy showing and
+ * quotes its graded exploitability, both read from the loaded manifest.
  *
  * Every number is the solver's, read from its export and exact to that
  * export's 1/250 rounding (`mini/range.ts`). The actor's range at a decision
@@ -19,15 +28,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import type { TabId } from '../App'
 import { type Cell, type GridView, type RibbonKey, deckStats, density, drawTable, examples, gridView, keyValue, percentileOf, ribbon } from '../engine/aggregate'
 import type { RangeTable } from '../engine/table'
 import { type MiniCard, MINI_SUIT_GLYPH, miniGlyph, parseMini } from '../mini/cards'
 import { drawOrder } from '../mini/canonical'
-import { MiniData } from '../mini/data'
+import { MiniData, type MiniIndex } from '../mini/data'
 import type { MiniSpot } from '../mini/points'
 import { type MiniRange as Range, equities, reachRange } from '../mini/range'
 import { MINI_INNER_ROWS, MINI_R1_COLS, MINI_R2_COLS } from '../mini/regions'
+import { STRATEGIES, Strategies, type StrategyId, describeStrategy, strategyChoice } from '../mini/strategies'
 import { CardFace, MixBar, actionWord, count, pct, pct0 } from './bars'
 import { Deck } from './Deck'
 import { DrawBoard } from './DrawBoard'
@@ -38,6 +47,7 @@ import { type MiniLine, MiniScore, decisionOf, linesOf, nextOptions } from './Mi
 import { Panes } from './Panes'
 import { Plane } from './Plane'
 import { Ribbon } from './Ribbon'
+import type { TabId } from './hash'
 import { Sheet } from './Sheet'
 import { Panel } from './site'
 import { Thumb } from './Versus'
@@ -64,8 +74,9 @@ function miniGame(boardCards: 1 | 2): GameUI {
   }
 }
 
-/** The actor's range and the other seat's, with the equities between them, at one spot. */
+/** The actor's range and the other seat's, with the equities between them, at one spot, under one export. */
 interface Ranges {
+  data: MiniData
   spot: MiniSpot
   mine: Range
   theirs: Range
@@ -118,18 +129,44 @@ function spotOf(line: MiniLine): MiniSpot | null {
 
 const spotKey = (s: MiniSpot | null): string => (s === null ? '' : JSON.stringify(s))
 
-export function MiniRange({ tab }: { tab: TabId }) {
+export function MiniRange({ tab, strategy, onStrategy }: { tab: TabId; strategy: StrategyId; onStrategy: (s: StrategyId) => void }) {
+  // One loader for the page: a manifest per strategy for the switch's grades, full data for whichever is shown.
+  const [set] = useState(() => new Strategies(import.meta.env.BASE_URL))
+  const [manifests, setManifests] = useState<Partial<Record<StrategyId, MiniIndex>>>({})
+  useEffect(() => {
+    let live = true
+    for (const s of STRATEGIES) {
+      set
+        .manifest(s.id)
+        .then((m) => live && setManifests((have) => ({ ...have, [s.id]: m })))
+        // A sibling's manifest failing only costs its button the grade; choosing it reports the error below.
+        .catch(() => undefined)
+    }
+    return () => {
+      live = false
+    }
+  }, [set])
+
+  // The data shown is the chosen strategy's; while the next loads, the last stays up and the status line says so.
   const [data, setData] = useState<MiniData | null>(null)
+  const [shown, setShown] = useState<StrategyId | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   useEffect(() => {
     let live = true
-    MiniData.load(`${import.meta.env.BASE_URL}mini/`)
-      .then((d) => live && setData(d))
+    setLoadError(null)
+    set
+      .data(strategy)
+      .then((d) => {
+        if (!live) return
+        setData(d)
+        setShown(strategy)
+      })
       .catch((e: unknown) => live && setLoadError(e instanceof Error ? e.message : String(e)))
     return () => {
       live = false
     }
-  }, [])
+  }, [set, strategy])
+  const switching = shown !== strategy
 
   const [line, setLine] = useState<MiniLine>({ board1: parseMini('4h'), r1: '', draws: [], board2: null, r2: '' })
   const [picking, setPicking] = useState<1 | 2 | null>(null)
@@ -171,7 +208,7 @@ export function MiniRange({ tab }: { tab: TabId }) {
       const theirs = await reachRange(data, spot, (1 - spot.player) as 0 | 1, held)
       const eq = equities(mine, theirs)
       if (live) {
-        setRanges({ spot, mine, theirs, eq })
+        setRanges({ data, spot, mine, theirs, eq })
         setComputing(false)
       }
     })().catch((e: unknown) => {
@@ -187,7 +224,8 @@ export function MiniRange({ tab }: { tab: TabId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, key, held])
 
-  const current = ranges && spotKey(ranges.spot) === key ? ranges : null
+  // Ranges computed under another export are stale the moment the switch flips: the status line and the numbers must agree.
+  const current = ranges && ranges.data === data && spotKey(ranges.spot) === key ? ranges : null
   const table = useMemo(() => (current ? tableOf(current, current.spot.board.length as 1 | 2) : null), [current])
 
   // The mask: whole rows, whole columns, and the states holding every held card.
@@ -294,13 +332,33 @@ export function MiniRange({ tab }: { tab: TabId }) {
     [current],
   )
 
-  const strategy = data?.index.strategy
+  const words = data ? describeStrategy(data.index) : null
   const title =
     decision.kind === 'bet' ? `Seat ${decision.player} to act, round ${decision.round}` : decision.kind === 'draw' ? `Seat ${decision.player} to draw` : decision.kind === 'board2' ? 'Board card 2 is owed' : decision.why === 'fold' ? 'The hand ended on a fold' : 'Showdown'
   const sub = current ? `${count(current.mine.n)} private states · ${current.spot.board.length === 1 ? 'one board card: the inner half can be scored now, the outer half cannot' : 'both board cards out: both halves scored exactly'}` : loadError ? '' : computing ? 'computing the exact range…' : data ? 'click a chip to rewind' : 'loading the strategy’s export…'
 
   return (
     <>
+      <div className="block strat" role="radiogroup" aria-label="the strategy showing">
+        <span className="lbl">strategy</span>
+        <div className="seg">
+          {STRATEGIES.map((s) => {
+            const m = manifests[s.id]
+            const g = m ? describeStrategy(m).grade : null
+            return (
+              <button key={s.id} type="button" role="radio" aria-checked={strategy === s.id} className={strategy === s.id ? 'on' : ''} onClick={() => onStrategy(s.id)}>
+                <b>{s.label}</b>
+                <span>
+                  {s.blurb}
+                  {g ? ` · exploitability ${g}` : ''}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <span className="hint">the spot, your cards and the filters stay; the strategy under them changes</span>
+      </div>
+
       <div className="block">
         <Panel n="01" k="the hand so far — click a chip to rewind, a board card to change it" wide>
           <MiniScore game={game} line={line} onLine={onLine} picking={picking} onPick={setPicking} shares={shares} />
@@ -445,10 +503,21 @@ export function MiniRange({ tab }: { tab: TabId }) {
             </div>
             <div className="statusbar">
               <span>
-                {strategy ? (
+                {words ? (
                   <>
-                    rung-3 <b>{strategy.rule.toUpperCase()}</b> · {count(strategy.iteration)} iterations × {strategy.workers} workers · every number is the frozen strategy’s
+                    <b>{words.name}</b> · {words.detail}
+                    {words.grade ? (
+                      <>
+                        {' '}
+                        · exploitability <b>{words.grade}</b> chips/hand
+                      </>
+                    ) : (
+                      ' · ungraded'
+                    )}
+                    {switching ? ` · loading ${strategyChoice(strategy).label}…` : ' · every number is this strategy’s'}
                   </>
+                ) : loadError ? (
+                  'the strategy’s export did not load'
                 ) : (
                   'loading the strategy’s export…'
                 )}
@@ -519,12 +588,16 @@ export function MiniRange({ tab }: { tab: TabId }) {
       )}
 
       <p className="foot">
-        The strategy is rung 3’s frozen LCFR average, exported once per public decision point (141 of them) as the mix of
-        every private key — 6.2 million rows. The browser rebuilds the ranges exactly: it enumerates every hole (and
-        discard) the actor could hold given the board, relabels suits jointly the way the solver’s key does, reads each
-        state’s mix, and weights the state by the product of the actor’s own action probabilities along the line. Nothing
-        here is sampled or illustrative; the one rounding is the export’s, where each probability is a byte in 1/250ths,
-        so an action the strategy takes under 0.2% of the time reads as never.
+        Three strategies of one game sit behind the switch: rung 3’s tabular LCFR average (2M lockstep iterations, 20M
+        hands per seat), and rung 4’s Deep CFR at iteration 500 (5M hands per seat) as Π, the policy net — the average a
+        game too big for tables can keep — and as the exact average of its iterates. Each is exported once per public
+        decision point (141 of them) as the mix of every private key — 6.2 million rows — and the browser rebuilds the
+        ranges exactly: it enumerates every hole (and discard) the actor could hold given the board, relabels suits
+        jointly the way the solver’s key does, reads each state’s mix, and weights the state by the product of the actor’s
+        own action probabilities along the line. The states a spot holds are the same under all three; only their weights
+        and mixes change. Nothing here is sampled or illustrative; the one rounding is the export’s, where each
+        probability is a byte in 1/250ths, so an action the strategy takes under 0.2% of the time reads as never. The
+        exploitability quoted is the exact best response’s, from the committed grades file the manifest names.
       </p>
     </>
   )
