@@ -38,6 +38,7 @@ const RUNGS = [
     state: 'done',
     acts: [
       ['Analysis', `${HOME}/rung3`],
+      ['Learn', `${HOME}/rung3#learn`],
       ['Trainer', `${HOME}/rung3#play`],
     ],
   },

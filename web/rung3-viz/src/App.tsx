@@ -1,10 +1,11 @@
 /**
- * `/rung3`: three tabs over mini-drawmaha. The research (the race and what
- * the answer does), the trainer (play the frozen strategy with a coach), and
- * Learn — the range interface over the strategy at every spot, the same
- * view `/solver` shows, imported from that app rather than copied
- * (`ui/LearnTab.tsx`). The tab, and the Learn tab's view and strategy, live
- * in the URL hash (`learn.ts`) so any of them can be linked to.
+ * `/rung3`: three tabs over mini-drawmaha, in the order a visitor meets
+ * them. The research (the race and what the answer does); Learn — the range
+ * interface over the strategy at every spot, the same view `/solver` shows,
+ * imported from that app rather than copied (`ui/LearnTab.tsx`); and the
+ * trainer (play the frozen strategy with a coach). The tab, and the Learn
+ * tab's view and strategy, live in the URL hash (`learn.ts`) so any of them
+ * can be linked to, and the Rungs ladder in the top bar links all three.
  */
 
 import { useEffect, useLayoutEffect, useState } from 'react'
@@ -24,8 +25,8 @@ import { Footer, Hero, TopBar } from './ui/site'
 
 const TABS: readonly { id: TabId; label: string; blurb: string }[] = [
   { id: 'research', label: 'The research', blurb: 'the race, the rules, what the answer does' },
-  { id: 'play', label: 'Play the solver', blurb: 'heads-up against the frozen strategy, with a coach' },
   { id: 'learn', label: 'Learn', blurb: 'every spot, every hand it could hold — tabular or Deep CFR' },
+  { id: 'play', label: 'Play the solver', blurb: 'heads-up against the frozen strategy, with a coach' },
 ]
 
 export default function App() {
