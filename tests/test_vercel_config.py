@@ -93,18 +93,52 @@ WEB = REPO_ROOT / "web"
 HOST_SRC = WEB / "rung3-viz" / "src"
 GUEST_SRC = WEB / "solver-viz" / "src"
 RESOLVED_BY_THE_HOST = {"react", "react/jsx-runtime"}
-IMPORT = re.compile(
-    r"""^\s*(?:import|export)\b[^'"\n]*?\bfrom\s*['"]([^'"]+)['"]|^\s*import\s*['"]([^'"]+)['"]""",
-    re.MULTILINE,
+# Every way a module names another, with comments stripped first so prose
+# cannot name one. `from '…'` is matched wherever it sits, not only on a line
+# that starts with `import`, so a wrapped `import {\n a,\n} from 'pkg'` counts;
+# a side-effect `import '…'` and a dynamic `import('…')` are the other two.
+COMMENTS = re.compile(r"/\*.*?\*/|^[ \t]*//[^\n]*", re.DOTALL | re.MULTILINE)
+SPECS = (
+    re.compile(r"""\bfrom\s*['"]([^'"]+)['"]"""),
+    re.compile(r"""^\s*import\s*['"]([^'"]+)['"]""", re.MULTILINE),
+    re.compile(r"""\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)"""),
 )
 CSS_IMPORT = re.compile(r"""@import\s+(?:url\()?['"]?([^'")\s;]+)""")
 
 
-def _imports(path: Path) -> list[str]:
-    text = path.read_text()
-    if path.suffix == ".css":
+def _specs(text: str, suffix: str) -> list[str]:
+    if suffix == ".css":
         return CSS_IMPORT.findall(text)
-    return [a or b for a, b in IMPORT.findall(text)]
+    text = COMMENTS.sub("", text)
+    return [spec for pattern in SPECS for spec in pattern.findall(text)]
+
+
+def _imports(path: Path) -> list[str]:
+    return _specs(path.read_text(), path.suffix)
+
+
+def test_the_import_scan_reads_wrapped_dynamic_and_side_effect_imports_and_not_comments():
+    # The guard below is only as good as this scan: a form it misses is a
+    # package that passes locally and fails on Vercel. Each form once, and a
+    # comment that names a package the scan must not report.
+    module = """\
+import { useEffect } from 'react'
+import type { X } from './x'
+import {
+  a,
+  b,
+} from 'wrapped-package'
+import './side-effect.css'
+export type { TabId } from './hash'
+export { thing } from 'reexported-package'
+// a comment that mentions from 'commented-package'
+/* and a block one: import 'blocked-package' */
+const later = () => import('dynamic-package')
+"""
+    assert sorted(_specs(module, ".tsx")) == sorted(
+        ["react", "./x", "wrapped-package", "./side-effect.css", "./hash", "reexported-package", "dynamic-package"]
+    )
+    assert _specs("@import 'pkg/sheet.css';\n@import url(\"./local.css\");", ".css") == ["pkg/sheet.css", "./local.css"]
 
 
 def _resolve(importer: Path, spec: str) -> Path:
@@ -122,7 +156,8 @@ def _resolve(importer: Path, spec: str) -> Path:
 
 
 def _sources(root: Path) -> list[Path]:
-    return [p for p in root.rglob("*") if p.suffix in (".ts", ".tsx") and ".test." not in p.name]
+    """The modules and sheets the build bundles: tests are run, not built."""
+    return [p for p in root.rglob("*") if p.suffix in (".ts", ".tsx", ".css") and ".test." not in p.name]
 
 
 def test_rung3_builds_before_solver_in_the_build_script():

@@ -18,7 +18,7 @@ import { type TabId as LearnView, isTabId as isLearnView } from '../../solver-vi
 
 export type { LearnView }
 
-export const TAB_IDS = ['research', 'play', 'learn'] as const
+const TAB_IDS = ['research', 'play', 'learn'] as const
 export type TabId = (typeof TAB_IDS)[number]
 
 export interface PageView {
