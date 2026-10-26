@@ -16,6 +16,23 @@ describe('parseHash', () => {
     expect(parseHash('#nope/nope/nope')).toEqual({ tab: 'research', view: 'range', strategy: 'tabular' })
     expect(parseHash('#learn/foo/bar')).toEqual({ tab: 'learn', view: 'range', strategy: 'tabular' })
   })
+  it('drops a view and strategy after a tab that is not Learn, so parsing is idempotent under formatting', () => {
+    const page = parseHash('#research/versus/deep-pi')
+    expect(page).toEqual({ tab: 'research', view: 'range', strategy: 'tabular' })
+    expect(parseHash(formatHash(page))).toEqual(page)
+  })
+})
+
+describe('the page switching tabs', () => {
+  // App.tsx's `show` writes formatHash of the next state and keeps the state
+  // whole: leaving Learn for Play writes `#play` and loses nothing, so coming
+  // back writes the same Learn hash.
+  it('keeps the Learn view and strategy across a visit to another tab', () => {
+    const learn = parseHash('#learn/versus/deep-pi')
+    const play = { ...learn, tab: 'play' as const }
+    expect(formatHash(play)).toBe('#play')
+    expect(formatHash({ ...play, tab: 'learn' })).toBe('#learn/versus/deep-pi')
+  })
 })
 
 describe('formatHash', () => {
