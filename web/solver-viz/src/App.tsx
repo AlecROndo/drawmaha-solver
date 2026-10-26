@@ -35,6 +35,11 @@ export default function App() {
     addEventListener('hashchange', onHash)
     return () => removeEventListener('hashchange', onHash)
   }, [])
+  // Every view on this page is the wide one (index.css, `body.wide`).
+  useEffect(() => {
+    document.body.classList.add('wide')
+    return () => document.body.classList.remove('wide')
+  }, [])
   const show = (next: View) => {
     setView(next)
     // Replace rather than push: the tabs and the switch are views of one page.

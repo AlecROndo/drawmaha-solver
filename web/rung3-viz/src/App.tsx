@@ -1,29 +1,36 @@
+/**
+ * `/rung3`: three tabs over mini-drawmaha. The research (the race and what
+ * the answer does), the trainer (play the frozen strategy with a coach), and
+ * Learn — the range interface over the strategy at every spot, the same
+ * view `/solver` shows, imported from that app rather than copied
+ * (`ui/LearnTab.tsx`). The tab, and the Learn tab's view and strategy, live
+ * in the URL hash (`learn.ts`) so any of them can be linked to.
+ */
+
 import { useEffect, useState } from 'react'
 
+// The range interface's stylesheet rides along with its components. Its one
+// page-wide rule hangs off `body.wide`, set below only while Learn shows.
+import '../../solver-viz/src/index.css'
+
 import { useSession } from './deals'
+import { type PageView, type TabId, formatHash, parseHash } from './learn'
 import { FINAL_ITERATION, FROZEN, SIZES, WORKERS, perHundred, series } from './research'
+import { LearnTab } from './ui/LearnTab'
 import { PackBoundary } from './ui/PackBoundary'
 import { PlayPanel } from './ui/PlayPanel'
 import { ResearchTab } from './ui/ResearchTab'
 import { Footer, Hero, TopBar } from './ui/site'
 
-const TABS = [
+const TABS: readonly { id: TabId; label: string; blurb: string }[] = [
   { id: 'research', label: 'The research', blurb: 'the race, the rules, what the answer does' },
   { id: 'play', label: 'Play the solver', blurb: 'heads-up against the frozen strategy, with a coach' },
-] as const
-
-type TabId = (typeof TABS)[number]['id']
-
-const isTabId = (value: string): value is TabId => TABS.some((t) => t.id === value)
-
-/** The tab named in the URL hash, so a view can be linked to and reloaded into. */
-const tabFromHash = (): TabId => {
-  const hash = location.hash.replace('#', '')
-  return isTabId(hash) ? hash : 'research'
-}
+  { id: 'learn', label: 'Learn', blurb: 'every spot, every hand it could hold — tabular or Deep CFR' },
+]
 
 export default function App() {
-  const [tab, setTab] = useState<TabId>(tabFromHash)
+  const [page, setPage] = useState<PageView>(() => parseHash(location.hash))
+  const { tab } = page
   // The session lives here so flipping tabs loses nothing: a hand in
   // progress and the bankroll survive a look at the research.
   const [session, setSession, pack] = useSession()
@@ -31,15 +38,21 @@ export default function App() {
   // The top bar's "Play the solver" button points at #play. On this page that
   // is a hash change with no reload, so listen.
   useEffect(() => {
-    const onHash = () => setTab(tabFromHash())
+    const onHash = () => setPage(parseHash(location.hash))
     addEventListener('hashchange', onHash)
     return () => removeEventListener('hashchange', onHash)
   }, [])
 
-  const show = (id: TabId) => {
-    setTab(id)
-    // Replace rather than push: the tabs are two views of one page.
-    history.replaceState(null, '', `#${id}`)
+  // Only the Learn tab wants the whole browser (solver-viz's index.css).
+  useEffect(() => {
+    document.body.classList.toggle('wide', tab === 'learn')
+    return () => document.body.classList.remove('wide')
+  }, [tab])
+
+  const show = (next: PageView) => {
+    setPage(next)
+    // Replace rather than push: the tabs are views of one page.
+    history.replaceState(null, '', formatHash(next))
   }
 
   const lcfr = perHundred(series('lcfr').at(-1)!.exploitability)
@@ -67,8 +80,9 @@ export default function App() {
             and a pot that pays twice. Four regret rules — vanilla, LCFR, CFR+, DCFR — raced to{' '}
             {((FINAL_ITERATION * WORKERS) / 1e6).toFixed(0)} million sampled hands per seat under lockstep MCCFR, each
             graded by the exact best-response walk. <b>The two that keep negative regret won by 3–4×</b>, and LCFR’s
-            average is frozen as the rung’s answer. Read the race and what the answer does, or sit down against it with
-            a coach that shows you its mix at every spot you face.
+            average is frozen as the rung’s answer. Read the race and what the answer does, sit down against it with a
+            coach that shows you its mix at every spot you face, or open any spot and see what the strategy does with
+            every hand it could hold there — the frozen table, or rung 4’s Deep CFR beside it.
           </p>
           <p className="note">
             LCFR at {((FINAL_ITERATION * WORKERS) / 1e6).toFixed(0)}M hands per seat is exploitable for{' '}
@@ -84,7 +98,7 @@ export default function App() {
               role="tab"
               aria-selected={tab === entry.id}
               className={tab === entry.id ? 'view current' : 'view'}
-              onClick={() => show(entry.id)}
+              onClick={() => show({ ...page, tab: entry.id })}
             >
               <b>{entry.label}</b>
               <span>{entry.blurb}</span>
@@ -94,6 +108,8 @@ export default function App() {
 
         {tab === 'research' ? (
           <ResearchTab />
+        ) : tab === 'learn' ? (
+          <LearnTab view={page.view} strategy={page.strategy} onView={(view) => show({ ...page, view })} onStrategy={(strategy) => show({ ...page, strategy })} />
         ) : (
           <>
             <div className="block">

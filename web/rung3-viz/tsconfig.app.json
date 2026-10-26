@@ -10,6 +10,15 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
+    /* The Learn tab imports ../solver-viz/src, whose files import `react`.
+       Resolve its types from this app's node_modules so the type check does
+       not depend on the sibling app being installed (Vercel installs the
+       apps one after another); vite.config.ts dedupes the runtime the same way.
+       Paths are relative to this file. */
+    "paths": {
+      "react": ["./node_modules/@types/react"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"]
+    },
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",

@@ -20,17 +20,20 @@
   margin-top: 26px;
 }
 
-/* The range interface is the one page that wants the whole browser: a grid of
+/* The range interface is the one view that wants the whole browser: a grid of
    72 cells beside a ribbon and a plane does not fit the site's 1312 px column
    without everything shrinking. The top bar, the hero and the footer widen
-   with it so the edges stay aligned. */
-.top .wrap,
-main.wrap,
-footer .wrap {
+   with it so the edges stay aligned. The widening hangs off `body.wide`, which
+   this app sets on mount and `/rung3` sets only while its Learn tab — the same
+   view, imported from here — is showing, so the sheet can be shared without
+   widening a page that is not showing the grid. */
+body.wide .top .wrap,
+body.wide main.wrap,
+body.wide footer .wrap {
   max-width: min(100vw - 2 * var(--gutter), 2200px);
 }
 
-.hero-copy {
+body.wide .hero-copy {
   max-width: 820px;
 }
 
