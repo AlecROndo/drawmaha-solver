@@ -9,7 +9,7 @@
  * strategy live in the URL hash (`ui/hash.ts`) so a view can be linked to.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 
 import { FullRange } from './ui/FullRange'
 import { type View, formatHash, parseHash } from './ui/hash'
@@ -35,8 +35,10 @@ export default function App() {
     addEventListener('hashchange', onHash)
     return () => removeEventListener('hashchange', onHash)
   }, [])
-  // Every view on this page is the wide one (index.css, `body.wide`).
-  useEffect(() => {
+  // Every view on this page is the wide one (index.css, `body.wide`). A
+  // layout effect, so the page is wide before its first paint rather than
+  // laid out at 1312 px and then again.
+  useLayoutEffect(() => {
     document.body.classList.add('wide')
     return () => document.body.classList.remove('wide')
   }, [])

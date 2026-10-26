@@ -7,7 +7,7 @@
  * in the URL hash (`learn.ts`) so any of them can be linked to.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 
 // The range interface's stylesheet rides along with its components. Its one
 // page-wide rule hangs off `body.wide`, set below only while Learn shows.
@@ -43,9 +43,13 @@ export default function App() {
     return () => removeEventListener('hashchange', onHash)
   }, [])
 
-  // Only the Learn tab wants the whole browser (solver-viz's index.css).
-  useEffect(() => {
-    document.body.classList.toggle('wide', tab === 'learn')
+  // Only the Learn tab wants the whole browser (solver-viz's index.css,
+  // `body.wide`). A layout effect, so the page is wide before it paints:
+  // opening `#learn/...` directly lays the grid out once, not at 1312 px and
+  // then again. The cleanup narrows it when the tab changes or the page goes.
+  useLayoutEffect(() => {
+    if (tab !== 'learn') return
+    document.body.classList.add('wide')
     return () => document.body.classList.remove('wide')
   }, [tab])
 
@@ -109,7 +113,12 @@ export default function App() {
         {tab === 'research' ? (
           <ResearchTab />
         ) : tab === 'learn' ? (
-          <LearnTab view={page.view} strategy={page.strategy} onView={(view) => show({ ...page, view })} onStrategy={(strategy) => show({ ...page, strategy })} />
+          <LearnTab
+            view={page.view}
+            strategy={page.strategy}
+            onView={(view) => show({ ...page, view })}
+            onStrategy={(strategy) => show({ ...page, strategy })}
+          />
         ) : (
           <>
             <div className="block">

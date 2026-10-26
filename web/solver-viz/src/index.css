@@ -26,7 +26,12 @@
    with it so the edges stay aligned. The widening hangs off `body.wide`, which
    this app sets on mount and `/rung3` sets only while its Learn tab — the same
    view, imported from here — is showing, so the sheet can be shared without
-   widening a page that is not showing the grid. */
+   widening a page that is not showing the grid. The hero copy's cap rides on
+   the same class: the theme gives the copy 11/20 of the wrap, which widens
+   with it, so the copy is held to 820 px wherever the grid shows — here, and
+   on /rung3 while Learn is up, where the hero is otherwise the theme's.
+   tests/test_ui_standard.py pins that this sheet reaches the shared chrome
+   only through `body.wide`. */
 body.wide .top .wrap,
 body.wide main.wrap,
 body.wide footer .wrap {
