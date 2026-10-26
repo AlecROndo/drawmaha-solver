@@ -48,11 +48,12 @@ committed source and the tests hold the copy to the file. The three exports
 share their key tables and their point walk byte for byte — only the chunks
 differ — which is what lets the page switch strategy under a spot without
 changing what the spot's states are. Every export holds a row for every
-state, reached or not: a row the strategy never visited plays uniform in all
-three — the tabular and exact averages by `average_rows`' convention for an
-empty row, Π because the net's clipped outputs normalise to uniform when they
-are all zero — so under the switch such a row shows a flat mix, never a
-missing one. The fixtures depend on the rules alone,
+state, reached or not, and the three differ in what an unvisited row holds:
+the two averages show a flat mix there (an empty row averages to uniform, by
+`average_rows`' convention), while Π shows the net's generalisation from the
+rows it did see — a real mix, and the reason a net is interesting. So under
+the switch an unvisited row is never missing, and it is where the two kinds
+of answer differ most. The fixtures depend on the rules alone,
 so exporting another strategy must leave them untouched: `settle_fixtures`
 refuses to overwrite a committed file that differs.
 """
@@ -279,12 +280,13 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
     The entry's `hands_per_seat` is kept when it is there (rung 4's grades
     carry it). Rung 3's answer sheet predates the field, and lockstep plays
     one hand per seat per worker per iteration, so there it is
-    iteration × workers. Neither route may come to zero: a deep strategy
-    records `workers=0` (its hands are counted by the run, not by lockstep),
-    so a deep entry without the field would fall through to 0 × iteration,
-    and the page would print "0 hands". A missing file, a file without the
-    key, and a count of zero are each refused by name rather than read as a
-    number the page would then quote.
+    iteration × workers. The fallback is taken only when the field is absent
+    — a recorded 0 is a recorded 0, not a missing field — and neither route
+    may come to zero: a deep strategy records `workers=0` (its hands are
+    counted by the run, not by lockstep), so a deep entry without the field
+    would fall through to 0 × iteration, and the page would print "0 hands".
+    A missing file, a file without the key, and a count of zero are each
+    refused by name rather than read as a number the page would then quote.
     """
     file = root / release.grade_file
     if not file.exists():
@@ -296,12 +298,17 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
     if release.grade_key not in recorded:
         raise KeyError(f"{release.grade_file} has no {release.grade_key}; it holds {sorted(recorded)}")
     entry = recorded[release.grade_key]
-    hands = int(entry.get("hands_per_seat") or info.iteration * info.workers)
+    recorded_hands = "hands_per_seat" in entry
+    hands = int(entry["hands_per_seat"]) if recorded_hands else info.iteration * info.workers
     if hands <= 0:
+        counted = (
+            f"records hands_per_seat = {hands}"
+            if recorded_hands
+            else f"records no hands_per_seat and the strategy's iteration × workers is {info.iteration} × {info.workers}"
+        )
         raise ValueError(
-            f"{release.grade_file}'s {release.grade_key} records no hands_per_seat and the "
-            f"strategy's iteration × workers is {info.iteration} × {info.workers}; a grade "
-            "the page quotes must say how many hands it was trained on"
+            f"{release.grade_file}'s {release.grade_key} {counted}; a grade the page quotes "
+            "must say how many hands it was trained on"
         )
     return Grade(
         exploitability=float(entry["exploitability"]),

@@ -473,9 +473,14 @@ def test_read_grade_refuses_a_deep_entry_that_records_no_hands(tmp_path):
     with pytest.raises(ValueError, match="500 × 0"):
         read_grade(bare, deep, root=tmp_path)
     # The tabular fallback still stands where lockstep gives it meaning.
-    (tmp_path / "grades.json").write_text(json.dumps({"deep/00500/pi": {"exploitability": 0.1}}))
     lcfr = StrategyInfo(rule="lcfr", column="linear", iteration=500, seed=0, workers=10)
     assert read_grade(bare, lcfr, root=tmp_path).hands_per_seat == 5_000
+    # A recorded zero is a recorded zero, not a missing field: no fallback hides it.
+    (tmp_path / "grades.json").write_text(
+        json.dumps({"deep/00500/pi": {"exploitability": 0.1, "hands_per_seat": 0}})
+    )
+    with pytest.raises(ValueError, match="hands_per_seat = 0"):
+        read_grade(bare, lcfr, root=tmp_path)
 
 
 def test_a_stand_in_export_names_no_release_and_no_grade(manifest):
