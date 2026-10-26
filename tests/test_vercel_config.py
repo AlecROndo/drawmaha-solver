@@ -74,3 +74,91 @@ def test_every_rung_the_build_script_emits_has_a_rewrite():
     rewrites = {r["source"]: r["destination"] for r in _vercel_config()["rewrites"]}
     for rung in rungs:
         assert rewrites.get(f"/{rung}") == f"/{rung}/index.html"
+
+
+# ---------------------------------------------------------------------------
+# rung3 builds before solver, so what it imports from solver-viz needs only react
+# ---------------------------------------------------------------------------
+#
+# /rung3's Learn tab imports the range interface from web/solver-viz/src, and
+# scripts/site/vercel_build.sh runs `npm ci && npm run build` app by app in the
+# rungs=(...) order, so when rung3-viz builds, solver-viz/node_modules does not
+# exist yet. `react` is the one package those modules import, and rung3-viz
+# resolves it from its own node_modules (vite.config.ts `dedupe`,
+# tsconfig.app.json `paths`). Any other package imported by a solver-viz module
+# reachable from rung3 resolves nowhere on Vercel and fails the deploy, while
+# every local check passes because both apps were installed first.
+
+WEB = REPO_ROOT / "web"
+HOST_SRC = WEB / "rung3-viz" / "src"
+GUEST_SRC = WEB / "solver-viz" / "src"
+RESOLVED_BY_THE_HOST = {"react", "react/jsx-runtime"}
+IMPORT = re.compile(
+    r"""^\s*(?:import|export)\b[^'"\n]*?\bfrom\s*['"]([^'"]+)['"]|^\s*import\s*['"]([^'"]+)['"]""",
+    re.MULTILINE,
+)
+CSS_IMPORT = re.compile(r"""@import\s+(?:url\()?['"]?([^'")\s;]+)""")
+
+
+def _imports(path: Path) -> list[str]:
+    text = path.read_text()
+    if path.suffix == ".css":
+        return CSS_IMPORT.findall(text)
+    return [a or b for a, b in IMPORT.findall(text)]
+
+
+def _resolve(importer: Path, spec: str) -> Path:
+    target = importer.parent / spec
+    candidates = (
+        target,
+        *(target.with_name(target.name + ext) for ext in (".ts", ".tsx", ".css")),
+        target / "index.ts",
+        target / "index.tsx",
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    raise AssertionError(f"{importer} imports {spec!r}, which resolves to no file")
+
+
+def _sources(root: Path) -> list[Path]:
+    return [p for p in root.rglob("*") if p.suffix in (".ts", ".tsx") and ".test." not in p.name]
+
+
+def test_rung3_builds_before_solver_in_the_build_script():
+    build_script = (REPO_ROOT / "scripts" / "site" / "vercel_build.sh").read_text()
+    declaration = re.search(r"^rungs=\(([^)]*)\)", build_script, re.MULTILINE)
+    assert declaration, "could not find a rungs=(...) list in scripts/site/vercel_build.sh"
+    rungs = shlex.split(declaration.group(1))
+    assert rungs.index("rung3") < rungs.index("solver"), (
+        "if solver now builds first the import rule below is no longer load-bearing; keep it anyway, "
+        "it is what lets each app build alone"
+    )
+
+
+def test_what_rung3_imports_from_solver_viz_imports_only_react():
+    reached: set[Path] = set()
+    queue = [
+        _resolve(importer, spec)
+        for importer in _sources(HOST_SRC)
+        for spec in _imports(importer)
+        if spec.startswith(".") and "solver-viz" in spec
+    ]
+    assert queue, "rung3-viz no longer imports anything from solver-viz; retire this test with the Learn tab"
+    packages: dict[str, Path] = {}
+    while queue:
+        path = queue.pop()
+        if path in reached:
+            continue
+        reached.add(path)
+        assert GUEST_SRC in path.parents, f"{path} is outside {GUEST_SRC}"
+        for spec in _imports(path):
+            if spec.startswith("."):
+                queue.append(_resolve(path, spec))
+            else:
+                packages.setdefault(spec, path)
+    foreign = {spec: str(path.relative_to(WEB)) for spec, path in packages.items() if spec not in RESOLVED_BY_THE_HOST}
+    assert not foreign, (
+        f"solver-viz modules reachable from rung3-viz import {foreign}; rung3-viz builds before "
+        "solver-viz/node_modules exists on Vercel, so these resolve to nothing there"
+    )

@@ -132,7 +132,9 @@ const spotKey = (s: MiniSpot | null): string => (s === null ? '' : JSON.stringif
 /**
  * `base` is where the exports live, with its trailing slash: this app's own
  * base URL here, `/solver/` when `/rung3` hosts the same view, so one copy of
- * the data serves both pages.
+ * the data serves both pages. It is read once, when the view mounts — the
+ * loader below is built from it and kept — so it is a constant, not a
+ * control; both hosts pass one.
  */
 export function MiniRange({
   tab,

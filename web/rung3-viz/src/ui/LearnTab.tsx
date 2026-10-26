@@ -3,8 +3,10 @@
  * `/solver` shows, hosted here because this is the rung whose strategy it
  * analyses. The component is imported from `web/solver-viz` rather than
  * copied — one source, one stylesheet (`App.tsx` imports it) — and reads the
- * exports from under `/solver/` (`EXPORTS_BASE`), so the data lives once on the site. Under
- * this app's own dev server that path is not served; see the site through
+ * exports from the three `mini*` directories under `/solver/`
+ * (`EXPORTS_BASE`; `/solver/mini`, `/solver/mini-deep-pi`,
+ * `/solver/mini-deep-exact`), so the data lives once on the site. Under this
+ * app's own dev server that path is not served; see the site through
  * `scripts/site/vercel_build.sh` + `scripts/site/serve_site.py` to drive it.
  *
  * The two views, your range and range vs range, are the tabs `/solver` has;
@@ -39,7 +41,13 @@ export function LearnTab({
     <>
       <div className="views" role="tablist" aria-label="Learn views">
         {VIEWS.map((entry) => (
-          <button key={entry.id} role="tab" aria-selected={view === entry.id} className={view === entry.id ? 'view current' : 'view'} onClick={() => onView(entry.id)}>
+          <button
+            key={entry.id}
+            role="tab"
+            aria-selected={view === entry.id}
+            className={view === entry.id ? 'view current' : 'view'}
+            onClick={() => onView(entry.id)}
+          >
             <b>{entry.label}</b>
             <span>{entry.blurb}</span>
           </button>

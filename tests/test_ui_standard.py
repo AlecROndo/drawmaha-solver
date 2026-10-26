@@ -495,3 +495,69 @@ def test_every_pulse_and_travel_is_quieted_under_reduced_motion(name: str) -> No
                     "quiets it; set its transform to none, or its transition to none "
                     "or to the non-moving properties, by name"
                 )
+
+
+# ------------------------------------------------- two sheets on one page
+
+
+# `/rung3`'s Learn tab imports solver-viz's range interface and, with it,
+# solver-viz/src/index.css, which then sits beside rung3-viz/src/index.css and
+# the shared theme on every tab of /rung3, not only Learn. The sheets are
+# edited independently, so "they do not collide" has to be re-checked rather
+# than remembered: a rule added to either that names a selector the other
+# also names would restyle the research and play tabs silently, the later
+# sheet winning. The guest may agree with what /rung3 already loads only on
+# `:root`, declaring tokens of its own, and `.block`, declaring the same
+# thing; and it reaches the shared chrome — the wrap, the hero copy — only
+# under `body.wide`, which /rung3 sets while Learn shows and never otherwise.
+
+GUEST = "solver-viz"
+LOADED_BY_RUNG3 = ("rung3-viz", "theme")
+SHARED_SELECTORS = {":root", ".block"}
+WIDE = "body.wide "
+
+
+def _by_selector(name: str) -> dict[str, list[Rule]]:
+    """Each comma-separated selector of a sheet, with every rule that names it."""
+    out: dict[str, list[Rule]] = {}
+    for rule in RULES[name]:
+        for part in rule.selector.split(","):
+            out.setdefault(" ".join(part.split()), []).append(rule)
+    return out
+
+
+def _tokens(rules: list[Rule]) -> set[str]:
+    return {m.group(1) for rule in rules for m in re.finditer(r"(--[\w-]+)\s*:", rule.body)}
+
+
+def _bodies(rules: list[Rule]) -> list[list[str]]:
+    return [rule.body.split() for rule in rules]
+
+
+@pytest.mark.parametrize("host", LOADED_BY_RUNG3)
+def test_the_solver_sheet_shares_only_root_and_block_with_what_rung3_loads(host: str) -> None:
+    guest, other = _by_selector(GUEST), _by_selector(host)
+    collisions = (set(guest) & set(other)) - SHARED_SELECTORS
+    assert not collisions, (
+        f"{GUEST}/src/index.css and {host} both style {sorted(collisions)}: on /rung3 "
+        "the later sheet wins on every tab, not only Learn"
+    )
+    assert not _tokens(guest[":root"]) & _tokens(other[":root"]), "the two :root blocks redefine a token"
+    if ".block" in other:
+        assert _bodies(guest[".block"]) == _bodies(other[".block"]), ".block is declared differently by the two sheets"
+
+
+def test_the_solver_sheet_reaches_the_chrome_only_under_body_wide() -> None:
+    """The gated rules exist, and each one restyles something the theme owns.
+
+    The overlap test above already proves the guest names no theme selector
+    ungated; this is the other half — that what sits behind `body.wide` is
+    the chrome (`.wrap`, `.hero-copy`), not a rule of the guest's own that
+    would merely be dead code off /solver.
+    """
+    theme_classes = {c for s in _by_selector("theme") for c in re.findall(r"\.[\w-]+", s)}
+    gated = {s for s in _by_selector(GUEST) if s.startswith(WIDE)}
+    assert gated, "the widening rules have gone; the page-wide layout now leaks into /rung3's other tabs"
+    for selector in gated:
+        for cls in re.findall(r"\.[\w-]+", selector[len(WIDE) :]):
+            assert cls in theme_classes, f"{selector!r} gates {cls}, which the theme does not declare"
