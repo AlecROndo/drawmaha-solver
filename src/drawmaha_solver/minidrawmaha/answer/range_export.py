@@ -286,8 +286,8 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
     counted by the run, not by lockstep), so a deep entry without the field
     would fall through to 0 × iteration, and the page would print "0 hands".
     A missing file, a file without the key, a count of zero and a count that
-    is not a whole number are each refused by name rather than read as a
-    number the page would then quote.
+    is not an integer are each refused by name rather than read as a number
+    the page would then quote.
     """
     file = root / release.grade_file
     if not file.exists():
@@ -300,10 +300,12 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
         raise KeyError(f"{release.grade_file} has no {release.grade_key}; it holds {sorted(recorded)}")
     entry = recorded[release.grade_key]
     recorded_hands = "hands_per_seat" in entry
-    if recorded_hands and not isinstance(entry["hands_per_seat"], int):
+    # `type(...) is int`, not `isinstance`: a bool is an int to isinstance, and
+    # a JSON `true` would otherwise be read as one hand.
+    if recorded_hands and type(entry["hands_per_seat"]) is not int:
         raise ValueError(
             f"{release.grade_file}'s {release.grade_key} records hands_per_seat = "
-            f"{entry['hands_per_seat']!r}, not a whole number of hands"
+            f"{entry['hands_per_seat']!r}, not an integer"
         )
     hands = entry["hands_per_seat"] if recorded_hands else info.iteration * info.workers
     if hands <= 0:

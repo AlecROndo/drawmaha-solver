@@ -508,12 +508,14 @@ def test_read_grade_refuses_a_deep_entry_that_records_no_hands(tmp_path):
     )
     with pytest.raises(ValueError, match="hands_per_seat = 0"):
         read_grade(bare, lcfr, root=tmp_path)
-    # A fractional count would be truncated silently by int(); it is refused instead.
-    (tmp_path / "grades.json").write_text(
-        json.dumps({"deep/00500/pi": {"exploitability": 0.1, "hands_per_seat": 5e6}})
-    )
-    with pytest.raises(ValueError, match="not a whole number"):
-        read_grade(bare, lcfr, root=tmp_path)
+    # A float would be truncated silently by int(), and a bool is an int to isinstance;
+    # neither is a count of hands, so neither is read.
+    for not_a_count in (5e6, 1.5, True):
+        (tmp_path / "grades.json").write_text(
+            json.dumps({"deep/00500/pi": {"exploitability": 0.1, "hands_per_seat": not_a_count}})
+        )
+        with pytest.raises(ValueError, match="not an integer"):
+            read_grade(bare, lcfr, root=tmp_path)
 
 
 def test_a_stand_in_export_names_no_release_and_no_grade(manifest):
