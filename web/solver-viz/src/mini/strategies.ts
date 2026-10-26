@@ -13,11 +13,12 @@
  * their point walk byte for byte — only the per-point mix chunks differ — so
  * switching strategy under a spot keeps the spot's states and changes their
  * weights and mixes, which is what makes the switch honest. Every export
- * holds a row for every state, reached or not: a row a strategy never
- * visited plays uniform in all three (the two averages by convention for an
- * empty row, Π because the net's clipped outputs normalise to uniform when
- * all zero), so under the switch such a row shows a flat mix, never a
- * missing one.
+ * holds a row for every state, reached or not, and the three differ in what
+ * an unvisited row holds: the two averages show a flat mix there (an empty
+ * row averages to uniform), while Π shows the net's generalisation from the
+ * rows it did see — a real mix, and the reason a net is interesting. So
+ * under the switch an unvisited row is never missing, and it is where the
+ * two kinds of answer differ most.
  *
  * Every export's `index.json` names its strategy (rule, column, iteration,
  * release and digest) and carries its grade — the exact best response's
