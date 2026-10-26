@@ -67,7 +67,8 @@ interface World {
 
 function world(overrides: Partial<Record<string, Uint8Array | string>> = {}): World {
   const index: MiniIndex = {
-    strategy: { sha256: 'synthetic', rule: 'lcfr', column: 'linear', iteration: 0, workers: 1, seed: 0 },
+    strategy: { sha256: 'synthetic', release: null, asset: 'synthetic.npz', rule: 'lcfr', column: 'linear', iteration: 0, workers: 1, seed: 0 },
+    grade: null,
     deck: { ranks: '23456', suits: 'cdh' },
     scale: SCALE,
     shapes: { b1d0: { file: 'keys-b1d0.bin', n: KEYS.length, stride: 4 } },
