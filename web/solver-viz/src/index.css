@@ -1534,7 +1534,7 @@ button.lrow:hover {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px 16px;
+  gap: 8px 16px;
   margin: 22px 0 -8px;
 }
 
@@ -1545,9 +1545,20 @@ button.lrow:hover {
   color: var(--iv-45);
 }
 
+/* The three choices share one row and the hint takes the next. */
+.strat .seg {
+  flex: 1 1 0;
+  flex-wrap: nowrap;
+}
+
 .strat .seg button {
+  flex: 1 1 0;
   text-align: left;
   padding: 7px 11px;
+}
+
+.strat .hint {
+  flex-basis: 100%;
 }
 
 .strat .seg button b {
