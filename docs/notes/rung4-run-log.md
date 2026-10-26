@@ -57,8 +57,9 @@ be flattening.** At equal hands the best arm is 0.134 against LCFR's 1.131 at t 
 the table's exploitability. The one arm graded at t = 200, 3 × 128, moved from 0.243 (the Modal
 sweep) to 0.234 (a Mac run of the same config, whose own t = 100 mark
 is not graded) between t = 100 and t = 200, a 4% change on one
-seed, while LCFR fell 44% (1.131 → 0.630). The 16,000-step 4 × 256 arm, the one net graded
-to 5M hands, says the same thing more plainly: its exact average went 0.133 → 0.115 → 0.108
+seed, while LCFR fell 44% (1.131 → 0.630). The 16,000-step 4 × 256 arm — a different net and
+a different fit, so a second reading rather than a confirmation — is the one net graded to 5M
+hands, and its curve has the same shape: its exact average went 0.133 → 0.115 → 0.108
 from t = 100 to t = 200 to t = 500 (−19% over five times the hands) while LCFR went
 1.131 → 0.630 → 0.264 (−77%). At t = 500 Deep CFR is still 2.4× better at equal hands, but LCFR
 reaches 0.061 at t = 2,000, so if the net stays near 0.108 the table passes it somewhere between

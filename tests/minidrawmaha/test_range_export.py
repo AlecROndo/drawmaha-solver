@@ -41,6 +41,7 @@ from drawmaha_solver.minidrawmaha.rules.hands import (
     outer_score,
 )
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
+from drawmaha_solver.minidrawmaha.answer import range_export
 from drawmaha_solver.minidrawmaha.answer.range_export import (
     ACTION_CODE,
     FLUSH_PICTURES,
@@ -54,6 +55,7 @@ from drawmaha_solver.minidrawmaha.answer.range_export import (
     read_grade,
     release_of,
     settle_fixtures,
+    sha256_of,
     shape_name,
     write_fixtures,
 )
@@ -344,13 +346,13 @@ def _committed(release):
 
 @pytest.fixture(scope="module", params=sorted(RELEASES), ids=sorted(RELEASES))
 def committed(request):
-    """One committed export: its directory and its manifest, once per release."""
-    return _committed(RELEASES[request.param])
+    """One committed export: the release, its directory and its manifest, once per release."""
+    release = RELEASES[request.param]
+    return (release, *_committed(release))
 
 
 def test_the_committed_manifest_names_its_release_and_its_grade(committed):
-    out, manifest = committed
-    release = RELEASES[next(n for n, r in RELEASES.items() if PUBLIC / r.directory == out)]
+    release, _, manifest = committed
     assert manifest["strategy"]["sha256"] == release.sha256
     assert manifest["strategy"]["release"] == release.tag
     assert manifest["strategy"]["asset"] == release.asset
@@ -365,7 +367,7 @@ def test_the_committed_manifest_names_its_release_and_its_grade(committed):
 
 
 def test_the_committed_manifest_is_the_current_point_walk(committed):
-    _, manifest = committed
+    _, _, manifest = committed
     points = public_decision_points()
     assert manifest["points"] == [
         point_meta(point, index).as_json() for index, point in enumerate(points)
@@ -373,7 +375,7 @@ def test_the_committed_manifest_is_the_current_point_walk(committed):
 
 
 def test_the_committed_key_tables_are_the_current_private_keys(committed):
-    out, manifest = committed
+    _, out, manifest = committed
     assert set(manifest["shapes"]) == set(EXPECTED_SHAPES)
     for name, shape in manifest["shapes"].items():
         board_cards, discards = int(name[1]), int(name[3])
@@ -386,7 +388,7 @@ def test_the_committed_key_tables_are_the_current_private_keys(committed):
 
 
 def test_every_committed_chunk_is_well_formed_and_none_is_stale(committed):
-    out, manifest = committed
+    _, out, manifest = committed
     for meta in manifest["points"]:
         sums = _chunk(out, meta).sum(axis=1, dtype=np.int64)
         assert (sums == manifest["scale"]).all(), meta["file"]
@@ -457,6 +459,25 @@ def test_read_grade_refuses_a_grades_file_without_the_key(tmp_path):
         read_grade(orphan, deep, root=tmp_path)
 
 
+def test_read_grade_names_a_missing_grades_file(tmp_path):
+    deep = StrategyInfo(rule="deep", column="pi", iteration=500, seed=0, workers=0)
+    with pytest.raises(FileNotFoundError, match=re.escape(RELEASES["deep-pi"].grade_file)):
+        read_grade(RELEASES["deep-pi"], deep, root=tmp_path)
+
+
+def test_read_grade_refuses_a_deep_entry_that_records_no_hands(tmp_path):
+    """A deep strategy has workers=0, so without `hands_per_seat` the fallback is 0 × iteration."""
+    (tmp_path / "grades.json").write_text(json.dumps({"deep/00500/pi": {"exploitability": 0.1}}))
+    bare = replace(RELEASES["deep-pi"], grade_file="grades.json")
+    deep = StrategyInfo(rule="deep", column="pi", iteration=500, seed=0, workers=0)
+    with pytest.raises(ValueError, match="500 × 0"):
+        read_grade(bare, deep, root=tmp_path)
+    # The tabular fallback still stands where lockstep gives it meaning.
+    (tmp_path / "grades.json").write_text(json.dumps({"deep/00500/pi": {"exploitability": 0.1}}))
+    lcfr = StrategyInfo(rule="lcfr", column="linear", iteration=500, seed=0, workers=10)
+    assert read_grade(bare, lcfr, root=tmp_path).hands_per_seat == 5_000
+
+
 def test_a_stand_in_export_names_no_release_and_no_grade(manifest):
     assert manifest["strategy"]["release"] is None
     assert manifest["strategy"]["asset"] == "standin.npz"
@@ -476,6 +497,25 @@ def test_naming_a_release_the_file_does_not_hash_to_is_refused(exported, tmp_pat
     with pytest.raises(ValueError, match="deep-pi"):
         main(["--release", "deep-pi", "--strategy", str(saved), "--out", str(tmp_path / "mini"), "--fixtures", str(tmp_path / "f.json")])
     assert not (tmp_path / "mini").exists()
+
+
+def test_a_local_file_that_hashes_to_a_release_exports_as_that_release(exported, tmp_path, monkeypatch):
+    """The documented shortcut: a copy already on this machine is known by its digest and needs no download."""
+    out, _, _ = exported
+    saved = out.parent / "standin.npz"
+    grades = tmp_path / "grades.json"
+    grades.write_text(json.dumps({"test/standin": {"exploitability": 0.25, "hands_per_seat": 7}}))
+    # `grade_file` is joined onto the repo root; an absolute path survives the join.
+    standin = replace(
+        RELEASES["deep-pi"], sha256=sha256_of(saved), grade_file=str(grades), grade_key="test/standin"
+    )
+    monkeypatch.setattr(range_export, "RELEASES", {standin.name: standin})
+    main(["--release", "deep-pi", "--strategy", str(saved), "--out", str(tmp_path / "mini"), "--fixtures", str(tmp_path / "f.json")])
+    manifest = json.loads((tmp_path / "mini" / "index.json").read_text())
+    assert manifest["strategy"]["sha256"] == standin.sha256
+    assert manifest["strategy"]["release"] == standin.tag
+    assert manifest["strategy"]["asset"] == "standin.npz"
+    assert manifest["grade"] == {"exploitability": 0.25, "handsPerSeat": 7, "file": str(grades), "key": "test/standin"}
 
 
 # ---------------------------------------------------------------------------
@@ -500,7 +540,12 @@ def test_settle_fixtures_refuses_a_committed_file_that_differs_unless_told_to_wr
     assert path.read_text() == "{}"
     assert sorted(p.name for p in tmp_path.iterdir()) == ["fixtures.json"]
     settle_fixtures(path, write=True)
-    assert json.loads(path.read_text())["cases"]
+    written = path.read_bytes()
+    assert json.loads(written)["cases"]
+    # told to write over an identical file, it writes the same bytes and leaves nothing beside
+    settle_fixtures(path, write=True)
+    assert path.read_bytes() == written
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["fixtures.json"]
 
 
 def test_main_settles_the_fixtures_before_it_writes_any_export(exported, tmp_path):
