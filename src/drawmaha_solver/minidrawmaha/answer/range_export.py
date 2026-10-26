@@ -285,8 +285,9 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
     may come to zero: a deep strategy records `workers=0` (its hands are
     counted by the run, not by lockstep), so a deep entry without the field
     would fall through to 0 × iteration, and the page would print "0 hands".
-    A missing file, a file without the key, and a count of zero are each
-    refused by name rather than read as a number the page would then quote.
+    A missing file, a file without the key, a count of zero and a count that
+    is not a whole number are each refused by name rather than read as a
+    number the page would then quote.
     """
     file = root / release.grade_file
     if not file.exists():
@@ -299,7 +300,12 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
         raise KeyError(f"{release.grade_file} has no {release.grade_key}; it holds {sorted(recorded)}")
     entry = recorded[release.grade_key]
     recorded_hands = "hands_per_seat" in entry
-    hands = int(entry["hands_per_seat"]) if recorded_hands else info.iteration * info.workers
+    if recorded_hands and not isinstance(entry["hands_per_seat"], int):
+        raise ValueError(
+            f"{release.grade_file}'s {release.grade_key} records hands_per_seat = "
+            f"{entry['hands_per_seat']!r}, not a whole number of hands"
+        )
+    hands = entry["hands_per_seat"] if recorded_hands else info.iteration * info.workers
     if hands <= 0:
         counted = (
             f"records hands_per_seat = {hands}"

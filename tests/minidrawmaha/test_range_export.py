@@ -409,6 +409,33 @@ def test_the_three_committed_exports_differ_only_in_their_chunks():
         assert other["strategy"]["sha256"] != manifest["strategy"]["sha256"]
 
 
+def test_pi_is_a_real_mix_where_the_exact_average_is_flat():
+    """The design record's claim about an unvisited row, checked on the committed exports.
+
+    The exact average is uniform at a row Deep CFR never visited (an empty
+    row averages to uniform); Π, a net, generalises there from the rows it
+    did see. So over every row where the exact export holds the flat byte
+    row, Π should hold something else nearly everywhere — on the shipped
+    t = 500 exports it is 1,207,173 such rows and Π is flat at 711 of them.
+    The bar is loose (nine in ten) so a re-export at another mark passes;
+    a Π that came out flat at unvisited rows would fail it by a mile.
+    """
+    _, exact_manifest = _committed(RELEASES["deep-exact"])
+    exact_out = PUBLIC / RELEASES["deep-exact"].directory
+    pi_out = PUBLIC / RELEASES["deep-pi"].directory
+    flat_in_exact = flat_in_both = 0
+    for meta in exact_manifest["points"]:
+        width = len(meta["actions"])
+        flat = quantise(np.full((1, width), 1 / width), scale=exact_manifest["scale"])[0]
+        exact_flat = (_chunk(exact_out, meta) == flat).all(axis=1)
+        pi_flat = (_chunk(pi_out, meta) == flat).all(axis=1)
+        flat_in_exact += int(exact_flat.sum())
+        flat_in_both += int((exact_flat & pi_flat).sum())
+    # Deep CFR at t = 500 has left a good share of the 6.2 million rows unvisited.
+    assert flat_in_exact > 100_000, flat_in_exact
+    assert flat_in_both < flat_in_exact / 10, (flat_in_both, flat_in_exact)
+
+
 # ---------------------------------------------------------------------------
 # The releases
 # ---------------------------------------------------------------------------
@@ -480,6 +507,12 @@ def test_read_grade_refuses_a_deep_entry_that_records_no_hands(tmp_path):
         json.dumps({"deep/00500/pi": {"exploitability": 0.1, "hands_per_seat": 0}})
     )
     with pytest.raises(ValueError, match="hands_per_seat = 0"):
+        read_grade(bare, lcfr, root=tmp_path)
+    # A fractional count would be truncated silently by int(); it is refused instead.
+    (tmp_path / "grades.json").write_text(
+        json.dumps({"deep/00500/pi": {"exploitability": 0.1, "hands_per_seat": 5e6}})
+    )
+    with pytest.raises(ValueError, match="not a whole number"):
         read_grade(bare, lcfr, root=tmp_path)
 
 
