@@ -129,9 +129,26 @@ function spotOf(line: MiniLine): MiniSpot | null {
 
 const spotKey = (s: MiniSpot | null): string => (s === null ? '' : JSON.stringify(s))
 
-export function MiniRange({ tab, strategy, onStrategy }: { tab: TabId; strategy: StrategyId; onStrategy: (s: StrategyId) => void }) {
+/**
+ * `base` is where the exports live, with its trailing slash: this app's own
+ * base URL here, `/solver/` when `/rung3` hosts the same view, so one copy of
+ * the data serves both pages. It is read once, when the view mounts — the
+ * loader below is built from it and kept — so it is a constant, not a
+ * control; both hosts pass one.
+ */
+export function MiniRange({
+  tab,
+  strategy,
+  onStrategy,
+  base = import.meta.env.BASE_URL,
+}: {
+  tab: TabId
+  strategy: StrategyId
+  onStrategy: (s: StrategyId) => void
+  base?: string
+}) {
   // One loader for the page: a manifest per strategy for the switch's grades, full data for whichever is shown.
-  const [set] = useState(() => new Strategies(import.meta.env.BASE_URL))
+  const [set] = useState(() => new Strategies(base))
   const [manifests, setManifests] = useState<Partial<Record<StrategyId, MiniIndex>>>({})
   useEffect(() => {
     let live = true
