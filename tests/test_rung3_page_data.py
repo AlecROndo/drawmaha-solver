@@ -12,6 +12,8 @@ not a reader's first run.
 """
 
 import py_compile
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -65,12 +67,18 @@ def test_the_data_scripts_compile(script: str) -> None:
     py_compile.compile(str(ROOT / script), doraise=True)
 
 
-def test_the_torch_free_scripts_import_the_package_names_they_use() -> None:
-    # The sweep script imports torch at the top; the other three are checked for real.
-    import importlib.util
-
-    for script in SCRIPTS[1:]:
-        spec = importlib.util.spec_from_file_location(Path(script).stem, ROOT / script)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        assert callable(module.main)
+@pytest.mark.parametrize("script", SCRIPTS[1:])
+def test_the_torch_free_scripts_import_without_torch_and_run_nothing_at_import(script: str) -> None:
+    """Each script is executed in a fresh interpreter with `torch` blocked, under a
+    name that is not `__main__`: it imports every package name it uses, pulls in no
+    torch (directly or through the package), and does its work only in `main()`.
+    The sweep script imports torch at the top by design and is only compiled."""
+    code = (
+        "import runpy, sys\n"
+        "sys.modules['torch'] = None  # any `import torch` now raises ImportError\n"
+        f"g = runpy.run_path({str(ROOT / script)!r}, run_name='imported')\n"
+        "assert callable(g['main']), 'no main()'\n"
+        "assert 'torch' not in sys.modules or sys.modules['torch'] is None\n"
+    )
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=ROOT, timeout=120)
+    assert proc.returncode == 0, f"{script} failed to import without torch:\n{proc.stderr}"

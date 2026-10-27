@@ -641,7 +641,8 @@ export function ResearchTab() {
             walks, and when the negatives are discounted away and the lucky positives are not, the fitted mean turns
             positive. {pct(flip('dcfr', 50).flipped)} of the seat-0 cells that are negative under linear weights turn
             positive by iteration 50 under DCFR, up from {pct(flip('dcfr', 10).flipped)} at iteration 10, and regret
-            matching plays every positive cell. A small worked case: two actions with samples b = (+1, −3, +1, −3) and
+            matching plays every positive cell. That fits the rising curve; no ablation has isolated it as the only
+            cause. A small worked case: two actions with samples b = (+1, −3, +1, −3) and
             c = (+0.5, +0.5, +0.5, +0.5). Per-sample clipping fits both to +0.5, so they are played equally; CFR+ on the
             totals would floor b at zero and play c. A per-sample rule inflates noisy actions, and noisy actions are what
             sampling produces.

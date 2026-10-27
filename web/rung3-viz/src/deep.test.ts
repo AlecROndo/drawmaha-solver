@@ -1,19 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
 import { perHundred, series } from './research'
+import piResults from './data/rung4/pi_sweep_results.json'
 import {
   ARMS,
   BEST,
   KEY_NUMBERS,
+  PI_FINAL_MARK,
   PI_REFERENCE,
   PI_SWEEP,
   REFIT_ARMS,
   RULE_SCREEN,
   SIGN_FLIPS,
   SIZE_SWEEP,
+  armOf,
   lcfrAt,
   markOf,
   piArm,
+  piMarkOf,
   reachWeighted,
 } from './deep'
 
@@ -65,10 +69,10 @@ describe('the ablations', () => {
 })
 
 describe('the regret-rule screen', () => {
-  it('per-sample DCFR and CFR+ are about 17× linear at t = 50 and rising', () => {
+  it('per-sample DCFR and CFR+ are 16.6× and 17.9× linear at t = 50 and rising', () => {
     const at = (rule: 'linear' | 'dcfr' | 'cfrplus', t: number) => RULE_SCREEN[rule].find((m) => m.t === t)!.exact
-    expect(at('dcfr', 50) / at('linear', 50)).toBeGreaterThan(16)
-    expect(at('cfrplus', 50) / at('linear', 50)).toBeGreaterThan(17)
+    expect(at('dcfr', 50) / at('linear', 50)).toBeCloseTo(16.62, 2)
+    expect(at('cfrplus', 50) / at('linear', 50)).toBeCloseTo(17.91, 2)
     expect(at('dcfr', 10)).toBeLessThan(at('dcfr', 20))
     expect(at('dcfr', 20)).toBeLessThan(at('dcfr', 50))
   })
@@ -83,10 +87,26 @@ describe('the regret-rule screen', () => {
 })
 
 describe('the policy-net loss sweep', () => {
-  it('holds 22 arms at mark 500, 200 or 100, and the reference', () => {
+  it('holds 22 arms, 19 at mark 500, two at 200 and one at 100, and the reference', () => {
     expect(PI_SWEEP.length).toBe(22)
+    expect(PI_SWEEP.filter((a) => a.t === 500).length).toBe(19)
+    expect(PI_SWEEP.filter((a) => a.t === 200).map((a) => a.id).sort()).toEqual(['ce-softmax-64k-cos@t200', 'mse-linear-64k-cos@t200'])
+    expect(PI_SWEEP.filter((a) => a.t === 100).map((a) => a.id)).toEqual(['ce-softmax-64k-cos@t100'])
     expect(PI_REFERENCE.exact).toBeCloseTo(0.1079, 4)
     expect(PI_REFERENCE.runPi).toBeCloseTo(0.1363, 4)
+  })
+
+  it("reads an arm's mark the way the script fixes it: the @t suffix, else the final mark", () => {
+    expect(PI_FINAL_MARK).toBe(500)
+    expect(piMarkOf('ce-softmax-64k-cos@t200')).toBe(200)
+    expect(piMarkOf('mse-linear-16k')).toBe(500)
+    for (const a of PI_SWEEP) expect(a.t).toBe(piMarkOf(a.id))
+    // the five rows the first batch wrote before the script recorded t beside each arm
+    const unrecorded = Object.entries(piResults as Record<string, { arm?: { t?: number } }>)
+      .filter(([id, row]) => !id.startsWith('_') && row.arm?.t === undefined)
+      .map(([id]) => id)
+    expect(unrecorded.sort()).toEqual(['ce-softmax-16k', 'ce-softmax-64k-cos', 'mse-linear-16k', 'mse-linear-64k-cos', 'mse-softmax-16k'])
+    for (const id of unrecorded) expect(id).not.toMatch(/@t\d+$/)
   })
 
   it('cross-entropy at 64k cosine grades 0.1093; the control reproduces the run; KL equals CE to the digit', () => {
@@ -103,9 +123,51 @@ describe('the policy-net loss sweep', () => {
 
 describe('the key numbers', () => {
   it('are the four the masthead quotes, each from the files', () => {
-    expect(KEY_NUMBERS.priceAt1M).toBeCloseTo(0.1326 / 1.1308, 2)
-    expect(KEY_NUMBERS.netAt5M).toBeCloseTo(0.1079, 3)
-    expect(KEY_NUMBERS.tableAt5M).toBeCloseTo(0.264, 2)
-    expect(KEY_NUMBERS.ruleScreenRatio).toBeGreaterThan(16)
+    expect(KEY_NUMBERS.priceAt1M).toBeCloseTo(0.1173, 4)
+    expect(KEY_NUMBERS.netAt5M).toBeCloseTo(0.1079, 4)
+    expect(KEY_NUMBERS.tableAt5M).toBeCloseTo(0.2641, 4)
+    expect(KEY_NUMBERS.ruleScreenRatio).toBeCloseTo(16.62, 2)
+  })
+})
+
+describe('a grade file is checked as it is read', () => {
+  const grade = (t: number, hands = t * 10_000, config = { width: 64, depth: 3, steps: 4000, lr: 0.001, workers: 4 }) =>
+    Object.fromEntries(
+      (['exact', 'pi', 'current'] as const).map((o) => [
+        `deep/${String(t).padStart(5, '0')}/${o}`,
+        { br0: 0.1, br1: 0.2, exploitability: 0.3, value_p0: -0.1, hands_per_seat: hands, wall_clock_s: 1, config: { ...config } },
+      ]),
+    )
+
+  it('reads a well-formed file into marks in order', () => {
+    const arm = armOf('toy', { ...grade(20), ...grade(10) }, 'Mac')
+    expect(arm.marks.map((m) => m.t)).toEqual([10, 20])
+    expect(arm.net).toBe('3 × 64')
+    expect(arm.rule).toBe('linear')
+  })
+
+  it('names the arm, the mark and the object a half-graded mark lacks', () => {
+    const file = grade(10)
+    delete file['deep/00010/pi']
+    expect(() => armOf('toy', file, 'Mac')).toThrow('toy: mark 10 is graded without pi')
+  })
+
+  it('names the field a grade or its config lacks', () => {
+    const file = grade(10) as Record<string, Record<string, unknown>>
+    delete file['deep/00010/exact'].exploitability
+    expect(() => armOf('toy', file, 'Mac')).toThrow('toy: deep/00010/exact has no numeric exploitability')
+    const bare = grade(10) as Record<string, { config: Record<string, unknown> }>
+    delete bare['deep/00010/current'].config.lr
+    expect(() => armOf('toy', bare, 'Mac')).toThrow('toy: deep/00010/current has no numeric config.lr')
+  })
+
+  it('refuses marks that disagree on the config, so an arm is one run', () => {
+    const file = { ...grade(10), ...grade(20, 200_000, { width: 128, depth: 3, steps: 4000, lr: 0.001, workers: 4 }) }
+    expect(() => armOf('toy', file, 'Mac')).toThrow('toy: the marks disagree on width (64 and 128)')
+  })
+
+  it('refuses a key that is not deep/<t>/<objective>, and an empty file', () => {
+    expect(() => armOf('toy', { ...grade(10), 'deep/10/mean': {} }, 'Mac')).toThrow('toy: deep/10/mean is not a deep/<t>/<objective> key')
+    expect(() => armOf('toy', {}, 'Mac')).toThrow('toy: the grade file has no marks')
   })
 })
