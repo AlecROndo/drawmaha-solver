@@ -138,9 +138,9 @@ function marksOf(id: string, file: GradeFile): Mark[] {
       const missing = OBJECTIVES.filter((o) => !objects[o])
       if (missing.length) throw new Error(`${id}: mark ${t} is graded without ${missing.join(' and ')}`)
       const { exact, pi, current } = objects as Record<Objective, DeepGrade>
-      for (const o of ['pi', 'current'] as const) {
-        if (objects[o]!.hands_per_seat !== exact.hands_per_seat) {
-          throw new Error(`${id}: mark ${t} grades ${o} at ${objects[o]!.hands_per_seat} hands and exact at ${exact.hands_per_seat}`)
+      for (const [o, graded] of [['pi', pi], ['current', current]] as const) {
+        if (graded.hands_per_seat !== exact.hands_per_seat) {
+          throw new Error(`${id}: mark ${t} grades ${o} at ${graded.hands_per_seat} hands and exact at ${exact.hands_per_seat}`)
         }
       }
       return { t, hands: exact.hands_per_seat, wallClockS: exact.wall_clock_s, exact, pi, current }
@@ -225,7 +225,11 @@ export const lcfrAt = (hands: number): number => {
 }
 
 /** The verdict the sweep fixed before its numbers existed, and the size it picked. */
-export const SWEEP_RULE: { rule: string; winner: string } = sweepData as unknown as { rule: string; winner: string }
+export const SWEEP_RULE: { rule: string; winner: string } = (() => {
+  const { rule, winner } = sweepData as unknown as { rule: unknown; winner: unknown }
+  if (typeof rule !== 'string' || typeof winner !== 'string') throw new Error('sweep: the file records no rule and winner')
+  return { rule, winner }
+})()
 
 // ---------------------------------------------------------------- ablations
 
@@ -407,9 +411,12 @@ export interface ReachWeighted {
 
 /** A refit's reach-weighted error against the exact average; `run-pi (frozen t500)` is the run's own Π. */
 export const reachWeighted = (id: string): ReachWeighted => {
-  const r = (piReach as Record<string, ReachWeighted>)[id]
+  const r = (piReach as Record<string, Partial<Record<keyof ReachWeighted, unknown>> | undefined>)[id]
   if (!r) throw new Error(`no reach-weighted error for ${id}`)
-  return r
+  for (const field of ['rw_mad', 'rw_small_mad', 'rw_small_zeroed', 'rw_small_mass_lost'] as const) {
+    if (!isNumber(r[field])) throw new Error(`reach_weighted: ${id} has no numeric ${field}`)
+  }
+  return r as ReachWeighted
 }
 
 // ------------------------------------------------------------ key numbers

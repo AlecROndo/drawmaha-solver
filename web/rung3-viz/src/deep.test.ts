@@ -13,6 +13,7 @@ import {
   RULE_SCREEN,
   SIGN_FLIPS,
   SIZE_SWEEP,
+  SWEEP_RULE,
   armOf,
   lcfrAt,
   markOf,
@@ -51,7 +52,9 @@ describe('the best arm against the table at equal hands', () => {
 })
 
 describe('the ablations', () => {
-  it('width is the lever: five nets at 1M hands, 3 × 64 → 3 × 128 cuts 36%', () => {
+  it('width is the lever: five nets at 1M hands, 3 × 64 → 3 × 128 cuts 36%, and the sweep picked 128x3', () => {
+    expect(SWEEP_RULE.winner).toBe('128x3')
+    expect(SWEEP_RULE.rule).toContain('64x3 unless')
     expect(SIZE_SWEEP.map((s) => s.net)).toEqual(['3 × 64', '4 × 64', '3 × 128', '4 × 128', '4 × 256'])
     const at = (net: string) => SIZE_SWEEP.find((s) => s.net === net)!.exact
     expect(at('3 × 64')).toBeCloseTo(0.3824, 3)
