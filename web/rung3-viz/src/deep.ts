@@ -369,11 +369,13 @@ export const PI_SWEEP: PiArm[] = Object.entries(PI_FILE)
     for (const field of PI_ROW_FIELDS) {
       if (!isNumber(r[field])) throw new Error(`pi_sweep: ${id} has no numeric ${field}`)
     }
+    const arm = r.arm
+    if (!arm) throw new Error(`pi_sweep: ${id} records no arm`)
     for (const field of PI_ARM_FIELDS) {
-      if (r.arm?.[field] === undefined) throw new Error(`pi_sweep: ${id} records no arm.${field}`)
+      if (arm[field] === undefined) throw new Error(`pi_sweep: ${id} records no arm.${field}`)
     }
     const t = piMarkOf(id)
-    if (r.arm!.t !== undefined && r.arm!.t !== t) throw new Error(`pi_sweep: ${id} is recorded at mark ${r.arm!.t} but named for mark ${t}`)
+    if (arm.t !== undefined && arm.t !== t) throw new Error(`pi_sweep: ${id} is recorded at mark ${arm.t} but named for mark ${t}`)
     const full = r as PiRow
     return {
       id,
@@ -421,10 +423,17 @@ export const reachWeighted = (id: string): ReachWeighted => {
 
 // ------------------------------------------------------------ key numbers
 
+/** One rule's exact average at one mark of the screen. */
+export const screenAt = (rule: keyof typeof RULE_SCREEN, t: number): number => {
+  const point = RULE_SCREEN[rule].find((p) => p.t === t)
+  if (!point) throw new Error(`rule screen: no mark ${t} for ${rule}`)
+  return point.exact
+}
+
 /** The four numbers the masthead quotes, each computed here from the files above. */
 export const KEY_NUMBERS = {
   priceAt1M: markOf(BEST, 100).exact.exploitability / lcfrAt(1_000_000),
   netAt5M: markOf(BEST, 500).exact.exploitability,
   tableAt5M: lcfrAt(5_000_000),
-  ruleScreenRatio: RULE_SCREEN.dcfr.find((p) => p.t === 50)!.exact / RULE_SCREEN.linear.find((p) => p.t === 50)!.exact,
+  ruleScreenRatio: screenAt('dcfr', 50) / screenAt('linear', 50),
 }
