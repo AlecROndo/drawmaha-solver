@@ -18,8 +18,10 @@ import {
   lcfrAt,
   markOf,
   piArm,
+  piArmOf,
   piMarkOf,
   reachWeighted,
+  screenAt,
 } from './deep'
 
 describe('the best arm against the table at equal hands', () => {
@@ -167,6 +169,24 @@ describe('a grade file is checked as it is read', () => {
   it('refuses marks that disagree on the config, so an arm is one run', () => {
     const file = { ...grade(10), ...grade(20, 200_000, { width: 128, depth: 3, steps: 4000, lr: 0.001, workers: 4 }) }
     expect(() => armOf('toy', file, 'Mac')).toThrow('toy: the marks disagree on width (64 and 128)')
+  })
+
+  it('names the rule and the mark a screen lookup lacks', () => {
+    expect(screenAt('dcfr', 50)).toBeCloseTo(2.8701, 4)
+    expect(() => screenAt('dcfr', 7)).toThrow('rule screen: no mark 7 for dcfr')
+  })
+
+  it('names what a Π-sweep row lacks: a field, its arm, an arm setting, or a mark that matches its name', () => {
+    const row = {
+      br0: 0.1, br1: 0.1, exploitability: 0.11, value_p0: -0.1, fit_s: 1, mean_abs_diff_vs_exact: 0.01, small_zeroed_frac: 0.1,
+      arm: { head: 'softmax', loss: 'ce', steps: 64000, lr: 0.001, schedule: 'cosine', width: 256, depth: 4, t: 200 },
+    }
+    expect(piArmOf('toy@t200', row).t).toBe(200)
+    expect(piArmOf('toy', { ...row, arm: { ...row.arm, t: undefined } }).t).toBe(500)
+    expect(() => piArmOf('toy', { ...row, exploitability: undefined })).toThrow('pi_sweep: toy has no numeric exploitability')
+    expect(() => piArmOf('toy', { ...row, arm: undefined })).toThrow('pi_sweep: toy records no arm')
+    expect(() => piArmOf('toy', { ...row, arm: { ...row.arm, lr: undefined } })).toThrow('pi_sweep: toy records no arm.lr')
+    expect(() => piArmOf('toy', row)).toThrow('pi_sweep: toy is recorded at mark 200 but named for mark 500')
   })
 
   it('refuses a key that is not deep/<t>/<objective>, and an empty file', () => {

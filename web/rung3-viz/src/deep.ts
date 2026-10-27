@@ -362,34 +362,37 @@ export const piMarkOf = (id: string): number => {
 const PI_ROW_FIELDS = ['br0', 'br1', 'exploitability', 'value_p0', 'fit_s', 'mean_abs_diff_vs_exact', 'small_zeroed_frac'] as const
 const PI_ARM_FIELDS = ['head', 'loss', 'steps', 'lr', 'schedule', 'width', 'depth'] as const
 
+/** One refit from its row in the sweep file, read raw and checked here. */
+export function piArmOf(id: string, row: unknown): PiArm {
+  const r = (row ?? {}) as Partial<PiRow>
+  for (const field of PI_ROW_FIELDS) {
+    if (!isNumber(r[field])) throw new Error(`pi_sweep: ${id} has no numeric ${field}`)
+  }
+  const arm = r.arm
+  if (!arm) throw new Error(`pi_sweep: ${id} records no arm`)
+  for (const field of PI_ARM_FIELDS) {
+    if (arm[field] === undefined) throw new Error(`pi_sweep: ${id} records no arm.${field}`)
+  }
+  const t = piMarkOf(id)
+  if (arm.t !== undefined && arm.t !== t) throw new Error(`pi_sweep: ${id} is recorded at mark ${arm.t} but named for mark ${t}`)
+  const full = r as PiRow
+  return {
+    id,
+    ...full.arm,
+    t,
+    br0: full.br0,
+    br1: full.br1,
+    exploitability: full.exploitability,
+    value_p0: full.value_p0,
+    fitSeconds: full.fit_s,
+    meanAbsDiff: full.mean_abs_diff_vs_exact,
+    smallZeroed: full.small_zeroed_frac,
+  }
+}
+
 export const PI_SWEEP: PiArm[] = Object.entries(PI_FILE)
   .filter(([id]) => !id.startsWith('_'))
-  .map(([id, row]) => {
-    const r = row as Partial<PiRow>
-    for (const field of PI_ROW_FIELDS) {
-      if (!isNumber(r[field])) throw new Error(`pi_sweep: ${id} has no numeric ${field}`)
-    }
-    const arm = r.arm
-    if (!arm) throw new Error(`pi_sweep: ${id} records no arm`)
-    for (const field of PI_ARM_FIELDS) {
-      if (arm[field] === undefined) throw new Error(`pi_sweep: ${id} records no arm.${field}`)
-    }
-    const t = piMarkOf(id)
-    if (arm.t !== undefined && arm.t !== t) throw new Error(`pi_sweep: ${id} is recorded at mark ${arm.t} but named for mark ${t}`)
-    const full = r as PiRow
-    return {
-      id,
-      ...full.arm,
-      t,
-      br0: full.br0,
-      br1: full.br1,
-      exploitability: full.exploitability,
-      value_p0: full.value_p0,
-      fitSeconds: full.fit_s,
-      meanAbsDiff: full.mean_abs_diff_vs_exact,
-      smallZeroed: full.small_zeroed_frac,
-    }
-  })
+  .map(([id, row]) => piArmOf(id, row))
 
 if (!isNumber(PI_FILE._reference?.exact?.exploitability) || !isNumber(PI_FILE._reference?.run_pi_exploitability)) {
   throw new Error('pi_sweep: the file records no _reference grades')
