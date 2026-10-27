@@ -12,7 +12,6 @@ import {
   type Rule,
 } from '../research'
 import { RULE_INK } from '../inks'
-import { Panel } from './site'
 
 /**
  * The race: exploitability against hands per seat, both axes log, one line
@@ -66,20 +65,7 @@ export function RaceChart() {
   }
 
   return (
-    <Panel
-      n="01"
-      wide
-      k="Fig. 1 · the race — hover or arrow a checkpoint"
-      title="Keeping negative regret wins, by three to four times."
-      say={
-        <>
-          Chips per hundred hands a perfect adversary wins against each rule’s linear average, by the exact
-          best-response walk, against sampled hands per seat ({WORKERS} per iteration). Both axes log.{' '}
-          <b>Seed 0, one run per rule.</b>
-        </>
-      }
-      label="Exploitability of the four regret rules over the race"
-    >
+    <>
       <div className="legend">
         {RULES.map((rule) => (
           <span key={rule} className="item">
@@ -220,6 +206,6 @@ export function RaceChart() {
           <dd>{column[1].point.value_p0.toFixed(4)}</dd>
         </div>
       </dl>
-    </Panel>
+    </>
   )
 }

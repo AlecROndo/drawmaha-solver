@@ -1,0 +1,88 @@
+{
+ "rows": 6220050,
+ "never_visited_by_2M": 0.0012919510293325617,
+ "never_visited_by_100k": 0.13900643885499311,
+ "visited_by_10k": 0.268447359747912,
+ "visited_by_100k": 0.8609935611450069,
+ "visited_by_2M": 0.9987080489706675,
+ "first_visit_after_100k_given_visited": 0.13789263836172938,
+ "age_quantiles_iters": {
+  "p10": 3418.0,
+  "p25": 11165.0,
+  "p50": 36593.0,
+  "p75": 115289.0,
+  "p90": 331854.0,
+  "p99": 1335750.960000001
+ },
+ "age_ge_1": 0.9999575017055661,
+ "age_ge_10": 0.9995542508436073,
+ "age_ge_50": 0.9978921489874298,
+ "age_ge_1075": 0.9635081311793566,
+ "visited_by_10k_reach_weighted": 0.5938154405853204,
+ "age_quantiles_reach_weighted": {
+  "p10": 115,
+  "p50": 7006,
+  "p90": 125505
+ },
+ "dcfr_neg_entry_frac": 0.28304379732058166,
+ "dcfr_zero_entry_frac": 0.042843051416320097,
+ "cfrplus_neg_entry_frac": 0.0,
+ "cfrplus_zero_entry_frac": 0.325713562099757,
+ "lcfr_neg_entry_frac": 0.5120421584639648,
+ "lcfr_zero_entry_frac": 0.010980549802719829,
+ "vanilla_neg_entry_frac": 0.5089631285323815,
+ "vanilla_zero_entry_frac": 0.014094096748665623,
+ "dcfr_neg_entry_frac_settled_nonzero": 0.000301462623405342,
+ "tv": {
+  "dcfr~cfrplus|current": {
+   "mean_visited": 0.1337766798778957,
+   "reach_weighted": 0.10996452409076082,
+   "median_visited": 0.050696239773009626
+  },
+  "dcfr~cfrplus|average": {
+   "mean_visited": 0.16308857059594753,
+   "reach_weighted": 0.08529981663687734,
+   "median_visited": 0.0812074554133095
+  },
+  "lcfr~vanilla|current": {
+   "mean_visited": 0.1298292525367194,
+   "reach_weighted": 0.12181674323148467,
+   "median_visited": 0.0
+  },
+  "lcfr~vanilla|average": {
+   "mean_visited": 0.14025740098309045,
+   "reach_weighted": 0.14218450500213314,
+   "median_visited": 0.0
+  },
+  "cfrplus~vanilla|current": {
+   "mean_visited": 0.1740565650916214,
+   "reach_weighted": 0.16722753162802956,
+   "median_visited": 0.028310585649453886
+  },
+  "cfrplus~vanilla|average": {
+   "mean_visited": 0.2915457564283079,
+   "reach_weighted": 0.17621933619431185,
+   "median_visited": 0.29119017211260617
+  },
+  "dcfr~lcfr|current": {
+   "mean_visited": 0.17894635841865217,
+   "reach_weighted": 0.17392719531032458,
+   "median_visited": 0.026750710565653396
+  },
+  "dcfr~lcfr|average": {
+   "mean_visited": 0.27906772368490246,
+   "reach_weighted": 0.15771943533741797,
+   "median_visited": 0.2604512339291926
+  },
+  "cfrplus~lcfr|current": {
+   "mean_visited": 0.17862621925799996,
+   "reach_weighted": 0.17391752383051629,
+   "median_visited": 0.026724091084060018
+  },
+  "cfrplus~lcfr|average": {
+   "mean_visited": 0.2787841653181279,
+   "reach_weighted": 0.1579151886475491,
+   "median_visited": 0.25968763914540477
+  }
+ }
+}

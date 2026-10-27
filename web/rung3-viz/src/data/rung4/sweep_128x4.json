@@ -1,0 +1,202 @@
+{
+  "deep/00050/current": {
+    "br0": 0.2086317479788098,
+    "br1": 0.4225359767310629,
+    "exploitability": 0.31558386235493635,
+    "value_p0": -0.1503773177782433,
+    "hands_per_seat": 500000,
+    "wall_clock_s": 4380.208,
+    "config": {
+      "seed": 0,
+      "walks": 10000,
+      "workers": 6,
+      "capacity": 50000000,
+      "width": 128,
+      "depth": 4,
+      "steps": 4000,
+      "batch": 10000,
+      "lr": 0.001,
+      "clip": 1.0,
+      "threads": 6,
+      "grid": [
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
+        2000
+      ],
+      "save_every_s": 1800.0
+    },
+    "grade_s": 93.8
+  },
+  "deep/00050/exact": {
+    "br0": 0.12933235980131674,
+    "br1": 0.31020375903962627,
+    "exploitability": 0.2197680594204715,
+    "value_p0": -0.11156418343334697,
+    "hands_per_seat": 500000,
+    "wall_clock_s": 4380.208,
+    "config": {
+      "seed": 0,
+      "walks": 10000,
+      "workers": 6,
+      "capacity": 50000000,
+      "width": 128,
+      "depth": 4,
+      "steps": 4000,
+      "batch": 10000,
+      "lr": 0.001,
+      "clip": 1.0,
+      "threads": 6,
+      "grid": [
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
+        2000
+      ],
+      "save_every_s": 1800.0
+    },
+    "grade_s": 112.6
+  },
+  "deep/00050/pi": {
+    "br0": 0.16688246008502566,
+    "br1": 0.35518501292980204,
+    "exploitability": 0.26103373650741385,
+    "value_p0": -0.11965810771509566,
+    "hands_per_seat": 500000,
+    "wall_clock_s": 4380.208,
+    "config": {
+      "seed": 0,
+      "walks": 10000,
+      "workers": 6,
+      "capacity": 50000000,
+      "width": 128,
+      "depth": 4,
+      "steps": 4000,
+      "batch": 10000,
+      "lr": 0.001,
+      "clip": 1.0,
+      "threads": 6,
+      "grid": [
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
+        2000
+      ],
+      "save_every_s": 1800.0
+    },
+    "grade_s": 105.7,
+    "pi_fit_s": 28.0
+  },
+  "deep/00100/current": {
+    "br0": 0.19739395923005162,
+    "br1": 0.43089997941791564,
+    "exploitability": 0.3141469693239836,
+    "value_p0": -0.12237067664279248,
+    "hands_per_seat": 1000000,
+    "wall_clock_s": 8280.456,
+    "config": {
+      "seed": 0,
+      "walks": 10000,
+      "workers": 6,
+      "capacity": 50000000,
+      "width": 128,
+      "depth": 4,
+      "steps": 4000,
+      "batch": 10000,
+      "lr": 0.001,
+      "clip": 1.0,
+      "threads": 6,
+      "grid": [
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
+        2000
+      ],
+      "save_every_s": 1800.0
+    },
+    "grade_s": 94.9
+  },
+  "deep/00100/exact": {
+    "br0": 0.13747522582367278,
+    "br1": 0.30507153892060135,
+    "exploitability": 0.22127338237213706,
+    "value_p0": -0.12263245477937887,
+    "hands_per_seat": 1000000,
+    "wall_clock_s": 8280.456,
+    "config": {
+      "seed": 0,
+      "walks": 10000,
+      "workers": 6,
+      "capacity": 50000000,
+      "width": 128,
+      "depth": 4,
+      "steps": 4000,
+      "batch": 10000,
+      "lr": 0.001,
+      "clip": 1.0,
+      "threads": 6,
+      "grid": [
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
+        2000
+      ],
+      "save_every_s": 1800.0
+    },
+    "grade_s": 115.6
+  },
+  "deep/00100/pi": {
+    "br0": 0.15744423031044336,
+    "br1": 0.3390271701125491,
+    "exploitability": 0.24823570021149624,
+    "value_p0": -0.13155201028187374,
+    "hands_per_seat": 1000000,
+    "wall_clock_s": 8280.456,
+    "config": {
+      "seed": 0,
+      "walks": 10000,
+      "workers": 6,
+      "capacity": 50000000,
+      "width": 128,
+      "depth": 4,
+      "steps": 4000,
+      "batch": 10000,
+      "lr": 0.001,
+      "clip": 1.0,
+      "threads": 6,
+      "grid": [
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
+        2000
+      ],
+      "save_every_s": 1800.0
+    },
+    "grade_s": 108.1,
+    "pi_fit_s": 30.4
+  }
+}

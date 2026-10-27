@@ -41,6 +41,26 @@ time and held to the file by `tests/minidrawmaha/test_range_export.py`. A
 re-grade of one of those marks therefore means re-exporting its strategy
 (`uv run minidraw-ranges --release <name>`) in the same change.
 
+`rung3/visit_forensics.json` is the forensics on the race's four 2M checkpoints
+(how idle the rows were, the reach-weighted gaps, the sign fractions), written by
+`scripts/minidrawmaha/checkpoint_forensics.py` from the checkpoints on the Modal
+volume; `rung3/grades_visit_clock.json` grades the visit-clock DCFR arm (branch
+`rung3-dcfr-visit-clock`, W = 20, to 100k iterations), written by
+`scripts/minidrawmaha/grade_visit_clock.py`. Both are what the clock chapter of
+`/rung3` quotes.
+
+`rung4/pi_sweep/results.json` is the policy-net loss sweep: 22 refits of Π on
+the stored policy memory of the 4 × 256, 16,000-step arm (loss, head, steps,
+schedule, width, depth, mark), each graded exactly, written by
+`scripts/deepcfr/pi_loss_sweep.py`; `rung4/pi_sweep/reach_weighted.json` is
+each refit's reach-weighted error against the exact average, written by
+`scripts/deepcfr/pi_reach_weighted.py`. `/rung3` quotes both.
+
+`web/rung3-viz/src/data/` holds a copy of every file `/rung3` reads — the two
+rung-3 files above, these two, every `rung4/*.json` grade file and the sweep —
+refreshed by hand after a regeneration and held byte for byte to the originals
+by `tests/test_rung3_page_data.py`.
+
 `rung4/rule_dcfr-256x4.json` and `rung4/rule_cfrplus-256x4.json` grade the
 regret-rule screen: the 256 × 4 net trained to 50 iterations on this machine
 by `run_deep_cfr.py --rule dcfr` and `--rule cfr+`, its marks graded by
