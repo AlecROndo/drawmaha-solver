@@ -5,9 +5,12 @@
 Re-running the same command resumes from `<out>/resume`, the exact average
 (`deepcfr.average`) included. Ctrl-C (or SIGTERM) finishes the iteration and
 saves. See `deepcfr.train` for what is kept and which flags a resume may
-change (`--workers` and `--device` yes; the seed, the walks, the capacity
-and the net's size no). `--device mps` is checked against the machine
-before the run is loaded, so a missing GPU costs no walks.
+change (`--workers` and `--device` yes; the seed, the walks, the capacity,
+the net's size and `--pot-power` no). `--device mps` is checked against the
+machine before the run is loaded, so a missing GPU costs no walks. The
+refit's targets are each regret sample over √pot at its spot by default
+(`deepcfr.train.pot_scaled`); a run saved before that was the default
+fitted raw chips, and resumes only with `--pot-power 0`.
 """
 
 import argparse
@@ -46,6 +49,12 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="regret rule of the refit's targets",
     )
     parser.add_argument(
+        "--pot-power", type=float, default=defaults.pot_power,
+        help="divide each regret sample by its spot's pot to this power before the refit; "
+        "0 fits raw chips (the spec's), 0.5 weighs each spot by its chip cost (the default); "
+        "a run saved before this flag existed resumes only under 0",
+    )
+    parser.add_argument(
         "--save-every-s", type=float, default=defaults.save_every_s,
         help="seconds between resume saves; a resume may change it",
     )
@@ -76,6 +85,7 @@ def config_from_args(args: argparse.Namespace) -> DeepConfig:
         threads=args.threads,
         device=args.device,
         rule=args.rule,
+        pot_power=args.pot_power,
         save_every_s=args.save_every_s,
     )
 

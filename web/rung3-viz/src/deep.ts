@@ -25,6 +25,9 @@ import s128x4 from './data/rung4/sweep_128x4.json'
 import s256x4 from './data/rung4/sweep_256x4.json'
 import s256x4s8000 from './data/rung4/sweep_256x4-s8000.json'
 import s256x4s16000 from './data/rung4/sweep_256x4-s16000-lr5e-4.json'
+import s256x4s16000lr1e3 from './data/rung4/sweep_256x4-s16000.json'
+import pot05 from './data/rung4/pot_0.5-256x4-s16000-lr5e-4.json'
+import pot1 from './data/rung4/pot_1-256x4-s16000-lr5e-4.json'
 import ruleDcfr from './data/rung4/rule_dcfr-256x4.json'
 import ruleCfrplus from './data/rung4/rule_cfrplus-256x4.json'
 import signFlipsData from './data/rung4/rule_sign_flips.json'
@@ -50,6 +53,8 @@ interface Config {
   walks: number
   rule?: string
   device?: string
+  /** the k each regret target was divided by pot^k before the refit; absent in files written before it existed, which is raw chips */
+  pot_power?: number
 }
 
 interface DeepGrade extends Graded {
@@ -91,6 +96,8 @@ export interface Arm {
   lr: number
   workers: number
   rule: Rule
+  /** the k in ÷ pot^k on the refit's targets: 0 is raw chips, ½ the default since 2026-10-27 */
+  potPower: number
   where: 'Mac' | 'Modal'
   marks: Mark[]
 }
@@ -100,7 +107,7 @@ const KEY = /^deep\/(\d+)\/(exact|pi|current)$/
 const GRADE_FIELDS = ['br0', 'br1', 'exploitability', 'value_p0', 'hands_per_seat', 'wall_clock_s'] as const
 const CONFIG_FIELDS = ['width', 'depth', 'steps', 'lr', 'workers'] as const
 /** The settings every mark of one arm must share: the arm is one run, so one config. */
-const ARM_FIELDS = [...CONFIG_FIELDS, 'rule'] as const
+const ARM_FIELDS = [...CONFIG_FIELDS, 'rule', 'pot_power'] as const
 
 const isNumber = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x)
 
@@ -166,6 +173,7 @@ export function armOf(id: string, raw: unknown, where: Arm['where']): Arm {
     lr: first.lr,
     workers: first.workers,
     rule: (first.rule as Rule | undefined) ?? 'linear',
+    potPower: first.pot_power ?? 0,
     where,
     marks,
   }
@@ -204,6 +212,9 @@ export const ARMS: Record<string, Arm> = {
   '4x256': armOf('4x256', s256x4, 'Mac'),
   '4x256-s8000': armOf('4x256-s8000', s256x4s8000, 'Mac'),
   '4x256-s16000-lr5e-4': armOf('4x256-s16000-lr5e-4', s256x4s16000, 'Mac'),
+  '4x256-s16000': armOf('4x256-s16000', s256x4s16000lr1e3, 'Mac'),
+  'pot0.5-4x256-s16000-lr5e-4': armOf('pot0.5-4x256-s16000-lr5e-4', pot05, 'Mac'),
+  'pot1-4x256-s16000-lr5e-4': armOf('pot1-4x256-s16000-lr5e-4', pot1, 'Mac'),
   'rule-dcfr': armOf('rule-dcfr', ruleDcfr, 'Mac'),
   'rule-cfrplus': armOf('rule-cfrplus', ruleCfrplus, 'Mac'),
 }
@@ -267,6 +278,39 @@ const refitPoint = (id: string): RefitPoint => {
 }
 
 export const REFIT_ARMS: RefitPoint[] = ['modal-3x128', '3x128-s8000', '4x256', '4x256-s8000', '4x256-s16000-lr5e-4'].map(refitPoint)
+
+/**
+ * The pot arms: the 16,000-step 4 × 256 net with its regret targets divided
+ * by pot^k at each spot before the refit, k = 0 (raw chips, at both learning
+ * rates), ½ and 1, all on identical hands, read at one and two million hands.
+ * The current iterate rides along because it is where the two pot weightings
+ * separate when their exact averages tie.
+ */
+export interface PotPoint {
+  net: string
+  steps: number
+  lr: number
+  potPower: number
+  exact: Record<100 | 200, number>
+  current: Record<100 | 200, number>
+  arm: string
+}
+
+const potPoint = (id: string): PotPoint => {
+  const arm = ARMS[id]
+  const at = (o: 'exact' | 'current', t: 100 | 200) => markOf(arm, t)[o].exploitability
+  return {
+    net: arm.net,
+    steps: arm.steps,
+    lr: arm.lr,
+    potPower: arm.potPower,
+    exact: { 100: at('exact', 100), 200: at('exact', 200) },
+    current: { 100: at('current', 100), 200: at('current', 200) },
+    arm: id,
+  }
+}
+
+export const POT_ARMS: PotPoint[] = ['4x256-s16000-lr5e-4', '4x256-s16000', 'pot0.5-4x256-s16000-lr5e-4', 'pot1-4x256-s16000-lr5e-4'].map(potPoint)
 
 // ------------------------------------------------------- the rule screens
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 import math
 import os
 import time
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -124,6 +125,59 @@ def test_fit_reports_a_finite_loss_and_a_run_logs_it(tmp_path):
 
     assert all(math.isfinite(x) for x in json.loads(lines[-1])["loss"])
     assert run.t == 0
+
+def test_the_targets_reaching_the_fit_are_the_pot_scaled_rule_targets(monkeypatch):
+    # `NetLearner.fit` applies the regret rule, then the pot scaling, then
+    # fits; what `fit_from_scratch` is handed is pinned here, not inferred.
+    import drawmaha_solver.deepcfr.fit as fit
+    from drawmaha_solver.deepcfr.train import pot_scaled, rule_targets
+
+    with Collector(seed=9, workers=0) as collector:
+        rows = collector.collect(seat=0, t=3, walks=5)
+    rows_, targets = rows.advantage_rows, rows.advantage_targets
+    assert (targets != 0).any()
+    t = np.full(len(rows_), 3, np.int32)
+    handed = {}
+    real = fit.fit_from_scratch
+
+    def spy(rows, t, targets, *, seed, config):
+        handed.update(rows=rows, t=t, targets=targets)
+        return real(rows, t, targets, seed=seed, config=config)
+
+    monkeypatch.setattr(fit, "fit_from_scratch", spy)
+
+    NetLearner(replace(TINY, pot_power=0.5)).fit(rows_, t, targets, seed=(9, 3, 0))
+    np.testing.assert_array_equal(handed["targets"], pot_scaled(rows_, targets, power=0.5))
+    assert not np.array_equal(handed["targets"], targets)
+    np.testing.assert_array_equal(handed["t"], t)
+
+    NetLearner(replace(TINY, pot_power=0.5, rule="dcfr")).fit(rows_, t, targets, seed=(9, 3, 0))
+    ruled = rule_targets(targets, t, now=3, rule="dcfr")
+    np.testing.assert_array_equal(handed["targets"], pot_scaled(rows_, ruled, power=0.5))
+    np.testing.assert_array_equal(handed["t"], np.ones(len(t), np.float32))
+
+    NetLearner(replace(TINY, pot_power=0.0)).fit(rows_, t, targets, seed=(9, 3, 0))
+    assert handed["targets"] is targets  # power 0 hands the memory's own array through
+
+def test_pot_scaled_regrets_write_the_same_strategy_through_the_slot_rule_and_the_ledger():
+    # The whole chain a scaled row goes through: materialise's eq.-(3) slot
+    # rule, then the ledger's `strategy()`. Every seventh row is all-negative
+    # so the one-hot clause is exercised too.
+    from drawmaha_solver.deepcfr.materialise import regret_slots_from_outputs
+    from drawmaha_solver.deepcfr.train import pot_scaled
+    from drawmaha_solver.minidrawmaha.rules.features import layout
+    from drawmaha_solver.regret_matching import RegretMatcher
+
+    rng = np.random.default_rng(3)
+    rows = rng.integers(0, layout().row_offset[-1], size=210)
+    raw = rng.normal(scale=10.0, size=(210, 4)).astype(np.float32)
+    raw[::7] = -np.abs(raw[::7])
+    scaled = pot_scaled(rows, raw, power=0.5)
+    for before, after in zip(regret_slots_from_outputs(raw), regret_slots_from_outputs(scaled), strict=True):
+        from_raw, from_scaled = RegretMatcher(4), RegretMatcher(4)
+        from_raw.cumulative_regret = before
+        from_scaled.cumulative_regret = after
+        np.testing.assert_allclose(from_scaled.strategy(), from_raw.strategy(), rtol=1e-5)
 
 @pytest.mark.skipif(
     not FULL_DEEP,

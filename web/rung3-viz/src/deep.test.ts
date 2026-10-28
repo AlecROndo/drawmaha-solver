@@ -9,6 +9,7 @@ import {
   PI_FINAL_MARK,
   PI_REFERENCE,
   PI_SWEEP,
+  POT_ARMS,
   REFIT_ARMS,
   RULE_SCREEN,
   SIGN_FLIPS,
@@ -70,6 +71,45 @@ describe('the ablations', () => {
     expect(r('3 × 128', 8000).exact).toBeCloseTo(0.184, 3)
     expect(r('4 × 256', 16000).lr).toBe(0.0005)
     expect(r('4 × 256', 16000).exact).toBeCloseTo(0.1326, 3)
+  })
+
+  it('the pot arms: ÷ √pot 0.108 → 0.086 and ÷ pot 0.114 → 0.084 against raw 0.133 → 0.115 at 1M → 2M hands', () => {
+    expect(POT_ARMS.map((a) => a.potPower)).toEqual([0, 0, 0.5, 1])
+    expect(POT_ARMS.map((a) => a.lr)).toEqual([0.0005, 0.001, 0.0005, 0.0005])
+    for (const a of POT_ARMS) {
+      expect(a.net).toBe('4 × 256')
+      expect(a.steps).toBe(16_000)
+    }
+    const at = (potPower: number, lr: number, t: 100 | 200) => POT_ARMS.find((a) => a.potPower === potPower && a.lr === lr)!.exact[t]
+    expect(at(0, 0.0005, 100)).toBeCloseTo(0.1326, 3)
+    expect(at(0, 0.0005, 200)).toBeCloseTo(0.1152, 3)
+    expect(at(0, 0.001, 100)).toBeCloseTo(0.1275, 3)
+    expect(at(0, 0.001, 200)).toBeCloseTo(0.1036, 3)
+    expect(at(0.5, 0.0005, 100)).toBeCloseTo(0.1077, 3)
+    expect(at(0.5, 0.0005, 200)).toBeCloseTo(0.0859, 3)
+    expect(at(1, 0.0005, 100)).toBeCloseTo(0.1143, 3)
+    expect(at(1, 0.0005, 200)).toBeCloseTo(0.0841, 3)
+    // the run log's finding 7: −25% at 2M hands under √pot, and the two pot arms tied there
+    expect(1 - at(0.5, 0.0005, 200) / at(0, 0.0005, 200)).toBeCloseTo(0.254, 2)
+    expect(Math.abs(at(0.5, 0.0005, 200) - at(1, 0.0005, 200))).toBeLessThan(0.005)
+    // the current iterate at 2M hands: √pot well ahead of ÷ pot
+    const cur = (potPower: number) => POT_ARMS.find((a) => a.potPower === potPower && a.lr === 0.0005)!.current[200]
+    expect(cur(0.5)).toBeCloseTo(0.158, 3)
+    expect(cur(1)).toBeCloseTo(0.214, 3)
+    // the raw-vs-raw gap the prose uses as its yardstick, at each mark the gain is quoted at
+    expect(Math.abs(at(0, 0.0005, 100) - at(0, 0.001, 100))).toBeCloseTo(0.0051, 3)
+    expect(Math.abs(at(0, 0.0005, 200) - at(0, 0.001, 200))).toBeCloseTo(0.0116, 3)
+    // the early mark: the √pot arm is worse than raw at 100k hands, and the ÷ pot arm was never graded there
+    expect(markOf(ARMS['pot0.5-4x256-s16000-lr5e-4'], 10).exact.exploitability).toBeCloseTo(0.879, 3)
+    expect(markOf(BEST, 10).exact.exploitability).toBeCloseTo(0.6433, 3)
+    expect(ARMS['pot1-4x256-s16000-lr5e-4'].marks.map((m) => m.t)).toEqual([100, 200])
+  })
+
+  it('reads pot_power from the config, and a file written before it existed as raw chips', () => {
+    expect(ARMS['4x256-s16000-lr5e-4'].potPower).toBe(0)
+    expect(ARMS['pot0.5-4x256-s16000-lr5e-4'].potPower).toBe(0.5)
+    expect(ARMS['pot1-4x256-s16000-lr5e-4'].potPower).toBe(1)
+    expect(ARMS['4x256-s16000'].potPower).toBe(0)
   })
 })
 
@@ -136,7 +176,8 @@ describe('the key numbers', () => {
 })
 
 describe('a grade file is checked as it is read', () => {
-  const grade = (t: number, hands = t * 10_000, config = { width: 64, depth: 3, steps: 4000, lr: 0.001, workers: 4 }) =>
+  type ToyConfig = { width: number; depth: number; steps: number; lr: number; workers: number; pot_power?: number }
+  const grade = (t: number, hands = t * 10_000, config: ToyConfig = { width: 64, depth: 3, steps: 4000, lr: 0.001, workers: 4 }) =>
     Object.fromEntries(
       (['exact', 'pi', 'current'] as const).map((o) => [
         `deep/${String(t).padStart(5, '0')}/${o}`,
@@ -169,6 +210,8 @@ describe('a grade file is checked as it is read', () => {
   it('refuses marks that disagree on the config, so an arm is one run', () => {
     const file = { ...grade(10), ...grade(20, 200_000, { width: 128, depth: 3, steps: 4000, lr: 0.001, workers: 4 }) }
     expect(() => armOf('toy', file, 'Mac')).toThrow('toy: the marks disagree on width (64 and 128)')
+    const mixed = { ...grade(10), ...grade(20, 200_000, { width: 64, depth: 3, steps: 4000, lr: 0.001, workers: 4, pot_power: 0.5 }) }
+    expect(() => armOf('toy', mixed, 'Mac')).toThrow('toy: the marks disagree on pot_power (undefined and 0.5)')
   })
 
   it('names the rule and the mark a screen lookup lacks', () => {
