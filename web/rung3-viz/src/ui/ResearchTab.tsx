@@ -36,8 +36,9 @@ import { AveragesChart } from './AveragesChart'
 import { ColumnsChart } from './ColumnsChart'
 import { currentSection } from './contents'
 import { DeepRaceChart } from './DeepRaceChart'
+import { EqualHandsChart } from './EqualHandsChart'
 import { Figure } from './Figure'
-import { fraction } from './scales'
+import { fraction, hoursAt, hoursOf } from './scales'
 import { REACH, bandAt, binLabel, commonInfosets, commonShare, crossingBand, onceIn, perVisit, populated, rareInfosets, rareShare } from '../reach'
 import { LossShapes } from './LossShapes'
 import { PiLossChart } from './PiLossChart'
@@ -468,20 +469,25 @@ export function ResearchTab() {
             seat per iteration has seen the same hands at iteration t as LCFR had at lockstep iteration 1,000 t, so the
             marks 10, 20, 50, 100, 200 and 500 sit on the race's checkpoints exactly. Equal hands is not equal compute: an
             iteration with two refits of a 4 × 256 net costs minutes against ten table updates, and the best arm's five
-            million hands took {(best500.wallClockS / 3600).toFixed(0)} hours of training.
+            million hands took {hoursOf(best500.wallClockS)} hours of training.
           </p>
-          <table className="settled" aria-label="The equal-hands grid">
-            <tbody>
-              {BEST.marks.map((m) => (
-                <tr key={m.t}>
-                  <td>{m.hands.toLocaleString()} hands</td>
-                  <td>
-                    tabular iteration {(m.t * 1000).toLocaleString()} · Deep CFR iteration {m.t} · LCFR grades {p100(lcfrAt(m.hands))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Figure
+            n={8}
+            caption={
+              <>
+                Two clocks on one ruler. Deep CFR's iteration t and the table's lockstep iteration 1,000 t have seen the
+                same hands per seat, so the six marks sit on the race's checkpoints exactly, and every column lines up
+                through both clocks. The table's grade at each notch, {p100(lcfrAt(BEST.marks[0].hands))} falling to{' '}
+                {p100(lcfrAt(best500.hands))}, is what the price divides by; the hours under the top clock are the compute
+                the equal-hands axis leaves out, {hoursAt(BEST.marks[0].wallClockS)} at the first mark and{' '}
+                {hoursAt(best500.wallClockS)} at the last. Hover or arrow a notch.
+              </>
+            }
+            source="figures/rung4/sweep_256x4-s16000-lr5e-4.json (the best arm's marks: iteration, hands per seat, wall clock) and figures/rung3/grades.json (LCFR at the same hands); hands on a log axis, the grades on a log scale of their own"
+            label="Deep CFR's iteration and the table's lockstep iteration on one axis of hands per seat, with the table's grade at each mark"
+          >
+            <EqualHandsChart />
+          </Figure>
           <h3>One iteration: the ledger's regret half becomes a regression</h3>
           <p>
             Nothing about the walk changes. For each seat in turn, both seats' nets are written into the packed table's
@@ -512,7 +518,7 @@ export function ResearchTab() {
             <b>current iterate</b>, which CFR never promises will converge.
           </p>
           <Figure
-            n={8}
+            n={9}
             caption={
               <>
                 At one million hands the net is exploitable for {p100(best100.exact.exploitability)} against the
@@ -560,7 +566,7 @@ export function ResearchTab() {
             reading, not a theorem.
           </p>
           <Figure
-            n={9}
+            n={10}
             caption={
               <>
                 Where each strategy's exploitability lives, the net at {M(best500.hands)} hands and the table at{' '}
@@ -589,7 +595,7 @@ export function ResearchTab() {
             more spots apart; a deeper one composes the same features more. On this game the first is what was missing.
           </p>
           <Figure
-            n={10}
+            n={11}
             caption={
               <>
                 Width is the lever. 3 × 64 → 3 × 128 cut the one-million-hand grade{' '}
@@ -618,7 +624,7 @@ export function ResearchTab() {
             million hands.
           </p>
           <Figure
-            n={11}
+            n={12}
             caption={
               <>
                 A doubled refit cut {cut(refit('3 × 128', 4000).exact, refit('3 × 128', 8000).exact)} at 3 × 128 and{' '}
@@ -673,7 +679,7 @@ export function ResearchTab() {
             not graded there), as a longer fit was in the previous section; arms are compared from a million hands.
           </p>
           <Figure
-            n={12}
+            n={13}
             caption={
               <>
                 ÷ √pot grades {p100(pot(0.5).exact[200])} at two million hands against raw {p100(pot(0).exact[200])},{' '}
@@ -715,7 +721,7 @@ export function ResearchTab() {
             {p100(best500.current.exploitability)} at five.
           </p>
           <Figure
-            n={13}
+            n={14}
             caption={
               <>
                 Exact &lt; Π at every mark; the current iterate is promised nothing and shows it. The 4 × 256 arm's three
@@ -752,7 +758,7 @@ export function ResearchTab() {
             ) where the run's Π stalled. The memory was fine; the loss was wrong for the job.
           </p>
           <Figure
-            n={14}
+            n={15}
             caption={
               <>
                 Cross-entropy beats squared error at every step count and reaches {p100(ce64.exploitability, 2)} at 64k,
@@ -774,7 +780,7 @@ export function ResearchTab() {
             exploitability where a plain count of zeroed small probabilities does not.
           </p>
           <Figure
-            n={15}
+            n={16}
             caption="The same 0.03 miss costs fourteen times more under cross-entropy at a rare action than under squared error, and the same at a coin flip. Both curves are the losses' definitions, computed; nothing read from a file."
             source="the two losses' formulas: squared error, and cross-entropy minus its floor (the KL divergence)"
             label="Squared error and cross-entropy for a 0.03 miss at a 4 percent action and at a 50 percent action"
@@ -814,7 +820,7 @@ export function ResearchTab() {
             sampling produces.
           </p>
           <Figure
-            n={16}
+            n={17}
             caption={
               <>
                 Per-sample DCFR and CFR+ are {KEY_NUMBERS.ruleScreenRatio.toFixed(0)} times worse than linear at
@@ -850,7 +856,7 @@ export function ResearchTab() {
                 <td>equal hands</td>
                 <td>
                   Equal hands is not equal compute. A Deep CFR iteration refits two nets; the best arm's five million
-                  hands took {(best500.wallClockS / 3600).toFixed(0)} hours on a laptop GPU, and the table's twenty million
+                  hands took {hoursOf(best500.wallClockS)} hours on a laptop GPU, and the table's twenty million
                   ran on eleven Modal cores per rule.
                 </td>
               </tr>

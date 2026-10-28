@@ -34,6 +34,20 @@ export const stackLabels = (ys: number[], gap: number, floor = Infinity): number
 /** 100000 → 100k, 2000000 → 2M. */
 export const fmtHands = (n: number): string => (n >= 1e6 ? `${n / 1e6}M` : `${n / 1e3}k`)
 
+/**
+ * Training hours at a mark, from its wall clock in seconds, as the prose
+ * prints them: one decimal under ten hours, whole from ten up. The branch is
+ * taken on the rounded value, so 9.97 hours reads 10, never 10.0.
+ */
+export const hoursOf = (wallClockS: number): string => {
+  const h = wallClockS / 3600
+  const tenths = h.toFixed(1)
+  return Number(tenths) < 10 ? tenths : h.toFixed(0)
+}
+
+/** The same with its unit, the way a figure prints it: 0.4 h, 21 h. */
+export const hoursAt = (wallClockS: number): string => `${hoursOf(wallClockS)} h`
+
 /** The page's unit: chips per hundred hands, to one decimal. */
 export const per100 = (chipsPerHand: number, digits = 1): string => (chipsPerHand * 100).toFixed(digits)
 
