@@ -1,4 +1,17 @@
-# `rung3-viz/` — `/rung3`: the research page, the trainer, and Learn
+# `rung3-viz/` — `/rung3`: the research publication, Learn, and the trainer
+
+- **The Research tab is a publication, not a dashboard.** One masthead for
+  the page (`ui/Masthead.tsx`; the shared `Hero` and its ASCII object are not
+  used here), then `ui/ResearchTab.tsx`: the key numbers, a contents rail,
+  nine chapters and Methods. Figures render inside `ui/Figure.tsx` (number,
+  caption that states the finding, source line that names the file), never
+  the shared window `Panel`. The numbers come from three modules and nothing
+  else: `src/research.ts` (rung 3) and `src/deep.ts` (every rung-4 grade
+  file and the policy-net sweep); each has a vitest file that pins what the
+  prose quotes. The page speaks in chips per hundred hands (`perHundred`); the
+  rung-4 files are in chips per hand. A new chapter number or figure number
+  is page order, because the contents rail and the captions are read top to
+  bottom.
 
 - **The Learn tab is `/solver`'s mini-drawmaha range interface, imported, not
   copied.** `src/ui/LearnTab.tsx` renders `MiniRange` from
@@ -20,9 +33,12 @@
   A change to the range interface is made in `solver-viz` and shows up here;
   do not fork it. The tab, its view and its strategy are the hash
   (`src/learn.ts`: `#learn/versus/deep-pi`).
-- `src/data/grades.json` and `src/data/answer_sheet.json` are copies of
-  `figures/rung3/`; `minidraw-analysis` regenerates those, and the copies are
-  refreshed by hand in the same change.
+- Everything under `src/data/` is a copy of a committed file: `grades.json`
+  and `answer_sheet.json` from `figures/rung3/` (`minidraw-analysis`
+  regenerates them) and every rung-4 grade file plus the two sweep files
+  under `rung4/`. The copies are refreshed by hand in the same change as a
+  regeneration, and `tests/test_rung3_page_data.py` holds each byte for byte
+  to its original.
 - `public/deals/` is the pack written by `uv run minidraw-deals`: 600 deals
   in six chunks, each with the shipped strategy's mix at every node either
   player can reach, and `public/deals/index.json` recording the seed and the

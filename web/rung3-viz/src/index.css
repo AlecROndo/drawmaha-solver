@@ -1,11 +1,14 @@
 /*
  * Rung 3's own figures, on top of the shared theme (theme.css): the identity
- * inks for the four regret rules and the actions, the race and the bar
- * charts, the stacked category bars, the prose rows, the oval table with
- * three cards a seat and two on the board, and the decision sidebar.
+ * inks for the four regret rules, rung 4's three averages and the actions,
+ * the race and the bar charts, the stacked category bars, the oval table
+ * with three cards a seat and two on the board, and the decision sidebar.
  * Everything here reads the theme's tokens and moves the way web/DESIGN.md
  * says: the only motion this sheet owns is the swept chips, one-shot, 400 ms,
- * allowlisted in the standard's test as `.sweep`.
+ * allowlisted in the standard's test as `.sweep`, and the press on the
+ * contents rail's links. The research tab is a publication: the masthead,
+ * the key numbers, the contents rail, the chapters and the figures with
+ * their captions are the "publication" section below.
  */
 
 :root {
@@ -29,7 +32,20 @@
   --throw-mid: rgba(216, 86, 111, 0.7);
   --throw-top: var(--pink);
 
-  /* the two seats in Fig. 3 */
+  /* Rung 4's three graded objects, and the losses of the policy-net sweep:
+     the exact average is the thing pointed at (yellow), Π the plain ivory,
+     the current iterate the pink the theme reserves for it; the table is
+     the quiet reference. Cross-entropy, the loss the sweep points at, takes
+     the yellow. */
+  --obj-exact: var(--yellow);
+  --obj-pi: var(--iv-80);
+  --obj-current: var(--pink);
+  --table-ink: var(--iv-45);
+  --loss-ce: var(--yellow);
+  --loss-mse: var(--iv-80);
+  --loss-is: var(--iv-45);
+
+  /* the two seats in Fig. 4 */
   --seat-p0: var(--ivory);
   --seat-p1: var(--yellow);
 
@@ -80,64 +96,7 @@
   opacity: 0.9;
 }
 
-/* ---------- the LCFR run, as a small table under Fig. 3 ------------------- */
-
-.rows.run {
-  margin-top: 18px;
-  font: 400 11.5px/1.4 var(--mono);
-  font-variant-numeric: tabular-nums;
-}
-
-.rows.run th {
-  text-align: right;
-  font: 400 9.5px/1 var(--mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--iv-45);
-  padding: 0 0 8px;
-}
-
-.rows.run th:first-child,
-.rows.run td:first-child {
-  text-align: left;
-}
-
-.rows.run td {
-  text-align: right;
-  padding: 7px 0;
-  color: var(--iv-80);
-}
-
-.rows.run tr:first-child td {
-  border-top: 1px solid var(--iv-16);
-}
-
-.rows.run tr:last-child td {
-  color: var(--ivory);
-  font-weight: 500;
-}
-
-/* ---------- the prose rows ------------------------------------------------ */
-
-.rows.prose .g {
-  width: 320px;
-  font-size: 20px;
-}
-
-.rows.prose .p {
-  font-family: var(--sans);
-}
-
-.rows.prose .p i {
-  font-style: italic;
-}
-
-.rows.prose .p b {
-  color: var(--ivory);
-  font-weight: 600;
-}
-
-/* a formula on its own line, in the mono voice, inside a prose cell */
+/* a formula on its own line, in the mono voice, inside a chapter */
 .eq {
   display: block;
   margin: 10px 0 10px 18px;
@@ -146,7 +105,7 @@
   letter-spacing: 0.01em;
 }
 
-/* ---------- figs. 4–5: stacked category bars ------------------------------ */
+/* ---------- figs. 5–6: stacked category bars ------------------------------ */
 
 .spots {
   display: grid;
@@ -206,19 +165,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- the caveats window ------------------------------------------- */
-
-.fields.caveats li {
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
-  font-size: 11.5px;
-}
-
-.fields.caveats li span:last-child {
-  color: var(--iv-80);
-}
-
-/* ---------- fig. 7: the oval table --------------------------------------- */
+/* ---------- the trainer's oval table -------------------------------------- */
 
 .table {
   position: relative;
@@ -573,6 +520,409 @@
   }
 }
 
+/* ---------- the publication ---------------------------------------------- */
+
+/* The reading column fills the page's width beside the contents rail: 220 px
+   of rail, 48 px of gutter, and the rest of the wrap (about 1,040 px at the
+   site's maximum) for the chapters, so a figure gets the room it needs. Prose
+   keeps a measure of its own (78ch) inside that column. The masthead shares
+   the wrap's left edge with the rail. */
+.masthead {
+  padding: 30px 0 4px;
+}
+
+.masthead h1 {
+  font-size: clamp(34px, 3.6vw, 54px);
+  max-width: 22ch;
+}
+
+.masthead .meta {
+  margin: 18px 0 0;
+  font: 400 12px/1.6 var(--mono);
+  color: var(--iv-60);
+}
+
+.masthead .meta .sep {
+  margin: 0 8px;
+  color: var(--iv-30);
+}
+
+.masthead .summary {
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--iv-80);
+  max-width: 78ch;
+  margin: 22px 0 0;
+}
+
+.masthead .summary b {
+  color: var(--ivory);
+  font-weight: 500;
+}
+
+.publication .views {
+  margin-top: 26px;
+}
+
+.article {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+
+/* the key numbers: four tiles in hairline frames, the number in the display voice */
+.keynums {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 28px 0 8px;
+}
+
+.keynums > div {
+  border: 1px solid var(--iv-16);
+  border-radius: 6px;
+  padding: 16px 16px 14px;
+}
+
+.keynums b {
+  display: block;
+  font: 600 26px/1.1 var(--display);
+  letter-spacing: -0.02em;
+  color: var(--ivory);
+  font-variant-numeric: tabular-nums;
+}
+
+.keynums b small {
+  font: 500 14px/1 var(--mono);
+  color: var(--iv-60);
+  letter-spacing: 0;
+  margin-left: 2px;
+}
+
+/* the unit, after the number: the page's one unit for exploitability, chips per hundred hands at ante 1 */
+.keynums b .unit {
+  font-size: 12px;
+  color: var(--iv-45);
+  margin-left: 6px;
+}
+
+.keynums span {
+  display: block;
+  margin-top: 8px;
+  font: 400 11px/1.5 var(--mono);
+  color: var(--iv-60);
+}
+
+/* the contents rail: sticky beside the chapters on wide screens */
+.contents {
+  position: sticky;
+  top: 84px;
+  padding-top: 34px;
+}
+
+.contents .k {
+  display: block;
+  font: 400 10.5px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  margin-bottom: 14px;
+}
+
+.contents ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.contents li {
+  margin: 0 0 8px;
+}
+
+.contents a {
+  display: inline-block;
+  font: 400 12px/1.45 var(--mono);
+  color: var(--iv-60);
+  text-decoration: none;
+  transition:
+    color 0.15s ease,
+    transform var(--t-press) var(--ease-out);
+}
+
+.contents a:hover {
+  color: var(--ivory);
+}
+
+.contents a:active {
+  transform: scale(0.97);
+}
+
+.contents a i {
+  font-style: normal;
+  color: var(--iv-30);
+  margin-right: 8px;
+}
+
+.chapters {
+  min-width: 0;
+}
+
+.chapter {
+  padding-top: 34px;
+}
+
+.chapter + .chapter {
+  padding-top: 56px;
+}
+
+.chapter .label {
+  font: 400 11px/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ox-lit);
+  margin: 0 0 14px;
+}
+
+.chapter h2 {
+  font-size: clamp(24px, 2.4vw, 32px);
+  line-height: 1.12;
+  max-width: 32ch;
+}
+
+.chapter h3 {
+  font: 600 17px/1.3 var(--display);
+  margin: 30px 0 0;
+  max-width: 48ch;
+}
+
+.chapter p {
+  font-size: 16.5px;
+  line-height: 1.65;
+  color: var(--iv-80);
+  max-width: 78ch;
+  margin: 16px 0 0;
+}
+
+.chapter p b {
+  color: var(--ivory);
+  font-weight: 600;
+}
+
+.chapter p i {
+  font-style: italic;
+}
+
+.chapter p code {
+  font: 400 13.5px/1 var(--mono);
+  color: var(--ivory);
+}
+
+.chapter .eq {
+  margin: 12px 0 12px 20px;
+}
+
+.chapter ul {
+  margin: 14px 0 0;
+  padding-left: 20px;
+  color: var(--iv-80);
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 78ch;
+}
+
+.chapter li + li {
+  margin-top: 6px;
+}
+
+/* a figure: the drawing at column width, then a caption that states the finding */
+.figure {
+  margin: 30px 0 0;
+}
+
+.figure-body {
+  padding: 18px 0 8px;
+  border-top: 1px solid var(--iv-10);
+}
+
+.figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.figure svg text {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.figure .chart {
+  margin-top: 8px;
+}
+
+.figure .stat {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin: 12px 0 0;
+}
+
+.figure .stat div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.figure .stat dt {
+  font: 400 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+}
+
+.figure .stat dd {
+  margin: 0;
+  font: 500 13px/1.3 var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ivory);
+}
+
+.figure .stat dd small {
+  display: block;
+  font-weight: 400;
+  color: var(--iv-60);
+  font-size: 11px;
+}
+
+.figure figcaption {
+  margin: 12px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--iv-80);
+  max-width: 92ch;
+}
+
+.figure figcaption b {
+  color: var(--ivory);
+  font-weight: 600;
+}
+
+.figure .source {
+  display: block;
+  margin-top: 6px;
+  font: 400 11px/1.5 var(--mono);
+  color: var(--iv-45);
+}
+
+/* a callout: one line in the mono voice with a rule at its left, pointing at another tab or a note */
+.callout {
+  margin: 26px 0 0;
+  padding: 10px 0 10px 16px;
+  border-left: 2px solid var(--ox-lit);
+  font: 400 12.5px/1.6 var(--mono);
+  color: var(--iv-60);
+  max-width: 84ch;
+}
+
+.callout a {
+  color: var(--ivory);
+}
+
+/* what is and is not settled: hairline rows, never cards */
+.settled {
+  margin-top: 18px;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--iv-80);
+}
+
+.settled td {
+  padding: 10px 0;
+  border-top: 1px solid var(--iv-10);
+  vertical-align: top;
+}
+
+.settled td:first-child {
+  width: 150px;
+  padding-right: 18px;
+  font: 400 11px/1.6 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+}
+
+.methods {
+  margin-top: 56px;
+  padding-top: 24px;
+  border-top: 1px solid var(--iv-10);
+}
+
+.methods p {
+  font-size: 14px;
+  color: var(--iv-60);
+}
+
+.methods ol {
+  margin: 12px 0 0;
+  padding-left: 22px;
+  font: 400 12px/1.65 var(--mono);
+  color: var(--iv-60);
+  max-width: 100ch;
+}
+
+.methods li + li {
+  margin-top: 6px;
+}
+
+.methods code,
+.authors code {
+  color: var(--iv-80);
+}
+
+.authors {
+  margin-top: 36px;
+  font-size: 14px;
+  color: var(--iv-60);
+}
+
+@media (max-width: 1080px) {
+  .article {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .contents {
+    position: static;
+    padding-top: 28px;
+  }
+
+  .contents ol {
+    columns: 2;
+    column-gap: 24px;
+  }
+
+  .keynums {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .keynums {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contents ol {
+    columns: 1;
+  }
+
+  .settled td:first-child {
+    width: 96px;
+  }
+}
+
 /* ---------- narrow -------------------------------------------------------- */
 
 @media (max-width: 1080px) {
@@ -583,38 +933,18 @@
   .spots {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .rows.prose .g {
-    width: 220px;
-    font-size: 18px;
-  }
 }
 
-@media (max-width: 640px) {
-  .rows.prose tr {
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
-  }
-
-  .rows.prose .g,
-  .rows.prose .p {
-    width: auto;
-    grid-column: 2;
-    padding-left: 0;
-  }
-
-  .rows.prose .p {
-    padding-top: 0;
-    border-top: 0;
-  }
-}
-
-/* Reduced motion (web/DESIGN.md): this figure owns no pressables of its own
-   (the buttons are the theme's .btn), and the swept chips fade where they
-   are instead of crossing the felt. */
+/* Reduced motion (web/DESIGN.md): the contents rail's links are this
+   sheet's one pressable, and the swept chips fade where they are instead of
+   crossing the felt. */
 @media (prefers-reduced-motion: reduce) {
   .sweep.from-villain,
   .sweep.from-you {
     animation-name: sweep-fade;
+  }
+
+  .contents a:active {
+    transform: none;
   }
 }

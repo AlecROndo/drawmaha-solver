@@ -1,6 +1,5 @@
-import { FINAL_COLUMNS, FINAL_ITERATION, RULES, RULE_NAME, WORKERS, perHundred, type Column } from '../research'
+import { FINAL_COLUMNS, RULES, RULE_NAME, perHundred, type Column } from '../research'
 import { RULE_INK } from '../inks'
-import { Panel } from './site'
 
 /**
  * Which average to read out of a run. Every rule banks its primary, linear
@@ -33,18 +32,7 @@ export function ColumnsChart() {
   const gap = 8
 
   return (
-    <Panel
-      n="02"
-      k="Fig. 2 · the averaging columns"
-      title="Linear averaging beats uniform; the rule is still what decides."
-      say={
-        <>
-          Exploitability at {((FINAL_ITERATION * WORKERS) / 1e6).toFixed(0)}M hands per seat of each average a run banked,
-          chips per hundred hands. The columns cost nothing and cannot change the play.
-        </>
-      }
-      label="Exploitability of each averaging column at the end of the race"
-    >
+    <>
       <svg className="chart columns" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Averaging columns at the end of the race">
         {[0, 10, 20, 30, 40].map((v) => (
           <g key={v}>
@@ -98,6 +86,6 @@ export function ColumnsChart() {
           </span>
         ))}
       </div>
-    </Panel>
+    </>
   )
 }

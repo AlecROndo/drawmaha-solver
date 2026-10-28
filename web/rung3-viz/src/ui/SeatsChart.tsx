@@ -1,5 +1,4 @@
-import { FROZEN, WORKERS, perHundred, series } from '../research'
-import { Panel } from './site'
+import { FROZEN } from '../research'
 
 /**
  * Two seats, two best responses. Exploitability is the mean of what a
@@ -26,22 +25,9 @@ export function SeatsChart() {
   const br1 = FROZEN.br1
   const gain0 = br0 - v0
   const gain1 = br1 - v1
-  const run = series('lcfr')
 
   return (
-    <Panel
-      n="03"
-      k="Fig. 3 · two seats, two best responses"
-      title="A perfect P0 still loses: the seat is worth a tenth of an ante to P1."
-      say={
-        <>
-          Chips per hand for the frozen strategy. Each seat’s value when the strategy plays itself (hollow), and
-          what a perfect adversary in that seat wins against it (filled). Exploitability is the mean of the two
-          gains over the seats’ own values.
-        </>
-      }
-      label="Best responses against the frozen strategy, by seat"
-    >
+    <>
       <svg className="chart seats" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Seat values and best responses on a number line">
         {[-0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4].map((v) => (
           <g key={v}>
@@ -96,28 +82,6 @@ export function SeatsChart() {
           </dd>
         </div>
       </dl>
-      <table className="rows run" aria-label="The LCFR run, checkpoint by checkpoint">
-        <thead>
-          <tr>
-            <th>hands/seat</th>
-            <th>BR₀</th>
-            <th>BR₁</th>
-            <th>exploit. /100</th>
-            <th>P0 value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {run.map((p) => (
-            <tr key={p.iteration}>
-              <td>{(p.iteration * WORKERS).toLocaleString()}</td>
-              <td>{signed(p.br0)}</td>
-              <td>{signed(p.br1)}</td>
-              <td>{perHundred(p.exploitability).toFixed(1)}</td>
-              <td>{signed(p.value_p0)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Panel>
+    </>
   )
 }

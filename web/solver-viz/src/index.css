@@ -9,11 +9,31 @@
  */
 
 :root {
-  /* Action identity, as on rungs 2 and 3: the bet is the aggressive act and
-     takes the pink, the check/call the yellow, the fold the quiet ink. */
-  --fold: var(--iv-45);
-  --call: var(--yellow);
-  --pot: var(--pink);
+  /* The mix palette: the fills of the fold / check-or-call / pot bands,
+     wherever this page draws a region's mix — the grid's squares and their
+     corner words, the row, column and whole-range mix bars, the mix key, the
+     per-action labels and keys, the deck's pot-lift bar. The bands are the
+     one place on the site where the action colours are *fills* that sit next
+     to each other, and the chrome pair (yellow = the thing pointed at,
+     pink = the aggressive act) was too close in weight for stacked bands to
+     read, so the bands have their own pair: a calm colour for going along
+     and a hot one for pushing, the fold in the quiet ink. The chrome, the
+     timeline's chips, the pinned cell's border and the strength ribbon keep
+     yellow and pink. Swap the pair by editing the two lines below; the
+     alternatives were checked against the well, the ivory text, the oxblood
+     brand and each other under deutan, protan and tritan simulation.
+     Contrast against the well: sky 8.9:1, ember 7.9:1. */
+  --fold-fill: var(--iv-45);
+  --call-fill: #6ab4f0; /* harbour: sky blue, the calm "go along" */
+  --pot-fill: #ff7f2a; /* harbour: ember orange, the hot "push" */
+  /* tide — teal #47bfc4 / vermilion #ef5a3c: the warmest push, but the
+     vermilion is the nearest of the three to the brand's red and the teal
+     greys toward the fold ink for a deutan viewer.
+     --call-fill: #47bfc4;  --pot-fill: #ef5a3c; */
+  /* lilac — lilac #a89bf0 / tangerine #ff9436: the softest "go along" and
+     the best deutan/protan separation of the three, but the tangerine sits
+     closest to the chrome's yellow, which pins a cell next to it.
+     --call-fill: #a89bf0;  --pot-fill: #ff9436; */
 }
 
 .block {
@@ -116,15 +136,15 @@ body.wide .hero-copy {
 }
 
 .mixbar .f {
-  background: var(--fold);
+  background: var(--fold-fill);
 }
 
 .mixbar .c {
-  background: var(--call);
+  background: var(--call-fill);
 }
 
 .mixbar .p {
-  background: var(--pot);
+  background: var(--pot-fill);
 }
 
 .mixkey {
@@ -150,15 +170,15 @@ body.wide .hero-copy {
 }
 
 .mixkey .f i {
-  background: var(--fold);
+  background: var(--fold-fill);
 }
 
 .mixkey .c i {
-  background: var(--call);
+  background: var(--call-fill);
 }
 
 .mixkey .p i {
-  background: var(--pot);
+  background: var(--pot-fill);
 }
 
 /* ---------- the two-lane score ----------------------------------------- */
@@ -461,15 +481,15 @@ body.wide .hero-copy {
 }
 
 .hbtn.act-f i {
-  background: var(--fold);
+  background: var(--fold-fill);
 }
 
 .hbtn.act-c i {
-  background: var(--call);
+  background: var(--call-fill);
 }
 
 .hbtn.act-p i {
-  background: var(--pot);
+  background: var(--pot-fill);
 }
 
 .mixbtn {
@@ -698,6 +718,11 @@ body.wide .hero-copy {
   opacity: 0.35;
 }
 
+/* A cell is a label strip over a square: the corner word on the left and
+   the share on the right share one line across the top, and the square has
+   the rest of the cell to itself, centred, so the largest region's square
+   (MARK.max in Grid.tsx) fills the strip below the labels at any width and
+   never runs under them. */
 .cell {
   position: relative;
   background: var(--well);
@@ -705,10 +730,11 @@ body.wide .hero-copy {
   border-radius: 4px;
   height: 84px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   overflow: hidden;
-  padding: 0;
+  padding: 4px 6px 4px;
   color: inherit;
   font: inherit;
   transition:
@@ -742,11 +768,23 @@ body.wide .hero-copy {
   color: var(--iv-16);
 }
 
+.cell .lab {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: baseline;
+  flex: none;
+  height: 13px;
+  line-height: 13px;
+}
+
 .cell .sq {
   display: flex;
   flex-direction: column;
   border-radius: 2px;
   overflow: hidden;
+  flex: none;
+  margin: auto 0;
 }
 
 .cell .sq i {
@@ -755,21 +793,18 @@ body.wide .hero-copy {
 }
 
 .cell .sq .p {
-  background: var(--pot);
+  background: var(--pot-fill);
 }
 
 .cell .sq .c {
-  background: var(--call);
+  background: var(--call-fill);
 }
 
 .cell .sq .f {
-  background: var(--fold);
+  background: var(--fold-fill);
 }
 
 .cell .pct {
-  position: absolute;
-  right: 6px;
-  bottom: 4px;
   color: var(--iv-60);
   font-size: 11px;
 }
@@ -779,24 +814,21 @@ body.wide .hero-copy {
 }
 
 .cell .dom {
-  position: absolute;
-  left: 6px;
-  top: 4px;
   font-size: 10.5px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .cell .dom.f {
-  color: var(--fold);
+  color: var(--fold-fill);
 }
 
 .cell .dom.c {
-  color: var(--call);
+  color: var(--call-fill);
 }
 
 .cell .dom.p {
-  color: var(--pot);
+  color: var(--pot-fill);
 }
 
 /* ---------- 04 the ledger ---------------------------------------------- */
@@ -1080,15 +1112,15 @@ button.lrow:hover {
 }
 
 .panes .one .lbl.f b {
-  color: var(--fold);
+  color: var(--fold-fill);
 }
 
 .panes .one .lbl.c b {
-  color: var(--call);
+  color: var(--call-fill);
 }
 
 .panes .one .lbl.p b {
-  color: var(--pot);
+  color: var(--pot-fill);
 }
 
 .mini {
@@ -1214,7 +1246,7 @@ button.lrow:hover {
 .dcard .bar i {
   display: block;
   height: 100%;
-  background: var(--pot);
+  background: var(--pot-fill);
 }
 
 /* ---------- 07 the draw board ------------------------------------------ */
@@ -1503,6 +1535,379 @@ button.lrow:hover {
   border-radius: 1px;
 }
 
+/* ---------- the hand so far: the path (default) and the strip (backup) --
+   Everything is scoped under .sofar (the shared vocabulary), .sofar.path and
+   .sofar.strip, so the two layouts share one vocabulary and the app's own
+   .cell / .crumbs / .ledger rules do not leak in. The components are under
+   ui/sofar/; ui/sofar/index.ts picks the layout. */
+
+.sofar {
+  font: 400 13px/1.3 var(--mono);
+  color: var(--ivory);
+}
+
+/* ---- the shared vocabulary ------------------------------------------- */
+
+/* a played step: pink pushed, yellow went along, quiet ink gave up */
+.sofar .tok,
+.sofar .opt,
+.sofar .bp,
+.sofar .pk {
+  font: inherit;
+  color: var(--ivory);
+  background: var(--well);
+  border: 1px solid var(--iv-16);
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease,
+    transform var(--t-press) var(--ease-out);
+}
+
+.sofar .tok:hover,
+.sofar .opt:hover,
+.sofar .bp:hover,
+.sofar .pk:hover {
+  border-color: var(--iv-45);
+}
+
+.sofar .tok:active,
+.sofar .opt:active,
+.sofar .bp:active,
+.sofar .pk:active {
+  transform: scale(0.97);
+}
+
+.sofar .tok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
+.sofar .p {
+  color: var(--pink);
+  border-color: var(--pink);
+}
+
+.sofar .c {
+  color: var(--yellow);
+  border-color: var(--yellow-20);
+}
+
+.sofar .d {
+  color: var(--iv-80);
+}
+
+/* an option at the head: the word, then the share of the range that takes it */
+.sofar .opts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sofar .opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  border-color: var(--iv-30);
+  white-space: nowrap;
+}
+
+.sofar .opt b {
+  color: var(--yellow);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.sofar .opt.p {
+  border-color: var(--pink);
+}
+
+.sofar .opt.p b {
+  color: var(--pink);
+}
+
+/* a board card as a button; "pick" while it is owed */
+.sofar .bp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: 6px;
+}
+
+.sofar .bp.open {
+  border-color: var(--yellow);
+  background: var(--yellow-20);
+}
+
+.sofar .bp.owed {
+  border-style: dashed;
+  border-color: var(--yellow);
+}
+
+.sofar .bp .pickword {
+  padding: 9px 7px;
+  color: var(--yellow);
+  font-size: 12px;
+}
+
+/* the fan of fifteen under the score while a picker is open */
+.sofar .fan {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 12px 0 2px;
+  margin-top: 12px;
+  border-top: 1px solid var(--iv-10);
+}
+
+.sofar .fanlab {
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  margin-right: 8px;
+}
+
+.sofar .pk {
+  padding: 3px;
+  border-radius: 6px;
+}
+
+.sofar .pk.on {
+  border-color: var(--yellow);
+}
+
+/* labels */
+.sofar .stname,
+.sofar .who,
+.sofar .lane,
+.sofar .margin {
+  font: 500 10.5px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+  white-space: nowrap;
+}
+
+.sofar .lit {
+  color: var(--yellow);
+}
+
+.sofar .potline {
+  font: 400 11px/1 var(--mono);
+  color: var(--iv-45);
+  white-space: nowrap;
+}
+
+.sofar .endtok {
+  color: var(--iv-80);
+  white-space: nowrap;
+}
+
+.sofar .hint {
+  margin-top: 14px;
+}
+
+/* ---- the strip: the backup layout ------------------------------------- */
+.sofar.strip .strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 0;
+}
+
+.sofar.strip .street {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 18px 0 14px;
+  border-left: 1px solid var(--iv-10);
+}
+
+.sofar.strip .street:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.sofar.strip .street.over .stname {
+  color: var(--iv-80);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+}
+
+.sofar.strip .toks {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  margin-left: -8px;
+}
+
+.sofar.strip .tok-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 6px 8px 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.sofar.strip .tok-wrap.head {
+  border-color: var(--yellow-20);
+  background: var(--yellow-20);
+}
+
+.sofar.strip .tok-wrap.head .potline {
+  color: var(--iv-60);
+}
+
+
+/* ---- the path: the default layout ------------------------------------- */
+.sofar.path .trail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sofar.path .crumbline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 0;
+}
+
+.sofar.path .crumb-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.sofar.path .chev {
+  font-style: normal;
+  color: var(--iv-30);
+  padding: 0 7px;
+}
+
+.sofar.path .tok.crumb {
+  gap: 7px;
+  padding: 5px 9px;
+}
+
+.sofar.path .crumb .who {
+  color: var(--iv-45);
+  letter-spacing: 0.08em;
+}
+
+.sofar.path .potnum {
+  font-size: 10.5px;
+  color: var(--iv-45);
+}
+
+.sofar.path .node {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 11px;
+  border: 1px solid var(--yellow-20);
+  border-radius: 4px;
+  background: var(--yellow-20);
+  color: var(--yellow);
+  white-space: nowrap;
+}
+
+.sofar.path .node.over {
+  background: transparent;
+  border-color: var(--iv-16);
+  color: var(--iv-80);
+}
+
+.sofar.path .node .potnum {
+  color: var(--iv-60);
+}
+
+.sofar.path .fork {
+  list-style: none;
+  margin: 0 0 0 14px;
+  padding: 0 0 0 18px;
+  border-left: 1px solid var(--iv-30);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sofar.path .branch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sofar.path .branch::before {
+  content: '';
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  width: 12px;
+  height: 1px;
+  background: var(--iv-30);
+}
+
+.sofar.path .blab {
+  font-size: 11px;
+  color: var(--iv-60);
+}
+
+.sofar.path .sharebar {
+  display: block;
+  width: 140px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--iv-10);
+  overflow: hidden;
+}
+
+.sofar.path .sharebar i {
+  display: block;
+  height: 100%;
+  transform-origin: left;
+  background: var(--yellow);
+}
+
+.sofar.path .sharebar i.p {
+  background: var(--pink);
+}
+
+.sofar.path .sharebar i.d {
+  background: var(--iv-45);
+}
+
+/* the tip holds the node and the fork hanging from it */
+.sofar.path .crumbline {
+  align-items: flex-start;
+}
+
+.sofar.path .crumb-wrap {
+  min-height: 32px;
+}
+
+.sofar.path .tip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
 /* ---------- reduced motion --------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1512,8 +1917,11 @@ button.lrow:hover {
   .cell:active,
   .lrow:active,
   .key:active,
-  .pickcard:active,
-  .dcard:active:not(:disabled) {
+  .dcard:active:not(:disabled),
+  .sofar .tok:active,
+  .sofar .opt:active,
+  .sofar .bp:active,
+  .sofar .pk:active {
     transform: none;
   }
 
@@ -1522,7 +1930,7 @@ button.lrow:hover {
   }
 }
 
-/* ---------- mini-drawmaha: the score's pickers and the next strip ------ */
+/* ---------- mini-drawmaha: the strategy switch ------------------------- */
 
 .views.games {
   margin-top: 26px;
@@ -1587,93 +1995,6 @@ button.lrow:hover {
 .strat .hint {
   font: 400 11px/1.4 var(--mono);
   color: var(--iv-45);
-}
-
-.score .chips {
-  gap: 6px;
-  flex-wrap: wrap;
-  white-space: normal;
-}
-
-.score .act.boardpick {
-  padding: 4px;
-}
-
-.score .act.boardpick .pickword {
-  padding: 8px 6px;
-  color: var(--iv-60);
-}
-
-.picker {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 12px 0 2px;
-  border-bottom: 1px solid var(--iv-10);
-}
-
-.pickcard {
-  padding: 3px;
-  border: 1px solid var(--iv-16);
-  border-radius: 6px;
-  background: var(--well);
-  transition:
-    border-color 0.15s,
-    transform var(--t-press) var(--ease-out);
-}
-
-.pickcard:hover {
-  border-color: var(--iv-45);
-}
-
-.pickcard:active {
-  transform: scale(0.97);
-}
-
-.pickcard.on {
-  border-color: var(--yellow);
-}
-
-.toact {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border: 1px dashed var(--yellow);
-  border-radius: 6px;
-  background: var(--yellow-20);
-}
-
-.toact-lab {
-  font: 500 10.5px/1 var(--mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--yellow);
-  margin-right: 4px;
-  white-space: nowrap;
-}
-
-.score .act.play {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  padding: 8px 12px;
-  border-color: var(--iv-30);
-}
-
-.score .act.play b {
-  color: var(--yellow);
-  font-weight: 500;
-  font-size: 12px;
-}
-
-.score .act.play.p {
-  border-color: var(--pink);
-}
-
-.scorehint {
-  margin-top: 14px;
 }
 
 .spothead.mini .who .err {

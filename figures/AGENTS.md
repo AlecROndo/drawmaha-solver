@@ -50,6 +50,27 @@ of one of those marks therefore means re-exporting its strategy
 (`uv run minidraw-ranges --release <name>`, `uv run minidraw-deals`) in the
 same change.
 
+`rung3/exploit_by_reach.json` (and its `.png`) is where the frozen table's
+exploitability lives: every spot's one-step best-response gain from the exact
+walk, binned by how often the spot comes up when the strategy plays itself,
+written by `uv run minidraw-exploit-by-reach --release tabular`;
+`rung4/exploit_by_reach_deep-exact.json` and `exploit_by_reach_deep-pi.json` are
+the same for the two released Deep CFR averages (`--release deep-exact`,
+`--release deep-pi`). Each carries the check that the gains sum to each seat's
+best-response edge.
+
+`rung4/pi_sweep/results.json` is the policy-net loss sweep: 22 refits of Π on
+the stored policy memory of the 4 × 256, 16,000-step arm (loss, head, steps,
+schedule, width, depth, mark), each graded exactly, written by
+`scripts/deepcfr/pi_loss_sweep.py`; `rung4/pi_sweep/reach_weighted.json` is
+each refit's reach-weighted error against the exact average, written by
+`scripts/deepcfr/pi_reach_weighted.py`. `/rung3` quotes both.
+
+`web/rung3-viz/src/data/` holds a copy of every file `/rung3` reads — rung 3's
+grades and answer sheet, these two, every `rung4/*.json` grade file —
+refreshed by hand after a regeneration and held byte for byte to the originals
+by `tests/test_rung3_page_data.py`.
+
 `rung4/rule_dcfr-256x4.json` and `rung4/rule_cfrplus-256x4.json` grade the
 regret-rule screen: the 256 × 4 net trained to 50 iterations on this machine
 by `run_deep_cfr.py --rule dcfr` and `--rule cfr+`, its marks graded by

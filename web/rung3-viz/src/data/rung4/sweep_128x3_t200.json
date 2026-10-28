@@ -1,0 +1,102 @@
+{
+  "deep/00200/current": {
+    "br0": 0.15160087693474003,
+    "br1": 0.5969622875207856,
+    "exploitability": 0.3742815822277628,
+    "value_p0": -0.188472816353898,
+    "hands_per_seat": 2000000,
+    "wall_clock_s": 34495.754,
+    "config": {
+      "seed": 0,
+      "walks": 10000,
+      "workers": 6,
+      "capacity": 50000000,
+      "width": 128,
+      "depth": 3,
+      "steps": 4000,
+      "batch": 10000,
+      "lr": 0.001,
+      "clip": 1.0,
+      "threads": 8,
+      "grid": [
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
+        2000
+      ],
+      "save_every_s": 1800.0
+    },
+    "grade_s": 93.2
+  },
+  "deep/00200/exact": {
+    "br0": 0.15111932841371378,
+    "br1": 0.3175944714632637,
+    "exploitability": 0.23435689993848874,
+    "value_p0": -0.13104254930057133,
+    "hands_per_seat": 2000000,
+    "wall_clock_s": 34495.754,
+    "config": {
+      "seed": 0,
+      "walks": 10000,
+      "workers": 6,
+      "capacity": 50000000,
+      "width": 128,
+      "depth": 3,
+      "steps": 4000,
+      "batch": 10000,
+      "lr": 0.001,
+      "clip": 1.0,
+      "threads": 8,
+      "grid": [
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
+        2000
+      ],
+      "save_every_s": 1800.0
+    },
+    "grade_s": 113.0
+  },
+  "deep/00200/pi": {
+    "br0": 0.20995852425626751,
+    "br1": 0.3812743530827367,
+    "exploitability": 0.2956164386695021,
+    "value_p0": -0.14082863626524839,
+    "hands_per_seat": 2000000,
+    "wall_clock_s": 34495.754,
+    "config": {
+      "seed": 0,
+      "walks": 10000,
+      "workers": 6,
+      "capacity": 50000000,
+      "width": 128,
+      "depth": 3,
+      "steps": 4000,
+      "batch": 10000,
+      "lr": 0.001,
+      "clip": 1.0,
+      "threads": 8,
+      "grid": [
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
+        2000
+      ],
+      "save_every_s": 1800.0
+    },
+    "grade_s": 106.2,
+    "pi_fit_s": 27.0
+  }
+}
