@@ -38,8 +38,20 @@ itself is complete; what remains is the paid run and its grades.
   nets from the move on and is let through on purpose so a run can move to
   the GPU; a moved run is no longer reproducible from its seed and config.
   The seed, the walks, the capacity, the net's size, the other refit fields
-  and the thread count are refused by name, because each changes the sample
-  or the fit.
+  (the pot power among them) and the thread count are refused by name,
+  because each changes the sample or the fit.
+- **A field added to `DeepConfig` after runs were saved goes in
+  `ADDED_LATER`** with the value those runs had, so a `state.json` that lacks
+  it reads as the run it was and never as today's default. `pot_power` is
+  the case that made the rule: its default is ½, every run saved before it
+  existed fitted raw chips, and `DeepConfig(**saved)` alone would have
+  resumed them under ½ with nothing in the log.
+- **The refit's targets are each regret sample over its spot's pot^k**
+  (`pot_scaled`, k = `pot_power`, ½ by default). The divisor is the spot's,
+  never the sampled outcome's, so regret matching plays the same σ; what it
+  changes is where the squared-error fit spends its accuracy. A divisor that
+  varied within a spot would move the spot's mean regret and be a different
+  algorithm.
 - **An observer that carries state has `name`, `save` and `load`**
   (`StatefulObserver` in `train.py`; `ExactAverage` in `average.py` is the one). Its file
   joins the resume set and every mark, named in `state.json`. A resume

@@ -50,7 +50,8 @@ from drawmaha_solver.deepcfr.train import (
     step,
 )
 from drawmaha_solver.minidrawmaha.rules.enumeration import private_keys, public_decision_points
-from drawmaha_solver.minidrawmaha.rules.game import InfoSet, random_deal
+from drawmaha_solver.minidrawmaha.rules.features import layout
+from drawmaha_solver.minidrawmaha.rules.game import Action, InfoSet, random_deal
 from drawmaha_solver.minidrawmaha.solver.lockstep import (
     SEATS,
     apply_arrays,
@@ -144,6 +145,9 @@ def test_config_defaults_are_the_specs():
     assert config.save_every_s == 1_800.0
     assert (config.width, config.depth, config.steps, config.batch) == (64, 3, 4_000, 10_000)
     assert (config.lr, config.clip, config.threads) == (1e-3, 1.0, 8)
+    # The one departure from the 2026-10-07 spec: targets divided by √pot
+    # before the refit, chosen 2026-10-27 from the pot arms in the run log.
+    assert config.pot_power == 0.5
 
 @pytest.mark.parametrize(
     ("field", "value"),
@@ -165,6 +169,9 @@ def test_config_defaults_are_the_specs():
         ("grid", (0, 10)),
         ("save_every_s", -1.0),
         ("device", "cuda"),
+        ("pot_power", -0.1),
+        ("pot_power", 1.5),
+        ("pot_power", float("nan")),
     ],
 )
 def test_config_refuses_bad_values_by_name(field, value):
@@ -633,6 +640,10 @@ def test_cli_parses_the_flags_into_a_config():
     with pytest.raises(ValueError, match="lr"):
         cli.config_from_args(cli.parse(["--out", "y", "--lr", "0"]))
     assert cli.config_from_args(cli.parse(["--out", "y", "--save-every-s", "600"])).save_every_s == 600.0
+    assert cli.config_from_args(cli.parse(["--out", "y", "--pot-power", "0"])).pot_power == 0.0
+    assert cli.config_from_args(cli.parse(["--out", "y"])).pot_power == DeepConfig().pot_power == 0.5
+    with pytest.raises(ValueError, match="pot_power"):
+        cli.config_from_args(cli.parse(["--out", "y", "--pot-power", "2"]))
 
 def test_cli_passes_the_device_through():
     import importlib.util
@@ -671,6 +682,20 @@ def test_a_state_written_before_the_device_existed_loads_on_the_cpu(tmp_path):
     state_path.write_text(json.dumps(state))
     assert saved_config(tmp_path / RESUME).device == "cpu"
     assert drive(tmp_path, 2).t == 2
+
+def test_a_state_written_before_pot_scaling_existed_was_a_raw_run_and_resumes_as_one(tmp_path):
+    # Every run saved before `pot_power` existed fitted raw chips. Its state
+    # must read as 0, never as today's default: a resume under the default is
+    # refused by name, and one that asks for the run's own weighting goes on.
+    drive(tmp_path, 1)
+    state_path = tmp_path / RESUME / STATE
+    state = json.loads(state_path.read_text())
+    del state["config"]["pot_power"]
+    state_path.write_text(json.dumps(state))
+    assert saved_config(tmp_path / RESUME).pot_power == 0.0
+    with pytest.raises(ValueError, match="pot_power: 0.0 → 0.5"):
+        drive(tmp_path, 2)
+    assert drive(tmp_path, 2, replace(DRIVEN, pot_power=0.0)).t == 2
 
 def test_a_changed_config_is_refused_before_the_memories_are_read(tmp_path):
     drive(tmp_path, 2)
@@ -724,6 +749,76 @@ def test_cfr_plus_targets_keep_positives_and_only_this_iterations_negatives():
     targets = np.array([[1.0, -1.0, 0.5, -0.5]] * 2, dtype=np.float32)
     out = rule_targets(targets, t, now=7, rule="cfr+")
     np.testing.assert_array_equal(out, [[1.0, 0.0, 0.5, 0.0], [1.0, -1.0, 0.5, -0.5]])
+
+# ---------------------------------------------------------------------------
+# Pot-normalised targets
+# ---------------------------------------------------------------------------
+
+# Three spots and their pots, re-derived from the rules rather than read from
+# `chip_state`: the ante pot is 2; a pot bet makes it 4, and the pot-limit
+# raise over it is 2 to call plus 6 more, so the first bettor faces a raise
+# at 12; re-raising is 6 to call plus min(18, the 17 behind) = 23, then the
+# call of 17: 2 + 2 + 8 + 23 + 17 = 52, the biggest pot the game reaches.
+SPOTS = {
+    ((),): 2,
+    ((Action.POT, Action.POT),): 12,
+    ((Action.POT, Action.POT, Action.POT, Action.CHECK_CALL),): 52,
+}
+
+def first_row_at(betting) -> int:
+    # Several points can share a closed betting line (each seat's throw, say);
+    # the pot is the line's, so any of them serves. The first is taken.
+    built = layout()
+    index = next(i for i, point in enumerate(built.points) if point.betting == betting)
+    return int(built.row_offset[index])
+
+def test_pot_scaling_at_power_zero_is_the_identity():
+    from drawmaha_solver.deepcfr.train import pot_scaled
+
+    targets = np.array([[3.0, -1.0, 0.0, 0.0], [0.5, 0.25, -2.0, 0.0]], dtype=np.float32)
+    rows = np.array([first_row_at(((),)), first_row_at(((Action.POT, Action.POT),))])
+    assert pot_scaled(rows, targets, power=0.0) is targets
+
+@pytest.mark.parametrize("power", [0.5, 1.0])
+def test_each_regret_sample_is_divided_by_its_own_spots_pot(power):
+    from drawmaha_solver.deepcfr.train import pot_scaled
+
+    rows = np.array([first_row_at(betting) + 1 for betting in SPOTS])
+    pots = np.array(list(SPOTS.values()), dtype=np.float64)
+    targets = np.array([[6.0, -3.0, 1.5, 0.0]] * len(rows), dtype=np.float32)
+    scaled = pot_scaled(rows, targets, power=power)
+    assert scaled.dtype == np.float32 and scaled.shape == targets.shape
+    np.testing.assert_allclose(scaled, targets / (pots**power)[:, None], rtol=1e-6)
+    # The divisor is the spot's, so the padding column stays zero and every
+    # column of one row is divided by the same number.
+    assert (scaled[:, 3] == 0).all()
+    np.testing.assert_allclose(scaled[:, 0] / scaled[:, 1], -2.0, rtol=1e-6)
+
+def test_pot_scaling_leaves_the_strategy_regret_matching_plays_unchanged():
+    from drawmaha_solver.deepcfr.train import pot_scaled
+
+    rng = np.random.default_rng(3)
+    built = layout()
+    rows = rng.integers(0, built.row_offset[-1], size=500)
+    targets = rng.normal(scale=10.0, size=(500, 4)).astype(np.float32)
+    scaled = pot_scaled(rows, targets, power=0.5)
+    # Regret matching normalises the positive part; the all-negative row is
+    # the argmax one-hot (`materialise`). Both read only each row's ratios.
+    for before, after in zip(targets, scaled, strict=True):
+        assert (before > 0).tolist() == (after > 0).tolist()
+        if (before > 0).any():
+            np.testing.assert_allclose(
+                np.maximum(after, 0) / np.maximum(after, 0).sum(),
+                np.maximum(before, 0) / np.maximum(before, 0).sum(),
+                rtol=1e-5,
+            )
+        else:
+            assert np.argmax(after) == np.argmax(before)
+
+def test_the_pot_power_is_part_of_the_run():
+    assert "pot_power" in SAMPLE_FIELDS
+    with pytest.raises(ValueError, match="pot_power"):
+        require_same_run(DeepConfig(), DeepConfig(pot_power=0.0))
 
 def test_the_rule_is_part_of_the_run():
     with pytest.raises(ValueError, match="rule"):
