@@ -66,6 +66,8 @@ describe('a chunk against the manifest', () => {
     expect(() => checkManifest(broken({ grade: { ...grade, exploitability: '0.0859' as unknown as number } }))).toThrow('finite exploitability')
     expect(() => checkManifest(broken({ grade: { ...grade, valueP0: Number.NaN } }))).toThrow('finite exploitability')
     expect(() => checkManifest(broken({ grade: { ...grade, handsPerSeat: 0 } }))).toThrow('hand count')
+    const { valueP0: _dropped, ...noValue } = grade
+    expect(() => checkManifest(broken({ grade: noValue as unknown as Manifest['grade'] }))).toThrow('finite exploitability')
   })
 
   it('refuses a count the manifest did not describe, and names a malformed deal', () => {

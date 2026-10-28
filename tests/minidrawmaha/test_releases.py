@@ -10,6 +10,7 @@ from drawmaha_solver.minidrawmaha.answer.releases import (
     PUBLIC,
     RELEASES,
     REPO,
+    DEEP_KEY,
     Grade,
     entry_mismatch,
     provenance_json,
@@ -122,6 +123,18 @@ def test_every_catalogue_entry_s_grade_is_the_grade_of_the_strategy_its_key_name
             info = StrategyInfo(rule="deep", column=column, iteration=int(mark), seed=0, workers=0)
         assert entry_mismatch(release, recorded, info) is None, release.name
         assert read_grade(release, info).key == release.grade_key
+
+
+def test_every_catalogue_entry_is_checkable():
+    """An entry the key check cannot read back would be accepted unchecked; no catalogue entry may be one."""
+    for release in RELEASES.values():
+        recorded = json.loads((REPO / release.grade_file).read_text())[release.grade_key]
+        spelled = DEEP_KEY.match(release.grade_key) is not None
+        recorded_run = {"rule", "column", "iteration"} <= set(recorded)
+        assert spelled or recorded_run, f"{release.name}'s grade entry says nothing the strategy can be held to"
+        # And a strategy that is not this one is refused, whichever way the entry is checkable.
+        wrong = StrategyInfo(rule="deep", column="current", iteration=1, seed=0, workers=0)
+        assert entry_mismatch(release, recorded, wrong) is not None, release.name
 
 
 def test_a_rung4_key_is_held_to_the_strategy_s_mark_and_column():

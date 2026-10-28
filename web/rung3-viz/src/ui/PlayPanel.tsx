@@ -274,9 +274,8 @@ export function PlayPanel({
   const grade = manifest?.grade ?? null
   const words = manifest ? describeStrategy(manifest) : null
   const facing = words ? `${words.name}, ${words.detail}` : 'the strategy in the deal pack'
-  const graded = grade
-    ? ` — exploitable for ${grade.exploitability.toFixed(4)} chips/hand by a perfect adversary`
-    : ' — ungraded'
+  // The grade as `describeStrategy` quotes it everywhere else: three decimals, the run log's precision.
+  const graded = words?.grade ? ` — exploitable for ${words.grade} chips/hand by a perfect adversary` : ' — ungraded'
   const seatWorth = (seat: 0 | 1) => (grade ? ` · seat worth ${signed(seatValue(grade.valueP0, seat), 3)}` : '')
 
   return (

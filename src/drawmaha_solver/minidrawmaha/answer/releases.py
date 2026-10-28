@@ -242,7 +242,7 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
     strategy's `info` — a rung-4 key spells the mark and the column
     (`deep/00200/exact`), and rung 3's answer sheet records the run's
     `rule`, `column` and `iteration` in the entry itself — and a mismatch is
-    refused by name (`entry_matches`).
+    refused by name (`entry_mismatch`).
     """
     file = root / release.grade_file
     if not file.exists():
