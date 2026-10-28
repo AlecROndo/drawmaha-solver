@@ -638,16 +638,25 @@
 }
 
 .contents li {
-  margin: 0 0 8px;
+  margin: 0 0 2px;
 }
 
+/* Every entry carries the frame, transparent; the one the reader is at shows
+   it (`li.current`, set from the scroll position), so the text never moves
+   when the box arrives. The frame hangs 8 px into the gutter so the entries'
+   text stays on the rail's left edge with the Contents label. */
 .contents a {
-  display: inline-block;
+  display: block;
+  margin-left: -8px;
+  padding: 4px 8px 3px;
+  border: 1px solid transparent;
+  border-radius: 4px;
   font: 400 12px/1.45 var(--mono);
   color: var(--iv-60);
   text-decoration: none;
   transition:
     color 0.15s ease,
+    border-color 0.15s ease,
     transform var(--t-press) var(--ease-out);
 }
 
@@ -663,6 +672,16 @@
   font-style: normal;
   color: var(--iv-30);
   margin-right: 8px;
+  transition: color 0.15s ease;
+}
+
+.contents li.current a {
+  color: var(--ivory);
+  border-color: var(--iv-30);
+}
+
+.contents li.current a i {
+  color: var(--iv-60);
 }
 
 .chapters {

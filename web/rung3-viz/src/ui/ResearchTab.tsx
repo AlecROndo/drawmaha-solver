@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   ARMS,
   BEST,
@@ -33,6 +34,7 @@ import {
 } from '../research'
 import { AveragesChart } from './AveragesChart'
 import { ColumnsChart } from './ColumnsChart'
+import { currentSection } from './contents'
 import { DeepRaceChart } from './DeepRaceChart'
 import { Figure } from './Figure'
 import { fraction } from './scales'
@@ -87,6 +89,49 @@ function Chapter({ id, title, children }: { id: string; title: React.ReactNode; 
   )
 }
 
+/**
+ * Which entry of the contents rail the reader is at (`currentSection` in
+ * `contents.ts` makes the call): the last section whose top has crossed a
+ * reading line 30% of the way down the viewport, or the last section once a
+ * page that scrolls is at its end (the methods are short enough that their
+ * top may never reach the line). Nothing is current above chapter 01.
+ * Measured on scroll, on resize and whenever the body changes height (a
+ * figure or a font sizing late), one layout read per section, coalesced to a
+ * frame; the hash jump the rail's links make is a scroll like any other, so
+ * the box follows a click too.
+ */
+function useCurrentSection(ids: readonly string[]): string | null {
+  const [current, setCurrent] = useState<string | null>(null)
+  useEffect(() => {
+    let frame = 0
+    const measure = () => {
+      frame = 0
+      const line = Math.max(innerHeight * 0.3, 120)
+      const atEnd = scrollY > 0 && scrollY + innerHeight >= document.documentElement.scrollHeight - 2
+      const tops = ids.map((id) => document.getElementById(id)?.getBoundingClientRect().top ?? Infinity)
+      const at = currentSection(tops, line, atEnd)
+      setCurrent(at < 0 ? null : ids[at])
+    }
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure)
+    }
+    measure()
+    addEventListener('scroll', schedule, { passive: true })
+    addEventListener('resize', schedule)
+    const grew = new ResizeObserver(schedule)
+    grew.observe(document.body)
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+      removeEventListener('scroll', schedule)
+      removeEventListener('resize', schedule)
+      grew.disconnect()
+    }
+  }, [ids])
+  return current
+}
+
+const SECTION_IDS = CHAPTERS.map((c) => c.id)
+
 const final = (rule: Rule) => perHundred(series(rule).at(-1)!.exploitability)
 const p100 = (chipsPerHand: number, digits = 1) => perHundred(chipsPerHand).toFixed(digits)
 const pct = (x: number) => (x * 100 < 1 && x > 0 ? `${(x * 100).toFixed(1)}%` : `${Math.round(x * 100)}%`)
@@ -94,6 +139,7 @@ const cut = (from: number, to: number) => `${Math.round((1 - to / from) * 100)}%
 const M = (n: number) => `${(n / 1e6).toFixed(n % 1e6 ? 1 : 0)}M`
 
 export function ResearchTab() {
+  const current = useCurrentSection(SECTION_IDS)
   const mini = SIZES[2].infosets
   const leduc = SIZES[1].infosets
   const hands = FINAL_ITERATION * WORKERS
@@ -151,8 +197,8 @@ export function ResearchTab() {
         <span className="k">Contents</span>
         <ol>
           {CHAPTERS.map((c) => (
-            <li key={c.id}>
-              <a href={`#${c.id}`}>
+            <li key={c.id} className={c.id === current ? 'current' : undefined}>
+              <a href={`#${c.id}`} aria-current={c.id === current ? 'true' : undefined}>
                 {c.n && <i>{c.n}</i>}
                 {c.short}
               </a>
