@@ -5,6 +5,7 @@ import {
   KEY_NUMBERS,
   PI_REFERENCE,
   PI_SWEEP,
+  POT_ARMS,
   REFIT_ARMS,
   RULE_SCREEN,
   SIGN_FLIPS,
@@ -38,6 +39,7 @@ import { Figure } from './Figure'
 import { fraction } from './scales'
 import { LossShapes } from './LossShapes'
 import { PiLossChart } from './PiLossChart'
+import { PotChart } from './PotChart'
 import { RaceChart } from './RaceChart'
 import { RefitChart } from './RefitChart'
 import { RuleScreenChart } from './RuleScreenChart'
@@ -67,7 +69,7 @@ const CHAPTERS = [
   { id: 'ch-04', n: '04', short: 'Why DCFR became CFR+' },
   { id: 'ch-05', n: '05', short: 'What the answer does' },
   { id: 'ch-06', n: '06', short: 'A net for the ledger' },
-  { id: 'ch-07', n: '07', short: 'Width, depth, steps, rate' },
+  { id: 'ch-07', n: '07', short: 'Width, depth, steps, rate, pot' },
   { id: 'ch-08', n: '08', short: 'Three averages, one loss' },
   { id: 'ch-09', n: '09', short: 'Rules under a net' },
   { id: 'ch-10', n: '10', short: 'What is not settled' },
@@ -101,6 +103,8 @@ export function ResearchTab() {
   const size = (net: string) => SIZE_SWEEP.find((s) => s.net === net)!
   const refit = (net: string, steps: number) => REFIT_ARMS.find((a) => a.net === net && a.steps === steps)!
   const screen = (rule: 'linear' | 'dcfr' | 'cfrplus', t: number) => RULE_SCREEN[rule].find((p) => p.t === t)!.exact
+  const pot = (k: number, lr = 0.0005) => POT_ARMS.find((a) => a.potPower === k && a.lr === lr)!
+  const rawNoise = Math.abs(pot(0).exact[100] - pot(0, 0.001).exact[100])
   const flip = (rule: 'dcfr' | 'cfrplus', t: number) => SIGN_FLIPS[rule].find((f) => f.t === t && f.seat === 0)!
   const ce64 = piArm('ce-softmax-64k-cos')
   const mse64 = piArm('mse-linear-64k-cos')
@@ -447,7 +451,9 @@ export function ResearchTab() {
             t-weighted mean, which is exactly what LCFR's table holds there divided by Σt, and regret matching is
             invariant to that positive factor. With a perfect "net" that returns each row's weighted sum, the loop
             reproduces rung 3's LCFR bit for bit; that pin is in the test suite. What moves what: a later sample
-            outvotes an earlier one t-fold; a wider net tells more rows apart; more steps settle closer to the mean. Three
+            outvotes an earlier one t-fold; a wider net tells more rows apart; more steps settle closer to the mean. The
+            arms on this page fit raw chips; since the pot arms at the end of chapter 07 the trainer divides each target
+            by √pot at its spot first. Three
             objects are graded at every mark, because they answer different questions — the <b>exact average</b>, CFR's
             actual answer, accumulated from each iteration's strategy with the seat's own reach; <b>Π</b>, a fresh policy
             net fit on the strategy samples, the only average a game <i>without</i> a table can keep; and the{' '}
@@ -534,6 +540,68 @@ export function ResearchTab() {
           >
             <RefitChart />
           </Figure>
+          <h3>
+            Dividing each regret target by √pot cut the two-million-hand grade{' '}
+            {cut(pot(0).exact[200], pot(0.5).exact[200])}: the fit spends its accuracy by chip, not by pot squared
+          </h3>
+          <p>
+            One net fits every spot's mean regret with one accuracy budget, and the loss decides where that budget goes.
+            A regret is in chips, so a spot's regrets are about as large as its pot, and a relative miss ε at a spot
+            costs (ε · pot)² per row. Squared error in raw chips therefore weighs a spot by how often it is reached
+            times pot²: the all-in spots at 52 chips count 676 times the 2-chip ante spots they are reached as often
+            as, and the ante spots, where every hand begins, are fit last. The repair is one division before the fit,
+            with P the pot at the decision:
+          </p>
+          <Eq>at a spot with pot P: fit y to r ÷ P^k, with k = 0 (raw), ½ or 1</Eq>
+          <p>
+            Why the division is free: P is shared by every row at the spot, so the spot's mean regret is scaled by one
+            constant across its actions, and regret matching, which reads only a row's sign pattern and ratios, plays
+            the same σ from the scaled regrets as from the raw ones. That is exact for the regrets themselves; what the
+            fitted net gets <i>wrong</i>, and so the σ it actually plays, is what the weighting moves, and is the point.
+            A divisor that depended on the sampled outcome would reweight rows within a spot and move its mean; this
+            one cannot. What k does: dividing by P^k leaves a weight of how often × P^(2 − 2k). k = ½ leaves how often ×
+            pot, the chips a σ mistake at that spot costs the player; k = 1 weighs every spot alike, however small its
+            pot. The accuracy the net gives up at the biggest pots it spends at the many small ones, which is where the
+            exact grader finds the exploitable play.
+          </p>
+          <p>
+            Three 16,000-step arms at 5e-4 differ only in k and saw the same hands. At one million hands they grade{' '}
+            {p100(pot(0).exact[100])} (raw), {p100(pot(0.5).exact[100])} (÷ √pot) and {p100(pot(1).exact[100])} (÷ pot);
+            at two million, {p100(pot(0).exact[200])}, {p100(pot(0.5).exact[200])} and {p100(pot(1).exact[200])}. The
+            only estimate of run-to-run noise is the two raw arms, at 5e-4 and at 1e-3, which differ in more than a
+            seed: {p100(rawNoise)} apart at one million hands, against which the pot arms' gain at two million is about{' '}
+            {Math.round((pot(0).exact[200] - pot(0.5).exact[200]) / rawNoise)} times the gap. The two weightings tie at
+            two million hands, inside that noise; √pot leads at one million, its current iterate is far better at two
+            ({p100(pot(0.5).current[200])} against {p100(pot(1).current[200])}), and it is the weighting the chip-cost
+            argument picks, so k = ½ is the default for new runs. Early, at a hundred thousand hands, both pot arms are
+            worse than raw, as a longer fit was in the previous section; arms are compared from a million hands.
+          </p>
+          <Figure
+            n={10}
+            caption={
+              <>
+                ÷ √pot grades {p100(pot(0.5).exact[200])} at two million hands against raw {p100(pot(0).exact[200])},{' '}
+                {cut(pot(0).exact[200], pot(0.5).exact[200])} less, and ÷ pot ties it at {p100(pot(1).exact[200])}. Same
+                net, same refit, same hands; only the targets' scale changes. The faintest bar is the raw arm at the
+                full learning rate, the one estimate of run-to-run noise. Hover a bar for the grade to two decimals.
+              </>
+            }
+            source="figures/rung4/sweep_256x4-s16000-lr5e-4.json, sweep_256x4-s16000.json, pot_0.5-256x4-s16000-lr5e-4.json and pot_1-256x4-s16000-lr5e-4.json · the exact average at marks 100 and 200; chips per hundred hands; one seed each"
+            label="Exact average of the regret targets over pot^k at one and two million hands per seat"
+          >
+            <PotChart />
+          </Figure>
+          <p>
+            Two confounds are open. The refit does not normalise its targets (each row is weighted by t over the
+            batch's mean t and nothing else), so dividing them by up to √52 ≈ 7.2 also shrinks the residuals, and with
+            them the gradient norms the clip of 1.0 sees: Adam's step is scale-free, the clip is not, so it bites less
+            often in the pot arms than in the raw arm, and part of the gain may be a changed clipping regime rather than
+            the reweighting; a raw arm with a looser clip would separate the two and has not been run. And the raw arm
+            at the full rate is its own single-seed gain over 5e-4 ({p100(pot(0, 0.001).exact[200])} against{' '}
+            {p100(pot(0).exact[200])} at two million hands), so √pot at 1e-3, the pairing the default config now runs,
+            has not been graded. Whether the pot arms flatten where the raw arm did, {p100(best500.exact.exploitability)}{' '}
+            at five million hands, is the next thing to grade; both stopped at two million.
+          </p>
         </Chapter>
 
         <Chapter id="ch-08" title="The exact average wins at every mark, and the policy net's stall was its loss">
@@ -549,7 +617,7 @@ export function ResearchTab() {
             {p100(best500.current.exploitability)} at five.
           </p>
           <Figure
-            n={10}
+            n={11}
             caption={
               <>
                 Exact &lt; Π at every mark; the current iterate is promised nothing and shows it. The 4 × 256 arm's three
@@ -586,7 +654,7 @@ export function ResearchTab() {
             ) where the run's Π stalled. The memory was fine; the loss was wrong for the job.
           </p>
           <Figure
-            n={11}
+            n={12}
             caption={
               <>
                 Cross-entropy beats squared error at every step count and reaches {p100(ce64.exploitability, 2)} at 64k,
@@ -608,7 +676,7 @@ export function ResearchTab() {
             exploitability where a plain count of zeroed small probabilities does not.
           </p>
           <Figure
-            n={12}
+            n={13}
             caption="The same 0.03 miss costs fourteen times more under cross-entropy at a rare action than under squared error, and the same at a coin flip. Both curves are the losses' definitions, computed; nothing read from a file."
             source="the two losses' formulas: squared error, and cross-entropy minus its floor (the KL divergence)"
             label="Squared error and cross-entropy for a 0.03 miss at a 4 percent action and at a 50 percent action"
@@ -648,7 +716,7 @@ export function ResearchTab() {
             sampling produces.
           </p>
           <Figure
-            n={13}
+            n={14}
             caption={
               <>
                 Per-sample DCFR and CFR+ are {KEY_NUMBERS.ruleScreenRatio.toFixed(0)} times worse than linear at
@@ -707,6 +775,13 @@ export function ResearchTab() {
                 <td>
                   The spec's default net was run twice, on a Mac to half a million hands and on Modal to a million; the
                   rows are identical for any worker count, so the two are one curve, but the refit arithmetic differed.
+                </td>
+              </tr>
+              <tr>
+                <td>the pot arms</td>
+                <td>
+                  One seed each, stopped at two million hands. √pot with the full learning rate, the pairing new runs
+                  default to, is ungraded, and part of the gain may be the gradient clip biting less on smaller targets.
                 </td>
               </tr>
               <tr>
