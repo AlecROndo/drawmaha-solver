@@ -75,8 +75,10 @@ const signed = (n: number, digits = 0): string => `${n >= 0 ? '+' : '−'}${Math
  * share the hot band at three depths — `d1` the low throw, faintest, up to
  * `d3` the top throw at full strength — the order the draw buttons' own
  * palette uses (`--throw-low` / `--throw-mid` / `--throw-top` in
- * `index.css`, the pink at 45%, 70% and full); the `.mixband .pot.d*` rules
- * key the depth's opacity on these classes.
+ * `index.css`, the pink at 45%, 70% and full). The order is what is
+ * borrowed, not the numbers: the `.mixband .pot.d*` rules key an `opacity`
+ * of 0.5, 0.75 and 1 over the pot fill on these classes, and that need not
+ * equal the palette's alphas.
  */
 const BAND: Record<Act, string> = { f: 'fold', c: 'call', p: 'pot', n: 'call', l: 'pot d1', m: 'pot d2', t: 'pot d3' }
 

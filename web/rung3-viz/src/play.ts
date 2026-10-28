@@ -199,15 +199,21 @@ const present = (mix: Mix): Act[] => AGGRESSION.filter((a) => a in mix)
 /**
  * The hundred rolls partitioned: each action present in `mix`, in
  * `AGGRESSION` order, with the [start, end) it owns, tiling 0–100 with no
- * gaps. `prescribed` and `mistakeOf` grade against these segments, and the
- * trainer draws the coach's band bar from the same list at the same widths,
- * so the tick it puts at the roll always falls inside the band of the action
- * the roll prescribed — one walk, read two ways.
+ * gaps. A roll is an integer in 0–99 (`Math.floor(uniform() * 100)` in
+ * `drive`), and a pack vector partitions 1000 exactly, so the shares sum
+ * to one; but `/ 1000 * 100` is float arithmetic and the running sum can
+ * land a hair either side of 100, so the last segment's end is pinned to
+ * 100 and the tiling is exact rather than close. `prescribed` reads the
+ * segment the roll fell in, `mistakeOf` the one the played action owns, and
+ * the trainer draws the coach's band bar from the same list at the same
+ * widths, so the tick it puts at the roll always falls inside the band of
+ * the action the roll prescribed — one walk, read three ways.
  */
 export function segments(mix: Mix): { act: Act; start: number; end: number }[] {
+  const acts = present(mix)
   let start = 0
-  return present(mix).map((act) => {
-    const end = start + (mix[act] ?? 0) * 100
+  return acts.map((act, i) => {
+    const end = i === acts.length - 1 ? 100 : start + (mix[act] ?? 0) * 100
     const segment = { act, start, end }
     start = end
     return segment
@@ -222,16 +228,13 @@ function segmentOf(mix: Mix, act: Act): [number, number] {
   return [total, total]
 }
 
-/** The action the strategy prescribes for this roll. */
-export function prescribed(mix: Mix, roll: number): Act {
-  let start = 0
-  const acts = present(mix)
-  for (const a of acts) {
-    start += (mix[a] ?? 0) * 100
-    if (roll < start) return a
-  }
-  return acts[acts.length - 1] ?? 'c'
-}
+/**
+ * The action the strategy prescribes for this roll: the one whose segment
+ * the roll fell in. Rolls are 0–99 and the last segment ends at 100, so any
+ * non-empty mix matches; the `'c'` is for an empty one, which `toMix` never
+ * builds from a pack (every spot has a legal action).
+ */
+export const prescribed = (mix: Mix, roll: number): Act => segments(mix).find((s) => roll < s.end)?.act ?? 'c'
 
 /** Percentage points between the roll and the played action's segment. */
 export function mistakeOf(mix: Mix, roll: number, act: Act): number {

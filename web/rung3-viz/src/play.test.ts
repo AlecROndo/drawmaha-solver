@@ -170,7 +170,7 @@ describe('the mix and the roll', () => {
       const bands = segments(mix)
       expect(bands.map((b) => b.act)).toEqual(['p', 'c', 'f', 'n', 'l', 'm', 't'].filter((a) => a in mix))
       expect(bands[0].start).toBe(0)
-      expect(bands[bands.length - 1].end).toBeCloseTo(100, 9)
+      expect(bands[bands.length - 1].end).toBe(100) // pinned: the thousandths' float sum lands a hair off on its own
       bands.slice(1).forEach((b, i) => expect(b.start).toBe(bands[i].end))
       for (let roll = 0; roll < 100; roll++) {
         const under = bands.find((b) => b.start <= roll && roll < b.end)
