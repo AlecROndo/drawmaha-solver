@@ -11,14 +11,18 @@ import { fmtHands, hoursAt, logScale } from './scales'
  * There is a notch at each of the best arm's six graded marks. Above it
  * reads Deep CFR's clock — the iteration t, and under it the hours of
  * training that iteration had cost — and below it the table's clock, the
- * lockstep iteration read from rung 3's grade at the same hands, which is
- * 1,000 t on this grid (deep.test.ts pins the factor). The figure's point
- * is the alignment: one hairline runs through all three rows at each notch
+ * lockstep iteration read from rung 3's grade at the same hands. One
+ * lockstep iteration samples W hands per seat (W = 10 workers, `WORKERS` in
+ * research.ts, read from the grades file), and a Deep CFR iteration walks
+ * K = 10,000 per seat, so the table's iteration is K/W = 1,000 t on this grid
+ * and iteration × W is the hands; deep.test.ts pins both. The figure's point
+ * is the alignment: one hairline runs through every row at each notch
  * because hands per seat is the axis both clocks are read on. The bottom
- * row is the table's own grade at each notch, the denominator the price in
- * the next figure divides by, as a dot whose height is the grade on a log
- * scale, falling left to right. Hover, touch or arrow a notch and the
- * readout under the figure, a live region, states that column in words.
+ * row is the table's own grade at each notch, as a dot whose height is the
+ * grade on a log scale, falling left to right; it is the denominator of the
+ * next figure's price, Deep CFR's exploitability ÷ LCFR's at the same hands.
+ * Hover, touch or arrow a notch and the readout under the figure, a live
+ * region, states that column in words.
  */
 
 const W = 760
