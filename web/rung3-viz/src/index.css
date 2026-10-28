@@ -520,10 +520,13 @@
   gap: 5px;
 }
 
+/* The coach's band bar. Learn's `.mixbar` sets a 2px gap between its bands;
+   this one has none, because it carries a tick at `left: roll%` and the bands
+   are the roll's own segments at their exact widths, summing to the bar — a
+   gap would shift every band right of it off the roll's scale. */
 .mixband {
   position: relative;
   display: flex;
-  gap: 2px;
   height: 6px;
   border-radius: 3px;
   overflow: hidden;
@@ -531,7 +534,7 @@
 
 .mixband i {
   display: block;
-  flex-basis: 0;
+  flex: none;
   height: 100%;
 }
 
@@ -547,20 +550,23 @@
   background: var(--mix-pot);
 }
 
+/* The three throws at three depths, the low throw faintest and the top at
+   full strength, as --throw-low / --throw-mid / --throw-top are. */
+.mixband .pot.d1 {
+  opacity: 0.5;
+}
+
 .mixband .pot.d2 {
   opacity: 0.75;
 }
 
-.mixband .pot.d3 {
-  opacity: 0.5;
-}
-
+/* The tick's left edge is the roll; it extends right, into the segment the
+   roll prescribed, never back across the boundary into the one before. */
 .mixband .tick {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 2px;
-  margin-left: -1px;
   background: var(--ivory);
 }
 

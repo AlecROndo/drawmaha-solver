@@ -196,14 +196,30 @@ export const AGGRESSION: Act[] = ['p', 'c', 'f', 'n', 'l', 'm', 't']
 
 const present = (mix: Mix): Act[] => AGGRESSION.filter((a) => a in mix)
 
+/**
+ * The hundred rolls partitioned: each action present in `mix`, in
+ * `AGGRESSION` order, with the [start, end) it owns, tiling 0–100 with no
+ * gaps. `prescribed` and `mistakeOf` grade against these segments, and the
+ * trainer draws the coach's band bar from the same list at the same widths,
+ * so the tick it puts at the roll always falls inside the band of the action
+ * the roll prescribed — one walk, read two ways.
+ */
+export function segments(mix: Mix): { act: Act; start: number; end: number }[] {
+  let start = 0
+  return present(mix).map((act) => {
+    const end = start + (mix[act] ?? 0) * 100
+    const segment = { act, start, end }
+    start = end
+    return segment
+  })
+}
+
 /** The [start, end) roll segment (0–100) an action owns under `mix`. */
 function segmentOf(mix: Mix, act: Act): [number, number] {
-  let start = 0
-  for (const a of present(mix)) {
-    if (a === act) break
-    start += (mix[a] ?? 0) * 100
-  }
-  return [start, start + (mix[act] ?? 0) * 100]
+  const own = segments(mix).find((s) => s.act === act)
+  if (own) return [own.start, own.end]
+  const total = segments(mix).reduce((sum, s) => sum + (s.end - s.start), 0)
+  return [total, total]
 }
 
 /** The action the strategy prescribes for this roll. */
@@ -530,6 +546,14 @@ export function nextHand(s: Session, uniform: () => number = Math.random): Sessi
   const seat = s.hand ? ((1 - s.hand.humanSeat) as 0 | 1) : 0
   return { ...s, hand: dealHand(deal, seat, uniform), pending: rest, used }
 }
+
+/**
+ * The number of the hand on the table. `hands` counts settled hands and is
+ * banked in the same update that settles one, so a live hand is the next
+ * number and a hand that is over is already counted: its number is `hands`,
+ * not the next. With no hand dealt yet it is the count so far.
+ */
+export const handNumber = (s: Session): number => (s.hand !== null && phaseOf(s.hand) !== 'over' ? s.hands + 1 : s.hands)
 
 /** The legal betting actions, for a caller that wants only those. */
 export const legalBetsOf = (h: Hand): Bet[] => legalBets(linesOf(h))

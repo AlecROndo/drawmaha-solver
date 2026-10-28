@@ -562,3 +562,29 @@ def test_the_solver_sheet_reaches_the_chrome_only_under_body_wide() -> None:
     for selector in gated:
         for cls in re.findall(r"\.[\w-]+", selector[len(WIDE) :]):
             assert cls in theme_classes, f"{selector!r} gates {cls}, which the theme does not declare"
+
+
+# ------------------------------------------------- the harbour pair, twice
+# /rung3's trainer draws the coach's mix in the harbour pair Learn's grid
+# uses, under its own token names (`--mix-call` / `--mix-pot`) because the two
+# sheets share one page and may not share a `:root` token (the overlap test
+# above). A hand-kept copy drifts; this holds it to the original, so a retune
+# of the pair in solver-viz fails here until the trainer follows.
+
+HARBOUR_PAIR = {"--mix-call": "--call-fill", "--mix-pot": "--pot-fill"}
+
+
+def _declared(name: str, token: str) -> str:
+    """The value a sheet declares for a token, comments stripped first (the solver sheet keeps the losing pairs in one)."""
+    css = re.sub(r"/\*.*?\*/", "", SHEETS[name], flags=re.DOTALL)
+    found = re.findall(rf"{re.escape(token)}\s*:\s*([^;}}]+)", css)
+    assert len(found) == 1, f"{name} declares {token} {len(found)} times; expected exactly once"
+    return found[0].strip()
+
+
+@pytest.mark.parametrize(("copy", "original"), sorted(HARBOUR_PAIR.items()))
+def test_the_trainers_mix_pair_is_learns_harbour_pair(copy: str, original: str) -> None:
+    assert _declared("rung3-viz", copy) == _declared(GUEST, original), (
+        f"rung3-viz declares {copy} as {_declared('rung3-viz', copy)} but {GUEST} has {original} as "
+        f"{_declared(GUEST, original)}: the trainer's mix bands no longer match Learn's"
+    )
