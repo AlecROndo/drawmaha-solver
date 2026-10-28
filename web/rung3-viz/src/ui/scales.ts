@@ -15,6 +15,22 @@ export const linScale = (lo: number, hi: number, a: number, b: number) => (v: nu
 /** The pot chart's axes (`PotChart.tsx`); kept here so `deep.test.ts` can hold every plotted point inside them, since the scales clamp rather than fail. */
 export const POT_DOMAIN = { hands: [1e5, 5e6], per100: [7, 100] } as const
 
+/**
+ * Labels that end at the same x, stacked top to bottom: each y is pushed down
+ * until it clears the one above by `gap`; if the stack then runs past
+ * `floor` (the lowest y a label may sit at), the whole stack slides up by the
+ * excess. Returns the ys in the input order.
+ */
+export const stackLabels = (ys: number[], gap: number, floor = Infinity): number[] => {
+  const order = ys.map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y)
+  for (let k = 1; k < order.length; k++) order[k].y = Math.max(order[k].y, order[k - 1].y + gap)
+  const excess = order.length ? order[order.length - 1].y - floor : 0
+  if (excess > 0) for (const o of order) o.y -= excess
+  const out = new Array<number>(ys.length)
+  for (const { y, i } of order) out[i] = y
+  return out
+}
+
 /** 100000 → 100k, 2000000 → 2M. */
 export const fmtHands = (n: number): string => (n >= 1e6 ? `${n / 1e6}M` : `${n / 1e3}k`)
 

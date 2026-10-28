@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { FROZEN } from './research'
 import { BEST, markOf } from './deep'
-import { REACH, STAGES, bandAt, binLabel, perVisit, populated, rareInfosets, rareShare } from './reach'
+import { REACH, REACH_NAME, REACH_SHORT, STAGES, bandAt, binLabel, crossingBand, edgeWord, perVisit, populated, rareInfosets, rareShare } from './reach'
 
 describe('exploitability by reach', () => {
   it('each profile sums to the grade the page quotes elsewhere, and its check holds', () => {
@@ -46,5 +46,40 @@ describe('exploitability by reach', () => {
     expect(REACH.tabular.stages['round 2'].exploitability / REACH.tabular.exploitability).toBeGreaterThan(
       REACH['deep-exact'].stages['round 2'].exploitability / REACH['deep-exact'].exploitability,
     )
+  })
+
+  it("labels a band edge as 'once in N hands', and the rarest bin's floor of zero as never, not as infinity", () => {
+    expect(edgeWord(0.1)).toBe('1 in 10')
+    expect(edgeWord(1e-3)).toBe('1 in 1,000')
+    expect(edgeWord(1e-8)).toBe('1 in 100M')
+    expect(edgeWord(REACH.tabular.bins.at(-1)!.floor)).toBe('never')
+  })
+
+  it("each strategy's bin shares partition its exploitability, and every name has a short form", () => {
+    for (const p of Object.values(REACH)) {
+      const shares = p.bins.map((b) => b.exploitability / p.exploitability)
+      expect(shares.reduce((s, v) => s + v, 0)).toBeCloseTo(1, 9)
+    }
+    for (const key of Object.keys(REACH_NAME) as (keyof typeof REACH_NAME)[]) expect(REACH_SHORT[key].length).toBeLessThan(REACH_NAME[key].length)
+  })
+
+  it('the table first leaks more per visit than the net in the 1 in 100k to 1M band', () => {
+    const band = crossingBand(REACH.tabular, REACH['deep-exact'])!
+    expect(binLabel(band)).toBe('1 in 100k to 1M')
+    // and stays ahead in every rarer band, so the crossing the caption names is the lasting one
+    const from = REACH.tabular.bins.indexOf(band)
+    for (const [i, bin] of REACH.tabular.bins.entries()) {
+      if (i > from && bin.frequency > 0) expect(perVisit(bin)).toBeGreaterThan(perVisit(REACH['deep-exact'].bins[i]))
+    }
+    expect(crossingBand(REACH['deep-exact'], REACH['deep-pi'])).toBeNull()
+  })
+
+  it('every profile bins by the same decade ladder, and the populated bands are contiguous', () => {
+    const ladder = REACH.tabular.bins.map((b) => [b.floor, b.ceiling])
+    for (const p of Object.values(REACH)) expect(p.bins.map((b) => [b.floor, b.ceiling])).toEqual(ladder)
+    for (const p of Object.values(REACH)) {
+      const idx = p.bins.map((b, i) => (b.infosets > 0 && b.frequency > 0 ? i : -1)).filter((i) => i >= 0)
+      expect(idx).toEqual(idx.map((_, k) => idx[0] + k))
+    }
   })
 })
