@@ -3,7 +3,7 @@
 - **The Research tab is a publication, not a dashboard.** One masthead for
   the page (`ui/Masthead.tsx`; the shared `Hero` and its ASCII object are not
   used here), then `ui/ResearchTab.tsx`: the key numbers, a contents rail,
-  ten chapters and Methods. Figures render inside `ui/Figure.tsx` (number,
+  nine chapters and Methods. Figures render inside `ui/Figure.tsx` (number,
   caption that states the finding, source line that names the file), never
   the shared window `Panel`. The numbers come from three modules and nothing
   else: `src/research.ts` (rung 3) and `src/deep.ts` (every rung-4 grade

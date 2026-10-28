@@ -408,7 +408,7 @@ export function ResearchTab() {
         </Chapter>
 
         {/* -------------------------------------------- Part III: the net */}
-        <Chapter id="ch-04" title="A network for the ledger: the same game, the same walk, the same hands, and one question">
+        <Chapter id="ch-05" title="A network for the ledger: the same game, the same walk, the same hands, and one question">
           <p>
             Rung 4 asks what a network gives up. It trains Deep CFR on this exact game with this exact sampler, grades it
             with this exact walk, and reports one number at every point of the race's grid:
@@ -530,7 +530,7 @@ export function ResearchTab() {
           </Figure>
         </Chapter>
 
-        <Chapter id="ch-04" title={<>Width is the lever: doubling it cut {cut(size('3 × 64').exact, size('3 × 128').exact)}, an extra layer cut {cut(size('3 × 64').exact, size('4 × 64').exact)} to {cut(size('3 × 128').exact, size('4 × 128').exact)}</>}>
+        <Chapter id="ch-06" title={<>Width is the lever: doubling it cut {cut(size('3 × 64').exact, size('3 × 128').exact)}, an extra layer cut {cut(size('3 × 64').exact, size('4 × 64').exact)} to {cut(size('3 × 128').exact, size('4 × 128').exact)}</>}>
           <p>
             Five nets at one million hands, all with the spec's refit (4,000 Adam steps at 1e-3), all on identical hands.
             The sweep's verdict was fixed before its numbers existed — {SWEEP_RULE.rule} — and it picked{' '}
@@ -651,7 +651,7 @@ export function ResearchTab() {
           </p>
         </Chapter>
 
-        <Chapter id="ch-04" title="The exact average wins at every mark, and the policy net's stall was its loss">
+        <Chapter id="ch-07" title="The exact average wins at every mark, and the policy net's stall was its loss">
           <p>
             CFR's answer is the average of its iterates, never the last one. The exact average is accumulated as the
             run goes, each iteration's strategy weighted by t and by the seat's own reach, pushed through a predecessor
@@ -737,7 +737,7 @@ export function ResearchTab() {
           </p>
         </Chapter>
 
-        <Chapter id="ch-04" title={<>Per-sample DCFR and CFR+ lose to linear by {KEY_NUMBERS.ruleScreenRatio.toFixed(0)} times and get worse with training, because there is no total to test</>}>
+        <Chapter id="ch-08" title={<>Per-sample DCFR and CFR+ lose to linear by {KEY_NUMBERS.ruleScreenRatio.toFixed(0)} times and get worse with training, because there is no total to test</>}>
           <p>
             Deep CFR stores no running regret. Each refit learns the t-weighted <i>mean</i> of every regret sample the
             reservoir holds, and regret matching reads that mean's sign pattern. So the only place a rule can act is on
@@ -783,7 +783,7 @@ export function ResearchTab() {
           </p>
         </Chapter>
 
-        <Chapter id="ch-04" title="What is and is not settled">
+        <Chapter id="ch-09" title="What is and is not settled">
           <table className="settled">
             <tbody>
               <tr>

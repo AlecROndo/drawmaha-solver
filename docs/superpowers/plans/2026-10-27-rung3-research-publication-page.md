@@ -1,5 +1,7 @@
 # `/rung3` as a research publication page — implementation plan
 
+> **As built (2026-10-28):** nine chapters, not ten. The clock chapter ("Why DCFR became CFR+") was dropped in `3cbeb7b` for the reach decomposition of chapter 04, and the √pot regret targets of PR #68 joined chapter 06 (`9cdea14`, Figure 12). The dated plan below is kept as written.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** The Research tab of `/rung3` reads like a research announcement page, not a trainer: a masthead in place of the ASCII cigar hero (one masthead for all three tabs), a summary, four key numbers, a contents rail, ten chapters plus Methods, every figure at column width with a caption that states the finding and a source line that names its file, and the Deep CFR work on the same game (rung 4) as chapters 06 to 09 beside the tabular race. Every number is read from a committed file. The outside data the page quotes (the policy-net loss sweep, the DCFR clock forensics, the visit-clock DCFR grades) is committed first with the scripts that wrote it.

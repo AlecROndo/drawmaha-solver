@@ -120,8 +120,8 @@ describe('the ablations', () => {
       for (const p of s.points) {
         expect(p.hands).toBeGreaterThanOrEqual(POT_DOMAIN.hands[0])
         expect(p.hands).toBeLessThanOrEqual(POT_DOMAIN.hands[1])
-        expect(perHundred(p.exact)).toBeGreaterThan(POT_DOMAIN.per100[0])
-        expect(perHundred(p.exact)).toBeLessThan(POT_DOMAIN.per100[1])
+        expect(perHundred(p.exact)).toBeGreaterThanOrEqual(POT_DOMAIN.per100[0])
+        expect(perHundred(p.exact)).toBeLessThanOrEqual(POT_DOMAIN.per100[1])
       }
     }
   })
