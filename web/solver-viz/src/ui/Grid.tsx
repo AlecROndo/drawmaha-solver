@@ -41,13 +41,18 @@ export interface Pin {
 export const dominant = (c: Cell): 'f' | 'c' | 'p' => (c.p > c.c && c.p > c.f ? 'p' : c.f > c.c ? 'f' : 'c')
 
 /**
- * The mark's sizes in px. `max` is the side of the largest region's square:
- * the 84 px cell less its label strip (the corner word and the percentage
- * share one line across the top, 17 px with the padding) and 4 px below, so
- * the square fills what is left of the cell at any width above ~70 px
- * and never runs under a label. `min` is the chip a region keeps however
- * small its share, so a <0.1% region is a visible dot and not a missing
- * cell; it is 9% of `max`, where the old floor was 18% of the old maximum.
+ * The mark's sizes in px. `max` is the side of the largest region's square.
+ * The cell is 84 px tall, border-box: less its 1 px borders, the 4 px of
+ * padding above and below and the 13 px label strip (the corner word and
+ * the percentage share one line across the top), 61 px are left for the
+ * square, and it takes 56 of them so a hair of well shows above and below
+ * it and it never runs under a label. Across, 56 px plus the 12 px of
+ * padding and 2 px of border is 70 px, so the square fills its slot at any
+ * cell width of 70 px and up (the columns are `minmax(0, 1fr)`, wider than
+ * that at every width the page is laid out for). `min` is the chip a region
+ * keeps however small its share, so a <0.1% region is a visible dot and not
+ * a missing cell; it is 9% of `max`, where the rule this replaced floored at
+ * 9 px of a 50 px maximum, 18%.
  */
 export const MARK = { max: 56, min: 5 } as const
 

@@ -39,7 +39,9 @@ export function PathScore(props: ScoreProps) {
               )
             }
             if (s.kind === 'end') return null
-            const potChanged = s.kind === 'act' && (s.word === 'bet' || s.word === 'raise' || s.word === 'call')
+            // The pot ticks onto a crumb only where it moved — a bet, a raise, a call — read off
+            // the pots themselves, so a check or a draw never carries a stale number.
+            const potChanged = i > 0 && s.pot !== steps[i - 1].pot
             return (
               <span key={i} className="crumb-wrap">
                 <button type="button" className={`tok crumb ${s.tone}`} onClick={() => onLine(s.back)} aria-label={rewindLabel(s)}>
@@ -59,30 +61,30 @@ export function PathScore(props: ScoreProps) {
               {d.kind !== 'over' && <small className="potnum">pot {head.pot}</small>}
             </span>
             {d.kind !== 'over' && (
-          <ul className="fork">
-            {d.kind === 'board2' ? (
-              <li className="branch">
-                <BoardPick game={game} which={2} card={null} picking={picking} onPick={onPick} className="opt" />
-                <span className="blab">board card 2</span>
-              </li>
-            ) : (
-              head.options.map((o) => {
-                const p = pct(shares, o.key)
-                const share = shares && shares[o.key] !== undefined ? shares[o.key] : 0
-                return (
-                  <li key={o.key} className="branch">
-                    <button type="button" className={`opt ${o.tone}`} onClick={() => onLine(advance(line, o.key))} aria-label={`play ${o.word}`}>
-                      <span className="w">{o.word}</span>
-                      {p && <b>{p}</b>}
-                    </button>
-                    <span className="sharebar" aria-hidden>
-                      <i className={o.tone} style={{ transform: `scaleX(${share})` }} />
-                    </span>
+              <ul className="fork">
+                {d.kind === 'board2' ? (
+                  <li className="branch">
+                    <BoardPick game={game} which={2} card={null} picking={picking} onPick={onPick} className="opt" />
+                    <span className="blab">board card 2</span>
                   </li>
-                )
-              })
-            )}
-          </ul>
+                ) : (
+                  head.options.map((o) => {
+                    const p = pct(shares, o.key)
+                    const share = shares && shares[o.key] !== undefined ? shares[o.key] : 0
+                    return (
+                      <li key={o.key} className="branch">
+                        <button type="button" className={`opt ${o.tone}`} onClick={() => onLine(advance(line, o.key))} aria-label={`play ${o.word}`}>
+                          <span className="w">{o.word}</span>
+                          {p && <b>{p}</b>}
+                        </button>
+                        <span className="sharebar" aria-hidden>
+                          <i className={o.tone} style={{ transform: `scaleX(${share})` }} />
+                        </span>
+                      </li>
+                    )
+                  })
+                )}
+              </ul>
             )}
           </span>
         </nav>

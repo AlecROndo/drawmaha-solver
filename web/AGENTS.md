@@ -44,8 +44,9 @@ afterwards run
   on `/solver` (and on `/rung3`'s Learn tab, which imports it) is drawn with
   its own fill pair, `--call-fill` and `--pot-fill` in
   `solver-viz/src/index.css`, because stacked bands of yellow and pink were
-  too close in weight to read; the timeline's chips, the pinned cell and the
-  ribbon there still use yellow and pink.
+  too close in weight to read. The ribbon's slices are mix bands and take
+  the pair; the hand-so-far chips, the pinned cell and the ribbon's sort
+  tabs there still use yellow and pink.
 - **Where a number is illustrative rather than a solver's output, the page
   says so** in its status line. Keep that sentence true when changing what is
   drawn.
