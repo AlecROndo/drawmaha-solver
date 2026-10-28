@@ -40,7 +40,12 @@ afterwards run
 - **Identity colour lives inside figures only.** Yellow is the thing pointed
   at (the average, the call); pink is the aggressive act (the bet, the current
   iterate). The chrome never uses either for decoration, and oxblood is the
-  brand, never ink.
+  brand, never ink. One exception, on purpose: the fold / call / pot *mix*
+  on `/solver` (and on `/rung3`'s Learn tab, which imports it) is drawn with
+  its own fill pair, `--call-fill` and `--pot-fill` in
+  `solver-viz/src/index.css`, because stacked bands of yellow and pink were
+  too close in weight to read; the timeline's chips, the pinned cell and the
+  ribbon there still use yellow and pink.
 - **Where a number is illustrative rather than a solver's output, the page
   says so** in its status line. Keep that sentence true when changing what is
   drawn.

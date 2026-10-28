@@ -4,9 +4,10 @@
  *
  * A "mix" is the solver's action distribution over a region of the range —
  * fold, check/call, pot — and it is drawn the same way everywhere on the
- * page: fold in the quiet ink, call in yellow (the thing you are pointing
- * at), pot in pink (the aggressive act), left to right, with a 2 px gap of
- * surface between bands so adjacent fills never need a border.
+ * page: fold in the quiet ink, check/call in the calm fill, pot in the hot
+ * fill (`--fold-fill`, `--call-fill`, `--pot-fill` in index.css, one pair
+ * for every mix on the page), left to right, with a 2 px gap of surface
+ * between bands so adjacent fills never need a border.
  */
 
 import type { Mix } from '../engine/aggregate'
@@ -47,7 +48,7 @@ export function MixBar({ mix, h = 8, className }: { mix: Mix; h?: number; classN
   )
 }
 
-/** The three numbers under a mix bar. `node` decides whether the yellow band is a check or a call. */
+/** The three numbers under a mix bar. `node` decides whether the calm band is a check or a call. */
 export function MixKey({ mix, node }: { mix: Mix; node: 'facing' | 'open' }) {
   return (
     <span className="mixkey">

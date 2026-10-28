@@ -1,6 +1,6 @@
 /**
- * Mini-drawmaha's range window, over a frozen strategy: the two-lane score
- * with the hand so far and the next actions, then the window — the spot
+ * Mini-drawmaha's range window, over a frozen strategy: the hand so far as
+ * a path with the next decision forking off its tip (`sofar/`), then the window — the spot
  * header whose controls open the secondary views, the two-half grid beside
  * the ribbon and the plane, the ledger under the grid, the draw board in
  * the grid's place at a draw decision — and, on the second tab, the other
@@ -43,12 +43,13 @@ import { DrawBoard } from './DrawBoard'
 import type { GameUI } from './game'
 import { Grid, type Pin } from './Grid'
 import { Ledger } from './Ledger'
-import { type MiniLine, MiniScore, decisionOf, linesOf, nextOptions } from './MiniScore'
+import { type MiniLine, decisionOf, linesOf, nextOptions } from './MiniScore'
 import { Panes } from './Panes'
 import { Plane } from './Plane'
 import { Ribbon } from './Ribbon'
 import type { TabId } from './hash'
 import { Sheet } from './Sheet'
+import { HandScore } from './sofar'
 import { Panel } from './site'
 import { Thumb } from './Versus'
 import type { Opened, SortKey } from './SpotHead'
@@ -378,7 +379,7 @@ export function MiniRange({
 
       <div className="block">
         <Panel n="01" k="the hand so far — click a chip to rewind, a board card to change it" wide>
-          <MiniScore game={game} line={line} onLine={onLine} picking={picking} onPick={setPicking} shares={shares} />
+          <HandScore game={game} line={line} onLine={onLine} picking={picking} onPick={setPicking} shares={shares} />
         </Panel>
       </div>
 
