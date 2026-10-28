@@ -587,14 +587,15 @@ export function ResearchTab() {
             caption={
               <>
                 ÷ √pot grades {p100(pot(0.5).exact[200])} at two million hands against raw {p100(pot(0).exact[200])},{' '}
-                {cut(pot(0).exact[200], pot(0.5).exact[200])} less, and ÷ pot ties √pot at {p100(pot(1).exact[200])}. Same
-                net, same refit, same hands; only the targets' scale changes. The faintest bar is the raw arm at the
+                {cut(pot(0).exact[200], pot(0.5).exact[200])} less, and ÷ pot ties √pot at {p100(pot(1).exact[200])};
+                both are already under the raw arm's floor of {p100(best500.exact.exploitability)} at five million. Same
+                net, same refit, same hands; only the targets' scale changes. The dashed ivory line is the raw arm at the
                 full learning rate, the only yardstick for a run-to-run difference and a coarse one, since its learning
-                rate differs too. Hover a bar for the grade to two decimals.
+                rate differs too. Hover or arrow a mark to read every arm's grade there.
               </>
             }
-            source="figures/rung4/sweep_256x4-s16000-lr5e-4.json, sweep_256x4-s16000.json, pot_0.5-256x4-s16000-lr5e-4.json and pot_1-256x4-s16000-lr5e-4.json · the exact average at marks 100 and 200; chips per hundred hands; one seed each"
-            label="Exact average of the regret targets over pot^k at one and two million hands per seat"
+            source="figures/rung4/sweep_256x4-s16000-lr5e-4.json, sweep_256x4-s16000.json, pot_0.5-256x4-s16000-lr5e-4.json and pot_1-256x4-s16000-lr5e-4.json · the exact average at every graded mark; chips per hundred hands, both axes log; one seed each"
+            label="Exact average of the regret targets over pot^k against hands per seat"
           >
             <PotChart />
           </Figure>
