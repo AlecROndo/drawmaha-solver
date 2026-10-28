@@ -46,19 +46,25 @@ const leak = (p: ReachProfile, i: number) => 100 * perVisit(p.bins[i])
 export function ReachChart({ profiles }: { profiles: Key[] }) {
   const INK = inkOf(profiles)
   const base = REACH[profiles[0]]
-  // the bands any shown profile populates, commonest first; the band index into every profile's bins is the same
+  // the bands any shown profile populates, commonest first; every profile bins by the same decade ladder, so the band
+  // index into each profile's bins is the same (reach.test.ts pins the ladder), and the shown bands are contiguous, so
+  // each column's left edge is its bin's ceiling and the last column's right edge its floor
   const bands = base.bins.map((bin, i) => ({ bin, i })).filter(({ i }) => profiles.some((p) => REACH[p].bins[i].infosets > 0 && REACH[p].bins[i].frequency > 0))
+  for (let k = 1; k < bands.length; k++) {
+    if (bands[k].i !== bands[k - 1].i + 1) throw new Error(`reach chart: the shown bands skip bin ${bands[k - 1].i + 1}, so the edge labels would lie`)
+  }
   const n = bands.length
   const bw = (W - M.l - M.r) / n
   const cx = (k: number) => M.l + (k + 0.5) * bw
   const yMax = Math.ceil(Math.max(...bands.flatMap(({ i }) => [countShare(base, i), ...profiles.map((p) => share(REACH[p], i))])) / 10) * 10
   const y = linScale(0, yMax, TOP.b, TOP.t)
   const leaks = bands.flatMap(({ i }) => profiles.map((p) => leak(REACH[p], i))).filter((v) => v > 0)
-  const lo = 10 ** Math.floor(Math.log10(Math.min(...leaks)))
-  const hi = 10 ** Math.ceil(Math.log10(Math.max(...leaks)))
+  const loExp = Math.floor(Math.log10(Math.min(...leaks)))
+  const hiExp = Math.ceil(Math.log10(Math.max(...leaks)))
+  const lo = 10 ** loExp
+  const hi = 10 ** hiExp
   const ly = logScale(lo, hi, BOTTOM.b, BOTTOM.t)
-  const lticks: number[] = []
-  for (let v = lo; v <= hi; v *= 10) lticks.push(v)
+  const lticks = Array.from({ length: hiExp - loExp + 1 }, (_, k) => 10 ** (loExp + k))
   const series = profiles.length + 1
   const barW = (bw * 0.78) / series
   const barX = (k: number, s: number) => cx(k) - (bw * 0.78) / 2 + s * barW
@@ -72,9 +78,9 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
   }
   // the leak lines' labels at both ends, stacked where they would collide
   const stacked = (band: number) => {
-    const values = profiles.map((p) => leak(REACH[p], bands[band].i))
-    const ys = stackLabels(values.map((v) => ly(v) + 4), LABEL_H)
-    return profiles.map((p, k) => ({ p, v: values[k], ly: ys[k] }))
+    const shown = profiles.map((p) => ({ p, v: leak(REACH[p], bands[band].i) })).filter((e) => e.v > 0)
+    const ys = stackLabels(shown.map((e) => ly(e.v) + 4), LABEL_H)
+    return shown.map((e, k) => ({ ...e, ly: ys[k] }))
   }
   const ends = stacked(n - 1)
   const starts = stacked(0)
@@ -140,7 +146,7 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
           <g key={v}>
             <line x1={M.l} x2={W - M.r} y1={ly(v)} y2={ly(v)} stroke="var(--panel-hair)" />
             <text x={M.l - 8} y={ly(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
-              {v >= 1 ? v : v.toFixed(String(v).length - 2)}
+              {v.toLocaleString(undefined, { maximumFractionDigits: 12 })}
             </text>
           </g>
         ))}
@@ -187,7 +193,7 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
           <rect key={k} x={M.l + k * bw} y={TOP.t} width={bw} height={BOTTOM.b - TOP.t} fill="transparent" onMouseEnter={() => setAt(k)} onPointerDown={() => setAt(k)} />
         ))}
       </svg>
-      <dl className="stat" aria-live="polite">
+      <dl className="stat" aria-live="polite" aria-atomic="true">
         <div>
           <dt>band</dt>
           <dd>{binLabel(picked.bin)}</dd>

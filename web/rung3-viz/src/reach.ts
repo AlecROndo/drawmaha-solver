@@ -91,6 +91,7 @@ export const populated = (p: ReachProfile): ReachBin[] => p.bins.filter((b) => b
 export const crossingBand = (a: ReachProfile, b: ReachProfile): ReachBin | null => {
   for (const [i, bin] of a.bins.entries()) {
     const other = b.bins[i]
+    if (!other || other.floor !== bin.floor) throw new Error(`exploit_by_reach: ${a.release} and ${b.release} bin their spots differently at bin ${i}`)
     if (bin.frequency > 0 && other.frequency > 0 && perVisit(bin) > perVisit(other)) return bin
   }
   return null

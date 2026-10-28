@@ -68,4 +68,13 @@ describe('exploitability by reach', () => {
     expect(binLabel(band)).toBe('1 in 100k to 1M')
     expect(crossingBand(REACH['deep-exact'], REACH['deep-pi'])).toBeNull()
   })
+
+  it('every profile bins by the same decade ladder, and the populated bands are contiguous', () => {
+    const ladder = REACH.tabular.bins.map((b) => [b.floor, b.ceiling])
+    for (const p of Object.values(REACH)) expect(p.bins.map((b) => [b.floor, b.ceiling])).toEqual(ladder)
+    for (const p of Object.values(REACH)) {
+      const idx = p.bins.map((b, i) => (b.infosets > 0 && b.frequency > 0 ? i : -1)).filter((i) => i >= 0)
+      expect(idx).toEqual(idx.map((_, k) => idx[0] + k))
+    }
+  })
 })
