@@ -3,9 +3,10 @@
  * sorted by one number (total equity, the inner half, the outer half, or
  * the scoop proxy inner × outer — a feature, not a scoop probability, since
  * the two halves share the hand's cards), weakest at the bottom, strongest
- * at the top, each
- * slice a thin horizontal bar whose bands are the mix. Polarisation is a
- * shape you can see: pink at both ends, yellow in the middle. When five
+ * at the top, each slice a thin horizontal bar whose bands are the mix in
+ * the mix fills (`--fold-fill`, `--call-fill`, `--pot-fill`). Polarisation
+ * is a shape you can see: the hot fill at both ends, the calm fill in the
+ * middle. The sort tabs above are chrome and keep the yellow. When five
  * cards are placed, the held hand's percentile is a line across the strip.
  */
 

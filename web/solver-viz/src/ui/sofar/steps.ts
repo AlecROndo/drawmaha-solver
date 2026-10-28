@@ -1,9 +1,9 @@
 /**
  * The hand so far, read off a `MiniLine` as one list of steps in the order
  * they were played — the shape both layouts draw from, so the path and the
- * strip differ in layout and not in what they say. Each played step carries the line to rewind to (the hand just before
- * it) and the pot after it; the head is the decision the line stands on with
- * its options already coloured.
+ * strip differ in layout and not in what they say. Each played step carries
+ * the line to rewind to (the hand just before it) and the pot after it; the
+ * head is the decision the line stands on with its options already coloured.
  */
 
 import { actorOf, replay } from '../../mini/grammar'
@@ -12,11 +12,13 @@ import { type Decision, type MiniLine, type Tone, decisionOf, linesOf, nextOptio
 
 export type Street = 'board 1' | 'round 1' | 'draw' | 'board 2' | 'round 2' | 'end'
 
+/** A fold has a winner, the seat that did not fold; a showdown is settled by the cards, which the line never holds. */
 export type Step =
   | { kind: 'board'; street: 'board 1' | 'board 2'; which: 1 | 2; card: MiniCard | null; pot: number }
   | { kind: 'act'; street: 'round 1' | 'round 2'; seat: 0 | 1; round: 1 | 2; key: string; word: string; tone: Tone; pot: number; back: MiniLine }
   | { kind: 'draw'; street: 'draw'; seat: 0 | 1; key: '0' | '1'; word: string; tone: Tone; pot: number; back: MiniLine }
-  | { kind: 'end'; street: 'end'; why: 'fold' | 'showdown'; pot: number; winner: 0 | 1 | null }
+  | { kind: 'end'; street: 'end'; why: 'fold'; pot: number; winner: 0 | 1 }
+  | { kind: 'end'; street: 'end'; why: 'showdown'; pot: number }
 
 export type PlayedStep = Extract<Step, { kind: 'act' | 'draw' }>
 export type EndStep = Extract<Step, { kind: 'end' }>
@@ -36,9 +38,6 @@ export function playedWord(letters: string, k: number): string {
   if (sym === 'f') return 'fold'
   return letters.slice(0, k).endsWith('p') ? 'raise' : 'bet'
 }
-
-/** Past tense, for a transcript: "seat 1 called". */
-export const PAST: Readonly<Record<string, string>> = { bet: 'bet', call: 'called', check: 'checked', raise: 'raised', fold: 'folded', 'stood pat': 'stood pat', 'threw one': 'threw one' }
 
 /** Every step of the hand so far, in play order; nothing that has not happened. */
 export function stepsOf(line: MiniLine): Step[] {
@@ -88,12 +87,14 @@ export function stepsOf(line: MiniLine): Step[] {
   }
   if (d.kind === 'over') {
     const pot = replay(linesOf(line)).pot
-    let winner: 0 | 1 | null = null
     if (d.why === 'fold') {
+      // The folder is whoever acted last in the round that ended; the other seat takes the pot.
       const letters = line.r2.endsWith('f') ? line.r2 : line.r1
-      winner = (1 - actorOf(letters.slice(0, letters.length - 1))) as 0 | 1
+      const winner = (1 - actorOf(letters.slice(0, letters.length - 1))) as 0 | 1
+      out.push({ kind: 'end', street: 'end', why: 'fold', pot, winner })
+    } else {
+      out.push({ kind: 'end', street: 'end', why: 'showdown', pot })
     }
-    out.push({ kind: 'end', street: 'end', why: d.why, pot, winner })
   }
   return out
 }
@@ -122,16 +123,13 @@ export function headLabel(d: Decision): string {
   return d.why === 'fold' ? 'folded' : 'showdown'
 }
 
-/** The seat whose decision it is, if it is a seat's. */
-export const headSeat = (d: Decision): 0 | 1 | null => (d.kind === 'bet' || d.kind === 'draw' ? d.player : null)
-
 export const pct = (shares: Record<string, number> | null, key: string): string | null =>
   shares && shares[key] !== undefined ? `${Math.round(shares[key] * 100)}%` : null
 
 /** How the hand ended, in one line. */
 export function endWords(step: EndStep): string {
   if (step.why === 'showdown') return `showdown · pot ${step.pot}`
-  return `seat ${1 - (step.winner ?? 0)} folded · seat ${step.winner} takes ${step.pot}`
+  return `seat ${1 - step.winner} folded · seat ${step.winner} takes ${step.pot}`
 }
 
 /** Grouped by street, in play order, keeping the streets' order. */
