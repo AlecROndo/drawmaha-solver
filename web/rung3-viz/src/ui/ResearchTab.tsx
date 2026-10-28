@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   ARMS,
   BEST,
@@ -87,6 +88,47 @@ function Chapter({ id, title, children }: { id: string; title: React.ReactNode; 
   )
 }
 
+/**
+ * Which entry of the contents rail the reader is at: the last section whose
+ * top has crossed a reading line a third of the way down the viewport, or the
+ * last section once the page is scrolled to its end (the methods are short
+ * enough that their top may never reach the line). Nothing is current above
+ * chapter 01. Measured on scroll and resize, one layout read per section,
+ * coalesced to a frame; the hash jump the rail's links make is a scroll like
+ * any other, so the box follows a click too.
+ */
+function useCurrentSection(ids: readonly string[]): string | null {
+  const [current, setCurrent] = useState<string | null>(null)
+  useEffect(() => {
+    let frame = 0
+    const measure = () => {
+      frame = 0
+      const line = Math.max(innerHeight * 0.3, 120)
+      const atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 2
+      let at: string | null = null
+      for (const id of ids) {
+        const el = document.getElementById(id)
+        if (el && el.getBoundingClientRect().top <= line) at = id
+      }
+      setCurrent(atEnd ? (ids.at(-1) ?? null) : at)
+    }
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure)
+    }
+    measure()
+    addEventListener('scroll', schedule, { passive: true })
+    addEventListener('resize', schedule)
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+      removeEventListener('scroll', schedule)
+      removeEventListener('resize', schedule)
+    }
+  }, [ids])
+  return current
+}
+
+const SECTION_IDS = CHAPTERS.map((c) => c.id)
+
 const final = (rule: Rule) => perHundred(series(rule).at(-1)!.exploitability)
 const p100 = (chipsPerHand: number, digits = 1) => perHundred(chipsPerHand).toFixed(digits)
 const pct = (x: number) => (x * 100 < 1 && x > 0 ? `${(x * 100).toFixed(1)}%` : `${Math.round(x * 100)}%`)
@@ -94,6 +136,7 @@ const cut = (from: number, to: number) => `${Math.round((1 - to / from) * 100)}%
 const M = (n: number) => `${(n / 1e6).toFixed(n % 1e6 ? 1 : 0)}M`
 
 export function ResearchTab() {
+  const current = useCurrentSection(SECTION_IDS)
   const mini = SIZES[2].infosets
   const leduc = SIZES[1].infosets
   const hands = FINAL_ITERATION * WORKERS
@@ -151,8 +194,8 @@ export function ResearchTab() {
         <span className="k">Contents</span>
         <ol>
           {CHAPTERS.map((c) => (
-            <li key={c.id}>
-              <a href={`#${c.id}`}>
+            <li key={c.id} className={c.id === current ? 'current' : undefined}>
+              <a href={`#${c.id}`} aria-current={c.id === current ? 'true' : undefined}>
                 {c.n && <i>{c.n}</i>}
                 {c.short}
               </a>
