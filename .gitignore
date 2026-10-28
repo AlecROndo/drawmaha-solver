@@ -24,6 +24,9 @@ wandb/
 /data/
 /solves/
 
+# Per-workspace agent scratch notes; never committed
+.context/
+
 # OS / editor
 .DS_Store
 .idea/

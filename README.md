@@ -1,8 +1,42 @@
 # Drawmaha Solver
 
-A neural solver for heads-up pot-limit Drawmaha — a split-pot draw/Omaha hybrid poker variant with no existing solver — built with Deep CFR, plus a GTOWizard-style dashboard for exploring the solved game tree.
+A game-theory solver for heads-up pot-limit **Drawmaha**, the split-pot draw/Omaha hybrid that no existing solver plays. It is built as a validation ladder: each rung adds one idea and is graded against a known answer before the next is climbed, so every piece of the method has been checked somewhere a mistake would show before it meets the real game.
 
-## The game
+**Live site: [drawmaha-solver.vercel.app](https://drawmaha-solver.vercel.app)** — a page for every rung, the solver's range interface at [`/solver`](https://drawmaha-solver.vercel.app/solver), and a trainer that deals you in against the solved strategy at [`/rung3`](https://drawmaha-solver.vercel.app/rung3#play).
+
+| Rung | Game | Method | Graded against | Result | Page |
+|---|---|---|---|---|---|
+| 0 | Rock-paper-scissors | regret matching | the uniform Nash | 0.0009 chips/round exploitable after 100k rounds | [`/rung0`](https://drawmaha-solver.vercel.app/rung0) |
+| 1 | Kuhn poker | vanilla CFR | the closed-form equilibrium; all 64 pure strategies | 0.00063 chips/hand; game value −0.05555 against −1/18 | [`/rung1`](https://drawmaha-solver.vercel.app/rung1) |
+| 2 | Leduc poker | vanilla CFR | an OpenSpiel solve, frozen as a fixture | 0.011 chips/hand; game value −0.0874 against −0.0856 | [`/rung2`](https://drawmaha-solver.vercel.app/rung2) |
+| 3 | Mini-drawmaha, 6.2M infosets | lockstep MCCFR, four regret rules raced | the exact best-response walk | LCFR wins: 0.061 chips/hand at 20M hands per seat | [`/rung3`](https://drawmaha-solver.vercel.app/rung3) |
+| 4 | Mini-drawmaha | Deep CFR | rung 3's grader and rung 3's answer | 0.086 chips/hand at 2M hands per seat, where LCFR is at 0.630 | [`/solver`](https://drawmaha-solver.vercel.app/solver) |
+| next | Full Drawmaha | Deep CFR at scale | a head-to-head checkpoint ladder and a trained exploiter | not started; the range interface is built ahead of it | [`/solver`](https://drawmaha-solver.vercel.app/solver) |
+
+Every result is exploitability: what a perfect adversary wins against the strategy, averaged over the two seats, in chips per hand (per round for rock-paper-scissors). It is computed exactly, by a best-response walk that shares no code with the solver: zero exactly at equilibrium, and unlike a training loss it cannot be fooled by self-play.
+
+## Quick start
+
+```bash
+uv sync                  # Python 3.12+; add --extra deep for torch (rung 4 training only)
+uv run pytest            # the whole suite; needs no torch, Modal, OpenSpiel or network
+uv run kuhn-analysis     # solve a rung and redraw its figures: rps-, kuhn-, leduc-, minidraw-analysis
+uv run kuhn-play         # play the solved strategy in the terminal: rps-, kuhn-, leduc-, minidraw-play
+```
+
+## Repository layout
+
+| Path | What is there |
+|---|---|
+| [`src/drawmaha_solver/`](src/drawmaha_solver) | one subpackage per rung (`rps`, `kuhn`, `leduc`, `minidrawmaha`, `deepcfr`) and the regret-matching ledger they all share |
+| [`tests/`](tests) | pytest, one directory per rung, plus checks on the site and the agent instructions |
+| [`scripts/`](scripts) | hand-run entry points: the OpenSpiel referee, the Modal launchers, the site build |
+| [`web/`](web) | the site: three static pages and five Vite + React visualizers |
+| [`figures/`](figures) | every analysis command's output, committed so a changed number shows up in the diff |
+| [`paper/`](paper) | a survey of the ML behind the solver ([PDF](paper/drawmaha-ml-survey.pdf)) |
+| [`docs/`](docs) | design specs and implementation plans, the rung-4 run log, the literature notes and the rung-0 writeup |
+
+## The target game
 
 Standard Drawmaha, heads-up:
 
@@ -13,23 +47,9 @@ Standard Drawmaha, heads-up:
 
 Solve parameters (v1 defaults, all configurable): pot-limit with action set {fold, check/call, pot}; 100bb effective stacks; both players ante, with no blinds and no position asymmetry — that is what a bomb pot means. Bet-sizing menus are a config so multi-size/custom solves are a re-solve, not a rewrite.
 
-## Approach: the validation ladder
-
-Each rung adds one layer and is checked against a known answer before climbing:
-
-| Rung | Game | What it proves |
-|------|------|----------------|
-| 0 | Rock-paper-scissors | regret-matching ledger math |
-| 1 | Kuhn poker | tabular vanilla CFR vs. the known exact equilibrium |
-| 2 | Leduc poker | CFR with a board, vs. published benchmarks |
-| 3 | Mini-drawmaha | split-pot scoring, and a draw — the first chance node whose shape depends on the action taken (tabular MCCFR) |
-| 4 | Full drawmaha | Deep CFR — neural nets replace the regret tables |
-
-The dashboard queries the rung-4 average-policy network: navigate the tree node by node, see range-level strategy aggregates (bucketed — 2.6M starting hands don't fit in a grid) with drill-down to exact hands. A trainer mode (quiz spots against the solver) is a later thin layer on the same query API. PPO self-play is a planned extension chapter: train a PPO agent and measure the CFR solution exploiting it.
-
 ## Evaluation protocol (pre-registered)
 
-Training loss is not a progress meter in self-play — the only honest question is what an adversary wins. Per rung: exact exploitability on the toys (checked against OpenSpiel reference values); on mini-drawmaha, the exact best-response walk as ground truth plus the Deep-CFR-vs-tabular gap; at full scale, a duplicate-dealt head-to-head checkpoint ladder plus a trained RL exploiter against the frozen net, reported as an exploitability lower bound. Units: total chips across both pot halves, per hand, in big blinds, with per-half EV and scoop rate as split-pot diagnostics.
+Training loss is not a progress meter in self-play — the only honest question is what an adversary wins. Per rung: exact exploitability on the toys (checked against Kuhn's closed form and an OpenSpiel solve of Leduc); on mini-drawmaha, the exact best-response walk as ground truth plus the Deep-CFR-vs-tabular gap; at full scale, a duplicate-dealt head-to-head checkpoint ladder plus a trained RL exploiter against the frozen net, reported as an exploitability lower bound. Units: total chips across both pot halves, per hand, in big blinds, with per-half EV and scoop rate as split-pot diagnostics.
 
 ## Rung 0 — RPS regret matching
 
@@ -48,7 +68,7 @@ The ledger measures regret against its strategy's expected utility (u − ⟨σ,
 
 ![Exploitability of the average strategy falls like 1/sqrt(T)](figures/rung0/self_play_exploitability.png)
 
-## Rung 1 — Kuhn poker, the game
+## Rung 1 — Kuhn poker
 
 `src/drawmaha_solver/kuhn/game.py`: the environment a solver iterates over, with no solver in it yet. Three-card deck (J < Q < K), both players ante 1, one card each, one round of betting with a single bet size of 1.
 
@@ -295,7 +315,7 @@ uv run minidraw-play                             # deal yourself in against the 
 
 `minidraw-analysis` reads two inputs: the committed `figures/rung3/grades.json` (every grid checkpoint of the race, graded) and the release strategy. It does not need the 555 MB checkpoints unless it is asked to grade new ones. To retrain, use `uv run --with modal modal run scripts/minidrawmaha/modal_rung3.py::main` (it costs Modal money; `::status` shows progress). To freeze a checkpoint, use `scripts/minidrawmaha/freeze_strategy.py`.
 
-### Playing it
+### Playing it in the terminal
 
 `minidraw-play` deals hands against the frozen strategy, alternating seats. At the draw the prompt names each throw by the position the solver's ledgers use (low, mid, top) and shows the physical card it would throw. The bot's draw is reported only as the table sees it: whether it drew, never what. Every hand ends by revealing both holdings and who took each half of the pot.
 
@@ -354,28 +374,30 @@ The sweep's verdict is fixed before its numbers exist: the run uses 3 × 64 unle
 
 The 2,000-iteration Modal run has not been made. A 3 × 64 Modal run was started and stopped at t = 64 once the sweep chose a wider net, and its marks are ungraded. Everything graded so far is the Modal size sweep plus arms trained on a Mac and graded through `::grade --local`, all at K = 10,000, seed 0. They see identical hands, because the rows never depend on W. The exact average, in chips per hand:
 
-| hands per seat | LCFR | 3 × 64 | 3 × 128 | 4 × 256 | 4 × 256, 8,000-step refit |
-|---|---|---|---|---|---|
-| 100k | 3.048 | 0.581 | | | |
-| 200k | 2.697 | 0.444 | | 0.294 | 0.330 |
-| 500k | 1.876 | 0.396 | | 0.173 | 0.167 |
-| 1M | 1.131 | 0.382 | 0.243 | 0.152 | **0.134** |
-| 2M | 0.630 | | 0.234 | | |
+| hands per seat | LCFR | 3 × 64 | 3 × 128 | 4 × 256 | 4 × 256, 8,000-step refit | 4 × 256, 16,000 steps, lr 5e-4 | the same, targets ÷ √pot |
+|---|---|---|---|---|---|---|---|
+| 100k | 3.048 | 0.581 | | | | 0.643 | 0.879 |
+| 200k | 2.697 | 0.444 | | 0.294 | 0.330 | 0.330 | |
+| 500k | 1.876 | 0.396 | | 0.173 | 0.167 | 0.169 | |
+| 1M | 1.131 | 0.382 | 0.243 | 0.152 | 0.134 | 0.133 | **0.108** |
+| 2M | 0.630 | | 0.234 | | | 0.115 | **0.086** |
+| 5M | 0.264 | | | | | 0.108 | |
 
-Uniform random play is 4.842 (`figures/rung4/answer_sheet.json`). Every column uses Adam at 1e-3 and a 4,000-step refit unless its header says otherwise. The 3 × 64 column joins two runs of that config: the Mac run in `figures/rung4/grades.json` (W = 8) to 500k, and the Modal sweep (W = 32, `figures/rung4/sweep.json`) at 1M. In the 3 × 128 column, 1M is the Modal sweep and 2M is a separate Mac run (`figures/rung4/sweep_128x3_t200.json`). The 4 × 256 columns are Mac runs (`figures/rung4/sweep_256x4.json`, `figures/rung4/sweep_256x4-s8000.json`). Every arm, with its Π and current-iterate grades, is in `docs/notes/rung4-run-log.md`.
+Uniform random play is 4.842 (`figures/rung4/answer_sheet.json`). Every column uses Adam at 1e-3 and a 4,000-step refit unless its header says otherwise. The 3 × 64 column joins two runs of that config: the Mac run in `figures/rung4/grades.json` (W = 8) to 500k, and the Modal sweep (W = 32, `figures/rung4/sweep.json`) at 1M. In the 3 × 128 column, 1M is the Modal sweep and 2M is a separate Mac run (`figures/rung4/sweep_128x3_t200.json`). The 4 × 256 columns are Mac runs (`figures/rung4/sweep_256x4.json`, `figures/rung4/sweep_256x4-s8000.json`, `figures/rung4/sweep_256x4-s16000-lr5e-4.json`, `figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json`). Every arm, with its Π and current-iterate grades, is in `docs/notes/rung4-run-log.md`.
 
 ![Deep CFR ÷ LCFR at equal hands](figures/rung4/price.png)
 
-Four readings, all on one seed, so a difference under about 10% is suggestive rather than settled:
+Five readings, all on one seed, so a difference under about 10% is suggestive rather than settled:
 
 - **Width is the lever, and a longer refit helps less.** 3 × 64 → 3 × 128 cut the 1M-hand grade by 36%. An extra layer did less: 2% at 64 wide (0.382 → 0.375) and 9% at 128 wide (0.243 → 0.221, `figures/rung4/sweep_128x4.json`). Doubling the refit to 8,000 steps took 12% off 4 × 256 (0.152 → 0.134).
-- **At 1M hands the best net is an eighth as exploitable as the table** (0.134 against 1.131). That is consistent with generalisation, where one learned strategy covers spots the table has not yet banked, but the share of its rows LCFR had visited at 1M hands is not measured here. Equal hands is not equal compute: an iteration with two large refits costs tens of seconds to minutes of training (`docs/notes/rung4-run-log.md`, finding 6), far more than ten table updates.
-- **The one net graded past 1M hands may be flattening.** 3 × 128 went from 0.243 at 1M (the Modal sweep) to 0.234 at 2M (a Mac run of the same config, whose own 1M mark is not graded), a 4% change inside the one-seed noise band, while LCFR fell 44% (1.131 → 0.630). 4 × 256 has no grade past 1M, so whether it flattens too is not yet known. LCFR reaches 0.264 at 5M and 0.061 at 20M. If the nets stayed where they are, LCFR would pass 3 × 128's 0.234 near 5M hands and 4 × 256's 0.134 somewhere between 5M and 20M; that is an extrapolation, not a measurement. A 4 × 256 arm with a 16,000-step refit at half the learning rate is running to test whether a bigger fit lowers the floor, against a stop rule fixed before its grades (`docs/notes/rung4-run-log.md`).
+- **At 1M hands the best net is about a tenth as exploitable as the table** (0.108 against 1.131). That is consistent with generalisation, where one learned strategy covers spots the table has not yet banked, but the share of its rows LCFR had visited at 1M hands is not measured here. Equal hands is not equal compute: an iteration with two large refits costs tens of seconds to minutes of training (`docs/notes/rung4-run-log.md`, finding 6), far more than ten table updates.
+- **The nets flatten past 1M hands; the table does not.** 3 × 128 went from 0.243 at 1M (the Modal sweep) to 0.234 at 2M (a Mac run of the same config, whose own 1M mark is not graded). 4 × 256 with a 16,000-step refit at half the learning rate went 0.133 → 0.115 → 0.108 from 1M to 5M hands, while LCFR fell from 1.131 to 0.264 over the same hands and reaches 0.126 at 10M and 0.061 at 20M. If that net stayed at 0.108, LCFR would pass it between 10M and 20M hands; the net has no grade past 5M, so that is an extrapolation, not a measurement. Its two averages at iteration 500 — Π (0.136) and the exact average (0.108) — are released as `rung4-deep-t500` and shown on `/solver` beside the tabular strategy.
+- **Dividing each regret target by √pot before the refit moved that plateau.** At 2M hands the same arm grades 0.086 with ÷ √pot and 0.084 with ÷ pot, against 0.115 raw, one seed each (`figures/rung4/pot_1-256x4-s16000-lr5e-4.json` for ÷ pot). ÷ √pot is now the default (`docs/notes/rung4-run-log.md`, finding 7). That arm's two averages at iteration 200 are released as `rung4-deep-pot0.5-t200`, and its exact average is what `/rung3`'s Play tab deals against.
 - **Per-sample DCFR and CFR+ lose to linear by about 17×** at 500k hands (2.870 and 3.092 against 0.173, 16.6× and 17.9×) and get worse with training. The measured mechanism is consistent with that: testing each sample's sign instead of a running total's lets a bad action's positive samples outvote its negative regret, in a share of cells that grows with t (`figures/rung4/rule_sign_flips.json`; `docs/notes/regret-rules-dcfr-cfrplus.md`).
 
 ## The site
 
-Seven surfaces: the homepage at `/`, its Rules tab at `/rules` and the Cover at `/cover` (three self-contained static pages in `web/cover/` — the first two designed outside the repo and exported, the Cover authored here; see `web/cover/README.md`) the four visualizers at `/rung0`, `/rung1`, `/rung2` and `/rung3`, and the solver's range interface at `/solver`.
+Seven surfaces: the homepage at `/`, its Rules tab at `/rules` and the Cover at `/cover` (three self-contained static pages in `web/cover/` — the first two designed outside the repo and exported, the Cover authored here; see `web/cover/README.md`), the four visualizers at `/rung0`, `/rung1`, `/rung2` and `/rung3`, and the solver's range interface at `/solver`.
 
 Every surface is set in the theme the homepage established. The visualizers carry it in five files that are byte-identical across the five apps — `src/theme.css`, `src/main.tsx`, `src/ui/site.tsx`, `src/ui/mark.ts`, `src/ui/ascii.ts` — deliberately copied rather than extracted to a package, and held identical by `tests/test_shared_chrome.py`. A near-black field and ivory ink, with two data colours: **yellow** is the thing you are pointing at (the average, the call), **pink** is the aggressive act (the bet, the current iterate, the head of a trail). Oxblood is the brand — the chip's pattern and the squiggle, never ink. The **chip is the mark**: an ASCII poker chip turning in the top bar and again at the foot of the page, beside a Rungs menu that lists the five rungs and where the climb stands; each rung page but the third opens on its own raymarched ASCII object, the same one that stands for it in the cover's ladder. Figures sit in windows — a title bar with the figure's number and field, then the pane — except on `/rung3`'s research tab, which is a publication: there a figure is a captioned figure at column width, and the page opens on a masthead rather than an object. Anything tabular is hairline rows, never cards.
 
@@ -383,7 +405,7 @@ Three type voices with no overlap: **Plus Jakarta Sans** for headlines, **Instru
 
 Identity colour lives *inside* a figure, where it carries an action's or a card's identity across every figure on the page: at rung 0 rock is plain ivory, paper the yellow, scissors the pink; at rungs 1 and 2 the queen is ivory, the king the yellow and the jack — the card that bluffs — the pink, and the action mix splits the same way, bet in pink, check in yellow; at rung 3 the four regret rules keep four inks across every figure, the winner in yellow. The chrome never uses either colour for decoration.
 
-`/solver` (`web/solver-viz`) is the solver's range interface, and it runs two games. **Mini-drawmaha is solved, three ways**: `uv run minidraw-ranges --release tabular|deep-pi|deep-exact` exports a released strategy once per public decision point (141 of them, 6.2 million rows, 4.8 to 8.6 MB gzipped under `web/solver-viz/public/mini*/`) — rung 3's tabular LCFR average (20M hands per seat, exploitability 0.061), and rung 4's Deep CFR at iteration 500 (5M hands per seat) as Π, the policy net (0.136), and as the exact average (0.108), the release assets `rung3-lcfr-2m` and `rung4-deep-t500` — and a switch on the view picks which one the page reads, keeping the spot, the held cards and the filters, because the three exports enumerate the same states and differ only in each state's mix. The browser rebuilds the actor's range at any spot exactly — every hole and discard it could hold given the board, suits relabelled jointly the way the solver's key does, each state's mix read from the export and weighted by the product of the actor's own action probabilities along the line — with range vs range and exact showdown equities at round 2; the status line names the strategy showing and quotes its grade from the manifest, which copies it from the committed grades file. **Full Drawmaha is the interface ahead of the rung-4 network**, built so it can be used and criticised now. Pick a flop and the page samples 50,000 five-card holdings from the 49 unseen cards and classifies each twice — the five cards alone (the **inner** hand) and the best two with the board (the **outer**, Omaha hand), with draw flags — then draws your whole range as a grid of inner rows × outer columns, with the strength ribbon and the two-equity plane beside it, a ledger of hairline rows that opens any region down to a single hand, a deck to build your hand card by card, and a draw board for the throw decision. The hand so far is a two-lane score, not a station rail. The composition is real to sampling error; the **action mix is illustrative** (a smooth function of each hand's two equities), and the page says so in its status line. `src/engine/policy.ts` is the one file that changes when the network exists.
+`/solver` (`web/solver-viz`) is the solver's range interface, and it runs two games. **Mini-drawmaha is solved, three ways**: `uv run minidraw-ranges --release tabular|deep-pi|deep-exact` exports a released strategy once per public decision point (141 of them, 6.2 million rows, 4.8 to 8.6 MB gzipped under `web/solver-viz/public/mini*/`) — rung 3's tabular LCFR average (20M hands per seat, exploitability 0.061), and rung 4's Deep CFR at iteration 500 (5M hands per seat) as Π, the policy net (0.136), and as the exact average (0.108), the release assets `rung3-lcfr-2m` and `rung4-deep-t500` — and a switch on the view picks which one the page reads, keeping the spot, the held cards and the filters, because the three exports enumerate the same states and differ only in each state's mix. The browser rebuilds the actor's range at any spot exactly — every hole and discard it could hold given the board, suits relabelled jointly the way the solver's key does, each state's mix read from the export and weighted by the product of the actor's own action probabilities along the line — with range vs range and exact showdown equities at round 2; the status line names the strategy showing and quotes its grade from the manifest, which copies it from the committed grades file. **Full Drawmaha is the interface ahead of the rung-4 network**, built so it can be used and criticised now. Pick a flop and the page samples 50,000 five-card holdings from the 49 unseen cards and classifies each twice — the five cards alone (the **inner** hand) and the best two with the board (the **outer**, Omaha hand), with draw flags — then draws your whole range as a grid of inner rows × outer columns, with the strength ribbon and the two-equity plane beside it, a ledger of hairline rows that opens any region down to a single hand, a deck to build your hand card by card, and a draw board for the throw decision. The hand so far is a path, with the next decision forking off its tip. The composition is real to sampling error; the **action mix is illustrative** (a smooth function of each hand's two equities), and the page says so in its status line. `src/engine/policy.ts` is the one file that changes when the network exists.
 
 `npm run dev` in a visualizer serves that app alone, without the static pages. To see all eight wired the way Vercel wires them:
 
@@ -392,14 +414,9 @@ bash scripts/site/vercel_build.sh          # builds public/
 uv run python scripts/site/serve_site.py   # http://localhost:4321
 ```
 
-## Status
+## What is next
 
-Rungs 0 and 1 complete. Rung 1 solves Kuhn to its closed-form equilibrium, reproduces the −1/18 game value, reports exploitability against an exact best response, and ships the analysis pipeline, figures, a play-against-it CLI, and an exploit mode that finds the best response to any strategy you lock.
-
-Rung 2's solver is complete and checked against an outside referee: it reaches the sequence-form LP's −0.08561 game value, drives exploitability to 0.011 chips/hand, and holds a committed OpenSpiel fixture that pins the tree's shape, the payoff ladder and the exact answer — none of which any closed form could supply. It ships the analysis pipeline, three figures, `leduc-play`, and the `/rung2` action-timeline visualizer over a committed solve. Still open at rung 2: an exploit mode — lock a range and watch a Leduc best-responder punish it, the rung-1 exploit tab's equivalent.
-
-Rung 3 is solved tabularly. Four regret rules raced to 20M hands per seat on Modal, and LCFR won at 0.061 chips/hand by the exact grader. Its average is frozen as a release asset, and the rung ships `minidraw-analysis`, four figures, `minidraw-play`, and the `/rung3` page: the research with its figures and the browser trainer over a pre-dealt pack. Next was rung 4, Deep CFR, with mini-drawmaha itself as the first target.
-
-Rung 4's engine is complete and gated: the loop reproduces rung 3's LCFR bit for bit with a perfect net, a resumed run equals an uninterrupted one, and the exact average replays from the kept nets. The Modal launcher, the grader and the price figure are in; the app is deployed. The net-size sweep picked 3 × 128, and Mac arms since then have reached 0.134 at 1M hands with a 4 × 256 net, an eighth of LCFR's exploitability at equal hands. The longest arm, 4 × 256 with a 16,000-step refit at half the learning rate, was run to 5M hands per seat (iteration 500) and flattened: its exact average grades 0.133 at 1M hands, 0.115 at 2M and 0.108 at 5M, while LCFR fell from 1.131 to 0.264 over the same hands and reaches 0.061 at 20M. Its two averages at iteration 500 — Π, the policy net (0.136), and the exact average (0.108) — are released as `rung4-deep-t500` and shipped to `/solver` beside the tabular strategy, behind a switch. Per-sample DCFR and CFR+ were screened and lose to linear by about 17×. Dividing each regret target by its spot's pot before the refit moved that plateau: at 2M hands the same arm grades 0.086 with ÷ √pot and 0.084 with ÷ pot against 0.115 raw, one seed each, and ÷ √pot is now the default (`docs/notes/rung4-run-log.md`, finding 7). The ÷ √pot arm's two averages at iteration 200 are released as `rung4-deep-pot0.5-t200`, and its exact average is what `/rung3`'s Play tab deals against. Next: the paid 2,000-iteration Modal run at the chosen net, which Alec launches.
-
-One gap worth naming: **CI runs no tests.** The only workflow is an automated code review, so the 500-plus-test suite is run by hand rather than enforced on a pull request. Next: a test job.
+- **The paid 2,000-iteration Modal run** of rung 4 at the chosen net, which Alec launches. Every rung-4 grade so far is the Modal size sweep or a Mac arm.
+- **Full Drawmaha.** `/solver` already runs on full Drawmaha with an illustrative action mix (`web/solver-viz/src/engine/policy.ts` is the one file that changes when the network exists); the solve itself, and its evaluation by a head-to-head checkpoint ladder and a trained RL exploiter, are not started.
+- **A PPO chapter**: train a PPO agent by self-play and measure what the CFR solution wins against it.
+- **A test job in CI.** The only workflow is an automated code review, so the suite of about 1,600 tests is run by hand rather than enforced on a pull request.
