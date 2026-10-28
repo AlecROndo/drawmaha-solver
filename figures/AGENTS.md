@@ -25,11 +25,15 @@ sweep's verdict, written by `sweep --grade`, lands beside them as `sweep.json`.
 The other `rung4/sweep_*.json` files grade the size and refit arms trained on
 this machine after the sweep (`sweep_128x3_t200.json`, `sweep_128x3-s8000.json`,
 `sweep_128x4.json`, `sweep_256x4.json`, `sweep_256x4-s8000.json`,
-`sweep_256x4-s16000-lr5e-4.json`), each written by `modal_rung4.py::grade
---local runs/<arm> --grades figures/rung4/sweep_<arm>.json` and keyed as in
-`grades.json`. The file name is width x depth plus any refit setting that
-differs from the spec's; each grade carries the full config. Which arm is which,
-and what they showed, is `docs/notes/rung4-run-log.md`.
+`sweep_256x4-s16000-lr5e-4.json`, `sweep_256x4-s16000.json`), each written by
+`modal_rung4.py::grade --local runs/<arm> --grades figures/rung4/sweep_<arm>.json`
+and keyed as in `grades.json`. The file name is width x depth plus any refit
+setting that differs from the spec's; each grade carries the full config.
+`rung4/pot_0.5-256x4-s16000-lr5e-4.json` and `rung4/pot_1-256x4-s16000-lr5e-4.json`
+grade the pot-normalised arms the same way: the 16,000-step, lr 5e-4 run with
+its regret targets divided by √pot and by pot at each spot (`--pot-power`,
+the number after `pot_`; `train.pot_scaled`), the setting that became the
+default. Which arm is which, and what they showed, is `docs/notes/rung4-run-log.md`.
 
 Two of these files are also what `/solver` quotes. `rung3/answer_sheet.json`'s
 `frozen_strategy` object and the Π and exact objects of mark 500 in

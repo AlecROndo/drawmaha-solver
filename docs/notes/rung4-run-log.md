@@ -16,25 +16,30 @@ the same config see identical data. Only the refit's arithmetic order can differ
 
 ## The scoreboard: the exact average at each mark
 
-| arm | where | net | refit steps | Adam lr | t=10 | t=20 | t=50 | t=100 | t=200 | file |
-|---|---|---|---|---|---|---|---|---|---|---|
-| **LCFR (rung 3, tabular)** | Modal | table | — | — | 3.048 | 2.697 | 1.876 | 1.131 | 0.630 | `figures/rung3/grades.json` |
-| 3 × 64 | Mac, W = 8 | 3 × 64 | 4,000 | 1e-3 | 0.581 | 0.444 | 0.396 | | | `figures/rung4/grades.json` |
-| sweep 3 × 64 | Modal | 3 × 64 | 4,000 | 1e-3 | | | | 0.382 | | `figures/rung4/sweep.json` |
-| sweep 4 × 64 | Modal | 4 × 64 | 4,000 | 1e-3 | | | | 0.375 | | `figures/rung4/sweep.json` |
-| sweep 3 × 128 | Modal | 3 × 128 | 4,000 | 1e-3 | | | | 0.243 | | `figures/rung4/sweep.json` |
-| 3 × 128 to t = 200 | Mac | 3 × 128 | 4,000 | 1e-3 | | | | | 0.234 | `figures/rung4/sweep_128x3_t200.json` |
-| 3 × 128, double fit | Mac | 3 × 128 | 8,000 | 1e-3 | | | 0.213 | 0.184 | | `figures/rung4/sweep_128x3-s8000.json` |
-| 4 × 128 | Mac | 4 × 128 | 4,000 | 1e-3 | | | 0.220 | 0.221 | | `figures/rung4/sweep_128x4.json` |
-| 4 × 256 | Mac | 4 × 256 | 4,000 | 1e-3 | | 0.294 | 0.173 | 0.152 | | `figures/rung4/sweep_256x4.json` |
-| **4 × 256, double fit** | Mac (cpu, then mps from t = 37) | 4 × 256 | 8,000 | 1e-3 | | 0.330 | 0.167 | **0.134** | | `figures/rung4/sweep_256x4-s8000.json` |
-| 4 × 256, 4× fit, half rate (to t = 500: 0.108) | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 0.643 | 0.330 | 0.169 | 0.133 | 0.115 | `figures/rung4/sweep_256x4-s16000-lr5e-4.json` |
-| DCFR screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 1.515 | 2.227 | 2.870 | | | `figures/rung4/rule_dcfr-256x4.json` |
-| CFR+ screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 2.539 | 2.858 | 3.092 | | | `figures/rung4/rule_cfrplus-256x4.json` |
+| arm | where | net | refit steps | Adam lr | ÷ pot^k | t=10 | t=20 | t=50 | t=100 | t=200 | file |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **LCFR (rung 3, tabular)** | Modal | table | — | — | — | 3.048 | 2.697 | 1.876 | 1.131 | 0.630 | `figures/rung3/grades.json` |
+| 3 × 64 | Mac, W = 8 | 3 × 64 | 4,000 | 1e-3 | 0 | 0.581 | 0.444 | 0.396 | | | `figures/rung4/grades.json` |
+| sweep 3 × 64 | Modal | 3 × 64 | 4,000 | 1e-3 | 0 | | | | 0.382 | | `figures/rung4/sweep.json` |
+| sweep 4 × 64 | Modal | 4 × 64 | 4,000 | 1e-3 | 0 | | | | 0.375 | | `figures/rung4/sweep.json` |
+| sweep 3 × 128 | Modal | 3 × 128 | 4,000 | 1e-3 | 0 | | | | 0.243 | | `figures/rung4/sweep.json` |
+| 3 × 128 to t = 200 | Mac | 3 × 128 | 4,000 | 1e-3 | 0 | | | | | 0.234 | `figures/rung4/sweep_128x3_t200.json` |
+| 3 × 128, double fit | Mac | 3 × 128 | 8,000 | 1e-3 | 0 | | | 0.213 | 0.184 | | `figures/rung4/sweep_128x3-s8000.json` |
+| 4 × 128 | Mac | 4 × 128 | 4,000 | 1e-3 | 0 | | | 0.220 | 0.221 | | `figures/rung4/sweep_128x4.json` |
+| 4 × 256 | Mac | 4 × 256 | 4,000 | 1e-3 | 0 | | 0.294 | 0.173 | 0.152 | | `figures/rung4/sweep_256x4.json` |
+| 4 × 256, double fit | Mac (cpu, then mps from t = 37) | 4 × 256 | 8,000 | 1e-3 | 0 | | 0.330 | 0.167 | 0.134 | | `figures/rung4/sweep_256x4-s8000.json` |
+| 4 × 256, 4× fit, half rate (to t = 500: 0.108) | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 0 | 0.643 | 0.330 | 0.169 | 0.133 | 0.115 | `figures/rung4/sweep_256x4-s16000-lr5e-4.json` |
+| 4 × 256, 4× fit, full rate | Mac, mps | 4 × 256 | 16,000 | 1e-3 | 0 | 0.850 | | | 0.127 | 0.104 | `figures/rung4/sweep_256x4-s16000.json` |
+| **4 × 256, 4× fit, half rate, ÷ √pot** | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 0.5 | 0.879 | | | **0.108** | **0.086** | `figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json` |
+| 4 × 256, 4× fit, half rate, ÷ pot | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 1 | | | | 0.114 | **0.084** | `figures/rung4/pot_1-256x4-s16000-lr5e-4.json` |
+| DCFR screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 0 | 1.515 | 2.227 | 2.870 | | | `figures/rung4/rule_dcfr-256x4.json` |
+| CFR+ screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 0 | 2.539 | 2.858 | 3.092 | | | `figures/rung4/rule_cfrplus-256x4.json` |
 
 "Net" is depth × width (the JSON files spell it width x depth: `sweep_256x4` is four hidden
 layers of 256). Every file also holds Π (the policy net) and the current iterate at each mark,
-plus each seat's best response, the training clock and the full config.
+plus each seat's best response, the training clock and the full config. "÷ pot^k" is the
+`pot_power` the refit's targets were divided by at each spot (finding 7); 0 is raw chips, the
+spec's, and the default for new runs is ½ since 2026-10-27.
 
 ## What the arms say
 
@@ -82,6 +87,46 @@ worth running further.
 (`progress.jsonl` → `seconds.fit`). The move to Apple's GPU (#61, `--device mps`) cut a
 4 × 256, 8,000-step refit from 127 s to 34 s per seat. The 16,000-step arm costs about 70 s per
 seat per refit on mps, about 152 s an iteration.
+
+**7. Dividing each regret target by its spot's pot moves the plateau: −25% at 2M hands, on
+one seed.** The three 16,000-step, 5e-4 arms differ only in `pot_power`, the k in the
+scoreboard's "÷ pot^k" column, and saw the same hands (rows do not depend on W or on the
+targets). Their exact averages at t = 100 and t = 200:
+
+- raw chips (k = 0): 0.133 → 0.115
+- ÷ √pot (k = ½): 0.108 → 0.086
+- ÷ pot (k = 1): 0.114 → 0.084
+
+Why it should work, top-down. *The problem:* one net fits every spot's mean regret with one
+accuracy budget, and the loss decides where that budget goes. *The mechanism:* a regret is
+in chips, so a spot's regrets are about as large as its pot, and a relative error ε in the
+net's output there costs (ε · pot)² per sample. Squared error in raw chips therefore weighs a
+spot by how often it is reached × pot², which makes the 52-chip spots count 676 times the
+2-chip spots they are reached as often as, and fits the ante spots, where every hand begins,
+last. *Why dividing is free:* the divisor is the pot at the decision, which every sample at
+that spot shares, so the spot's mean regret is scaled by one constant across its actions and
+regret matching, which reads only a row's sign pattern and ratios, plays the same σ from the
+scaled regrets as from the raw ones. A divisor that depended on the sampled hand's outcome
+would reweight samples within a spot and move its mean; this one cannot (`pot_scaled` in
+`train.py`; `tests/deepcfr/test_train.py` pins the σ invariance). *What k does:* dividing by
+pot^k leaves a weight of how often × pot^(2 − 2k). k = ½ leaves how often × pot, the chips a
+σ mistake at that spot costs the player; k = 1 weighs every spot alike, however small its
+pot. The accuracy the net gives up at the biggest pots it spends at the many small ones,
+which is where the exact grader finds the exploitable play.
+
+What was measured, and the caveats. Every arm is a single seed, and the only noise estimate
+available is the two raw 16,000-step runs (5e-4 and 1e-3, which differ in more than their
+seed): 0.005 apart at 1M hands. Against that, the pot arms' gain over raw at 2M hands (0.029
+and 0.031) is five to six times the gap. The two pot weightings are tied at 2M hands: 0.086
+against 0.084 is inside that noise. √pot leads at 1M hands (0.108 against 0.114) and its
+current iterate is much better at 2M (0.158 against 0.214), and it is the weighting the
+chip-cost argument picks, so k = ½ is the default for new runs. The t = 10 grades point the
+other way, both pot arms worse than raw early (0.879 and raw 0.643), as a longer fit was
+worse early in finding 2; compare arms at t ≥ 100. The full-rate arm (lr 1e-3, raw targets)
+is a separate, single-seed gain over 5e-4 (0.104 against 0.115 at 2M hands): √pot with
+lr 1e-3 together has not been run, and the lr default is unchanged. Whether the pot arms
+flatten where the raw arm did (0.108 at t = 500) is the next thing to grade; both were stopped
+at t = 200.
 
 ## The Modal main run: started, then stopped
 
@@ -134,11 +179,34 @@ Grade a mark as it lands, without Modal spend:
 A grade takes several minutes and competes with the trainer for cores, so grade one mark at a
 time while a trainer is live.
 
+## The pot arms and the full-rate arm: three 16,000-step runs to t = 200, 2026-10-26 to 27
+
+Three more 4 × 256, 16,000-step arms, each to t = 200 (2M hands per seat) on this Mac with
+`--device mps --workers 16`, started 2026-10-26 19:20 EDT (÷ √pot), 21:05 EDT (lr 1e-3, raw)
+and 2026-10-27 02:54 EDT (÷ pot); 175 to 240 s an iteration, the refit nearly all of it. The
+pot arms were run from an uncommitted branch where `--pot-power` defaulted to 0 and had to be
+asked for; from this change on, ½ is the default and the same runs read
+
+    uv run --extra deep python scripts/deepcfr/run_deep_cfr.py --out runs/pot0.5-256x4-s16000-lr5e-4 \
+        --target 200 --walks 10000 --workers 16 --width 256 --depth 4 --steps 16000 \
+        --lr 5e-4 --device mps --save-every-s 600                     # --pot-power 0.5 is the default
+    …  --out runs/pot1-256x4-s16000-lr5e-4 … --pot-power 1
+    …  --out runs/sweep-256x4-s16000 … --lr 1e-3 --pot-power 0
+
+Each arm's marks t = 10, 100 and 200 were graded (the ÷ pot arm's t = 10 was not) by
+`modal_rung4.py::grade --local runs/<arm> --grades figures/rung4/<file>`, and the files were
+copied into `figures/rung4/` as `sweep_256x4-s16000.json` (lr 1e-3; the name follows the
+`sweep_*` scheme, which omits a setting at the spec's value) and `pot_0.5-…`, `pot_1-…`.
+Finding 7 reads them. A run saved before `pot_power` existed resumes only with `--pot-power 0`:
+its state reads as raw chips, and a resume under the new default is refused by name.
+
 ## Not yet run
 
 - The 2,000-iteration Modal run at the chosen size. It was the spec's headline. The
   16,000-step arm answered the fit-size question in the negative (a longer refit does not move
   the 4 × 256 floor), so the run's net and refit are Alec's call from the arms above.
 - The tᵞ sample-weight arm (γ = 0 vanilla, γ = 2 quadratic). Linear is γ = 1.
+- ÷ √pot with lr 1e-3: the two single-seed gains of finding 7 have not been tried together.
+- The pot arms past t = 200: whether they flatten where the raw arm did.
 - A second seed for any arm. Every comparison above is one seed, so differences under ~10% are
   suggestive, not settled.
