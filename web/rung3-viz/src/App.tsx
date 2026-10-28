@@ -29,7 +29,7 @@ import { fraction } from './ui/scales'
 import { Footer, TopBar } from './ui/site'
 
 const TABS: readonly { id: TabId; label: string; blurb: string }[] = [
-  { id: 'research', label: 'The research', blurb: 'the race, the clock, and the net, in ten chapters' },
+  { id: 'research', label: 'The research', blurb: 'the race, the answer, and the net, in nine chapters' },
   { id: 'learn', label: 'Learn', blurb: 'every spot, every hand it could hold — tabular or Deep CFR' },
   { id: 'play', label: 'Play the solver', blurb: 'heads-up against the frozen strategy, with a coach' },
 ]

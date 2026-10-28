@@ -1,0 +1,50 @@
+import { describe, expect, it } from 'vitest'
+
+import { FROZEN } from './research'
+import { BEST, markOf } from './deep'
+import { REACH, STAGES, bandAt, binLabel, perVisit, populated, rareInfosets, rareShare } from './reach'
+
+describe('exploitability by reach', () => {
+  it('each profile sums to the grade the page quotes elsewhere, and its check holds', () => {
+    expect(REACH.tabular.exploitability).toBeCloseTo(FROZEN.exploitability, 5)
+    expect(REACH['deep-exact'].exploitability).toBeCloseTo(markOf(BEST, 500).exact.exploitability, 5)
+    expect(REACH['deep-pi'].exploitability).toBeCloseTo(markOf(BEST, 500).pi.exploitability, 5)
+    for (const p of Object.values(REACH)) {
+      expect(p.gain[0]).toBeCloseTo(p.check.best_response_minus_value[0], 9)
+      expect(p.gain[1]).toBeCloseTo(p.check.best_response_minus_value[1], 9)
+      expect(p.bins.reduce((s, b) => s + b.infosets, 0)).toBe(p.infosets)
+      for (const stage of STAGES) expect(p.stages[stage].infosets).toBeGreaterThan(0)
+    }
+  })
+
+  it('bins are labelled by how often a spot comes up, commonest first', () => {
+    const labels = REACH.tabular.bins.map(binLabel)
+    expect(labels[0]).toBe('≥ 1 in 10 hands')
+    expect(labels.at(-1)).toBe('< 1 in 100M hands')
+    expect(labels[4]).toBe('1 in 10k to 100k')
+    expect(REACH.tabular.bins.every((b, i) => i === 0 || b.floor < REACH.tabular.bins[i - 1].floor)).toBe(true)
+  })
+
+  it('for the table the leak per visit rises as a spot gets rarer, by two orders of magnitude end to end', () => {
+    const leaks = populated(REACH.tabular).map(perVisit)
+    expect(leaks.every((v, i) => i === 0 || v > leaks[i - 1])).toBe(true)
+    expect(leaks.at(-1)! / leaks[0]).toBeGreaterThan(100)
+  })
+
+  it('the rare tail holds most infosets and little exploitability; the middle bands hold most of it', () => {
+    expect(rareInfosets(REACH.tabular, 1e-6)).toBeGreaterThan(0.8)
+    expect(rareShare(REACH.tabular, 1e-6)).toBeLessThan(0.15)
+    const middle = [1e-4, 1e-5, 1e-6].map((f) => bandAt(REACH.tabular, f))
+    expect(middle.reduce((s, b) => s + b.exploitability, 0) / REACH.tabular.exploitability).toBeGreaterThan(0.5)
+  })
+
+  it('the net leaks more per visit than the table at the commonest spots and less at the rarest', () => {
+    const first = populated(REACH.tabular)[0].floor
+    const last = populated(REACH.tabular).at(-1)!.floor
+    expect(perVisit(bandAt(REACH['deep-exact'], first))).toBeGreaterThan(perVisit(bandAt(REACH.tabular, first)))
+    expect(perVisit(bandAt(REACH['deep-exact'], last))).toBeLessThan(perVisit(bandAt(REACH.tabular, last)))
+    expect(REACH.tabular.stages['round 2'].exploitability / REACH.tabular.exploitability).toBeGreaterThan(
+      REACH['deep-exact'].stages['round 2'].exploitability / REACH['deep-exact'].exploitability,
+    )
+  })
+})

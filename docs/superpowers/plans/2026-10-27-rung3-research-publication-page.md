@@ -57,3 +57,14 @@
 - [ ] full-page screenshots under `.context/`
 - [ ] README's "Seeing it" paragraph for rung 3 updated; `web/rung3-viz/AGENTS.md` updated
 - [ ] commit and open the PR; drive it to merge-ready
+
+## Revisions after the first PR commit (2026-10-28)
+
+- The clock chapter (DCFR = CFR+ on the global clock) is dropped at Alec's request, with its two data files and
+  scripts; the finding stays as one callout in chapter 03 pointing at `docs/notes/regret-rules-dcfr-cfrplus.md`.
+- New: where the exploitability lives. `exploitability.gains_by_infoset` decomposes a seat's best-response edge
+  into one-step deviations per table infoset (gains sum to BR − EV, tested on the Leduc oracle), with each
+  infoset's frequency under the strategy's own play; `analysis.reach_profile` bins the spots by frequency and
+  `minidraw-exploit-by-reach --release tabular | deep-exact | deep-pi` writes `figures/rung3/exploit_by_reach.json`
+  and `figures/rung4/exploit_by_reach_<release>.json`. The page draws the table's profile in chapter 04 and the
+  three side by side in chapter 05 (`ui/ReachChart.tsx`, `src/reach.ts`).

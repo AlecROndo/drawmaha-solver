@@ -33,6 +33,7 @@ minidraw-analysis = "drawmaha_solver.minidrawmaha.answer.analysis:main"
 minidraw-play = "drawmaha_solver.minidrawmaha.answer.play:main"
 minidraw-deals = "drawmaha_solver.minidrawmaha.answer.deal_pack:main"
 minidraw-ranges = "drawmaha_solver.minidrawmaha.answer.range_export:main"
+minidraw-exploit-by-reach = "drawmaha_solver.minidrawmaha.answer.analysis:reach_main"
 deep-analysis = "drawmaha_solver.minidrawmaha.answer.analysis:deep_main"
 
 [build-system]

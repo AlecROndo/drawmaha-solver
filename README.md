@@ -281,6 +281,10 @@ High cards and pairs throw a card 88–98% of the time, and flushes and better a
 
 These are readings of what the strategy does, not tested reasons for it. A category is the three held cards alone, and its deals meet different boards, so a gap between two categories can come from that mix rather than from the category itself.
 
+![Where the exploitability lives](figures/rung3/exploit_by_reach.png)
+
+Where the 0.061 sits is measured too. A best responder's edge telescopes over its own decisions as one-step deviations — at each infoset, how often the strategy's own play brings it there times what the best response earns there over the strategy's mix — so every spot has a share, and the shares sum to the grade. `uv run minidraw-exploit-by-reach --release tabular` bins the 6.2M spots by how often each comes up when the strategy plays itself (`figures/rung3/exploit_by_reach.json`, with the check that the shares sum to each seat's best-response edge). Read per visit, a row rots as the sampler sees it less: a spot in the commonest band leaks 0.4 chips per hundred visits, one reached once in ten million hands leaks about 20, and the rarest band about 67, rising at every step between, while 72% of the total sits in round 2. The same command on the two Deep CFR averages (`--release deep-exact`, `--release deep-pi`, `figures/rung4/`) shows the net leaking about three times the table per visit at the commonest spots and a fifth of it at the rarest: a table is exact where it has samples and bleeds where it does not, a net fills the rare rows from the common ones and pays in the common rows. `/rung3` draws both.
+
 ### Running it
 
 ```bash
