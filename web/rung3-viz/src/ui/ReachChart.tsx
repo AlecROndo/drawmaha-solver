@@ -37,7 +37,7 @@ const inkOf = (profiles: Key[]): Record<Key, string> => ({
   'deep-exact': 'var(--obj-exact)',
   'deep-pi': 'var(--obj-pi)',
 })
-const leakWord = (v: number) => (v >= 10 ? v.toFixed(0) : v.toFixed(1))
+const leakWord = (v: number) => (v >= 10 ? v.toFixed(0) : v >= 0.1 ? v.toFixed(1) : v.toPrecision(1))
 
 const share = (p: ReachProfile, i: number) => (100 * p.bins[i].exploitability) / p.exploitability
 const countShare = (p: ReachProfile, i: number) => (100 * p.bins[i].infosets) / p.infosets
@@ -79,7 +79,7 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
   // the leak lines' labels at both ends, stacked where they would collide
   const stacked = (band: number) => {
     const shown = profiles.map((p) => ({ p, v: leak(REACH[p], bands[band].i) })).filter((e) => e.v > 0)
-    const ys = stackLabels(shown.map((e) => ly(e.v) + 4), LABEL_H)
+    const ys = stackLabels(shown.map((e) => ly(e.v) + 4), LABEL_H, BOTTOM.b + 4)
     return shown.map((e, k) => ({ ...e, ly: ys[k] }))
   }
   const ends = stacked(n - 1)

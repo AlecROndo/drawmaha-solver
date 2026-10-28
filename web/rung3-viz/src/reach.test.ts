@@ -66,6 +66,11 @@ describe('exploitability by reach', () => {
   it('the table first leaks more per visit than the net in the 1 in 100k to 1M band', () => {
     const band = crossingBand(REACH.tabular, REACH['deep-exact'])!
     expect(binLabel(band)).toBe('1 in 100k to 1M')
+    // and stays ahead in every rarer band, so the crossing the caption names is the lasting one
+    const from = REACH.tabular.bins.indexOf(band)
+    for (const [i, bin] of REACH.tabular.bins.entries()) {
+      if (i > from && bin.frequency > 0) expect(perVisit(bin)).toBeGreaterThan(perVisit(REACH['deep-exact'].bins[i]))
+    }
     expect(crossingBand(REACH['deep-exact'], REACH['deep-pi'])).toBeNull()
   })
 

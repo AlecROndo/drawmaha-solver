@@ -12,6 +12,11 @@ describe('stacked labels', () => {
     expect(stackLabels([50, 20, 22], 15)).toEqual([50, 20, 35])
   })
 
+  it('slides a stack that would run past the floor back up, keeping its spacing', () => {
+    expect(stackLabels([300, 304], 14, 306)).toEqual([292, 306])
+    expect(stackLabels([100, 104], 14, 306)).toEqual([100, 114])
+  })
+
   it('handles one label and none', () => {
     expect(stackLabels([7], 14)).toEqual([7])
     expect(stackLabels([], 14)).toEqual([])
