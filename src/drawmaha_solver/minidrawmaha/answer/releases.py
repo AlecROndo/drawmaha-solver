@@ -254,6 +254,10 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
     if release.grade_key not in recorded:
         raise KeyError(f"{release.grade_file} has no {release.grade_key}; it holds {sorted(recorded)}")
     entry = recorded[release.grade_key]
+    if not isinstance(entry, Mapping) or "exploitability" not in entry:
+        raise KeyError(
+            f"{release.grade_file}'s {release.grade_key} is not a grade: it records no exploitability"
+        )
     if (why := entry_mismatch(release, entry, info)) is not None:
         raise ValueError(f"{release.grade_file}'s {release.grade_key} is not {release.name}'s grade: {why}")
     if "value_p0" not in entry:
