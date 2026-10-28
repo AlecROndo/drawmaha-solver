@@ -335,6 +335,17 @@ def test_a_strategy_that_is_no_release_needs_an_out_directory(standin, tmp_path)
     assert not (tmp_path / "deals").exists()
 
 
+def test_only_the_pack_s_own_release_lands_in_the_shipped_directory_unasked(standin, tmp_path, monkeypatch):
+    """A pack of `/solver`'s or any other release must be told where to go, so the committed pack is replaced on purpose."""
+    other = replace(RELEASES["deep-pot-pi"], sha256=sha256_of(standin), grade_file="figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json")
+    monkeypatch.setattr(deal_pack, "RELEASES", {other.name: other})
+    with pytest.raises(SystemExit):
+        main(["--release", other.name, "--strategy", str(standin), "--deals", "1", "--chunk", "1"])
+    with pytest.raises(SystemExit):
+        main(["--strategy", str(standin), "--deals", "1", "--chunk", "1"])
+    assert not (tmp_path / "deals").exists()
+
+
 def test_a_file_that_hashes_to_no_release_packs_with_no_grade(standin, tmp_path):
     out = tmp_path / "deals"
     main(["--strategy", str(standin), "--out", str(out), "--deals", "2", "--chunk", "1", "--seed", "3"])

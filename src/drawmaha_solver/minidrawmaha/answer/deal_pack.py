@@ -366,7 +366,9 @@ def main(argv: list[str] | None = None) -> None:
     — the pack carries its grade — so a copy already on this machine needs no
     download. Any other file is an experiment: it gets no grade, and `--out`
     must say where it goes, so an experiment can never overwrite the shipped
-    pack by default.
+    pack by default. Only `PACK_RELEASE` lands in `PACK_DIR` without `--out`;
+    a pack of any other release, `/solver`'s included, must be told where to
+    go, so the committed pack is replaced on purpose or not at all.
     """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
@@ -398,8 +400,14 @@ def main(argv: list[str] | None = None) -> None:
         release = RELEASES[args.release or PACK_RELEASE]
         path = fetch_strategy(url=release.url, sha256=release.sha256)
         digest = release.sha256
-    if release is None and args.out is None:
-        parser.error(f"{path} is not a released strategy; say where its pack goes with --out")
+    if args.out is None:
+        if release is None:
+            parser.error(f"{path} is not a released strategy; say where its pack goes with --out")
+        if release.name != PACK_RELEASE:
+            parser.error(
+                f"release {release.name} is not the one the shipped pack deals against ({PACK_RELEASE}); "
+                f"say where its pack goes with --out rather than replacing {PACK_DIR}"
+            )
     out = args.out or PACK_DIR
 
     strategies = load_strategy(path)

@@ -56,6 +56,18 @@ describe('a chunk against the manifest', () => {
     expect(() => checkManifest(odd('pack-02.json'))).not.toThrow()
   })
 
+  it('refuses a strategy block without a digest or a name, and a grade that is not numbers', () => {
+    const broken = (patch: Partial<Manifest>): Manifest => ({ ...manifest, ...patch })
+    expect(() => checkManifest(broken({ strategy: { ...manifest.strategy, sha256: 'ab' } }))).toThrow('no SHA-256 digest: ab')
+    expect(() => checkManifest(broken({ strategy: { ...manifest.strategy, iteration: 1.5 } }))).toThrow('rule, column and iteration')
+    const grade = { exploitability: 0.0859, valueP0: -0.1058, handsPerSeat: 2_000_000, file: 'f', key: 'k' }
+    expect(() => checkManifest(broken({ grade }))).not.toThrow()
+    expect(() => checkManifest(broken({ grade: null }))).not.toThrow()
+    expect(() => checkManifest(broken({ grade: { ...grade, exploitability: '0.0859' as unknown as number } }))).toThrow('finite exploitability')
+    expect(() => checkManifest(broken({ grade: { ...grade, valueP0: Number.NaN } }))).toThrow('finite exploitability')
+    expect(() => checkManifest(broken({ grade: { ...grade, handsPerSeat: 0 } }))).toThrow('hand count')
+  })
+
   it('refuses a count the manifest did not describe, and names a malformed deal', () => {
     expect(() => checkChunk(manifest, 0, [])).toThrow('pack-00.json holds 0 deals; the manifest says 2')
     expect(() => checkChunk(manifest, 2, [{} as Deal])).toThrow('pack-02.json, deal 0: the deck is not a permutation')

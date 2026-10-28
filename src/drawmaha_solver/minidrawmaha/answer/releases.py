@@ -33,6 +33,7 @@ rules, exported or packed.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -195,6 +196,30 @@ class Grade:
         }
 
 
+# A rung-4 grades key: the object (`deep`), the zero-padded mark, the column graded.
+DEEP_KEY = re.compile(r"^deep/(?P<iteration>\d+)/(?P<column>exact|pi|current)$")
+
+
+def entry_mismatch(release: Release, entry: Mapping[str, object], info: StrategyInfo) -> str | None:
+    """Why `entry`, found under `release.grade_key`, is not the grade of the strategy `info` describes — or `None`.
+
+    A rung-4 key names the mark and the column, so both are read off the key.
+    Any entry that records the run's own `rule`, `column` or `iteration`
+    (rung 3's answer sheet does) is held to those too. An entry that says
+    nothing about the run cannot be checked and is not refused.
+    """
+    claimed: dict[str, object] = {}
+    if (key := DEEP_KEY.match(release.grade_key)) is not None:
+        claimed.update(rule="deep", iteration=int(key["iteration"]), column=key["column"])
+    for field in ("rule", "column", "iteration"):
+        if field in entry:
+            claimed[field] = entry[field]
+    for field, value in claimed.items():
+        if getattr(info, field) != value:
+            return f"it grades {field} = {value!r} and the strategy's is {getattr(info, field)!r}"
+    return None
+
+
 def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Grade:
     """`release`'s grade from its committed file under `root`.
 
@@ -209,6 +234,15 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
     A missing file, a file without the key, an entry without `value_p0`, a
     count of zero and a count that is not an integer are each refused by
     name rather than read as a number the page would then quote.
+
+    The entry must also be the strategy's own. The digest pins the file and
+    the key names the grade, and nothing else ties the two: a catalogue entry
+    whose `sha256` and `grade_key` drifted apart would quote one strategy's
+    grade under another's digest. So the key is read back against the
+    strategy's `info` — a rung-4 key spells the mark and the column
+    (`deep/00200/exact`), and rung 3's answer sheet records the run's
+    `rule`, `column` and `iteration` in the entry itself — and a mismatch is
+    refused by name (`entry_matches`).
     """
     file = root / release.grade_file
     if not file.exists():
@@ -220,6 +254,8 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
     if release.grade_key not in recorded:
         raise KeyError(f"{release.grade_file} has no {release.grade_key}; it holds {sorted(recorded)}")
     entry = recorded[release.grade_key]
+    if (why := entry_mismatch(release, entry, info)) is not None:
+        raise ValueError(f"{release.grade_file}'s {release.grade_key} is not {release.name}'s grade: {why}")
     if "value_p0" not in entry:
         raise KeyError(
             f"{release.grade_file}'s {release.grade_key} records no value_p0; the Play tab "

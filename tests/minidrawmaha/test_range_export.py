@@ -511,8 +511,9 @@ def test_read_grade_names_a_missing_grades_file(tmp_path):
 
 def test_read_grade_refuses_a_deep_entry_that_records_no_hands(tmp_path):
     """A deep strategy has workers=0, so without `hands_per_seat` the fallback is 0 × iteration."""
-    (tmp_path / "grades.json").write_text(json.dumps({"deep/00500/pi": {"exploitability": 0.1, "value_p0": 0.0}}))
-    bare = replace(RELEASES["deep-pi"], grade_file="grades.json")
+    (tmp_path / "grades.json").write_text(json.dumps({"test/pi": {"exploitability": 0.1, "value_p0": 0.0}}))
+    # A key that spells no mark, so the tabular fallback below is not refused for being another strategy's.
+    bare = replace(RELEASES["deep-pi"], grade_file="grades.json", grade_key="test/pi")
     deep = StrategyInfo(rule="deep", column="pi", iteration=500, seed=0, workers=0)
     with pytest.raises(ValueError, match="500 × 0"):
         read_grade(bare, deep, root=tmp_path)
@@ -521,7 +522,7 @@ def test_read_grade_refuses_a_deep_entry_that_records_no_hands(tmp_path):
     assert read_grade(bare, lcfr, root=tmp_path).hands_per_seat == 5_000
     # A recorded zero is a recorded zero, not a missing field: no fallback hides it.
     (tmp_path / "grades.json").write_text(
-        json.dumps({"deep/00500/pi": {"exploitability": 0.1, "value_p0": 0.0, "hands_per_seat": 0}})
+        json.dumps({"test/pi": {"exploitability": 0.1, "value_p0": 0.0, "hands_per_seat": 0}})
     )
     with pytest.raises(ValueError, match="hands_per_seat = 0"):
         read_grade(bare, lcfr, root=tmp_path)
@@ -529,7 +530,7 @@ def test_read_grade_refuses_a_deep_entry_that_records_no_hands(tmp_path):
     # neither is a count of hands, so neither is read.
     for not_a_count in (5e6, 1.5, True):
         (tmp_path / "grades.json").write_text(
-            json.dumps({"deep/00500/pi": {"exploitability": 0.1, "value_p0": 0.0, "hands_per_seat": not_a_count}})
+            json.dumps({"test/pi": {"exploitability": 0.1, "value_p0": 0.0, "hands_per_seat": not_a_count}})
         )
         with pytest.raises(ValueError, match="not an integer"):
             read_grade(bare, lcfr, root=tmp_path)

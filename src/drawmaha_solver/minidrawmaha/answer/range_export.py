@@ -82,7 +82,10 @@ from drawmaha_solver.minidrawmaha.rules.cards import (
     parse_cards,
 )
 from drawmaha_solver.minidrawmaha.answer.deal_pack import THROW_CODE, indices
-from drawmaha_solver.minidrawmaha.answer.releases import (
+# `PUBLIC`, `REPO`, `Grade`, `Release`, `read_grade` and `release_of` are re-exported:
+# the tests and the earlier callers import them from here, and the catalogue
+# itself lives in `releases.py` since the deal pack reads it too.
+from drawmaha_solver.minidrawmaha.answer.releases import (  # noqa: F401
     PUBLIC,
     RELEASES,
     REPO,
@@ -114,9 +117,6 @@ from drawmaha_solver.minidrawmaha.rules.hands import (
     outer_score,
 )
 from drawmaha_solver.minidrawmaha.answer.strategy import (
-    RELEASE_TAG,
-    STRATEGY_FILE,
-    STRATEGY_SHA256,
     StrategyInfo,
     fetch_strategy,
     load_strategy,

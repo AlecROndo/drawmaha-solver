@@ -11,6 +11,7 @@ from drawmaha_solver.minidrawmaha.answer.releases import (
     RELEASES,
     REPO,
     Grade,
+    entry_mismatch,
     provenance_json,
     read_grade,
     release_of,
@@ -99,3 +100,55 @@ def test_read_grade_refuses_an_entry_without_a_self_play_value(tmp_path):
     with pytest.raises(KeyError, match="value_p0"):
         read_grade(bare, info, root=tmp_path)
     assert isinstance(Path(bare.grade_file), Path)
+
+
+# ---------------------------------------------------------------------------
+# The entry must be the strategy's own
+# ---------------------------------------------------------------------------
+
+DEEP = StrategyInfo(rule="deep", column="exact", iteration=200, seed=0, workers=0)
+
+
+def test_every_catalogue_entry_s_grade_is_the_grade_of_the_strategy_its_key_names():
+    """Each key read back as a strategy: the rung-4 keys spell mark and column, rung 3's entry records its run."""
+    for release in RELEASES.values():
+        recorded = json.loads((REPO / release.grade_file).read_text())[release.grade_key]
+        if release.grade_key == "frozen_strategy":
+            info = StrategyInfo(rule=recorded["rule"], column=recorded["column"], iteration=recorded["iteration"], seed=0, workers=10)
+            # The answer sheet also records the digest it graded, which is the release's.
+            assert recorded["sha256"] == release.sha256
+        else:
+            _, mark, column = release.grade_key.split("/")
+            info = StrategyInfo(rule="deep", column=column, iteration=int(mark), seed=0, workers=0)
+        assert entry_mismatch(release, recorded, info) is None, release.name
+        assert read_grade(release, info).key == release.grade_key
+
+
+def test_a_rung4_key_is_held_to_the_strategy_s_mark_and_column():
+    release = RELEASES["deep-pot-exact"]
+    entry = {"exploitability": 0.1, "value_p0": 0.0, "hands_per_seat": 5}
+    assert entry_mismatch(release, entry, DEEP) is None
+    assert entry_mismatch(release, entry, replace(DEEP, iteration=500)) == "it grades iteration = 200 and the strategy's is 500"
+    assert entry_mismatch(release, entry, replace(DEEP, column="pi")) == "it grades column = 'exact' and the strategy's is 'pi'"
+    assert entry_mismatch(release, entry, replace(DEEP, rule="lcfr")) == "it grades rule = 'deep' and the strategy's is 'lcfr'"
+
+
+def test_an_entry_that_records_its_run_is_held_to_it_and_a_silent_one_is_not():
+    sheet = replace(RELEASES["tabular"], grade_key="some_key")
+    lcfr = StrategyInfo(rule="lcfr", column="linear", iteration=2_000_000, seed=0, workers=10)
+    recorded = {"exploitability": 0.1, "value_p0": 0.0, "rule": "lcfr", "column": "linear", "iteration": 2_000_000}
+    assert entry_mismatch(sheet, recorded, lcfr) is None
+    assert entry_mismatch(sheet, recorded, replace(lcfr, iteration=1_000_000)) == (
+        "it grades iteration = 2000000 and the strategy's is 1000000"
+    )
+    assert entry_mismatch(sheet, {"exploitability": 0.1, "value_p0": 0.0}, replace(lcfr, iteration=7)) is None
+
+
+def test_read_grade_refuses_another_mark_s_grade_under_a_release_s_digest(tmp_path):
+    """A catalogue entry whose key and digest drifted apart would quote the wrong strategy's grade; the key is read back."""
+    (tmp_path / "grades.json").write_text(
+        json.dumps({"deep/00500/exact": {"exploitability": 0.1, "value_p0": 0.0, "hands_per_seat": 5}})
+    )
+    drifted = replace(RELEASES["deep-pot-exact"], grade_file="grades.json", grade_key="deep/00500/exact")
+    with pytest.raises(ValueError, match="iteration = 500 and the strategy's is 200"):
+        read_grade(drifted, DEEP, root=tmp_path)

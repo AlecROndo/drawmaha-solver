@@ -384,7 +384,7 @@ export function PlayPanel({
         {pack.error && pack.manifest
           ? `A later chunk was refused (${pack.error}), so play goes on with the hands already in and comes round to them again. `
           : ''}
-        Matching the bot in both seats averages zero{grade ? `; a perfect adversary makes at most ${signed(grade.exploitability, 3)} a hand` : ''}. A hand swings by several chips, so short sessions are mostly noise.
+        Matching the bot in both seats averages zero{grade ? `; a perfect adversary makes at most ${grade.exploitability.toFixed(3)} a hand` : ''}. A hand swings by several chips, so short sessions are mostly noise.
       </p>
     </Panel>
   )
