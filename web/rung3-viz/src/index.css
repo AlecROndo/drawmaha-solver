@@ -601,6 +601,13 @@
   margin-left: 2px;
 }
 
+/* the unit, after the number: the page's one unit for exploitability, chips per hundred hands at ante 1 */
+.keynums b .unit {
+  font-size: 12px;
+  color: var(--iv-45);
+  margin-left: 6px;
+}
+
 .keynums span {
   display: block;
   margin-top: 8px;

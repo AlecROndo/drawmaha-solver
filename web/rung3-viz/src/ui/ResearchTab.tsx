@@ -119,29 +119,29 @@ export function ResearchTab() {
       <dl className="keynums" aria-label="Key numbers">
         <div>
           <b>
-            {final('lcfr').toFixed(1)} <small>vs</small> {final('cfrplus').toFixed(1)}
+            {final('lcfr').toFixed(1)} <small>vs</small> {final('cfrplus').toFixed(1)} <small className="unit">chips/100</small>
           </b>
-          <span>chips per 100 hands a perfect adversary wins: LCFR against CFR+, after {M(hands)} hands per seat</span>
+          <span>what a perfect adversary wins per hundred hands against LCFR and against CFR+, after {M(hands)} hands per seat</span>
         </div>
         <div>
           <b>
             {KEY_NUMBERS.priceAt1M.toFixed(2)}
             <small>×</small>
           </b>
-          <span>the net's exploitability over the table's at one million hands per seat, about {fraction(KEY_NUMBERS.priceAt1M)}; same walk, same hands</span>
+          <span>ratio of the net's exploitability to the table's at one million hands per seat, about {fraction(KEY_NUMBERS.priceAt1M)}; same walk, same hands</span>
         </div>
         <div>
           <b>
-            {p100(KEY_NUMBERS.netAt5M)} <small>vs</small> {p100(KEY_NUMBERS.tableAt5M)}
+            {p100(KEY_NUMBERS.netAt5M)} <small>vs</small> {p100(KEY_NUMBERS.tableAt5M)} <small className="unit">chips/100</small>
           </b>
-          <span>net against table at five million hands; the net has flattened, the table has not</span>
+          <span>net against table at five million hands, per hundred hands; the net has flattened, the table has not</span>
         </div>
         <div>
           <b>
             {KEY_NUMBERS.ruleScreenRatio.toFixed(0)}
             <small>×</small>
           </b>
-          <span>worse than linear weighting when DCFR is applied to each regret sample, and rising with training</span>
+          <span>ratio of per-sample DCFR's exploitability to linear weighting's at half a million hands, and rising with training</span>
         </div>
       </dl>
 
