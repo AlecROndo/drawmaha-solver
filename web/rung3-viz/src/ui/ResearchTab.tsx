@@ -589,7 +589,8 @@ export function ResearchTab() {
                 ÷ √pot grades {p100(pot(0.5).exact[200])} at two million hands against raw {p100(pot(0).exact[200])},{' '}
                 {cut(pot(0).exact[200], pot(0.5).exact[200])} less, and ÷ pot ties √pot at {p100(pot(1).exact[200])}. Same
                 net, same refit, same hands; only the targets' scale changes. The faintest bar is the raw arm at the
-                full learning rate, the one estimate of run-to-run noise. Hover a bar for the grade to two decimals.
+                full learning rate, the only yardstick for a run-to-run difference and a coarse one, since its learning
+                rate differs too. Hover a bar for the grade to two decimals.
               </>
             }
             source="figures/rung4/sweep_256x4-s16000-lr5e-4.json, sweep_256x4-s16000.json, pot_0.5-256x4-s16000-lr5e-4.json and pot_1-256x4-s16000-lr5e-4.json · the exact average at marks 100 and 200; chips per hundred hands; one seed each"
