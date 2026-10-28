@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { POT_SERIES } from '../deep'
 import { perHundred } from '../research'
-import { fmtHands, logScale } from './scales'
+import { POT_DOMAIN, fmtHands, logScale } from './scales'
 
 /**
  * The regret targets divided by pot^k before the refit, as curves: each
@@ -11,8 +11,10 @@ import { fmtHands, logScale } from './scales'
  * drawn out to its five-million-hand floor so the pot arms, stopped at two
  * million, can be read against it. Raw arms wear ivory, pot arms the ink
  * the page points with; within each pair the line style tells the arms
- * apart, every line is named at its end, and hovering or arrowing a mark
- * reads every arm's grade at that column.
+ * apart, every line is named at its end (the raw pair by rate), and hovering
+ * or arrowing a mark reads every arm's grade at that column in the readout
+ * under the plot, which is the one hover surface: the columns cover the
+ * marks, so the marks carry no tooltips of their own.
  */
 
 const W = 760
@@ -22,14 +24,16 @@ const PLOT_BOTTOM = H - M.b
 /** the gap two end labels keep when their lines end at the same mark */
 const LABEL_H = 15
 
-const x = logScale(1e5, 5e6, M.l, W - M.r)
-const y = logScale(7, 100, PLOT_BOTTOM, M.t)
+const x = logScale(POT_DOMAIN.hands[0], POT_DOMAIN.hands[1], M.l, W - M.r)
+const y = logScale(POT_DOMAIN.per100[0], POT_DOMAIN.per100[1], PLOT_BOTTOM, M.t)
 
 const kWord = (k: number) => (k === 0 ? 'raw chips' : k === 0.5 ? '÷ √pot' : k === 1 ? '÷ pot' : `÷ pot^${k}`)
 const lrWord = (lr: number) => (lr === 0.001 ? '1e-3' : lr === 0.0005 ? '5e-4' : String(lr))
 const ink = (k: number, lr: number) => (k > 0 ? 'var(--yellow)' : lr === 0.0005 ? 'var(--iv-80)' : 'var(--iv-45)')
 const dash = (k: number, lr: number) => (k === 1 || (k === 0 && lr !== 0.0005) ? '6 4' : undefined)
 const name = (k: number, lr: number) => `${kWord(k)} · lr ${lrWord(lr)}`
+/** the end label: the two raw arms are told apart by their rate, the two pot arms by k */
+const endWord = (k: number, lr: number) => (k > 0 ? kWord(k) : `raw · ${lrWord(lr)}`)
 
 /** every mark any arm was graded at, in order: the hover columns */
 const MARKS = [...new Set(POT_SERIES.flatMap((s) => s.points.map((p) => p.t)))].sort((a, b) => a - b)
@@ -39,8 +43,9 @@ export function PotChart() {
   const t = MARKS[at]
   const xAt = x(t * 10_000)
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowLeft') setAt((i) => Math.max(0, i - 1))
-    if (e.key === 'ArrowRight') setAt((i) => Math.min(MARKS.length - 1, i + 1))
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    e.preventDefault()
+    setAt((i) => (e.key === 'ArrowLeft' ? Math.max(0, i - 1) : Math.min(MARKS.length - 1, i + 1)))
   }
   const gradeAt = (s: (typeof POT_SERIES)[number], mark: number) => s.points.find((p) => p.t === mark)?.exact
   // end labels: lines that end at the same mark have their labels stacked top to bottom, LABEL_H apart
@@ -92,15 +97,13 @@ export function PotChart() {
               strokeDasharray={dash(s.potPower, s.lr)}
             />
             {s.points.map((p) => (
-              <circle key={p.t} cx={x(p.hands)} cy={y(perHundred(p.exact))} r={3} fill={ink(s.potPower, s.lr)}>
-                <title>{`${name(s.potPower, s.lr)}, ${fmtHands(p.hands)} hands per seat: ${perHundred(p.exact).toFixed(2)} chips per hundred hands`}</title>
-              </circle>
+              <circle key={p.t} cx={x(p.hands)} cy={y(perHundred(p.exact))} r={3} fill={ink(s.potPower, s.lr)} />
             ))}
           </g>
         ))}
         {ends.map(({ s, last, ly }) => (
           <text key={s.arm.id} x={x(last.hands) + 8} y={ly} fontSize="11" fill={ink(s.potPower, s.lr)}>
-            {kWord(s.potPower)} {perHundred(last.exact).toFixed(1)}
+            {endWord(s.potPower, s.lr)} {perHundred(last.exact).toFixed(1)}
           </text>
         ))}
         {/* the selected mark */}
@@ -113,7 +116,7 @@ export function PotChart() {
           const cx = x(mark * 10_000)
           const left = i === 0 ? M.l : (x(MARKS[i - 1] * 10_000) + cx) / 2
           const right = i === MARKS.length - 1 ? W - M.r : (x(MARKS[i + 1] * 10_000) + cx) / 2
-          return <rect key={mark} x={left} y={M.t} width={right - left} height={PLOT_BOTTOM - M.t} fill="transparent" onMouseEnter={() => setAt(i)} onFocus={() => setAt(i)} />
+          return <rect key={mark} x={left} y={M.t} width={right - left} height={PLOT_BOTTOM - M.t} fill="transparent" onMouseEnter={() => setAt(i)} />
         })}
       </svg>
       <dl className="stat">

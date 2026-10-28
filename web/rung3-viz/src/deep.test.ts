@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { perHundred, series } from './research'
 import piResults from './data/rung4/pi_sweep_results.json'
+import { POT_DOMAIN } from './ui/scales'
 import {
   ARMS,
   BEST,
@@ -109,11 +110,20 @@ describe('the ablations', () => {
   it('the pot curves carry every graded mark: raw 5e-4 to 5M hands, raw 1e-3 and √pot from 100k, ÷ pot from 1M', () => {
     expect(POT_SERIES.map((s) => s.points.map((p) => p.t))).toEqual([[10, 20, 50, 100, 200, 500], [10, 100, 200], [10, 100, 200], [100, 200]])
     for (const s of POT_SERIES) for (const p of s.points) expect(p.hands).toBe(p.t * 10_000)
-    // the raw arm's floor at 5M hands is above both pot arms at 2M
-    const floor = POT_SERIES[0].points.at(-1)!.exact
-    expect(floor).toBeCloseTo(0.1079, 3)
-    expect(POT_SERIES[2].points.at(-1)!.exact).toBeLessThan(floor)
-    expect(POT_SERIES[3].points.at(-1)!.exact).toBeLessThan(floor)
+    // the raw arm's last grade, at 5M hands, is above both pot arms at 2M
+    const last = POT_SERIES[0].points.at(-1)!.exact
+    expect(last).toBeCloseTo(0.1079, 3)
+    expect(POT_SERIES[2].points.at(-1)!.exact).toBeLessThan(last)
+    expect(POT_SERIES[3].points.at(-1)!.exact).toBeLessThan(last)
+    // every plotted point lies inside the chart's axes, which clamp rather than fail
+    for (const s of POT_SERIES) {
+      for (const p of s.points) {
+        expect(p.hands).toBeGreaterThanOrEqual(POT_DOMAIN.hands[0])
+        expect(p.hands).toBeLessThanOrEqual(POT_DOMAIN.hands[1])
+        expect(perHundred(p.exact)).toBeGreaterThan(POT_DOMAIN.per100[0])
+        expect(perHundred(p.exact)).toBeLessThan(POT_DOMAIN.per100[1])
+      }
+    }
   })
 
   it('reads pot_power from the config, and a file written before it existed as raw chips', () => {

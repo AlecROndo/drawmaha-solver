@@ -12,6 +12,9 @@ export const logScale = (lo: number, hi: number, a: number, b: number) => (v: nu
 export const linScale = (lo: number, hi: number, a: number, b: number) => (v: number) =>
   a + ((Math.min(Math.max(v, lo), hi) - lo) / (hi - lo)) * (b - a)
 
+/** The pot chart's axes (`PotChart.tsx`); kept here so `deep.test.ts` can hold every plotted point inside them, since the scales clamp rather than fail. */
+export const POT_DOMAIN = { hands: [1e5, 5e6], per100: [7, 100] } as const
+
 /** 100000 → 100k, 2000000 → 2M. */
 export const fmtHands = (n: number): string => (n >= 1e6 ? `${n / 1e6}M` : `${n / 1e3}k`)
 
