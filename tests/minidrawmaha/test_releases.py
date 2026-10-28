@@ -165,3 +165,25 @@ def test_read_grade_refuses_another_mark_s_grade_under_a_release_s_digest(tmp_pa
     drifted = replace(RELEASES["deep-pot-exact"], grade_file="grades.json", grade_key="deep/00500/exact")
     with pytest.raises(ValueError, match="iteration = 500 and the strategy's is 200"):
         read_grade(drifted, DEEP, root=tmp_path)
+
+
+def test_read_grade_refuses_an_entry_that_is_no_grade_by_name(tmp_path):
+    """Not an object, a missing number, or a number that is null, a string or a bool: each named, none a bare error."""
+    info = StrategyInfo(rule="deep", column="exact", iteration=200, seed=0, workers=0)
+    bare = replace(RELEASES["deep-pot-exact"], grade_file="grades.json")
+    good = {"exploitability": 0.1, "value_p0": -0.05, "hands_per_seat": 5}
+
+    def refused(entry, error, message):
+        (tmp_path / "grades.json").write_text(json.dumps({"deep/00200/exact": entry}))
+        with pytest.raises(error, match=message):
+            read_grade(bare, info, root=tmp_path)
+
+    refused(0.1, TypeError, "not a grade object but 0.1")
+    refused("0.1", TypeError, "not a grade object")
+    refused({k: v for k, v in good.items() if k != "exploitability"}, KeyError, "records no exploitability")
+    refused({k: v for k, v in good.items() if k != "value_p0"}, KeyError, "records no value_p0")
+    for not_a_number in (None, "0.1", True, float("nan"), float("inf")):
+        refused({**good, "exploitability": not_a_number}, ValueError, "exploitability = .*not a finite number")
+        refused({**good, "value_p0": not_a_number}, ValueError, "value_p0 = .*not a finite number")
+    (tmp_path / "grades.json").write_text(json.dumps({"deep/00200/exact": good}))
+    assert read_grade(bare, info, root=tmp_path).exploitability == 0.1
