@@ -111,9 +111,10 @@ import json
 import os
 import signal
 import time
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
+from functools import cache
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -127,6 +128,8 @@ from drawmaha_solver.deepcfr.reservoir import (
     _is_int,
     reservoir_stream,
 )
+from drawmaha_solver.minidrawmaha.rules.features import layout
+from drawmaha_solver.minidrawmaha.rules.game import chip_state
 from drawmaha_solver.minidrawmaha.solver.lockstep import SEATS, _columns
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.answer.strategy import FrozenStrategy, StrategyInfo, average_rows
@@ -154,8 +157,9 @@ class DeepConfig:
     Written into every checkpoint. The net and refit fields are `FitConfig`'s
     eight, the device among them, carried flat because `fit.py` imports
     torch at its top and this module must not; `NetLearner` builds the
-    `FitConfig` when it is asked to. A `state.json` written before the
-    device existed loads with its default, "cpu", which is where it ran.
+    `FitConfig` when it is asked to. A `state.json` written before a field
+    existed loads with the value that run had, not today's default
+    (`ADDED_LATER`): "cpu" for the device, 0 for the pot power.
     """
 
     seed: int = 0
@@ -184,6 +188,15 @@ class DeepConfig:
     device: str = "cpu"
     # Which regret rule the refit's targets follow; see `rule_targets`.
     rule: str = "linear"
+    # Each regret sample is divided by its spot's pot to this power before the
+    # refit; see `pot_scaled`. 0 is the spec's raw chips; 1/2, the default
+    # since 2026-10-27, leaves a weight of how often × pot, the heuristic
+    # "what a σ mistake there costs" (the motivation, not a derived claim), and
+    # cut the 4 × 256, 16,000-step, lr 5e-4 arm's exact average by a quarter
+    # at 2M hands per seat, one seed (`docs/notes/rung4-run-log.md`, finding
+    # 7). That arm ran at half this config's `lr`: √pot with lr 1e-3 has not
+    # been run, so the quarter is the 5e-4 pairing's, not this default's.
+    pot_power: float = 0.5
     grid: tuple[int, ...] = GRID
     # The resume state carries 3.6 GB of memories at the run's C, so 30
     # minutes rather than rung 3's 10.
@@ -214,6 +227,17 @@ class DeepConfig:
             raise ValueError(f"device must be one of {DEVICES}, got {self.device!r}")
         if not self.save_every_s >= 0:
             raise ValueError(f"save_every_s must be non-negative, got {self.save_every_s!r}")
+        # Written as `not (0 <= x <= 1)` so a NaN, which is in no interval, is refused too.
+        if not 0 <= self.pot_power <= 1:
+            raise ValueError(f"pot_power must be in [0, 1], got {self.pot_power!r}")
+
+# Fields added after runs had been saved, each with the value those runs had.
+# A saved config that lacks one is from before the field existed, and must
+# read as what that run was: a run saved before the pot power existed fitted
+# raw chips, and resuming it under today's default would change its weighting
+# half-way with nothing in the log. `config_from_saved` applies these; a
+# resume then refuses the mismatch by name, as it refuses any sample field.
+ADDED_LATER: Mapping[str, object] = {"device": "cpu", "pot_power": 0.0}
 
 # The fields a resume may not change: each one changes the sample or the
 # fit, so a run continued under a different value would be a different run.
@@ -232,6 +256,7 @@ SAMPLE_FIELDS = (
     "clip",
     "threads",
     "rule",
+    "pot_power",
 )
 
 def require_same_run(saved: DeepConfig, asked: DeepConfig) -> None:
@@ -517,10 +542,27 @@ def _read_state(directory: Path) -> dict:
         raise ValueError(f"{directory} holds no {STATE}; there is no run to resume")
     return json.loads(state_path.read_text())
 
-def _config_of(state: dict) -> DeepConfig:
-    saved = dict(state["config"])
+def config_from_saved(record: Mapping) -> DeepConfig:
+    """The config a record was written under, by code that may have had fewer fields.
+
+    `record` is a config as JSON left it: the grid a list, and any field in
+    `ADDED_LATER` possibly absent, in which case it takes the value that
+    run had. Bad values are refused by name, as `DeepConfig` refuses them,
+    and so is a field this code does not know: that record was written by
+    newer code, and this code cannot continue the run it describes.
+    """
+    unknown = sorted(set(record) - set(DeepConfig.__dataclass_fields__))
+    if unknown:
+        raise ValueError(
+            f"the saved config has fields this code does not know: {', '.join(unknown)}; "
+            "it was written by newer code, and only that code can continue the run"
+        )
+    saved = {**ADDED_LATER, **record}
     saved["grid"] = tuple(saved["grid"])
     return DeepConfig(**saved)
+
+def _config_of(state: dict) -> DeepConfig:
+    return config_from_saved(state["config"])
 
 def _memory_name(kind: str, t: int, *, seat: int | None = None) -> str:
     who = "" if seat is None else f"-p{seat}"
@@ -915,6 +957,60 @@ def rule_targets(targets: np.ndarray, t: np.ndarray, *, now: int, rule: str) -> 
     scale = np.where(targets > 0, positive[:, None], negative[:, None])
     return (targets * scale).astype(np.float32)
 
+@cache
+def spot_pots() -> np.ndarray:
+    """The pot at each of the 141 public decision points, in the table's point order; (141,) float64.
+
+    `ChipState.pot` after replaying the betting line alone (`chip_state`):
+    every chip in the middle as the actor decides, the bet they face
+    included, so it is a property of the spot and not of the hand. The
+    seven pots the game reaches are 2, 4, 6, 12, 18, 35 and 52: 2 at the
+    ante, 12 for the opener facing the raise, 35 facing the all-in third
+    bet, and 52, the largest, once that bet is called and the hand goes to
+    the draw. Built once a process, as `layout` is.
+    """
+    pots = np.array([chip_state(point.betting).pot for point in layout().points], dtype=np.float64)
+    pots.setflags(write=False)
+    return pots
+
+def pot_scaled(rows: np.ndarray, targets: np.ndarray, *, power: float) -> np.ndarray:
+    """Each regret sample divided by its spot's pot^`power`: where the refit spends its accuracy, not what it learns.
+
+    The problem it solves: one net fits every spot's mean regret with one
+    accuracy budget, and the loss decides where that budget goes. A regret
+    is in chips, so a spot's regrets are about as large as its pot, and a
+    relative error ε in the net's output there costs (ε · pot)² per sample.
+    Squared error in raw chips therefore weighs a spot by how often it is
+    reached × pot²: a 52-chip spot counts 676 times a 2-chip spot reached
+    as often, and the ante spots, where every hand begins, are fitted last.
+
+    Why the divisor is free: it is the pot at the decision, which every
+    sample at that spot shares, so the spot's mean regret is scaled by one
+    constant across its actions, and regret matching, which reads only the
+    sign pattern and the ratios of a row (`RegretMatcher.strategy`, and the
+    all-negative one-hot `materialise` writes), plays the same σ from the
+    scaled regrets as from the raw ones. That is exact for the regrets
+    themselves, a spot's true mean or any sample of it; what the fitted net
+    gets wrong, and so the σ it actually plays, is what the weighting moves,
+    and is the point. A divisor drawn from the sampled hand's outcome would
+    reweight samples within a spot and move its mean; this one cannot.
+
+    What k does: dividing by pot^k leaves a weight of how often × pot^(2 − 2k).
+    k = 0 is raw chips, pot². k = 1/2 leaves how often × pot, the one part
+    of this that is a heuristic rather than derived: a σ mistake at a spot
+    moves chips that are about the pot's size, so "weight a spot by its pot"
+    is the motivation for k = 1/2, and the grades in the run log are what
+    back it, not this paragraph. k = 1 weighs every spot alike, however
+    small its pot. `targets` is returned itself at
+    k = 0; otherwise a float32 copy, the padding columns scaled and still
+    ignored by the loss. `rows` are whole-game table rows; a row outside the
+    table is refused as `Layout.locate_rows` refuses it.
+    """
+    if power == 0:
+        return targets
+    point, _ = layout().locate_rows(rows)
+    return (targets / (spot_pots()[point] ** power)[:, None]).astype(np.float32)
+
 # The word added to a fit's seed to draw its held batch: "HELD" in ASCII.
 _HELD_TAG = 0x48454C44
 
@@ -927,7 +1023,10 @@ class NetLearner:
     plus a tag, so the draw is the same rule every iteration and never the
     fit's own first minibatch. It is a training loss on rows the net may
     have seen, not a held-out one; it says how well the refit fits, and it
-    is comparable across iterations. `write` is `materialise`. The thread
+    is comparable across iterations of one run, in the run's own target
+    units: the targets are `rule_targets`' under a rule other than linear,
+    and `pot_scaled`'s under a pot power other than 0, so a loss is not
+    comparable across runs that differ in either. `write` is `materialise`. The thread
     count comes from the config, and the fit's own `set_num_threads` lasts
     the fit only. `fit_config` is the `FitConfig` the run's fields describe,
     which Π's fit at a grid mark shares (`policy.fit_policy`).
@@ -948,6 +1047,7 @@ class NetLearner:
         if self._config.rule != "linear":
             targets = rule_targets(targets, t, now=seed[1], rule=self._config.rule)
             t = np.ones(len(t), dtype=np.float32)
+        targets = pot_scaled(rows, targets, power=self._config.pot_power)
         net = fit_from_scratch(rows, t, targets, seed=seed, config=config)
         draw = torch.Generator().manual_seed(_fold_seed((*seed, _HELD_TAG)))
         held = torch.randint(len(rows), (config.batch,), generator=draw).numpy()

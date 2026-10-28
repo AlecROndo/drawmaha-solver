@@ -86,6 +86,7 @@ from drawmaha_solver.deepcfr.train import (
     STATE,
     DeepConfig,
     NetLearner,
+    config_from_saved,
     current_iterate,
     load_run,
     mark_name,
@@ -167,14 +168,32 @@ def _config_to(config: DeepConfig) -> dict:
     return {**asdict(config), "grid": list(config.grid)}
 
 def _config_from(carried: Mapping) -> DeepConfig:
-    """The config back from `_config_to`'s data, refusing bad values by name as `DeepConfig` does."""
-    return DeepConfig(**{**carried, "grid": tuple(carried["grid"])})
+    """The config back from `_config_to`'s data, refusing bad values by name as `DeepConfig` does.
+
+    A continuation spawned by an older deploy may carry a config with fewer
+    fields; each missing one reads as that run had it (`train.ADDED_LATER`),
+    so a run begun on raw chips is never resumed under today's pot power.
+    """
+    return config_from_saved(carried)
 
 def _run_config(
-    *, walks: int, workers: int, width: int, depth: int, threads: int, seed: int
+    *,
+    walks: int,
+    workers: int,
+    width: int,
+    depth: int,
+    threads: int,
+    seed: int,
+    pot_power: float = DeepConfig.pot_power,
 ) -> DeepConfig:
-    """The spec's run with the flags a launch may set; everything else is `DeepConfig`'s default."""
-    return DeepConfig(seed=seed, walks=walks, workers=workers, width=width, depth=depth, threads=threads)
+    """The spec's run with the flags a launch may set; everything else is `DeepConfig`'s default.
+
+    A new run takes the default pot power, √pot; `pot_power` is for resuming
+    a run saved before it existed (`deep/`, the sweep), which was raw chips.
+    """
+    return DeepConfig(
+        seed=seed, walks=walks, workers=workers, width=width, depth=depth, threads=threads, pot_power=pot_power
+    )
 
 # ---------------------------------------------------------------------------
 # Launching the run
@@ -190,13 +209,19 @@ def train(
     depth: int = DEFAULT_SIZE[1],
     threads: int = DeepConfig.threads,
     seed: int = DeepConfig.seed,
+    pot_power: float = DeepConfig.pot_power,
 ) -> None:
     """Spawn one `train_run` on the deployed app; re-run with the same flags to resume.
 
     The config is built here, before the spawn, so a bad flag is refused by
-    `DeepConfig` on this machine and never starts a paid container.
+    `DeepConfig` on this machine and never starts a paid container. A run
+    saved before the pot power existed fitted raw chips and resumes only
+    with `--pot-power 0`; the refusal is the trainer's, by name, before it
+    reads the memories.
     """
-    config = _run_config(walks=walks, workers=workers, width=width, depth=depth, threads=threads, seed=seed)
+    config = _run_config(
+        walks=walks, workers=workers, width=width, depth=depth, threads=threads, seed=seed, pot_power=pot_power
+    )
     call = modal.Function.from_name(APP, "train_run").spawn(name, target, _config_to(config))
     print(f"{name}: launched {call.object_id} toward {target:,} iterations ({_size_name(width, depth)}, K = {walks:,}, W = {workers})")
 
