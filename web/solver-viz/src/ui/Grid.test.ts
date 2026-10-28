@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type GridView, gridView } from '../engine/aggregate'
+import { gridView } from '../engine/aggregate'
 import { parseBoard } from '../engine/cards'
 import { maskFor } from '../engine/filter'
 import { policyFor } from '../engine/policy'
@@ -36,9 +36,6 @@ describe('sideOf: the square of a region, sized against the largest region in vi
 })
 
 describe('the mark is sized against the view, so a filter is a zoom', () => {
-  // Grid's own maximum, not a copy of it: over the cells gridView returns under the mask.
-  const maxOf = (v: GridView) => maxShareOf(v)
-
   it('masking off the largest region drops it to share 0 and hands the whole mark to the largest survivor', () => {
     const s = sampleRange(parseBoard('Ks 9s 4d'), 2000, 11)
     const t = tableOf(s, policyFor(s, 'facing'))
@@ -59,10 +56,10 @@ describe('the mark is sized against the view, so a filter is a zoom', () => {
     // A survivor's share is unchanged (it is still a share of the whole sample), so the
     // view's maximum is the largest kept region of the unfiltered grid ...
     const keptMax = Math.max(...whole.cells.flatMap((row, r) => (kept.has(r) ? row.map((c) => c.share) : [])))
-    expect(maxOf(view)).toBeCloseTo(keptMax, 12)
-    expect(maxOf(view)).toBeLessThan(maxOf(whole))
+    expect(maxShareOf(view)).toBeCloseTo(keptMax, 12)
+    expect(maxShareOf(view)).toBeLessThan(maxShareOf(whole))
     // ... and that region, less than the whole mark before, fills it now.
-    expect(sideOf(keptMax, maxOf(whole))).toBeLessThan(MARK.max)
-    expect(sideOf(keptMax, maxOf(view))).toBe(MARK.max)
+    expect(sideOf(keptMax, maxShareOf(whole))).toBeLessThan(MARK.max)
+    expect(sideOf(keptMax, maxShareOf(view))).toBe(MARK.max)
   })
 })
