@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { perHundred, series } from './research'
 import piResults from './data/rung4/pi_sweep_results.json'
-import { POT_DOMAIN } from './ui/scales'
+import { POT_DOMAIN, hoursAt } from './ui/scales'
 import {
   ARMS,
   BEST,
@@ -35,6 +35,14 @@ describe('the best arm against the table at equal hands', () => {
       expect(m.hands).toBe(m.t * 10_000)
       expect(lcfrAt(m.hands)).toBeGreaterThan(0)
     }
+  })
+
+  it('took 0.4 hours to the first mark and 21 to the last, the wall clock rising with every mark', () => {
+    // Figure 8 prints the hours under Deep CFR's clock; the caption quotes the ends.
+    expect(hoursAt(BEST.marks[0].wallClockS)).toBe('0.4 h')
+    expect(hoursAt(BEST.marks.at(-1)!.wallClockS)).toBe('21 h')
+    for (let i = 1; i < BEST.marks.length; i++) expect(BEST.marks[i].wallClockS).toBeGreaterThan(BEST.marks[i - 1].wallClockS)
+    expect(perHundred(lcfrAt(BEST.marks[0].hands))).toBeCloseTo(304.8, 1)
   })
 
   it('reads the run log: 0.133 / 0.115 / 0.108 against LCFR 1.131 / 0.630 / 0.264 at 1M / 2M / 5M', () => {

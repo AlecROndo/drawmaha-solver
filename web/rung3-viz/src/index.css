@@ -74,7 +74,8 @@
   margin-top: 12px;
 }
 
-.chart.race:focus-visible {
+.chart.race:focus-visible,
+.chart.equal:focus-visible {
   outline: 2px solid var(--yellow);
   outline-offset: 4px;
   border-radius: 4px;

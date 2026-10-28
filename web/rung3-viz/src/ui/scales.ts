@@ -34,6 +34,12 @@ export const stackLabels = (ys: number[], gap: number, floor = Infinity): number
 /** 100000 → 100k, 2000000 → 2M. */
 export const fmtHands = (n: number): string => (n >= 1e6 ? `${n / 1e6}M` : `${n / 1e3}k`)
 
+/** Training hours at a mark, from its wall clock in seconds: a decimal under ten hours, whole above. */
+export const hoursAt = (wallClockS: number): string => {
+  const h = wallClockS / 3600
+  return h < 10 ? `${h.toFixed(1)} h` : `${h.toFixed(0)} h`
+}
+
 /** The page's unit: chips per hundred hands, to one decimal. */
 export const per100 = (chipsPerHand: number, digits = 1): string => (chipsPerHand * 100).toFixed(digits)
 
