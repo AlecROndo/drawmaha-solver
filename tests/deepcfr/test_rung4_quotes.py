@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RUNG4 = ROOT / "figures" / "rung4"
 
 # Hands per seat at mark t are 10,000·t; LCFR's lockstep iteration is 1,000·t.
-HANDS = {"100k": 10, "200k": 20, "500k": 50, "1M": 100, "2M": 200}
+HANDS = {"100k": 10, "200k": 20, "500k": 50, "1M": 100, "2M": 200, "5M": 500}
 
 
 def load(name: str) -> dict:
@@ -66,6 +66,8 @@ def test_the_readme_rung4_table_quotes_the_committed_grades():
         lambda t: sweep("128x3") if t == 100 else mark("figures/rung4/sweep_128x3_t200.json", t),
         lambda t: mark("figures/rung4/sweep_256x4.json", t),
         lambda t: mark("figures/rung4/sweep_256x4-s8000.json", t),
+        lambda t: mark("figures/rung4/sweep_256x4-s16000-lr5e-4.json", t),
+        lambda t: mark("figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json", t),
     )
     checked = 0
     for hands, *cells in table:
@@ -92,6 +94,9 @@ def test_the_readme_rung4_columns_are_the_refits_the_caption_says():
     assert refit("figures/rung4/sweep_128x3_t200.json", "deep/00200/exact") == spec
     assert refit("figures/rung4/sweep_256x4.json", "deep/00100/exact") == spec
     assert refit("figures/rung4/sweep_256x4-s8000.json", "deep/00100/exact") == (8_000, 1e-3)
+    assert refit("figures/rung4/sweep_256x4-s16000-lr5e-4.json", "deep/00100/exact") == (16_000, 5e-4)
+    pot = load("figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json")["deep/00100/exact"]["config"]
+    assert (pot["steps"], pot["lr"], pot["pot_power"]) == (16_000, 5e-4, 0.5)
 
 
 def test_the_run_log_scoreboard_quotes_the_committed_grades():

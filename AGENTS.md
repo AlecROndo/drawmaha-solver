@@ -76,7 +76,5 @@ three static pages, deployed by Vercel from `vercel.json`.
 - `scripts/` — hand-run entry points, grouped by what they serve: `scripts/site/`, `scripts/leduc/`, `scripts/minidrawmaha/`, `scripts/deepcfr/`.
 - `web/` — the site: `web/cover/` (three static pages), five Vite apps, `web/DESIGN.md`.
 - `figures/` — outputs of the analysis commands, committed as regression fingerprints.
-- `docs/` — dated design specs and implementation plans under `docs/superpowers/`, and living findings notes and PR walkthroughs under `docs/notes/`.
+- `docs/` — dated design specs and implementation plans under `docs/superpowers/`, living findings notes and PR walkthroughs under `docs/notes/`, the literature notes the survey was written from and the range-UI studies that became `/solver` under `docs/research/`, and the rung-0 writeup (LaTeX and PDF) under `docs/writeups/`.
 - `paper/` — the ML survey (`paper/drawmaha-ml-survey.tex`, figures from `paper/make_figures.py` and `paper/make_diagrams.sh`).
-- `research/` — the literature notes the survey was written from, and the range-UI studies that became `/solver`.
-- `writeups/` — the rung-0 writeup, LaTeX and PDF.

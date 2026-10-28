@@ -14,7 +14,17 @@ and `scripts/deepcfr/`, and `src/drawmaha_solver/minidrawmaha/` was grouped
 into `src/drawmaha_solver/minidrawmaha/rules/`,
 `src/drawmaha_solver/minidrawmaha/solver/` and
 `src/drawmaha_solver/minidrawmaha/answer/`. Read an older path with that mapping in mind rather than treating
-it as a missing file.
+it as a missing file. Documents dated before 2026-10-28 also predate a third:
+the top-level `research/` and `writeups/` folders now live at `docs/research/`
+and `docs/writeups/`.
+
+## `research/` and `writeups/` — finished reference material
+
+`research/` holds the nine literature notes the survey in `paper/` was written
+from, and `research/range-ui-studies/`, the ten design studies Alec placed
+`/solver`'s panes from (open it over HTTP from the repo root; its README says
+how). `writeups/rung0-rps/` is the rung-0 writeup, Markdown, LaTeX and PDF,
+with the scripts that drew its figures. Neither is updated as the code moves.
 
 ## `notes/` — findings and walkthroughs, kept current
 

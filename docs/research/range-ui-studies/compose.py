@@ -259,7 +259,7 @@ out = {
     'grid': pack(grid), 'rows': pack(rowtot), 'cols': pack(coltot), 'subrows': subrows,
     'ribbons': ribbons, 'scatter': scatter, 'density': density, 'deck': deckstats, 'draw': draw, 'examples': examples,
 }
-with open('research/range-ui-studies/data.js', 'w') as fh:
+with open('docs/research/range-ui-studies/data.js', 'w') as fh:
     fh.write('window.RANGE = ' + json.dumps(out) + ';\n')
 print('rows', {CATS[k]: round(v[0] / N, 4) for k, v in sorted(rowtot.items())})
 print('cols', {CATS[k]: round(v[0] / N, 4) for k, v in sorted(coltot.items())})
