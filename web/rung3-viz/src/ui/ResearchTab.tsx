@@ -1,4 +1,3 @@
-import { FORENSICS, HALVINGS_TO_ZERO, VISIT_CLOCK, globalDcfrAt, positiveFactor, visitClockAt } from '../clock'
 import {
   ARMS,
   BEST,
@@ -36,9 +35,11 @@ import { ColumnsChart } from './ColumnsChart'
 import { DeepRaceChart } from './DeepRaceChart'
 import { Figure } from './Figure'
 import { fraction } from './scales'
+import { REACH, bandAt, commonInfosets, commonShare, onceIn, perVisit, populated, rareInfosets, rareShare } from '../reach'
 import { LossShapes } from './LossShapes'
 import { PiLossChart } from './PiLossChart'
 import { RaceChart } from './RaceChart'
+import { ReachChart } from './ReachChart'
 import { RefitChart } from './RefitChart'
 import { RuleScreenChart } from './RuleScreenChart'
 import { ScaleChart } from './ScaleChart'
@@ -64,13 +65,12 @@ const CHAPTERS = [
   { id: 'ch-01', n: '01', short: 'The game and the grader' },
   { id: 'ch-02', n: '02', short: 'A tree no walk can cross' },
   { id: 'ch-03', n: '03', short: 'Four rules, one walk' },
-  { id: 'ch-04', n: '04', short: 'Why DCFR became CFR+' },
-  { id: 'ch-05', n: '05', short: 'What the answer does' },
-  { id: 'ch-06', n: '06', short: 'A net for the ledger' },
-  { id: 'ch-07', n: '07', short: 'Width, depth, steps, rate' },
-  { id: 'ch-08', n: '08', short: 'Three averages, one loss' },
-  { id: 'ch-09', n: '09', short: 'Rules under a net' },
-  { id: 'ch-10', n: '10', short: 'What is not settled' },
+  { id: 'ch-04', n: '04', short: 'What the answer does' },
+  { id: 'ch-05', n: '05', short: 'A net for the ledger' },
+  { id: 'ch-06', n: '06', short: 'Width, depth, steps, rate' },
+  { id: 'ch-07', n: '07', short: 'Three averages, one loss' },
+  { id: 'ch-08', n: '08', short: 'Rules under a net' },
+  { id: 'ch-09', n: '09', short: 'What is not settled' },
   { id: 'methods', n: '', short: 'Methods and footnotes' },
 ] as const
 
@@ -87,7 +87,7 @@ function Chapter({ id, title, children }: { id: string; title: React.ReactNode; 
 
 const final = (rule: Rule) => perHundred(series(rule).at(-1)!.exploitability)
 const p100 = (chipsPerHand: number, digits = 1) => perHundred(chipsPerHand).toFixed(digits)
-const pct = (x: number) => `${Math.round(x * 100)}%`
+const pct = (x: number) => (x * 100 < 1 && x > 0 ? `${(x * 100).toFixed(1)}%` : `${Math.round(x * 100)}%`)
 const cut = (from: number, to: number) => `${Math.round((1 - to / from) * 100)}%`
 const M = (n: number) => `${(n / 1e6).toFixed(n % 1e6 ? 1 : 0)}M`
 
@@ -109,9 +109,6 @@ export function ResearchTab() {
   const widest = piArm('ce-softmax-1024x4-64k-cos')
   const deeper = piArm('ce-softmax-256x6-64k-cos')
   const arms500 = PI_SWEEP.filter((a) => a.t === 500)
-  const neverVisited = FORENSICS.never_visited_by_2M * FORENSICS.rows
-  const lateRows = 1 - FORENSICS.visited_by_10k
-  const visit2M = VISIT_CLOCK.filter((v) => v.hands === 2_000_000)
   const small = ARMS['mac-3x64']
 
   return (
@@ -254,7 +251,7 @@ export function ResearchTab() {
             negative regret is halved every iteration. Picture one row visited every iteration: all four do what their
             papers say. Picture a row visited once in a thousand iterations: vanilla and LCFR add the sample and wait;
             CFR+ floors the total it has; DCFR halves the negative total a thousand times before the next sample arrives.
-            That asymmetry is the whole of chapter 04.
+            That asymmetry is why, under sampling, DCFR and CFR+ finished as one rule.
           </p>
           <Figure
             n={2}
@@ -271,6 +268,12 @@ export function ResearchTab() {
           >
             <RaceChart />
           </Figure>
+          <p className="callout">
+            Why the two sign-tested rules collapsed onto each other: DCFR's discount runs on the global iteration clock, so
+            a row sampled once in thousands of iterations is halved thousands of times between two pieces of evidence, which
+            is CFR+'s floor. The proof, the forensics on the checkpoints and the visit-clock arm are in{' '}
+            <code>docs/notes/regret-rules-dcfr-cfrplus.md</code>; chapter 08 meets the same failure under a net.
+          </p>
           <p>
             The average is not the rule's business: every rule banks the same linear (weight t) average, and a run may
             bank further averages of the very same play at other weights for free, since nothing reads an average while
@@ -292,63 +295,12 @@ export function ResearchTab() {
           </Figure>
         </Chapter>
 
-        <Chapter id="ch-04" title="Under sampling, DCFR became CFR+: its clock counts iterations nobody sampled">
-          <p>
-            DCFR is written to discount every row every iteration. Touching {(mini / 1e6).toFixed(1)}M rows per iteration
-            is out of the question, so a row is discounted lazily, all the owed iterations at once when it is next
-            visited. That is exact, not an approximation: an unvisited row receives r = 0 and the per-sign factors simply
-            multiply. It also explains the race. A row visited once every g iterations pays g iterations of discount
-            between two pieces of evidence, so its negative regret at the next visit is (½)^g of what was banked.
-          </p>
-          <p>
-            How idle were the rows? The race's own checkpoints say. At {M(FINAL_ITERATION)} iterations the median row had
-            last been visited {Math.round(FORENSICS.age_quantiles_iters.p50).toLocaleString()} iterations earlier;
-            weighting each row by how often play actually arrives there, the median gap is still{' '}
-            <b>{FORENSICS.age_quantiles_reach_weighted.p50.toLocaleString()} iterations</b>. Halving a float64{' '}
-            {HALVINGS_TO_ZERO.toLocaleString()} times takes it to exactly zero, and{' '}
-            {pct(FORENSICS.age_ge_1075)} of the rows ever visited were older than that. So by the time a row came round
-            again its negative regret was gone, which is CFR+'s floor.
-          </p>
-          <p>
-            The positive side failed the other way. DCFR's factor t^1.5 / (t^1.5 + 1) does its work in the first few
-            dozen global ticks: by tick 10,000 it is {positiveFactor(10_000).toFixed(6)}. On the global clock those ticks
-            passed before most rows were ever visited — <b>{pct(lateRows)} of rows</b> were first reached after iteration
-            10,000 — so for them positive regret was never discounted at all. In the limit of rare visits, DCFR(α, β, γ)
-            on the global clock is DCFR(∞, −∞, γ), which its own paper identifies with CFR+. The race used the same
-            linear average for both, so the two runs were one algorithm up to the halving that did not finish, and they
-            finished within {Math.abs(1 - final('dcfr') / final('cfrplus')).toFixed(3).replace(/^0\./, '0.')} of each other
-            in relative terms: {final('dcfr').toFixed(1)} against {final('cfrplus').toFixed(1)}.
-          </p>
-          <p>
-            Why LCFR is immune: its weight w(t) = t is <b>sign-blind</b>, so idle time cannot shift the balance between
-            an action's good and bad history, and <b>scale-free</b>, so a rare row's updates, arriving at t ≈ j/p, keep the
-            ratio t_i / t_j ≈ i / j whatever p is. A rare row gets the same linear-in-evidence weighting as a frequent
-            one. A discount survives sampling exactly when it has both properties; DCFR's has neither, and CFR+'s floor
-            is sign-dependent but has no clock, so under sampling CFR+ is still CFR+.
-          </p>
-          <p>
-            The prediction that follows is that DCFR clocked on the row's own updates recovers some of its ground, and a
-            first arm says so: with the stamp counting the row's updates rather than the global iteration, a run to
-            {' '}{M(visit2M[0].hands)} hands per seat (W = {visit2M[0].workers}) graded{' '}
-            {p100(visitClockAt(2_000_000, 'linear'))} with the linear average and {p100(visitClockAt(2_000_000, 'quadratic'))}{' '}
-            with the quadratic, against the race's global-clock DCFR at {p100(globalDcfrAt(2_000_000))} and LCFR at{' '}
-            {p100(lcfrAt(2_000_000))} at the same hands. Better than the wrong clock, still behind the sign-blind rule,
-            and one seed at a different worker count, so a reading rather than a result.
-          </p>
-          <p className="callout">
-            The proof of the limit, the forensics on the four checkpoints and a simulation where only the clock changes
-            are in the note <code>docs/notes/regret-rules-dcfr-cfrplus.md</code>; chapter 09 is its second half.
-          </p>
-        </Chapter>
-
-        <Chapter id="ch-05" title={<>The answer: LCFR's linear average at {M(hands)} hands, {FROZEN.exploitability.toFixed(4)} chips a hand</>}>
+        <Chapter id="ch-04" title={<>The answer: LCFR's linear average at {M(hands)} hands, {FROZEN.exploitability.toFixed(4)} chips a hand</>}>
           <p>
             The winner is frozen as rung 3's solution: {FROZEN_FLOATS.toLocaleString()} float32 probabilities,{' '}
-            {FROZEN_MB} MB compressed, published as a release asset and checked against a pinned SHA-256 on load. By the
-            end of the race only {neverVisited.toLocaleString(undefined, { maximumFractionDigits: 0 })} rows (
-            {(FORENSICS.never_visited_by_2M * 100).toFixed(2)}%) had never been visited by a traversal; a row's average
-            is banked at the opponent's visits, which are rarer, and the round-2 rows that never collected a sample play
-            uniform in the frozen file. Graded, BR₀ is {FROZEN.br0.toFixed(4)} and BR₁ is +{FROZEN.br1.toFixed(4)}: a
+            {FROZEN_MB} MB compressed, published as a release asset and checked against a pinned SHA-256 on load. The
+            round-2 rows the sampler's own play rarely reaches collected few or no samples and play uniform in the frozen
+            file, which is what chapter 04's reach figure measures. Graded, BR₀ is {FROZEN.br0.toFixed(4)} and BR₁ is +{FROZEN.br1.toFixed(4)}: a
             perfect P0 still loses, because P1 acts last in both rounds and at the draw and the seat is worth{' '}
             {(-FROZEN.value_p0).toFixed(4)} a hand to P1 in self-play.
           </p>
@@ -394,6 +346,55 @@ export function ResearchTab() {
           >
             <SpotBars figures={DRAW} />
           </Figure>
+          <h3>Where the exploitability lives: a row rots as the sampler sees it less</h3>
+          <p>
+            A best responder's edge can be charged to the spots it wins it at. At each of the responder's infosets,
+            how often the strategy's own play brings it there, times what the best response earns from there over what
+            the strategy's own mix earns, is that spot's share; summed over every infoset the shares are exactly the
+            best responder's gain, and halved over the two seats they are the exploitability the race graded. The same
+            walk gives each spot's frequency: how often it comes up per hand when the strategy plays itself, which is
+            also how often the sampler visited it, since external sampling draws the deal and the opponent from the
+            strategy. Binning the {REACH.tabular.infosets.toLocaleString()} spots by that frequency says where the{' '}
+            {p100(REACH.tabular.exploitability)} chips per hundred hands sit.
+          </p>
+          <p>
+            Two readings of the same bins. By share of the total: the common spots, reached at least{' '}
+            {onceIn(1e-3)}, are {pct(commonInfosets(REACH.tabular, 1e-3))} of the infosets and carry{' '}
+            {pct(commonShare(REACH.tabular, 1e-3))} of the exploitability; the middle bands, {onceIn(1e-3)} down to{' '}
+            {onceIn(1e-6)}, are {pct(commonInfosets(REACH.tabular, 1e-6) - commonInfosets(REACH.tabular, 1e-3))} of
+            the infosets and carry <b>{pct(commonShare(REACH.tabular, 1e-6) - commonShare(REACH.tabular, 1e-3))}</b>; the
+            rare tail, {pct(rareInfosets(REACH.tabular, 1e-6))} of the infosets, carries{' '}
+            {pct(rareShare(REACH.tabular, 1e-6))}, and {pct(bandAt(REACH.tabular, 0).infosets / REACH.tabular.infosets)}{' '}
+            of the rows are never reached at all under the strategy's own play. By leak per visit, the reading that says
+            how good a row is once play gets there: a spot in the commonest band leaks{' '}
+            {(100 * perVisit(populated(REACH.tabular)[0])).toFixed(1)} chips per hundred visits; one reached{' '}
+            {onceIn(1e-5)} leaks {(100 * perVisit(bandAt(REACH.tabular, 1e-5))).toFixed(1)}; {onceIn(1e-7)},{' '}
+            {(100 * perVisit(bandAt(REACH.tabular, 1e-7))).toFixed(0)}; and the rarest band,{' '}
+            {(100 * perVisit(populated(REACH.tabular).at(-1)!)).toFixed(0)}: <b>{(perVisit(populated(REACH.tabular).at(-1)!) / perVisit(populated(REACH.tabular)[0])).toFixed(0)} times worse</b>{' '}
+            per visit from the commonest band to the rarest, rising at every step between. A row the sampler visited a
+            handful of times in {M(hands)} hands is still close to the uniform it started as, and the best responder
+            finds every one. That is the shape of the sampler's error, and it is what a network should change: a net's
+            row at an unvisited spot is what it learned from the visited ones, not uniform. Chapter 05 puts the two side
+            by side. The split by stage says the same thing another way: round 2, where the rare rows are, holds{' '}
+            {pct(REACH.tabular.stages['round 2'].exploitability / REACH.tabular.exploitability)} of the table's
+            exploitability.
+          </p>
+          <Figure
+            n={7}
+            caption={
+              <>
+                Where the frozen table's exploitability lives, and how fast a row rots as the sampler sees it less. Left,
+                each band's share of the exploitability (yellow) and of the infosets (grey); right, what a spot in the band
+                leaks each time it is reached, {(100 * perVisit(populated(REACH.tabular)[0])).toFixed(1)} chips per hundred
+                visits in the commonest band and {(100 * perVisit(populated(REACH.tabular).at(-1)!)).toFixed(0)} in the
+                rarest.
+              </>
+            }
+            source="figures/rung3/exploit_by_reach.json, written by uv run minidraw-exploit-by-reach --release tabular · one-step gains from the exact walk, summed per table key, binned by the key's frequency under the strategy's own play"
+            label="Share of exploitability and share of infosets per reach band, the frozen table"
+          >
+            <ReachChart profiles={['tabular']} />
+          </Figure>
           <p className="callout">
             Try it: open any spot in <a href="#learn/range/tabular">Learn</a> and see what the strategy does with every
             hand it could hold there, or sit down against it in <a href="#play">Play</a> with a coach that shows its mix
@@ -402,7 +403,7 @@ export function ResearchTab() {
         </Chapter>
 
         {/* -------------------------------------------- Part III: the net */}
-        <Chapter id="ch-06" title="A network for the ledger: the same game, the same walk, the same hands, and one question">
+        <Chapter id="ch-04" title="A network for the ledger: the same game, the same walk, the same hands, and one question">
           <p>
             Rung 4 asks what a network gives up. It trains Deep CFR on this exact game with this exact sampler, grades it
             with this exact walk, and reports one number at every point of the race's grid:
@@ -454,7 +455,7 @@ export function ResearchTab() {
             <b>current iterate</b>, which CFR never promises will converge.
           </p>
           <Figure
-            n={7}
+            n={8}
             caption={
               <>
                 At one million hands the net is exploitable for {p100(best100.exact.exploitability)} against the
@@ -481,9 +482,47 @@ export function ResearchTab() {
             table at {M(small.marks[0].hands)} hands and {fraction(small.marks.at(-1)!.exact.exploitability / lcfrAt(small.marks.at(-1)!.hands))}{' '}
             by {M(small.marks.at(-1)!.hands)}, which is why the next chapter exists.
           </p>
+          <h3>The net's exploitability lives in different spots from the table's</h3>
+          <p>
+            Chapter 04's decomposition, run on the two Deep CFR averages at {M(best500.hands)} hands, says what the net
+            changed. Per visit, the net's exact average leaks{' '}
+            {(perVisit(bandAt(REACH['deep-exact'], populated(REACH.tabular)[0].floor)) / perVisit(bandAt(REACH.tabular, populated(REACH.tabular)[0].floor))).toFixed(1)} times
+            what the table leaks at the commonest spots and{' '}
+            {(perVisit(bandAt(REACH.tabular, populated(REACH.tabular).at(-1)!.floor)) / perVisit(bandAt(REACH['deep-exact'], populated(REACH.tabular).at(-1)!.floor))).toFixed(1)} times
+            less at the rarest: its leak per visit rises{' '}
+            {(perVisit(populated(REACH['deep-exact']).at(-1)!) / perVisit(populated(REACH['deep-exact'])[0])).toFixed(0)}-fold
+            from the commonest band to the rarest where the table's rises{' '}
+            {(perVisit(populated(REACH.tabular).at(-1)!) / perVisit(populated(REACH.tabular)[0])).toFixed(0)}-fold. So the
+            net's exploitability sits where play is: round 1 and the draw hold{' '}
+            {pct(1 - REACH['deep-exact'].stages['round 2'].exploitability / REACH['deep-exact'].exploitability)} of it
+            against {pct(1 - REACH.tabular.stages['round 2'].exploitability / REACH.tabular.exploitability)} of the
+            table's. A table is exact wherever it has samples and bleeds wherever it does not; a net fills the rare rows
+            from the common ones and pays for it in the common rows, where a few thousand samples beat a regression. The
+            two solvers are wrong in different places, which is also why their best responses differ. Π reads like the
+            exact average here with a little more leak everywhere, as its grade says. One seed and one grade each: a
+            reading, not a theorem.
+          </p>
+          <Figure
+            n={9}
+            caption={
+              <>
+                Where each strategy's exploitability lives, the net at {M(best500.hands)} hands and the table at{' '}
+                {M(hands)}: the table's leak per visit climbs{' '}
+                {(perVisit(populated(REACH.tabular).at(-1)!) / perVisit(populated(REACH.tabular)[0])).toFixed(0)}-fold
+                from the commonest band to the rarest, the net's{' '}
+                {(perVisit(populated(REACH['deep-exact']).at(-1)!) / perVisit(populated(REACH['deep-exact'])[0])).toFixed(0)}-fold,
+                and the net leaks more than the table where play is common. Bars are each strategy's share of its own
+                exploitability per band, grey the band's share of the infosets; dots are chips leaked per hundred visits.
+              </>
+            }
+            source="figures/rung3/exploit_by_reach.json, figures/rung4/exploit_by_reach_deep-exact.json, exploit_by_reach_deep-pi.json · uv run minidraw-exploit-by-reach --release tabular | deep-exact | deep-pi"
+            label="Share of exploitability per reach band for the table and the two Deep CFR averages"
+          >
+            <ReachChart profiles={['tabular', 'deep-exact', 'deep-pi']} />
+          </Figure>
         </Chapter>
 
-        <Chapter id="ch-07" title={<>Width is the lever: doubling it cut {cut(size('3 × 64').exact, size('3 × 128').exact)}, an extra layer cut {cut(size('3 × 64').exact, size('4 × 64').exact)} to {cut(size('3 × 128').exact, size('4 × 128').exact)}</>}>
+        <Chapter id="ch-04" title={<>Width is the lever: doubling it cut {cut(size('3 × 64').exact, size('3 × 128').exact)}, an extra layer cut {cut(size('3 × 64').exact, size('4 × 64').exact)} to {cut(size('3 × 128').exact, size('4 × 128').exact)}</>}>
           <p>
             Five nets at one million hands, all with the spec's refit (4,000 Adam steps at 1e-3), all on identical hands.
             The sweep's verdict was fixed before its numbers existed — {SWEEP_RULE.rule} — and it picked{' '}
@@ -491,7 +530,7 @@ export function ResearchTab() {
             more spots apart; a deeper one composes the same features more. On this game the first is what was missing.
           </p>
           <Figure
-            n={8}
+            n={10}
             caption={
               <>
                 Width is the lever. 3 × 64 → 3 × 128 cut the one-million-hand grade{' '}
@@ -520,7 +559,7 @@ export function ResearchTab() {
             million hands.
           </p>
           <Figure
-            n={9}
+            n={11}
             caption={
               <>
                 A doubled refit cut {cut(refit('3 × 128', 4000).exact, refit('3 × 128', 8000).exact)} at 3 × 128 and{' '}
@@ -536,7 +575,7 @@ export function ResearchTab() {
           </Figure>
         </Chapter>
 
-        <Chapter id="ch-08" title="The exact average wins at every mark, and the policy net's stall was its loss">
+        <Chapter id="ch-04" title="The exact average wins at every mark, and the policy net's stall was its loss">
           <p>
             CFR's answer is the average of its iterates, never the last one. The exact average is accumulated as the
             run goes, each iteration's strategy weighted by t and by the seat's own reach, pushed through a predecessor
@@ -549,7 +588,7 @@ export function ResearchTab() {
             {p100(best500.current.exploitability)} at five.
           </p>
           <Figure
-            n={10}
+            n={12}
             caption={
               <>
                 Exact &lt; Π at every mark; the current iterate is promised nothing and shows it. The 4 × 256 arm's three
@@ -586,7 +625,7 @@ export function ResearchTab() {
             ) where the run's Π stalled. The memory was fine; the loss was wrong for the job.
           </p>
           <Figure
-            n={11}
+            n={13}
             caption={
               <>
                 Cross-entropy beats squared error at every step count and reaches {p100(ce64.exploitability, 2)} at 64k,
@@ -608,7 +647,7 @@ export function ResearchTab() {
             exploitability where a plain count of zeroed small probabilities does not.
           </p>
           <Figure
-            n={12}
+            n={14}
             caption="The same 0.03 miss costs fourteen times more under cross-entropy at a rare action than under squared error, and the same at a coin flip. Both curves are the losses' definitions, computed; nothing read from a file."
             source="the two losses' formulas: squared error, and cross-entropy minus its floor (the KL divergence)"
             label="Squared error and cross-entropy for a 0.03 miss at a 4 percent action and at a 50 percent action"
@@ -622,7 +661,7 @@ export function ResearchTab() {
           </p>
         </Chapter>
 
-        <Chapter id="ch-09" title={<>Per-sample DCFR and CFR+ lose to linear by {KEY_NUMBERS.ruleScreenRatio.toFixed(0)} times and get worse with training, because there is no total to test</>}>
+        <Chapter id="ch-04" title={<>Per-sample DCFR and CFR+ lose to linear by {KEY_NUMBERS.ruleScreenRatio.toFixed(0)} times and get worse with training, because there is no total to test</>}>
           <p>
             Deep CFR stores no running regret. Each refit learns the t-weighted <i>mean</i> of every regret sample the
             reservoir holds, and regret matching reads that mean's sign pattern. So the only place a rule can act is on
@@ -648,7 +687,7 @@ export function ResearchTab() {
             sampling produces.
           </p>
           <Figure
-            n={13}
+            n={15}
             caption={
               <>
                 Per-sample DCFR and CFR+ are {KEY_NUMBERS.ruleScreenRatio.toFixed(0)} times worse than linear at
@@ -662,13 +701,13 @@ export function ResearchTab() {
             <RuleScreenChart />
           </Figure>
           <p>
-            The rule that falls out of chapters 04 and 09 together: under sampling a regret discount must be blind to
+            The rule that falls out of the race's DCFR result and this screen together: under sampling a regret discount must be blind to
             the regret's sign and carry no clock of its own. Linear weighting satisfies both. A sampled DCFR needs a visit
             clock; a neural CFR+ needs a total to test, which a net that fits a mean does not have.
           </p>
         </Chapter>
 
-        <Chapter id="ch-10" title="What is and is not settled">
+        <Chapter id="ch-04" title="What is and is not settled">
           <table className="settled">
             <tbody>
               <tr>
@@ -707,13 +746,6 @@ export function ResearchTab() {
                 <td>
                   The spec's default net was run twice, on a Mac to half a million hands and on Modal to a million; the
                   rows are identical for any worker count, so the two are one curve, but the refit arithmetic differed.
-                </td>
-              </tr>
-              <tr>
-                <td>the visit clock</td>
-                <td>
-                  One arm, {M(visit2M[0].hands)} hands, W = {visit2M[0].workers}, graded at four checkpoints. The full race
-                  at the race's worker count has not been run.
                 </td>
               </tr>
               <tr>

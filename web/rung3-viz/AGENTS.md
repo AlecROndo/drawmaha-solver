@@ -6,10 +6,9 @@
   ten chapters and Methods. Figures render inside `ui/Figure.tsx` (number,
   caption that states the finding, source line that names the file), never
   the shared window `Panel`. The numbers come from three modules and nothing
-  else: `src/research.ts` (rung 3), `src/deep.ts` (every rung-4 grade file
-  and the policy-net sweep) and `src/clock.ts` (the clock forensics and the
-  visit-clock grades); each has a vitest file that pins what the prose
-  quotes. The page speaks in chips per hundred hands (`perHundred`); the
+  else: `src/research.ts` (rung 3) and `src/deep.ts` (every rung-4 grade
+  file and the policy-net sweep); each has a vitest file that pins what the
+  prose quotes. The page speaks in chips per hundred hands (`perHundred`); the
   rung-4 files are in chips per hand. A new chapter number or figure number
   is page order, because the contents rail and the captions are read top to
   bottom.
@@ -36,8 +35,7 @@
   (`src/learn.ts`: `#learn/versus/deep-pi`).
 - Everything under `src/data/` is a copy of a committed file: `grades.json`
   and `answer_sheet.json` from `figures/rung3/` (`minidraw-analysis`
-  regenerates them), `visit_forensics.json` and `grades_visit_clock.json`
-  from `figures/rung3/`, and every rung-4 grade file plus the two sweep files
+  regenerates them) and every rung-4 grade file plus the two sweep files
   under `rung4/`. The copies are refreshed by hand in the same change as a
   regeneration, and `tests/test_rung3_page_data.py` holds each byte for byte
   to its original.

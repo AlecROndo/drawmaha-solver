@@ -41,13 +41,14 @@ time and held to the file by `tests/minidrawmaha/test_range_export.py`. A
 re-grade of one of those marks therefore means re-exporting its strategy
 (`uv run minidraw-ranges --release <name>`) in the same change.
 
-`rung3/visit_forensics.json` is the forensics on the race's four 2M checkpoints
-(how idle the rows were, the reach-weighted gaps, the sign fractions), written by
-`scripts/minidrawmaha/checkpoint_forensics.py` from the checkpoints on the Modal
-volume; `rung3/grades_visit_clock.json` grades the visit-clock DCFR arm (branch
-`rung3-dcfr-visit-clock`, W = 20, to 100k iterations), written by
-`scripts/minidrawmaha/grade_visit_clock.py`. Both are what the clock chapter of
-`/rung3` quotes.
+`rung3/exploit_by_reach.json` (and its `.png`) is where the frozen table's
+exploitability lives: every spot's one-step best-response gain from the exact
+walk, binned by how often the spot comes up when the strategy plays itself,
+written by `uv run minidraw-exploit-by-reach --release tabular`;
+`rung4/exploit_by_reach_deep-exact.json` and `exploit_by_reach_deep-pi.json` are
+the same for the two released Deep CFR averages (`--release deep-exact`,
+`--release deep-pi`). Each carries the check that the gains sum to each seat's
+best-response edge.
 
 `rung4/pi_sweep/results.json` is the policy-net loss sweep: 22 refits of Π on
 the stored policy memory of the 4 × 256, 16,000-step arm (loss, head, steps,
@@ -56,8 +57,8 @@ schedule, width, depth, mark), each graded exactly, written by
 each refit's reach-weighted error against the exact average, written by
 `scripts/deepcfr/pi_reach_weighted.py`. `/rung3` quotes both.
 
-`web/rung3-viz/src/data/` holds a copy of every file `/rung3` reads — the two
-rung-3 files above, these two, every `rung4/*.json` grade file and the sweep —
+`web/rung3-viz/src/data/` holds a copy of every file `/rung3` reads — rung 3's
+grades and answer sheet, these two, every `rung4/*.json` grade file —
 refreshed by hand after a regeneration and held byte for byte to the originals
 by `tests/test_rung3_page_data.py`.
 
