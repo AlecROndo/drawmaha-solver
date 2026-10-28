@@ -1,6 +1,5 @@
 import { CATEGORY_NAME, type SpotFigure } from '../research'
 import { inkFor } from '../inks'
-import { Panel } from './site'
 
 /**
  * What the frozen strategy does, by inner category: one stacked bar per
@@ -33,24 +32,10 @@ function Spot({ fig }: { fig: SpotFigure }) {
   )
 }
 
-export function SpotBars({
-  n,
-  k,
-  title,
-  say,
-  label,
-  figures,
-}: {
-  n: string
-  k: string
-  title: string
-  say: React.ReactNode
-  label: string
-  figures: SpotFigure[]
-}) {
+export function SpotBars({ figures }: { figures: SpotFigure[] }) {
   const columns = figures[figures.length - 1].columns
   return (
-    <Panel n={n} wide k={k} title={title} say={say} label={label}>
+    <>
       <div className="legend">
         {columns.map((c) => (
           <span key={c} className="item">
@@ -70,6 +55,6 @@ export function SpotBars({
           <Spot key={fig.key} fig={fig} />
         ))}
       </div>
-    </Panel>
+    </>
   )
 }

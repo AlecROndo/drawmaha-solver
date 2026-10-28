@@ -142,6 +142,18 @@ def test_a_config_round_trips_through_the_spawn_as_plain_data(launcher):
     assert json.loads(json.dumps(carried)) == carried
     assert launcher._config_from(json.loads(json.dumps(carried))) == config
 
+def test_a_config_carried_from_before_pot_scaling_is_a_raw_run(launcher):
+    # A continuation spawned by an older deploy carries no `pot_power`; that
+    # run fitted raw chips, and the new code must not resume it under 0.5.
+    carried = launcher._config_to(DeepConfig(walks=3, workers=2, grid=(1, 2)))
+    del carried["pot_power"]
+    assert launcher._config_from(carried).pot_power == 0.0
+
+def test_train_passes_the_pot_power_through_for_a_resume_of_a_raw_run(launcher):
+    launcher.train(pot_power=0.0)
+    (_, _, config), _ = launcher.modal.Function.from_name.return_value.spawn.call_args
+    assert launcher._config_from(config) == DeepConfig(workers=launcher.WORKERS, pot_power=0.0)
+
 def test_sweep_spawns_one_trainer_per_size_under_its_own_directory(launcher):
     launcher.sweep()
     spawn = launcher.modal.Function.from_name.return_value.spawn

@@ -77,7 +77,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from itertools import combinations
 from pathlib import Path
 
@@ -89,8 +89,11 @@ from drawmaha_solver.minidrawmaha.rules.cards import DECK, Card
 from drawmaha_solver.minidrawmaha.exploitability import (
     best_response_value,
     expected_value,
+    gains_by_infoset,
+    minidrawmaha_game,
 )
 from drawmaha_solver.minidrawmaha.rules.game import (
+    DRAW_ACTIONS,
     Action,
     DrawSignal,
     InfoSet,
@@ -110,6 +113,7 @@ from drawmaha_solver.minidrawmaha.answer.strategy import (
     fetch_strategy,
     from_checkpoint,
     load_strategy,
+    sha256_of,
     uniform_strategy,
 )
 from drawmaha_solver.plotting import (
@@ -679,6 +683,190 @@ def print_summary(sheet: dict) -> None:
     for rule, value in sheet["race_final_linear"].items():
         print(f"    {rule:<8} {value['exploitability'] * 100:6.2f} per 100 "
               f"at {value['hands_per_seat']:,} hands")
+
+# ---------------------------------------------------------------------------
+# Where the exploitability lives: spots binned by how often they are reached
+# ---------------------------------------------------------------------------
+
+STAGES = ("round 1", "draw", "round 2")
+
+# Frequency floors, per hand: a spot in the first bin is reached in at least
+# one hand in ten, in the last fewer than one hand in a hundred million.
+REACH_FLOORS = (1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 0.0)
+
+def stage_of(node) -> str:
+    """Which of the three stages a decision node belongs to, by what it offers."""
+    if node.level == 2:
+        return "round 2"
+    if node.actions and node.actions[0] in DRAW_ACTIONS:
+        return "draw"
+    return "round 1"
+
+def reach_profile(strategy: Mapping, *, game=None) -> dict:
+    """Every spot's share of the exploitability, binned by how often the spot is reached.
+
+    `gains_by_infoset` hands back, per seat and per decision node, each table
+    infoset's one-step gain (what a best responder takes there, chips per
+    hand) and its frequency (the probability per hand that the seat sits
+    there when both seats play the strategy). A spot's share of the
+    exploitability is half its gain, since exploitability averages the two
+    seats' gains, so the shares of every spot sum to the number the race
+    graded. The spots are binned by frequency at the `REACH_FLOORS`, and
+    within each bin by stage, so the question "where does the exploitability
+    sit, in the spots play reaches every few hands or in the ones it reaches
+    once in a million?" is one row of the result.
+
+    `check` carries each seat's `best_response_value − expected_value` from
+    two further walks: the gains must sum to it exactly, and a reader of the
+    file can see that they do.
+    """
+    game = game or minidrawmaha_game()
+    bins = [
+        {"floor": floor, "ceiling": None if i == 0 else REACH_FLOORS[i - 1],
+         "infosets": 0, "exploitability": 0.0, "frequency": 0.0,
+         "stages": {stage: {"infosets": 0, "exploitability": 0.0} for stage in STAGES}}
+        for i, floor in enumerate(REACH_FLOORS)
+    ]
+    stages = {stage: {"infosets": 0, "exploitability": 0.0, "frequency": 0.0} for stage in STAGES}
+    gains = [0.0, 0.0]
+    infosets = 0
+    for seat in (0, 1):
+        per_node = gains_by_infoset(strategy, responder=seat, game=game)
+        for node in game.decisions:
+            if node.player != seat:
+                continue
+            gain, frequency = per_node[node.index]
+            gains[seat] += float(gain.sum())
+            share = gain / 2.0
+            stage = stage_of(node)
+            # np.digitize over descending floors: bin i holds floor_i <= f < floor_{i-1}
+            index = np.searchsorted(-np.asarray(REACH_FLOORS), -frequency, side="right") - 1
+            index = np.clip(index, 0, len(REACH_FLOORS) - 1)
+            for i, row in enumerate(bins):
+                chosen = index == i
+                if not chosen.any():
+                    continue
+                count = int(chosen.sum())
+                row["infosets"] += count
+                row["exploitability"] += float(share[chosen].sum())
+                row["frequency"] += float(frequency[chosen].sum())
+                row["stages"][stage]["infosets"] += count
+                row["stages"][stage]["exploitability"] += float(share[chosen].sum())
+            stages[stage]["infosets"] += len(gain)
+            stages[stage]["exploitability"] += float(share.sum())
+            stages[stage]["frequency"] += float(frequency.sum())
+            infosets += len(gain)
+    check = [
+        best_response_value(strategy, responder=seat, game=game) - expected_value(strategy, game=game)[seat]
+        for seat in (0, 1)
+    ]
+    return {
+        "exploitability": (gains[0] + gains[1]) / 2.0,
+        "gain": gains,
+        "check": {"best_response_minus_value": check},
+        "infosets": infosets,
+        "bins": bins,
+        "stages": stages,
+    }
+
+def reach_main(argv: list[str] | None = None) -> None:
+    """Bin a released strategy's exploitability by reach and write the JSON and its figure.
+
+        uv run minidraw-exploit-by-reach --release tabular        # figures/rung3/exploit_by_reach.json
+        uv run minidraw-exploit-by-reach --release deep-exact     # figures/rung4/exploit_by_reach_deep-exact.json
+        uv run minidraw-exploit-by-reach --release deep-pi        # figures/rung4/exploit_by_reach_deep-pi.json
+
+    Steps:
+      1. Fetch the release asset by digest (`range_export.RELEASES`) or take `--strategy`.
+      2. `reach_profile` it: four walks of the whole game, about five minutes.
+      3. Write `--out` (default by release) and the bar figure beside it.
+    `--replot FILE.json` redraws the figure beside an existing JSON without the walk.
+    """
+    from drawmaha_solver.minidrawmaha.answer.range_export import RELEASES
+
+    parser = argparse.ArgumentParser(description="Where a strategy's exploitability lives, by how often each spot is reached")
+    parser.add_argument("--release", choices=sorted(RELEASES), default="tabular")
+    parser.add_argument("--strategy", type=Path, help="a frozen strategy .npz instead of the release")
+    parser.add_argument("--out", type=Path, help="the JSON to write; the figure lands beside it")
+    parser.add_argument("--replot", type=Path, help="redraw the figure beside this JSON and stop; no walk")
+    args = parser.parse_args(argv)
+    if args.replot is not None:
+        fig_reach(json.loads(args.replot.read_text()), args.replot.with_suffix(".png"))
+        print(f"redrew {args.replot.with_suffix('.png').resolve()}")
+        return
+    release = RELEASES[args.release]
+    if args.out is None:
+        args.out = (
+            FIGURES / "exploit_by_reach.json"
+            if args.release == "tabular"
+            else RUNG4 / f"exploit_by_reach_{args.release}.json"
+        )
+    path = args.strategy or fetch_strategy(url=release.url, sha256=release.sha256)
+    strategy = load_strategy(path)
+    print(f"binning {args.release} by reach...", flush=True)
+    profile = reach_profile(strategy)
+    profile = {"release": args.release, "strategy": asdict(strategy.info) | {"sha256": sha256_of(path)}, **profile}
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(profile, indent=2) + "\n")
+    fig_reach(profile, args.out.with_suffix(".png"))
+    print(f"wrote {args.out.resolve()}")
+    print_reach(profile)
+
+def _reach_label(row: Mapping) -> str:
+    if row["ceiling"] is None:
+        return f"≥ 1 in {1 / row['floor']:,.0f} hands"
+    if row["floor"] == 0.0:
+        return f"< 1 in {1 / row['ceiling']:,.0f} hands"
+    return f"1 in {1 / row['ceiling']:,.0f} to {1 / row['floor']:,.0f}"
+
+def per_visit(row: Mapping) -> float:
+    """What a spot in the bin leaks each time it is reached: its exploitability over its frequency, chips per visit."""
+    return row["exploitability"] / row["frequency"] if row["frequency"] > 0 else 0.0
+
+def fig_reach(profile: Mapping, out: Path) -> None:
+    """Share of the exploitability and of the infosets per reach bin, with the leak per visit beside each row.
+
+    The title reads the per-visit leak off the commonest and the rarest
+    populated bins: how much worse a row gets as the sampler sees it less.
+    """
+    rows = [row for row in profile["bins"] if row["infosets"] and row["frequency"] > 0]
+    total = profile["exploitability"]
+    labels = [_reach_label(row) for row in rows]
+    expl = [100 * row["exploitability"] / total for row in rows]
+    count = [100 * row["infosets"] / profile["infosets"] for row in rows]
+    leak = [100 * per_visit(row) for row in rows]  # chips per hundred visits
+    fig, ax = new_axes(
+        f"A spot reached {_reach_label(rows[-1]).lower()} leaks {leak[-1] / leak[0]:,.0f}× more per visit\n"
+        f"than one reached {_reach_label(rows[0]).lower()}: {leak[-1]:.1f} against {leak[0]:.1f} chips per hundred visits",
+        figsize=(8.6, 4.8),
+    )
+    y = np.arange(len(rows))
+    ax.barh(y - 0.2, expl, height=0.38, color=CATEGORICAL[0], label="share of exploitability")
+    ax.barh(y + 0.2, count, height=0.38, color=BASELINE, label="share of infosets")
+    for yy, (e, c, k) in enumerate(zip(expl, count, leak)):
+        ax.text(e + 0.6, yy - 0.2, f"{e:.1f}%", va="center", color=SECONDARY, fontsize=8)
+        ax.text(c + 0.6, yy + 0.2, f"{c:.1f}%", va="center", color=MUTED, fontsize=8)
+        ax.text(1.005, 1 - (yy + 0.5) / len(rows), f"{k:.1f} per 100 visits", transform=ax.transAxes,
+                va="center", color=SECONDARY, fontsize=8)
+    ax.set_yticks(y, labels)
+    ax.invert_yaxis()
+    ax.set_xlim(0, max(max(expl), max(count)) * 1.18)
+    ax.grid(axis="y", visible=False)
+    ax.grid(axis="x", color=BASELINE, linewidth=0.5)
+    ax.set_xlabel("percent · rows are how often the spot comes up when the strategy plays itself; "
+                  "right: chips the spot leaks each time it is reached", color=MUTED, fontsize=9)
+    legend(ax, loc="upper right")
+    save(fig, out)
+
+def print_reach(profile: Mapping) -> None:
+    print(f"\n{profile['release']}: exploitability {profile['exploitability']:.6f} "
+          f"(gains {profile['gain'][0]:.6f} + {profile['gain'][1]:.6f}) / 2; "
+          f"check {profile['check']['best_response_minus_value']}")
+    for row in profile["bins"]:
+        if row["infosets"]:
+            print(f"  {_reach_label(row):>34}  {row['infosets']:>9,} infosets  "
+                  f"{100 * row['exploitability'] / profile['exploitability']:5.1f}% of exploitability  "
+                  f"{100 * per_visit(row):7.2f} chips per 100 visits")
 
 # ---------------------------------------------------------------------------
 # Rung 4: the price of the net at equal hands

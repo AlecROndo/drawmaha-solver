@@ -1,5 +1,4 @@
 import { DEALS, DECISION_NODES, FINAL_ITERATION, SIZES, WORKERS } from '../research'
-import { Panel } from './site'
 
 /**
  * How big the game is, on one log axis: the information sets of each rung
@@ -33,18 +32,7 @@ export function ScaleChart() {
   const rh = (H - M.t - M.b) / rows.length
 
   return (
-    <Panel
-      n="06"
-      k="Fig. 6 · how big it is"
-      title="A table 21,000 times Leduc’s, and a tree no walk could cross."
-      say={
-        <>
-          Log axis. One pass over the whole tree is out of the question, so the learner samples: {WORKERS} hands
-          per seat per iteration, every touched row banked once.
-        </>
-      }
-      label="The size of each rung's game on a log axis"
-    >
+    <>
       <svg className="chart scale" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Game sizes on a log axis">
         {Array.from({ length: 7 }, (_, i) => i * 2).map((p) => (
           <g key={p}>
@@ -69,6 +57,6 @@ export function ScaleChart() {
           )
         })}
       </svg>
-    </Panel>
+    </>
   )
 }

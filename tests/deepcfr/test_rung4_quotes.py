@@ -99,7 +99,7 @@ def test_the_run_log_scoreboard_quotes_the_committed_grades():
     table = rows(log, "| arm | where | net |")
     marks = (10, 20, 50, 100, 200)
     checked = 0
-    for arm, _where, net, _steps, _lr, *cells, file in table:
+    for arm, _where, net, _steps, _lr, _pot_power, *cells, file in table:
         file = file.strip("`")
         assert (ROOT / file).exists(), file
         for t, cell in zip(marks, cells, strict=True):

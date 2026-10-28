@@ -147,9 +147,3 @@ export const DEALS = 100_100
 /** Probabilities in the frozen strategy, and its size compressed. */
 export const FROZEN_FLOATS = 14_253_840
 export const FROZEN_MB = 18
-/** Rows the LCFR run never reached, which play uniformly. */
-export const UNREACHED_ROWS = 8_036
-/** Median iterations between visits to a row at the end of the run. */
-export const MEDIAN_REVISIT = 37_000
-/** Halvings that take a float64 regret to exactly zero. */
-export const HALVINGS_TO_ZERO = 1_075

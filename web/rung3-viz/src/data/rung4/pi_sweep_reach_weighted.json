@@ -1,0 +1,80 @@
+{
+  "run-pi (frozen t500)": {
+    "rw_mad": 0.03303692580719194,
+    "rw_small_mad": 0.03665109306502111,
+    "rw_small_zeroed": 0.0617961479034964,
+    "rw_small_mass_lost": 0.1787460114767379
+  },
+  "ce-softmax-1024x4-64k-cos": {
+    "rw_mad": 0.01747903129935118,
+    "rw_small_mad": 0.019257660575187567,
+    "rw_small_zeroed": 0.08964846422398336,
+    "rw_small_mass_lost": 0.23232404126686748
+  },
+  "ce-softmax-128k-cos": {
+    "rw_mad": 0.016432937886406884,
+    "rw_small_mad": 0.017953173444775473,
+    "rw_small_zeroed": 0.04989036278580292,
+    "rw_small_mass_lost": 0.1805820273526231
+  },
+  "ce-softmax-16k": {
+    "rw_mad": 0.029784099270786887,
+    "rw_small_mad": 0.03295673143023634,
+    "rw_small_zeroed": 0.04669693858045082,
+    "rw_small_mass_lost": 0.19303314470795963
+  },
+  "ce-softmax-256k-cos": {
+    "rw_mad": 0.01704045524012717,
+    "rw_small_mad": 0.01843701949719175,
+    "rw_small_zeroed": 0.059780598582597023,
+    "rw_small_mass_lost": 0.19642710678525463
+  },
+  "ce-softmax-256x6-64k-cos": {
+    "rw_mad": 0.01661699259297046,
+    "rw_small_mad": 0.018353631713093413,
+    "rw_small_zeroed": 0.04784796811745569,
+    "rw_small_mass_lost": 0.17555583775013028
+  },
+  "ce-softmax-512x4-64k-cos": {
+    "rw_mad": 0.015974607418548118,
+    "rw_small_mad": 0.01756188544551704,
+    "rw_small_zeroed": 0.05904554356056914,
+    "rw_small_mass_lost": 0.19400247511618318
+  },
+  "ce-softmax-64k-cos": {
+    "rw_mad": 0.016826299551563523,
+    "rw_small_mad": 0.018581399384684817,
+    "rw_small_zeroed": 0.04501842209669629,
+    "rw_small_mass_lost": 0.17351552947786233
+  },
+  "mse-linear-128k-cos": {
+    "rw_mad": 0.018761011197819796,
+    "rw_small_mad": 0.020831048009701144,
+    "rw_small_zeroed": 0.06469825388934121,
+    "rw_small_mass_lost": 0.22073896846553664
+  },
+  "mse-linear-16k": {
+    "rw_mad": 0.03303692580719194,
+    "rw_small_mad": 0.03665109306502111,
+    "rw_small_zeroed": 0.0617961479034964,
+    "rw_small_mass_lost": 0.1787460114767379
+  },
+  "mse-linear-512x4-64k-cos": {
+    "rw_mad": 0.01816882553464287,
+    "rw_small_mad": 0.01947175697679321,
+    "rw_small_zeroed": 0.05568261847382419,
+    "rw_small_mass_lost": 0.2231220171427713
+  },
+  "mse-linear-64k-cos": {
+    "rw_mad": 0.018900433717242805,
+    "rw_small_mad": 0.021265632305687288,
+    "rw_small_zeroed": 0.06285504634745685,
+    "rw_small_mass_lost": 0.20484648080703877
+  },
+  "mse-softmax-16k": {
+    "rw_mad": 0.03607745582108073,
+    "rw_small_mad": 0.041320074918052375,
+    "rw_small_zeroed": 0.03457302515660749,
+    "rw_small_mass_lost": 0.16316862560911136
+  }
+}

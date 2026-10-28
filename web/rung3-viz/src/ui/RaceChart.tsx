@@ -12,7 +12,6 @@ import {
   type Rule,
 } from '../research'
 import { RULE_INK } from '../inks'
-import { Panel } from './site'
 
 /**
  * The race: exploitability against hands per seat, both axes log, one line
@@ -40,7 +39,7 @@ const logy = (perHundredHands: number) => {
   return M.t + (Math.log10(Y_TOP / clamped) / Math.log10(Y_TOP / Y_BOTTOM)) * (H - M.t - M.b)
 }
 
-const X_TICKS = [1e5, 1e6, 1e7, 2e7]
+const X_TICKS = [1e5, 1e6, 1e7]
 const Y_TICKS = [1, 10, 100, 1000]
 
 const hands = (n: number) => (n >= 1e6 ? `${n / 1e6}M` : `${n / 1e3}k`)
@@ -66,20 +65,7 @@ export function RaceChart() {
   }
 
   return (
-    <Panel
-      n="01"
-      wide
-      k="Fig. 1 · the race — hover or arrow a checkpoint"
-      title="Keeping negative regret wins, by three to four times."
-      say={
-        <>
-          Chips per hundred hands a perfect adversary wins against each rule’s linear average, by the exact
-          best-response walk, against sampled hands per seat ({WORKERS} per iteration). Both axes log.{' '}
-          <b>Seed 0, one run per rule.</b>
-        </>
-      }
-      label="Exploitability of the four regret rules over the race"
-    >
+    <>
       <div className="legend">
         {RULES.map((rule) => (
           <span key={rule} className="item">
@@ -148,7 +134,7 @@ export function RaceChart() {
           strokeDasharray="1.5 4"
           strokeOpacity="0.8"
         />
-        <text x={logx(2.5e6) + 6} y={logy(guide(2.5e6)) - 7} fontSize="10.5" fill="var(--panel-dim)">
+        <text x={logx(4e5)} y={logy(guide(4e5)) + 14} fontSize="10.5" fill="var(--panel-dim)">
           1/√N
         </text>
 
@@ -220,6 +206,6 @@ export function RaceChart() {
           <dd>{column[1].point.value_p0.toFixed(4)}</dd>
         </div>
       </dl>
-    </Panel>
+    </>
   )
 }
