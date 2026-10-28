@@ -58,6 +58,13 @@ export const REACH_NAME: Record<keyof typeof REACH, string> = {
   'deep-pi': 'Deep CFR, Π',
 }
 
+/** The same three, short enough to sit at the end of a line in a figure. */
+export const REACH_SHORT: Record<keyof typeof REACH, string> = {
+  tabular: 'LCFR',
+  'deep-exact': 'exact average',
+  'deep-pi': 'Π',
+}
+
 /** "once in 10,000 hands" words for a frequency per hand. */
 export const onceIn = (frequency: number): string => `once in ${Math.round(1 / frequency).toLocaleString()} hands`
 
@@ -71,11 +78,23 @@ export const binLabel = (bin: ReachBin): string => {
   return `1 in ${hands(Math.round(1 / bin.ceiling))} to ${hands(Math.round(1 / bin.floor))}`
 }
 
-/** What a spot in the bin leaks each time it is reached: the bin's exploitability over its summed frequency, chips per visit. */
+/** A band edge as how often a spot comes up: "1 in 1k"; the rarest bin's floor of 0 is "never". */
+export const edgeWord = (frequency: number): string => (frequency > 0 ? `1 in ${hands(Math.round(1 / frequency))}` : 'never')
+
+/** What an average spot in the bin leaks each time it is reached: the bin's exploitability over its summed frequency, chips per visit (a frequency-weighted mean over the bin, not any one spot). */
 export const perVisit = (bin: ReachBin): number => (bin.frequency > 0 ? bin.exploitability / bin.frequency : 0)
 
 /** The bins a profile actually populates, commonest first. */
 export const populated = (p: ReachProfile): ReachBin[] => p.bins.filter((b) => b.infosets > 0 && b.frequency > 0)
+
+/** The first populated band, commonest first, where `a` leaks more per visit than `b`; null if `a` never does. */
+export const crossingBand = (a: ReachProfile, b: ReachProfile): ReachBin | null => {
+  for (const [i, bin] of a.bins.entries()) {
+    const other = b.bins[i]
+    if (bin.frequency > 0 && other.frequency > 0 && perVisit(bin) > perVisit(other)) return bin
+  }
+  return null
+}
 
 /** The bin whose floor is `floor`. */
 export const bandAt = (p: ReachProfile, floor: number): ReachBin => {

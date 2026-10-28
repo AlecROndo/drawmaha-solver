@@ -36,7 +36,7 @@ import { ColumnsChart } from './ColumnsChart'
 import { DeepRaceChart } from './DeepRaceChart'
 import { Figure } from './Figure'
 import { fraction } from './scales'
-import { REACH, bandAt, commonInfosets, commonShare, onceIn, perVisit, populated, rareInfosets, rareShare } from '../reach'
+import { REACH, bandAt, binLabel, commonInfosets, commonShare, crossingBand, onceIn, perVisit, populated, rareInfosets, rareShare } from '../reach'
 import { LossShapes } from './LossShapes'
 import { PiLossChart } from './PiLossChart'
 import { PotChart } from './PotChart'
@@ -390,8 +390,9 @@ export function ResearchTab() {
               <>
                 Where the frozen table's exploitability lives, and how fast a row rots as the sampler sees it less. One
                 axis, how often play reaches the spot, commonest at the left. Top, each band's share of the
-                exploitability (yellow) beside its share of the infosets (hollow): the rarest band holds two thirds of
-                the rows and almost none of the leak. Bottom, what a spot in the band leaks each time it is reached,
+                exploitability (yellow) beside its share of the infosets (hollow): the rarest band holds{' '}
+                {pct(populated(REACH.tabular).at(-1)!.infosets / REACH.tabular.infosets)} of the rows and{' '}
+                {pct(populated(REACH.tabular).at(-1)!.exploitability / REACH.tabular.exploitability)} of the leak. Bottom, what a spot in the band leaks each time it is reached,
                 rising from {(100 * perVisit(populated(REACH.tabular)[0])).toFixed(1)} chips per hundred visits in the
                 commonest band to {(100 * perVisit(populated(REACH.tabular).at(-1)!)).toFixed(0)} in the rarest. Hover or
                 arrow a band to read it.
@@ -523,8 +524,8 @@ export function ResearchTab() {
                 {(perVisit(populated(REACH['deep-exact']).at(-1)!) / perVisit(populated(REACH['deep-exact'])[0])).toFixed(0)}-fold,
                 and the net leaks more than the table where play is common. Same axis as Figure 7. Top, each strategy's
                 share of its own exploitability per band beside the band's share of the infosets (hollow); bottom, the
-                leak per hundred visits, where the table's line climbs past the net's at about one in a hundred
-                thousand hands. Hover or arrow a band to read it.
+                leak per hundred visits, where the table's line climbs past the net's in the{' '}
+                {binLabel(crossingBand(REACH.tabular, REACH['deep-exact'])!)} band. Hover or arrow a band to read it.
               </>
             }
             source="figures/rung3/exploit_by_reach.json, figures/rung4/exploit_by_reach_deep-exact.json, exploit_by_reach_deep-pi.json · uv run minidraw-exploit-by-reach --release tabular | deep-exact | deep-pi"

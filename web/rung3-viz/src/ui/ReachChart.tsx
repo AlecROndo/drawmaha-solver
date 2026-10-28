@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
-import { REACH, REACH_NAME, binLabel, hands, perVisit, type ReachProfile } from '../reach'
-import { linScale, logScale } from './scales'
+import { REACH, REACH_NAME, REACH_SHORT, binLabel, edgeWord, perVisit, type ReachProfile } from '../reach'
+import { linScale, logScale, stackLabels } from './scales'
 
 /**
  * Where the exploitability lives, read along one axis: how often a spot
@@ -15,9 +15,12 @@ import { linScale, logScale } from './scales'
  * net's flatter curve lies beside the table's. Hover or arrow a band to read
  * every number in it under the plot.
  *
- * Inks: the table alone (Figure 7, in rung 3's part) wears the race's LCFR
- * yellow; beside the net (Figure 9) the three strategies wear the inks of
- * the race at equal hands — the table dim, the exact average yellow, Π ivory.
+ * Inks: with no net on the figure (Figure 7, in rung 3's part) the table
+ * wears the race's LCFR yellow; with a net beside it (Figure 9) the three
+ * strategies wear the inks of the race at equal hands — the table dim, the
+ * exact average yellow, Π ivory. The svg is focusable and the readout is a
+ * live region, as on the race chart; a band is picked by hover, touch or the
+ * arrow keys.
  */
 
 const W = 760
@@ -29,16 +32,16 @@ const LABEL_H = 14
 
 type Key = keyof typeof REACH
 
-const inkOf = (profiles: Key[]): Record<Key, string> =>
-  profiles.length === 1
-    ? { tabular: 'var(--rule-lcfr)', 'deep-exact': 'var(--obj-exact)', 'deep-pi': 'var(--obj-pi)' }
-    : { tabular: 'var(--table-ink)', 'deep-exact': 'var(--obj-exact)', 'deep-pi': 'var(--obj-pi)' }
+const inkOf = (profiles: Key[]): Record<Key, string> => ({
+  tabular: profiles.some((p) => p !== 'tabular') ? 'var(--table-ink)' : 'var(--rule-lcfr)',
+  'deep-exact': 'var(--obj-exact)',
+  'deep-pi': 'var(--obj-pi)',
+})
+const leakWord = (v: number) => (v >= 10 ? v.toFixed(0) : v.toFixed(1))
 
 const share = (p: ReachProfile, i: number) => (100 * p.bins[i].exploitability) / p.exploitability
 const countShare = (p: ReachProfile, i: number) => (100 * p.bins[i].infosets) / p.infosets
 const leak = (p: ReachProfile, i: number) => 100 * perVisit(p.bins[i])
-/** "1 in 1k": the band edge as how often a spot comes up. */
-const edgeWord = (frequency: number) => `1 in ${hands(Math.round(1 / frequency))}`
 
 export function ReachChart({ profiles }: { profiles: Key[] }) {
   const INK = inkOf(profiles)
@@ -59,7 +62,8 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
   const series = profiles.length + 1
   const barW = (bw * 0.78) / series
   const barX = (k: number, s: number) => cx(k) - (bw * 0.78) / 2 + s * barW
-  const [at, setAt] = useState(n - 1)
+  const [atRaw, setAt] = useState(n - 1)
+  const at = Math.min(atRaw, n - 1)
   const picked = bands[at]
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
@@ -68,13 +72,12 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
   }
   // the leak lines' labels at both ends, stacked where they would collide
   const stacked = (band: number) => {
-    const labels = profiles.map((p) => ({ p, v: leak(REACH[p], bands[band].i) })).map((e) => ({ ...e, ly: ly(e.v) + 4 })).sort((a, b) => a.ly - b.ly)
-    for (let k = 1; k < labels.length; k++) labels[k].ly = Math.max(labels[k].ly, labels[k - 1].ly + LABEL_H)
-    return labels
+    const values = profiles.map((p) => leak(REACH[p], bands[band].i))
+    const ys = stackLabels(values.map((v) => ly(v) + 4), LABEL_H)
+    return profiles.map((p, k) => ({ p, v: values[k], ly: ys[k] }))
   }
   const ends = stacked(n - 1)
   const starts = stacked(0)
-  const leakWord = (v: number) => (v >= 10 ? v.toFixed(0) : v.toFixed(1))
   return (
     <>
       <div className="legend">
@@ -91,7 +94,7 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
       </div>
       <svg className="chart reach" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Share of exploitability per reach band, and the leak per visit" tabIndex={0} onKeyDown={onKey}>
         {/* the picked band */}
-        <rect x={M.l + at * bw} y={TOP.t - 4} width={bw} height={BOTTOM.b - TOP.t + 4} fill="var(--panel-mark)" fillOpacity={0.05} />
+        <rect x={M.l + at * bw} y={TOP.t} width={bw} height={BOTTOM.b - TOP.t} fill="var(--panel-mark)" fillOpacity={0.05} />
 
         {/* top: shares */}
         <text x={4} y={TOP.t - 12} fontSize="10" fill="var(--panel-dim)">
@@ -131,7 +134,7 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
 
         {/* bottom: leak per visit */}
         <text x={4} y={BOTTOM.t - 12} fontSize="10" fill="var(--panel-dim)">
-          leak per 100 visits: chips a best responder wins each time play reaches a spot in the band, log
+          leak per 100 visits: chips a best responder wins each time play reaches an average spot of the band, log
         </text>
         {lticks.map((v) => (
           <g key={v}>
@@ -159,7 +162,7 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
         ))}
         {ends.map(({ p, v, ly: yy }) => (
           <text key={p} x={cx(n - 1) + 9} y={yy} fontSize="10.5" fill={INK[p]}>
-            {profiles.length > 1 ? `${REACH_NAME[p].replace('Deep CFR, ', '').replace(', the table', '')} ${leakWord(v)}` : leakWord(v)}
+            {profiles.length > 1 ? `${REACH_SHORT[p]} ${leakWord(v)}` : leakWord(v)}
           </text>
         ))}
 
@@ -181,10 +184,10 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
         </text>
 
         {bands.map((_, k) => (
-          <rect key={k} x={M.l + k * bw} y={TOP.t - 4} width={bw} height={BOTTOM.b - TOP.t + 4} fill="transparent" onMouseEnter={() => setAt(k)} />
+          <rect key={k} x={M.l + k * bw} y={TOP.t} width={bw} height={BOTTOM.b - TOP.t} fill="transparent" onMouseEnter={() => setAt(k)} onPointerDown={() => setAt(k)} />
         ))}
       </svg>
-      <dl className="stat">
+      <dl className="stat" aria-live="polite">
         <div>
           <dt>band</dt>
           <dd>{binLabel(picked.bin)}</dd>
