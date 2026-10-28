@@ -18,8 +18,8 @@ const mse = (p: number, q: number) => (q - p) ** 2 + (1 - q - (1 - p)) ** 2
 const kl = (p: number, q: number) => p * Math.log(p / q) + (1 - p) * Math.log((1 - p) / (1 - q))
 
 const PANELS = [
-  { p: 0.04, miss: 0.01, lo: 0.002, hi: 0.12, title: 'the action should happen 4% of the time; Π says 1%' },
-  { p: 0.5, miss: 0.53, lo: 0.38, hi: 0.62, title: 'the action should happen 50% of the time; Π says 53%' },
+  { p: 0.04, miss: 0.01, lo: 0.002, hi: 0.12, title: 'the action happens 4% of the time; Π says 1%' },
+  { p: 0.5, miss: 0.53, lo: 0.38, hi: 0.62, title: 'the action happens 50% of the time; Π says 53%' },
 ]
 const Y_MAX = 0.06
 

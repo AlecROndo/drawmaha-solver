@@ -39,7 +39,7 @@ const logy = (perHundredHands: number) => {
   return M.t + (Math.log10(Y_TOP / clamped) / Math.log10(Y_TOP / Y_BOTTOM)) * (H - M.t - M.b)
 }
 
-const X_TICKS = [1e5, 1e6, 1e7, 2e7]
+const X_TICKS = [1e5, 1e6, 1e7]
 const Y_TICKS = [1, 10, 100, 1000]
 
 const hands = (n: number) => (n >= 1e6 ? `${n / 1e6}M` : `${n / 1e3}k`)
@@ -134,7 +134,7 @@ export function RaceChart() {
           strokeDasharray="1.5 4"
           strokeOpacity="0.8"
         />
-        <text x={logx(2.5e6) + 6} y={logy(guide(2.5e6)) - 7} fontSize="10.5" fill="var(--panel-dim)">
+        <text x={logx(4e5)} y={logy(guide(4e5)) + 14} fontSize="10.5" fill="var(--panel-dim)">
           1/√N
         </text>
 

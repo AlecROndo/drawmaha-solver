@@ -94,7 +94,7 @@ export function PiLossChart() {
         })}
         {/* right panel */}
         <text x={HALF + PANEL.l} y={PANEL.t - 8} fontSize="10.5" fill="var(--panel-dim)">
-          at each mark's memory: exact, the run's Π, the refits
+          each mark's memory: exact, the run's Π, refits
         </text>
         {[11, 12, 13, 14, 15, 16].map((v) => (
           <g key={v}>

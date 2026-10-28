@@ -22,7 +22,7 @@ const lrWord = (lr: number) => (lr === 0.001 ? '1e-3' : lr === 0.0005 ? '5e-4' :
 export function RefitChart() {
   const nets = [...new Set(REFIT_ARMS.map((a) => a.net))]
   const rows = REFIT_ARMS.map((a, i) => ({ ...a, y: M.t + i * ROW + nets.indexOf(a.net) * GAP }))
-  const H = rows.at(-1)!.y + ROW + 30
+  const H = rows.at(-1)!.y + ROW + 46
   const note = (a: (typeof rows)[number]) => {
     const group = rows.filter((r) => r.net === a.net)
     const i = group.indexOf(a)
@@ -34,13 +34,13 @@ export function RefitChart() {
     <svg className="chart refit" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Exact average of five refit settings at one million hands per seat">
       {[0, 10, 20, 30].map((v) => (
         <g key={v}>
-          <line x1={x(v)} x2={x(v)} y1={M.t} y2={H - 30} stroke="var(--panel-hair)" />
-          <text x={x(v)} y={H - 14} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+          <line x1={x(v)} x2={x(v)} y1={M.t} y2={H - 46} stroke="var(--panel-hair)" />
+          <text x={x(v)} y={H - 30} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
             {v}
           </text>
         </g>
       ))}
-      <text x={W - M.r} y={H - 14} textAnchor="end" fontSize="10" fill="var(--panel-dim)">
+      <text x={M.l} y={H - 10} fontSize="10" fill="var(--panel-dim)">
         chips / 100 hands
       </text>
       {rows.map((a) => {
