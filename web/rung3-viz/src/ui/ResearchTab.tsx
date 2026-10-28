@@ -66,15 +66,15 @@ import { SpotBars } from './SpotBars'
 const Eq = ({ children }: { children: React.ReactNode }) => <code className="eq">{children}</code>
 
 const CHAPTERS = [
-  { id: 'ch-01', n: '01', short: 'The game and the grader' },
-  { id: 'ch-02', n: '02', short: 'A tree no walk can cross' },
-  { id: 'ch-03', n: '03', short: 'Four rules, one walk' },
-  { id: 'ch-04', n: '04', short: 'What the answer does' },
-  { id: 'ch-05', n: '05', short: 'A net for the ledger' },
-  { id: 'ch-06', n: '06', short: 'Width, depth, refit, pot' },
-  { id: 'ch-07', n: '07', short: 'Three averages, one loss' },
-  { id: 'ch-08', n: '08', short: 'Rules under a net' },
-  { id: 'ch-09', n: '09', short: 'What is not settled' },
+  { id: 'ch-01', n: '01', short: 'Rules and exact grading' },
+  { id: 'ch-02', n: '02', short: 'MCCFR: sampling the tree' },
+  { id: 'ch-03', n: '03', short: 'Racing four regret rules' },
+  { id: 'ch-04', n: '04', short: 'The answer and its play' },
+  { id: 'ch-05', n: '05', short: 'Deep CFR: net, not table' },
+  { id: 'ch-06', n: '06', short: 'Net size, refits and √pot' },
+  { id: 'ch-07', n: '07', short: 'Exact average vs. the net' },
+  { id: 'ch-08', n: '08', short: 'DCFR, CFR+ under Deep CFR' },
+  { id: 'ch-09', n: '09', short: 'Settled and open questions' },
   { id: 'methods', n: '', short: 'Methods and footnotes' },
 ] as const
 
