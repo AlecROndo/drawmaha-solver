@@ -48,15 +48,22 @@ describe('the best arm against the table at equal hands', () => {
     expect(() => lcfrMarkAt(150_000)).toThrow('rung 3 has no LCFR grade at 150000 hands per seat')
   })
 
-  it('grades the table 304.8 falling to 26.4 across the marks, every mark inside the ruler\'s axes', () => {
-    // Figure 8's bottom row and the caption's two ends; the scales clamp rather than fail, so the domain is held here.
-    expect(perHundred(lcfrAt(BEST.marks[0].hands))).toBeCloseTo(304.8, 1)
-    expect(perHundred(lcfrAt(BEST.marks.at(-1)!.hands))).toBeCloseTo(26.4, 1)
+  it('grades the table 304.8 at the first mark and 26.4 at the last, lower at every mark than the one before', () => {
+    // Figure 8's bottom row: the caption quotes the two ends, and the dots fall left to right.
+    const grades = BEST.marks.map((m) => perHundred(lcfrAt(m.hands)))
+    expect(grades[0]).toBeCloseTo(304.8, 1)
+    expect(grades.at(-1)).toBeCloseTo(26.4, 1)
+    for (let i = 1; i < grades.length; i++) expect(grades[i]).toBeLessThan(grades[i - 1])
+  })
+
+  it('keeps every mark inside the ruler\'s axes, its hands and the table\'s grade alike', () => {
+    // The scales clamp rather than fail, so a seventh mark past five million hands would draw off the edge in silence.
     for (const m of BEST.marks) {
+      const grade = perHundred(lcfrAt(m.hands))
       expect(m.hands).toBeGreaterThanOrEqual(EQUAL_DOMAIN.hands[0])
       expect(m.hands).toBeLessThanOrEqual(EQUAL_DOMAIN.hands[1])
-      expect(perHundred(lcfrAt(m.hands))).toBeGreaterThanOrEqual(EQUAL_DOMAIN.per100[0])
-      expect(perHundred(lcfrAt(m.hands))).toBeLessThanOrEqual(EQUAL_DOMAIN.per100[1])
+      expect(grade).toBeGreaterThanOrEqual(EQUAL_DOMAIN.per100[0])
+      expect(grade).toBeLessThanOrEqual(EQUAL_DOMAIN.per100[1])
     }
   })
 

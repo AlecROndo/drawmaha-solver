@@ -15,7 +15,7 @@ export const linScale = (lo: number, hi: number, a: number, b: number) => (v: nu
 /** The pot chart's axes (`PotChart.tsx`); kept here so `deep.test.ts` can hold every plotted point inside them, since the scales clamp rather than fail. */
 export const POT_DOMAIN = { hands: [1e5, 5e6], per100: [7, 100] } as const
 
-/** The equal-hands ruler's axes (`EqualHandsChart.tsx`): hands per seat, and the table's grade; `deep.test.ts` holds every mark inside them for the same reason. */
+/** The equal-hands ruler's axes (`EqualHandsChart.tsx`): hands per seat, and the table's grade in chips per hundred hands. `deep.test.ts` holds every mark inside them, because the scales clamp rather than fail and a mark past an edge would draw on it in silence. */
 export const EQUAL_DOMAIN = { hands: [1e5, 5e6], per100: [20, 400] } as const
 
 /**
