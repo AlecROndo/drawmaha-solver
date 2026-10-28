@@ -51,7 +51,7 @@ from drawmaha_solver.deepcfr.train import (
 )
 from drawmaha_solver.minidrawmaha.rules.enumeration import private_keys, public_decision_points
 from drawmaha_solver.minidrawmaha.rules.features import layout
-from drawmaha_solver.minidrawmaha.rules.game import Action, InfoSet, random_deal
+from drawmaha_solver.minidrawmaha.rules.game import Action, InfoSet, chip_state, random_deal
 from drawmaha_solver.minidrawmaha.solver.lockstep import (
     SEATS,
     apply_arrays,
@@ -780,6 +780,26 @@ def first_row_at(betting) -> int:
     built = layout()
     index = next(i for i, point in enumerate(built.points) if point.betting == betting)
     return int(built.row_offset[index])
+
+def test_the_game_reaches_seven_pots_and_spot_pots_reads_them_from_the_betting():
+    # The seven the `spot_pots` docstring lists, re-derived here from the
+    # pot-limit ladder rather than copied. Ante: 2. A pot bet of 2 makes 4,
+    # and its call 6. The raise over it is 2 to call plus the 6 then in the
+    # pot, 8, so the opener faces 12, and calling the 6 owed makes 18. The
+    # third bet is 6 to call plus min(18, the 17 behind), 23, so the raiser
+    # faces 35 all in, and the call of 17 makes 52, every chip in.
+    from drawmaha_solver.deepcfr.train import spot_pots
+
+    pots = spot_pots()
+    assert pots.shape == (len(layout().points),) and not pots.flags.writeable
+    assert sorted(set(pots.tolist())) == [2, 4, 6, 12, 18, 35, 52]
+    # Each is the betting line's own pot, the bet the actor faces included.
+    for index, point in enumerate(layout().points):
+        assert pots[index] == chip_state(point.betting).pot
+    assert pots[first_row_point(((Action.POT, Action.POT),))] == 12
+
+def first_row_point(betting) -> int:
+    return next(i for i, point in enumerate(layout().points) if point.betting == betting)
 
 def test_pot_scaling_at_power_zero_is_the_identity():
     from drawmaha_solver.deepcfr.train import pot_scaled

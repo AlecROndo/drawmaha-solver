@@ -190,7 +190,8 @@ class DeepConfig:
     rule: str = "linear"
     # Each regret sample is divided by its spot's pot to this power before the
     # refit; see `pot_scaled`. 0 is the spec's raw chips; 1/2, the default
-    # since 2026-10-27, weighs each spot by what a σ mistake there costs, and
+    # since 2026-10-27, leaves a weight of how often × pot, the heuristic
+    # "what a σ mistake there costs" (the motivation, not a derived claim), and
     # cut the 4 × 256, 16,000-step, lr 5e-4 arm's exact average by a quarter
     # at 2M hands per seat, one seed (`docs/notes/rung4-run-log.md`, finding
     # 7). That arm ran at half this config's `lr`: √pot with lr 1e-3 has not
@@ -995,9 +996,12 @@ def pot_scaled(rows: np.ndarray, targets: np.ndarray, *, power: float) -> np.nda
     reweight samples within a spot and move its mean; this one cannot.
 
     What k does: dividing by pot^k leaves a weight of how often × pot^(2 − 2k).
-    k = 0 is raw chips, pot². k = 1/2 leaves how often × pot, the chips a
-    σ mistake at that spot actually costs the player. k = 1 weighs every
-    spot alike, however small its pot. `targets` is returned itself at
+    k = 0 is raw chips, pot². k = 1/2 leaves how often × pot, the one part
+    of this that is a heuristic rather than derived: a σ mistake at a spot
+    moves chips that are about the pot's size, so "weight a spot by its pot"
+    is the motivation for k = 1/2, and the grades in the run log are what
+    back it, not this paragraph. k = 1 weighs every spot alike, however
+    small its pot. `targets` is returned itself at
     k = 0; otherwise a float32 copy, the padding columns scaled and still
     ignored by the loss. `rows` are whole-game table rows; a row outside the
     table is refused as `Layout.locate_rows` refuses it.
