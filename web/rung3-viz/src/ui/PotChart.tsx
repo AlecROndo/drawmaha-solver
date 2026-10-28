@@ -15,9 +15,11 @@ const W = 760
 const ROW = 30
 const GAP = 22
 const M = { l: 214, r: 170, t: 12 }
-const X_MAX = 15
-const x = linScale(0, X_MAX, M.l, W - M.r)
 const MARKS = [100, 200] as const
+/** the axis ends at the next multiple of 5 above the largest bar, so a regraded arm cannot run into the value gutter */
+const X_MAX = Math.ceil(Math.max(...POT_ARMS.flatMap((a) => MARKS.map((t) => perHundred(a.exact[t])))) / 5) * 5
+const TICKS = Array.from({ length: X_MAX / 5 + 1 }, (_, i) => i * 5)
+const x = linScale(0, X_MAX, M.l, W - M.r)
 
 const lrWord = (lr: number) => (lr === 0.001 ? '1e-3' : lr === 0.0005 ? '5e-4' : String(lr))
 const kWord = (k: number) => (k === 0 ? 'raw chips' : k === 0.5 ? '÷ √pot' : k === 1 ? '÷ pot' : `÷ pot^${k}`)
@@ -31,7 +33,7 @@ export function PotChart() {
   const rawAt = (t: 100 | 200) => POT_ARMS.find((a) => a.potPower === 0 && a.lr === 0.0005)!.exact[t]
   return (
     <svg className="chart pot" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Exact average of the regret targets over pot^k at one and two million hands per seat">
-      {[0, 5, 10, 15].map((v) => (
+      {TICKS.map((v) => (
         <g key={v}>
           <line x1={x(v)} x2={x(v)} y1={M.t} y2={H - 46} stroke="var(--panel-hair)" />
           <text x={x(v)} y={H - 30} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">

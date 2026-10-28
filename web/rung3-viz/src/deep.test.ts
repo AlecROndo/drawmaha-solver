@@ -96,6 +96,13 @@ describe('the ablations', () => {
     const cur = (potPower: number) => POT_ARMS.find((a) => a.potPower === potPower && a.lr === 0.0005)!.current[200]
     expect(cur(0.5)).toBeCloseTo(0.158, 3)
     expect(cur(1)).toBeCloseTo(0.214, 3)
+    // the raw-vs-raw gap the prose uses as its yardstick, at each mark the gain is quoted at
+    expect(Math.abs(at(0, 0.0005, 100) - at(0, 0.001, 100))).toBeCloseTo(0.0051, 3)
+    expect(Math.abs(at(0, 0.0005, 200) - at(0, 0.001, 200))).toBeCloseTo(0.0116, 3)
+    // the early mark: the √pot arm is worse than raw at 100k hands, and the ÷ pot arm was never graded there
+    expect(markOf(ARMS['pot0.5-4x256-s16000-lr5e-4'], 10).exact.exploitability).toBeCloseTo(0.879, 3)
+    expect(markOf(BEST, 10).exact.exploitability).toBeCloseTo(0.6433, 3)
+    expect(ARMS['pot1-4x256-s16000-lr5e-4'].marks.map((m) => m.t)).toEqual([100, 200])
   })
 
   it('reads pot_power from the config, and a file written before it existed as raw chips', () => {

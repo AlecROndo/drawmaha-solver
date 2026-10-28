@@ -104,7 +104,8 @@ export function ResearchTab() {
   const refit = (net: string, steps: number) => REFIT_ARMS.find((a) => a.net === net && a.steps === steps)!
   const screen = (rule: 'linear' | 'dcfr' | 'cfrplus', t: number) => RULE_SCREEN[rule].find((p) => p.t === t)!.exact
   const pot = (k: number, lr = 0.0005) => POT_ARMS.find((a) => a.potPower === k && a.lr === lr)!
-  const rawNoise = Math.abs(pot(0).exact[100] - pot(0, 0.001).exact[100])
+  const rawGap = (t: 100 | 200) => Math.abs(pot(0).exact[t] - pot(0, 0.001).exact[t])
+  const sqrtPot10 = markOf(ARMS['pot0.5-4x256-s16000-lr5e-4'], 10).exact.exploitability
   const flip = (rule: 'dcfr' | 'cfrplus', t: number) => SIGN_FLIPS[rule].find((f) => f.t === t && f.seat === 0)!
   const ce64 = piArm('ce-softmax-64k-cos')
   const mse64 = piArm('mse-linear-64k-cos')
@@ -452,8 +453,9 @@ export function ResearchTab() {
             invariant to that positive factor. With a perfect "net" that returns each row's weighted sum, the loop
             reproduces rung 3's LCFR bit for bit; that pin is in the test suite. What moves what: a later sample
             outvotes an earlier one t-fold; a wider net tells more rows apart; more steps settle closer to the mean. The
-            arms on this page fit raw chips; since the pot arms at the end of chapter 07 the trainer divides each target
-            by √pot at its spot first. Three
+            arms on this page fit raw chips; since the pot arms at the end of chapter 07 — two arms, one seed each —
+            the trainer's default divides each target by √pot at its spot first, with chapter 10 saying what that
+            default has not yet been graded at. Three
             objects are graded at every mark, because they answer different questions — the <b>exact average</b>, CFR's
             actual answer, accumulated from each iteration's strategy with the seat's own reach; <b>Π</b>, a fresh policy
             net fit on the strategy samples, the only average a game <i>without</i> a table can keep; and the{' '}
@@ -568,20 +570,24 @@ export function ResearchTab() {
             Three 16,000-step arms at 5e-4 differ only in k and saw the same hands. At one million hands they grade{' '}
             {p100(pot(0).exact[100])} (raw), {p100(pot(0.5).exact[100])} (÷ √pot) and {p100(pot(1).exact[100])} (÷ pot);
             at two million, {p100(pot(0).exact[200])}, {p100(pot(0.5).exact[200])} and {p100(pot(1).exact[200])}. The
-            only estimate of run-to-run noise is the two raw arms, at 5e-4 and at 1e-3, which differ in more than a
-            seed: {p100(rawNoise)} apart at one million hands, against which the pot arms' gain at two million is about{' '}
-            {Math.round((pot(0).exact[200] - pot(0.5).exact[200]) / rawNoise)} times the gap. The two weightings tie at
-            two million hands, inside that noise; √pot leads at one million, its current iterate is far better at two
-            ({p100(pot(0.5).current[200])} against {p100(pot(1).current[200])}), and it is the weighting the chip-cost
-            argument picks, so k = ½ is the default for new runs. Early, at a hundred thousand hands, both pot arms are
-            worse than raw, as a longer fit was in the previous section; arms are compared from a million hands.
+            only yardstick for a run-to-run difference is the two raw arms, at 5e-4 and at 1e-3, and it is a coarse one,
+            since they differ in learning rate and not only in seed: {p100(rawGap(100))} apart at one million hands and{' '}
+            {p100(rawGap(200))} at two. The √pot arm's gain over raw at two million, {p100(pot(0).exact[200] - pot(0.5).exact[200])},
+            is about {((pot(0).exact[200] - pot(0.5).exact[200]) / rawGap(200)).toFixed(1)} times that gap at the same
+            mark. The two weightings tie at two million hands, {p100(Math.abs(pot(0.5).exact[200] - pot(1).exact[200]))}{' '}
+            apart, inside the gap; √pot leads at one million by {p100(pot(1).exact[100] - pot(0.5).exact[100])}, barely
+            more than the raw arms' gap there; its current iterate is far better at two million (
+            {p100(pot(0.5).current[200])} against {p100(pot(1).current[200])}); and it is the weighting the chip-cost
+            argument picks. On that, k = ½ is the default for new runs. Early, at a hundred thousand hands, the √pot arm
+            is worse than raw ({p100(sqrtPot10)} against {p100(markOf(BEST, 10).exact.exploitability)}; the ÷ pot arm was
+            not graded there), as a longer fit was in the previous section; arms are compared from a million hands.
           </p>
           <Figure
             n={10}
             caption={
               <>
                 ÷ √pot grades {p100(pot(0.5).exact[200])} at two million hands against raw {p100(pot(0).exact[200])},{' '}
-                {cut(pot(0).exact[200], pot(0.5).exact[200])} less, and ÷ pot ties it at {p100(pot(1).exact[200])}. Same
+                {cut(pot(0).exact[200], pot(0.5).exact[200])} less, and ÷ pot ties √pot at {p100(pot(1).exact[200])}. Same
                 net, same refit, same hands; only the targets' scale changes. The faintest bar is the raw arm at the
                 full learning rate, the one estimate of run-to-run noise. Hover a bar for the grade to two decimals.
               </>
@@ -594,8 +600,8 @@ export function ResearchTab() {
           <p>
             Two confounds are open. The refit does not normalise its targets (each row is weighted by t over the
             batch's mean t and nothing else), so dividing them by up to √52 ≈ 7.2 also shrinks the residuals, and with
-            them the gradient norms the clip of 1.0 sees: Adam's step is scale-free, the clip is not, so it bites less
-            often in the pot arms than in the raw arm, and part of the gain may be a changed clipping regime rather than
+            them the gradient norms the clip of 1.0 sees: Adam's update is scale-free, the clip is not and acts before
+            Adam sees the gradient, so it bites less often in the pot arms than in the raw arm, and part of the gain may be a changed clipping regime rather than
             the reweighting; a raw arm with a looser clip would separate the two and has not been run. And the raw arm
             at the full rate is its own single-seed gain over 5e-4 ({p100(pot(0, 0.001).exact[200])} against{' '}
             {p100(pot(0).exact[200])} at two million hands), so √pot at 1e-3, the pairing the default config now runs,
