@@ -38,7 +38,7 @@ import { currentSection } from './contents'
 import { DeepRaceChart } from './DeepRaceChart'
 import { EqualHandsChart } from './EqualHandsChart'
 import { Figure } from './Figure'
-import { fraction, hoursAt } from './scales'
+import { fraction, hoursAt, hoursOf } from './scales'
 import { REACH, bandAt, binLabel, commonInfosets, commonShare, crossingBand, onceIn, perVisit, populated, rareInfosets, rareShare } from '../reach'
 import { LossShapes } from './LossShapes'
 import { PiLossChart } from './PiLossChart'
@@ -469,7 +469,7 @@ export function ResearchTab() {
             seat per iteration has seen the same hands at iteration t as LCFR had at lockstep iteration 1,000 t, so the
             marks 10, 20, 50, 100, 200 and 500 sit on the race's checkpoints exactly. Equal hands is not equal compute: an
             iteration with two refits of a 4 × 256 net costs minutes against ten table updates, and the best arm's five
-            million hands took {(best500.wallClockS / 3600).toFixed(0)} hours of training.
+            million hands took {hoursOf(best500.wallClockS)} hours of training.
           </p>
           <Figure
             n={8}
@@ -856,7 +856,7 @@ export function ResearchTab() {
                 <td>equal hands</td>
                 <td>
                   Equal hands is not equal compute. A Deep CFR iteration refits two nets; the best arm's five million
-                  hands took {(best500.wallClockS / 3600).toFixed(0)} hours on a laptop GPU, and the table's twenty million
+                  hands took {hoursOf(best500.wallClockS)} hours on a laptop GPU, and the table's twenty million
                   ran on eleven Modal cores per rule.
                 </td>
               </tr>

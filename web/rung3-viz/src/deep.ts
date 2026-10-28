@@ -15,7 +15,7 @@
  * as an `undefined` in a chart.
  */
 
-import { series } from './research'
+import { series, type Point } from './research'
 
 import grades64 from './data/rung4/grades.json'
 import sweepData from './data/rung4/sweep.json'
@@ -228,12 +228,20 @@ export const markOf = (arm: Arm, t: number): Mark => {
   return mark
 }
 
-/** LCFR's linear average at the same hands per seat, from rung 3's grades (chips per hand). */
-export const lcfrAt = (hands: number): number => {
+/**
+ * Rung 3's LCFR point at the same hands per seat: the lockstep iteration
+ * that had sampled them and its linear average's grade. The match is exact,
+ * because a mark of rung 4 off the race's grid has no table to be read
+ * against.
+ */
+export const lcfrMarkAt = (hands: number): Point => {
   const point = series('lcfr').find((p) => p.hands === hands)
   if (!point) throw new Error(`rung 3 has no LCFR grade at ${hands} hands per seat`)
-  return point.exploitability
+  return point
 }
+
+/** LCFR's linear average at the same hands per seat, from rung 3's grades (chips per hand). */
+export const lcfrAt = (hands: number): number => lcfrMarkAt(hands).exploitability
 
 /** The verdict the sweep fixed before its numbers existed, and the size it picked. */
 export const SWEEP_RULE: { rule: string; winner: string } = (() => {

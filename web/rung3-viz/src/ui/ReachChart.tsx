@@ -16,7 +16,7 @@ import { linScale, logScale, stackLabels } from './scales'
  * every number in it under the plot.
  *
  * Inks: with no net on the figure (Figure 7, in rung 3's part) the table
- * wears the race's LCFR yellow; with a net beside it (Figure 9) the three
+ * wears the race's LCFR yellow; with a net beside it (Figure 10) the three
  * strategies wear the inks of the race at equal hands — the table dim, the
  * exact average yellow, Π ivory. The svg is focusable and the readout is a
  * live region, as on the race chart; a band is picked by hover, touch or the

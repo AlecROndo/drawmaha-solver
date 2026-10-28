@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { fraction, stackLabels } from './scales'
+import { fraction, hoursAt, hoursOf, stackLabels } from './scales'
 
 describe('stacked labels', () => {
   it('leaves labels that already clear each other where they are, in the input order', () => {
@@ -20,6 +20,20 @@ describe('stacked labels', () => {
   it('handles one label and none', () => {
     expect(stackLabels([7], 14)).toEqual([7])
     expect(stackLabels([], 14)).toEqual([])
+  })
+})
+
+describe('hours from a wall clock', () => {
+  it('prints one decimal under ten hours and a whole number from ten up', () => {
+    expect(hoursOf(1440)).toBe('0.4')
+    expect(hoursOf(9.94 * 3600)).toBe('9.9')
+    expect(hoursOf(75_600)).toBe('21')
+    expect(hoursAt(75_600)).toBe('21 h')
+  })
+
+  it('decides the branch on the rounded value, so 9.97 hours reads 10, never 10.0', () => {
+    expect(hoursOf(35_900)).toBe('10')
+    expect(hoursAt(35_900)).toBe('10 h')
   })
 })
 

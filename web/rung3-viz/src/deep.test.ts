@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { perHundred, series } from './research'
+import { WORKERS, perHundred, series } from './research'
 import piResults from './data/rung4/pi_sweep_results.json'
 import { POT_DOMAIN, hoursAt } from './ui/scales'
 import {
@@ -19,6 +19,7 @@ import {
   SWEEP_RULE,
   armOf,
   lcfrAt,
+  lcfrMarkAt,
   markOf,
   piArm,
   piArmOf,
@@ -35,6 +36,16 @@ describe('the best arm against the table at equal hands', () => {
       expect(m.hands).toBe(m.t * 10_000)
       expect(lcfrAt(m.hands)).toBeGreaterThan(0)
     }
+  })
+
+  it('sits on the race\'s checkpoints exactly: a table point at every mark\'s hands, its lockstep iteration 1,000 t', () => {
+    // Figure 8's two clocks: the table's reads the iteration rung 3 graded at the same hands, and the caption says "exactly".
+    for (const m of BEST.marks) {
+      expect(series('lcfr').some((p) => p.hands === m.hands)).toBe(true)
+      expect(lcfrMarkAt(m.hands).iteration).toBe(m.t * 1000)
+      expect(lcfrMarkAt(m.hands).iteration * WORKERS).toBe(m.hands)
+    }
+    expect(() => lcfrMarkAt(150_000)).toThrow('no LCFR grade at 150000')
   })
 
   it('took 0.4 hours to the first mark and 21 to the last, the wall clock rising with every mark', () => {

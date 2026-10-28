@@ -1,21 +1,24 @@
 import { useState } from 'react'
 
-import { BEST, lcfrAt } from '../deep'
+import { BEST, lcfrMarkAt } from '../deep'
 import { perHundred } from '../research'
 import { fmtHands, hoursAt, logScale } from './scales'
 
 /**
- * Two clocks on one ruler. The ruler is hands per seat on a log axis, with
- * a notch at each of the best arm's six graded marks. Above it reads Deep
- * CFR's clock — the iteration t, and under it the hours of training that
- * iteration had cost — and below it the table's clock, the lockstep
- * iteration 1,000 t that had seen the same hands. Every notch lines up
- * through all three rows because hands per seat is the axis both are read
- * on; that alignment, not any number, is what the figure says. The bottom
+ * Two clocks on one ruler. The ruler is hands per seat on a log axis, so a
+ * notch sits by the log of its hands and equal gaps are equal ratios, not
+ * equal counts; the hands are printed under each notch for that reason.
+ * There is a notch at each of the best arm's six graded marks. Above it
+ * reads Deep CFR's clock — the iteration t, and under it the hours of
+ * training that iteration had cost — and below it the table's clock, the
+ * lockstep iteration read from rung 3's grade at the same hands, which is
+ * 1,000 t on this grid (deep.test.ts pins the factor). The figure's point
+ * is the alignment: one hairline runs through all three rows at each notch
+ * because hands per seat is the axis both clocks are read on. The bottom
  * row is the table's own grade at each notch, the denominator the price in
  * the next figure divides by, as a dot whose height is the grade on a log
- * scale, falling left to right. Hover or arrow a notch and the readout
- * under the figure states that column's row in words.
+ * scale, falling left to right. Hover, touch or arrow a notch and the
+ * readout under the figure, a live region, states that column in words.
  */
 
 const W = 760
@@ -30,6 +33,7 @@ export function EqualHandsChart() {
   const marks = BEST.marks
   const [at, setAt] = useState(marks.length - 1)
   const mark = marks[at]
+  const table = lcfrMarkAt(mark.hands)
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') setAt((i) => Math.max(0, i - 1))
@@ -71,7 +75,8 @@ export function EqualHandsChart() {
           const cx = x(m.hands)
           const on = i === at
           const ink = on ? 'var(--panel-mark)' : 'var(--iv-80)'
-          const grade = perHundred(lcfrAt(m.hands))
+          const lcfr = lcfrMarkAt(m.hands)
+          const grade = perHundred(lcfr.exploitability)
           return (
             <g key={m.t}>
               {/* the column: one hairline through every row, because the notch is the same notch */}
@@ -90,7 +95,7 @@ export function EqualHandsChart() {
               </text>
               {/* the table's clock */}
               <text x={cx} y={ROW.table + 4} textAnchor="middle" fontSize="12" fontWeight={on ? 600 : 400} fill={ink}>
-                {(m.t * 1000).toLocaleString()}
+                {lcfr.iteration.toLocaleString()}
               </text>
               {/* the table's grade: a stem from the row's floor to a dot at the grade */}
               <line x1={cx} x2={cx} y1={ROW.gradeBottom} y2={yGrade(grade)} stroke="var(--table-ink)" strokeWidth={2} />
@@ -107,10 +112,10 @@ export function EqualHandsChart() {
           const cx = x(m.hands)
           const left = i === 0 ? M.l - 30 : (x(marks[i - 1].hands) + cx) / 2
           const right = i === marks.length - 1 ? W : (x(marks[i + 1].hands) + cx) / 2
-          return <rect key={m.t} x={left} y={0} width={right - left} height={H} fill="transparent" onMouseEnter={() => setAt(i)} onFocus={() => setAt(i)} />
+          return <rect key={m.t} x={left} y={0} width={right - left} height={H} fill="transparent" onMouseEnter={() => setAt(i)} onPointerDown={() => setAt(i)} />
         })}
       </svg>
-      <dl className="stat">
+      <dl className="stat" aria-live="polite" aria-atomic="true">
         <div>
           <dt>hands per seat</dt>
           <dd>{mark.hands.toLocaleString()}</dd>
@@ -121,11 +126,11 @@ export function EqualHandsChart() {
         </div>
         <div>
           <dt>lockstep iteration</dt>
-          <dd>{(mark.t * 1000).toLocaleString()}</dd>
+          <dd>{table.iteration.toLocaleString()}</dd>
         </div>
         <div>
           <dt style={{ color: 'var(--table-ink)' }}>LCFR grades</dt>
-          <dd>{perHundred(lcfrAt(mark.hands)).toFixed(1)}</dd>
+          <dd>{perHundred(table.exploitability).toFixed(1)}</dd>
         </div>
         <div>
           <dt>trained for</dt>
