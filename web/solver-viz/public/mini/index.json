@@ -11,6 +11,7 @@
  },
  "grade": {
   "exploitability": 0.06134626307457512,
+  "valueP0": -0.0906451773437125,
   "handsPerSeat": 20000000,
   "file": "figures/rung3/answer_sheet.json",
   "key": "frozen_strategy"

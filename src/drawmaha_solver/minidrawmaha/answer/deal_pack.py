@@ -28,11 +28,22 @@ Vectors are per-mille integers summing to 1000 (largest remainder), in
 `legal_actions()` order. `d1` is keyed by P0's draw **count**, which is all
 P1's infoset knows — and the export checks that, rather than assuming it: the
 three single throws must read the same vector. A pack is written in chunks,
-with a manifest that records the seed, the strategy's digest and provenance.
-The browser checks each chunk's deal count against the manifest and every
-deal's shape against its own betting grammar; the digest is what it can SAY
-about the strategy it is playing, so a re-export shows up as a changed digest
-or seed rather than passing for the old one.
+with a manifest that records the seed, the strategy's digest and provenance,
+and its grade. The browser checks each chunk's deal count against the
+manifest and every deal's shape against its own betting grammar; the digest
+is what it can SAY about the strategy it is playing, so a re-export shows up
+as a changed digest or seed rather than passing for the old one.
+
+The strategy the pack deals against is a released one (`releases.py`;
+`PACK_RELEASE` by default, rung 4's Deep CFR exact average from the
+pot-normalised arm at iteration 200), fetched by digest, with its grade
+copied from the committed grades file into the manifest the way `/solver`'s
+`index.json` carries its own — the same `strategy` and `grade` blocks, so the
+Play tab says what it is facing in the words the Learn tab uses, read from
+the one file it loads and never typed into the page. A local file that
+hashes to a release is treated as that release; any other `--strategy` is an
+experiment, packed with no grade, and `--out` must say where it goes so an
+experiment never overwrites the shipped pack by default.
 """
 
 from __future__ import annotations
@@ -54,12 +65,25 @@ from drawmaha_solver.minidrawmaha.rules.game import (
     throw_count,
 )
 from drawmaha_solver.minidrawmaha.rules.hands import Score, inner_score, outer_score
+from drawmaha_solver.minidrawmaha.answer.releases import (
+    RELEASES,
+    Grade,
+    Release,
+    provenance_json,
+    read_grade,
+    release_of,
+)
 from drawmaha_solver.minidrawmaha.answer.strategy import (
     StrategyInfo,
     fetch_strategy,
     load_strategy,
     sha256_of,
 )
+
+# The strategy the committed pack deals against, by its name in `RELEASES`.
+PACK_RELEASE = "deep-pot-exact"
+# Where the committed pack lives, relative to the repo root the CLI is run from.
+PACK_DIR = Path("web/rung3-viz/public/deals")
 
 PER_MILLE = 1000
 
@@ -253,8 +277,15 @@ def write_pack(
     seed: int,
     info: StrategyInfo,
     sha256: str,
+    asset: str,
+    release: Release | None = None,
+    grade: Grade | None = None,
 ) -> dict[str, object]:
     """Write `deals` in chunks of `chunk` under `out`, with the manifest; returns the manifest.
+
+    `asset` is the strategy file's name, `release` and `grade` its provenance
+    when it is a shipped strategy, `None` for a stand-in or an experiment: the
+    page then has a digest but no number to quote, and says so.
 
     Every file is staged beside its final name as `*.tmp`; a failure while
     staging removes the stage and leaves the previous pack untouched. Then
@@ -285,7 +316,9 @@ def write_pack(
                 json.dumps(deals[start : start + chunk], separators=(",", ":"))
             )
             names.append(name)
-        manifest = _manifest(deals, names, chunk=chunk, seed=seed, info=info, sha256=sha256)
+        manifest = _manifest(
+            deals, names, chunk=chunk, seed=seed, info=info, sha256=sha256, asset=asset, release=release, grade=grade
+        )
         (out / "index.json.tmp").write_text(json.dumps(manifest, indent=1))
     except BaseException:
         for staged in out.glob("*.tmp"):
@@ -307,46 +340,87 @@ def _manifest(
     seed: int,
     info: StrategyInfo,
     sha256: str,
+    asset: str,
+    release: Release | None,
+    grade: Grade | None,
 ) -> dict[str, object]:
-    """What the browser reads first: the pack's shape and where its strategy came from."""
+    """What the browser reads first: the pack's shape, where its strategy came from, and how it grades.
+
+    The `strategy` and `grade` blocks are the ones `/solver`'s `index.json`
+    opens with (`provenance_json`, `Grade.as_json`), so the two pages read
+    one shape and can share the words they say about a strategy.
+    """
     return {
         "seed": seed,
         "deals": len(deals),
         "chunk": chunk,
         "chunks": names,
-        "strategy": {
-            "sha256": sha256,
-            "rule": info.rule,
-            "column": info.column,
-            "iteration": info.iteration,
-            "workers": info.workers,
-            "seed": info.seed,
-        },
+        "strategy": provenance_json(info, sha256=sha256, asset=asset, release=release),
+        "grade": grade.as_json() if grade else None,
     }
 
 def main(argv: list[str] | None = None) -> None:
-    """Export a deal pack for the browser from the release strategy, or `--strategy PATH`."""
+    """Export a deal pack from a released strategy (`--release`, default `PACK_RELEASE`) or a local file (`--strategy`).
+
+    A local file that hashes to a release's asset is treated as that release
+    — the pack carries its grade — so a copy already on this machine needs no
+    download. Any other file is an experiment: it gets no grade, and `--out`
+    must say where it goes, so an experiment can never overwrite the shipped
+    pack by default.
+    """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--out", type=Path, default=Path("web/rung3-viz/public/deals"))
+    parser.add_argument(
+        "--release",
+        choices=sorted(RELEASES),
+        help=f"which released strategy to fetch and deal against (default: {PACK_RELEASE})",
+    )
+    parser.add_argument(
+        "--strategy",
+        type=Path,
+        help="a frozen strategy .npz instead of the download; a release's own file is known by its digest",
+    )
+    parser.add_argument("--out", type=Path, help=f"the pack directory; {PACK_DIR} for a released strategy")
     parser.add_argument("--deals", type=int, default=600)
     parser.add_argument("--chunk", type=int, default=100)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--strategy", type=Path, help="a frozen strategy .npz")
     args = parser.parse_args(argv)
 
-    path = args.strategy or fetch_strategy()
+    if args.strategy:
+        path = args.strategy
+        digest = sha256_of(path)
+        release = release_of(digest, RELEASES)
+        if args.release and (release is None or release.name != args.release):
+            raise ValueError(
+                f"{path} hashes to {digest}, not to release {args.release}'s "
+                f"{RELEASES[args.release].sha256}"
+            )
+    else:
+        release = RELEASES[args.release or PACK_RELEASE]
+        path = fetch_strategy(url=release.url, sha256=release.sha256)
+        digest = release.sha256
+    if release is None and args.out is None:
+        parser.error(f"{path} is not a released strategy; say where its pack goes with --out")
+    out = args.out or PACK_DIR
+
     strategies = load_strategy(path)
+    grade = read_grade(release, strategies.info) if release else None
     rng = np.random.default_rng(args.seed)
     deals = [export_deal(deck, strategies) for deck in random_decks(args.deals, rng)]
     manifest = write_pack(
         deals,
-        args.out,
+        out,
         chunk=args.chunk,
         seed=args.seed,
         info=strategies.info,
-        sha256=sha256_of(path),
+        sha256=digest,
+        asset=path.name,
+        release=release,
+        grade=grade,
     )
-    print(f"wrote {manifest['deals']} deals in {len(manifest['chunks'])} chunks to {args.out}")
+    source = f"release {release.name} ({release.tag}/{release.asset})" if release else str(path)
+    graded = f", exploitability {grade.exploitability:.4f}" if grade else ", no grade"
+    print(f"strategy: {source}{graded}")
+    print(f"wrote {manifest['deals']} deals in {len(manifest['chunks'])} chunks to {out}")
 
 if __name__ == "__main__":
     main()

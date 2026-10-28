@@ -24,11 +24,19 @@
   `figures/rung3/`; `minidraw-analysis` regenerates those, and the copies are
   refreshed by hand in the same change.
 - `public/deals/` is the pack written by `uv run minidraw-deals`: 600 deals
-  in six chunks, each with the frozen strategy's mix at every node either
+  in six chunks, each with the shipped strategy's mix at every node either
   player can reach, and `public/deals/index.json` recording the seed and the
-  strategy's digest. The page refuses a chunk whose deal count disagrees with
-  the manifest, or a deal missing a node its grammar can reach. A re-export
-  keeps the seed; the digest changes only when the frozen strategy does.
+  strategy's release, digest and grade. The strategy is the release
+  `deal_pack.PACK_RELEASE` names in the catalogue
+  (`src/drawmaha_solver/minidrawmaha/answer/releases.py`): rung 4's Deep CFR
+  exact average from the ÷ √pot arm at iteration 200, the best graded one.
+  The manifest's `strategy` and `grade` blocks are the ones `/solver`'s
+  `index.json` opens with, and `PlayPanel` names the bot and quotes its grade
+  through `solver-viz`'s `describeStrategy`, never from a number typed here;
+  the Python tests hold the manifest's grade to the committed grades file. The
+  page refuses a chunk whose deal count disagrees with the manifest, or a deal
+  missing a node its grammar can reach. A re-export keeps the seed; the digest
+  changes only when the strategy does.
 - `src/minidraw.ts` transcribes only the pot-limit betting grammar, and
   `src/minidraw.test.ts` pins it against the same round-1 lines the Python
   suite pins. Everything else on the page is read from the pack or the data

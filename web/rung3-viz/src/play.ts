@@ -39,6 +39,7 @@ import {
   type Side,
   type Throw,
 } from './minidraw'
+import type { StrategyManifest } from '../../solver-viz/src/mini/strategies'
 
 // ------------------------------------------------------------- the pack
 
@@ -62,12 +63,17 @@ export interface Deal {
   show: Record<string, Showdown>
 }
 
-export interface Manifest {
+/**
+ * The pack's manifest. `strategy` and `grade` are the blocks `/solver`'s
+ * `index.json` opens with, written by the same Python routine, so the panel
+ * names the bot through `describeStrategy` exactly as the Learn tab names
+ * the same strategy; `grade` is null for a pack of a strategy nobody graded.
+ */
+export interface Manifest extends StrategyManifest {
   seed: number
   deals: number
   chunk: number
   chunks: string[]
-  strategy: { sha256: string; rule: string; column: string; iteration: number; workers: number; seed: number }
 }
 
 /** Where the stub starts: two holes and board card 1 come off the top. */

@@ -11,11 +11,20 @@
   "pack-05.json"
  ],
  "strategy": {
-  "sha256": "d49f0f3792627cd5b0279956c7b67690af1507b5beec264cbf5e4606f437b6b8",
-  "rule": "lcfr",
-  "column": "linear",
-  "iteration": 2000000,
-  "workers": 10,
+  "sha256": "44e042f0a448331073acb5d726788877041035dba7d324c762af9095c95c0e75",
+  "release": "rung4-deep-pot0.5-t200",
+  "asset": "deep-pot0.5-256x4-s16000-lr5e-4-t200-exact.npz",
+  "rule": "deep",
+  "column": "exact",
+  "iteration": 200,
+  "workers": 0,
   "seed": 0
+ },
+ "grade": {
+  "exploitability": 0.08591359915074376,
+  "valueP0": -0.10580907636152471,
+  "handsPerSeat": 2000000,
+  "file": "figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json",
+  "key": "deep/00200/exact"
  }
 }

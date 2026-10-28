@@ -29,6 +29,13 @@
 
 import { MiniData, type Fetcher, type MiniIndex } from './data'
 
+/**
+ * The two blocks every manifest of a shipped strategy opens with — `/solver`'s
+ * `index.json` and `/rung3`'s deal-pack manifest alike, written by one Python
+ * routine — so both pages describe a strategy in the same words.
+ */
+export type StrategyManifest = Pick<MiniIndex, 'strategy' | 'grade'>
+
 export type StrategyId = 'tabular' | 'deep-pi' | 'deep-exact'
 
 export interface StrategyChoice {
@@ -82,9 +89,11 @@ function hands(n: number): string {
  * The status line's words for a loaded manifest. A tabular rule is named by
  * its rung-3 rule in capitals and its lockstep size; the deep rule by the
  * object its column names. The grade is quoted to three decimals, the way
- * the run log and the README quote every grade.
+ * the run log and the README quote every grade. The Play tab on `/rung3`
+ * reads its deal pack's manifest through this too, so the bot there is named
+ * exactly as the Learn tab names the same strategy.
  */
-export function describeStrategy(index: MiniIndex): StrategyWords {
+export function describeStrategy(index: StrategyManifest): StrategyWords {
   const { strategy, grade } = index
   const seen = grade ? ` · ${hands(grade.handsPerSeat)} hands per seat` : ''
   if (strategy.rule === 'deep') {

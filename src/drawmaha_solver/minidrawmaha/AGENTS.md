@@ -18,7 +18,9 @@ Three subpackages, and one module that stays alone on purpose:
   LCFR average, a release asset pinned by SHA-256), `analysis`
   (`minidraw-analysis`, writes `figures/rung3/`), `play` (`minidraw-play`),
   `deal_pack` (`minidraw-deals`, the `/rung3` trainer's pack), `range_export`
-  (`minidraw-ranges`, the `/solver` export).
+  (`minidraw-ranges`, the `/solver` export), `releases` (the catalogue both
+  exporters read: every released strategy, its digest, and where its grade
+  is recorded).
 - `exploitability.py` — the exact meter. It imports `rules/` only, nothing
   from `solver/`, and stays at this level to make that visible.
 

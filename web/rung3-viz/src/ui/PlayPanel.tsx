@@ -32,14 +32,19 @@ import {
   type Session,
 } from '../play'
 import { loadedDeals, type PackState } from '../deals'
-import { FROZEN, WORKERS } from '../research'
+import { describeStrategy } from '../../../solver-viz/src/mini/strategies'
 import { Panel } from './site'
 
 /**
- * One hand against the frozen strategy, on the oval table rung 2 drew, with
+ * One hand against the shipped strategy, on the oval table rung 2 drew, with
  * three cards a seat and two on the board. The bot reads its mix out of the
  * deal pack and never adapts. Seats alternate each hand; both holdings are
  * revealed at settlement, a fold included, because the point is the line.
+ *
+ * Which strategy, and how it grades, is read off the pack's manifest — the
+ * same two blocks `/solver`'s manifests carry, named through the same
+ * `describeStrategy` — never typed here, so a re-export of the pack against
+ * another release changes what the panel says without a code change.
  *
  * The session (hand, bankroll, the deals still to come) lives in App so
  * flipping tabs does not tear down a hand in progress. The transitions are
@@ -51,7 +56,7 @@ import { Panel } from './site'
 const pct = (x: number): string => `${(x * 100).toFixed(0)}`
 
 /** The seat's own value when the strategy plays itself: what matching the bot averages. */
-const seatValue = (seat: 0 | 1): number => (seat === 0 ? FROZEN.value_p0 : -FROZEN.value_p0)
+const seatValue = (valueP0: number, seat: 0 | 1): number => (seat === 0 ? valueP0 : -valueP0)
 
 const signed = (n: number, digits = 0): string => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(digits)}`
 
@@ -264,6 +269,16 @@ export function PlayPanel({
     return `${signed(session.seatChips[seat] / n, 3)} over ${n}`
   }
 
+  // A hand exists only once the pack loaded, so the manifest is here; its grade may still be null.
+  const manifest = pack.manifest
+  const grade = manifest?.grade ?? null
+  const words = manifest ? describeStrategy(manifest) : null
+  const facing = words ? `${words.name}, ${words.detail}` : 'the strategy in the deal pack'
+  const graded = grade
+    ? ` — exploitable for ${grade.exploitability.toFixed(4)} chips/hand by a perfect adversary`
+    : ' — ungraded'
+  const seatWorth = (seat: 0 | 1) => (grade ? ` · seat worth ${signed(seatValue(grade.valueP0, seat), 3)}` : '')
+
   return (
     <Panel
       n="07"
@@ -271,7 +286,7 @@ export function PlayPanel({
       k={`Fig. 7 · hand ${hands + 1} — you are P${you}`}
       live={!over}
       title="Play the solver."
-      say={`The bot reads the frozen LCFR average at ${(FROZEN.iteration * WORKERS / 1e6).toFixed(0)}M hands per seat — exploitable for ${FROZEN.exploitability.toFixed(4)} chips/hand by a perfect adversary. It never adapts. Seats alternate; both holdings show at the end.`}
+      say={`The bot reads ${facing}${graded}. It never adapts. Seats alternate; both holdings show at the end.`}
       label="Play a hand against the solver"
     >
       <div className="playwrap">
@@ -354,11 +369,11 @@ export function PlayPanel({
           <dd>{hands === 0 ? '—' : signed(chips / hands, 3)}</dd>
         </div>
         <div>
-          <dt>as P0 · seat worth {signed(seatValue(0), 3)}</dt>
+          <dt>as P0{seatWorth(0)}</dt>
           <dd className="seat">{perSeat(0)}</dd>
         </div>
         <div>
-          <dt>as P1 · seat worth {signed(seatValue(1), 3)}</dt>
+          <dt>as P1{seatWorth(1)}</dt>
           <dd className="seat">{perSeat(1)}</dd>
         </div>
       </dl>
@@ -369,7 +384,7 @@ export function PlayPanel({
         {pack.error && pack.manifest
           ? `A later chunk was refused (${pack.error}), so play goes on with the hands already in and comes round to them again. `
           : ''}
-        Matching the bot in both seats averages zero; a perfect adversary makes at most {signed(FROZEN.exploitability, 3)} a hand. A hand swings by several chips, so short sessions are mostly noise.
+        Matching the bot in both seats averages zero{grade ? `; a perfect adversary makes at most ${signed(grade.exploitability, 3)} a hand` : ''}. A hand swings by several chips, so short sessions are mostly noise.
       </p>
     </Panel>
   )

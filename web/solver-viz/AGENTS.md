@@ -5,11 +5,12 @@ Two games behind one interface, and they are not equally real:
 - **Mini-drawmaha is exact, and three strategies sit behind one switch.**
   `public/mini/`, `public/mini-deep-pi/` and `public/mini-deep-exact/` are
   the exports written by `uv run minidraw-ranges --release tabular|deep-pi|deep-exact`
-  from the released strategies (`RELEASES` in
-  `src/drawmaha_solver/minidrawmaha/answer/range_export.py`: rung 3's
-  tabular LCFR, and rung 4's Deep CFR at iteration 500 as Π and as the
-  exact average): one file per public decision point, plus the key tables
-  per shape. The three exports share their key tables and point walk byte
+  from the released strategies (the entries of `RELEASES` in
+  `src/drawmaha_solver/minidrawmaha/answer/releases.py` that name a
+  directory: rung 3's tabular LCFR, and rung 4's Deep CFR at iteration 500
+  as Π and as the exact average; the catalogue's other entries are the deal
+  pack's, not behind this switch): one file per public decision point, plus
+  the key tables per shape. The three exports share their key tables and point walk byte
   for byte and differ only in the chunks, which is what lets the switch
   (`src/mini/strategies.ts`, the strategy as the hash's third segment in
   `src/ui/hash.ts`) change the export under a spot while the line, the held
