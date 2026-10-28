@@ -57,9 +57,9 @@ export function Ribbon({
             const cw = m.c * W
             return (
               <g key={i}>
-                <rect x={0} y={y} width={fw} height={rowH + 0.4} fill="var(--fold)" />
-                <rect x={fw} y={y} width={cw} height={rowH + 0.4} fill="var(--call)" />
-                <rect x={fw + cw} y={y} width={Math.max(0, W - fw - cw)} height={rowH + 0.4} fill="var(--pot)" />
+                <rect x={0} y={y} width={fw} height={rowH + 0.4} fill="var(--fold-fill)" />
+                <rect x={fw} y={y} width={cw} height={rowH + 0.4} fill="var(--call-fill)" />
+                <rect x={fw + cw} y={y} width={Math.max(0, W - fw - cw)} height={rowH + 0.4} fill="var(--pot-fill)" />
               </g>
             )
           })}

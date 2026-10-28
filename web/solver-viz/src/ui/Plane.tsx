@@ -15,7 +15,7 @@ export function Plane({ cells, bins, hand }: { cells: Cell[]; bins: number; hand
   const inner = W - pad * 2
   const cw = inner / bins
   const maxShare = Math.max(1e-9, ...cells.map((c) => c.share))
-  const colour = (k: 'f' | 'c' | 'p') => (k === 'p' ? 'var(--pot)' : k === 'f' ? 'var(--fold)' : 'var(--call)')
+  const colour = (k: 'f' | 'c' | 'p') => (k === 'p' ? 'var(--pot-fill)' : k === 'f' ? 'var(--fold-fill)' : 'var(--call-fill)')
   return (
     <div className="plane">
       <div className="lbl">the two equities</div>

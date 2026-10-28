@@ -80,8 +80,9 @@ PRESSABLES = {
     # rung 3's buttons are all the theme's .btn; the race chart is hovered, not pressed
     "rung3-viz": (),
     # the range interface: the score's chips, the header's controls, the filter
-    # chips, the grid's cells, the ledger's rows, the ribbon's keys, the deck
-    "solver-viz": (".score .act", ".hbtn", ".seg button", ".cell", ".lrow", ".key", ".dcard", ".pickcard"),
+    # chips, the grid's cells, the ledger's rows, the ribbon's keys, the deck,
+    # and the hand so far's steps, options, board cards and picker cards
+    "solver-viz": (".score .act", ".hbtn", ".seg button", ".cell", ".lrow", ".key", ".dcard", ".sofar .tok", ".sofar .opt", ".sofar .bp", ".sofar .pk"),
     "index.html": (
         ".btn",
         ".navbtn",

@@ -6,6 +6,21 @@
  * and the margins carry each row's and column's own mix. Drawmaha's answer
  * to the hold'em 13×13.
  *
+ * The squares are sized against the view, not against the whole range. The
+ * largest region in view fills its cell (`MARK.max` on a side) and every
+ * other region's square has the area it deserves relative to that one:
+ * side ∝ √(share / maxShare), so a region a quarter the size is half as
+ * wide, and a region too small to draw honestly is still a `MARK.min` chip.
+ * Sized against the whole range instead, a node whose weight is spread over
+ * forty regions drew forty tiny squares in forty wide cells and the eye
+ * could not compare them; sized against the largest, the comparison is the
+ * whole figure. `maxShare` is taken over `view.cells`, which `gridView`
+ * computes under the row/column mask, so a filtered-off region has share 0
+ * and never sets the maximum: narrowing the filter is a zoom, the survivors
+ * grow to fill the frame. Every node and every filter normalises on its own,
+ * so a square's size says nothing across spots, only across the cells beside
+ * it — the percentage in the corner is the number that carries over.
+ *
  * The filter chips above the grid keep whole rows or columns; the pinned
  * cell is the one the ledger is open at. Columns are made-hand × draw
  * composites on purpose: on most flops the made-hand axis alone is four
@@ -24,6 +39,37 @@ export interface Pin {
 
 /** The action most of a cell takes, for the small label in its corner. */
 export const dominant = (c: Cell): 'f' | 'c' | 'p' => (c.p > c.c && c.p > c.f ? 'p' : c.f > c.c ? 'f' : 'c')
+
+/**
+ * The mark's sizes in px. `max` is the side of the largest region's square:
+ * the 84 px cell less its label strip (the corner word and the percentage
+ * share one line across the top, 17 px with the padding) and 4 px below, so
+ * the square fills what is left of the cell at any width above ~70 px
+ * and never runs under a label. `min` is the chip a region keeps however
+ * small its share, so a <0.1% region is a visible dot and not a missing
+ * cell; it is 9% of `max`, where the old floor was 18% of the old maximum.
+ */
+export const MARK = { max: 56, min: 5 } as const
+
+/**
+ * The side of a region's square, in px, from its share and the largest share
+ * in view: `max` at the largest region, `min` at nothing, and in between
+ * side ∝ √(share / maxShare), so the *area* is the honest comparison — a
+ * region with a quarter of the largest share gets half its side. A share at
+ * or above `maxShare`, or a `maxShare` of zero, is clamped to `max` rather
+ * than left to divide by nothing.
+ *
+ * The rectangle variant — fill the cell's inner width as well as its height,
+ * with the same √ law on both — is `{ width: `${100 * side / max}%`, height:
+ * side }` on the same `side`; it was not taken because similar rectangles
+ * change shape with the viewport and the bands of a wide, short mark read as
+ * a second mix bar rather than as a square's fill.
+ */
+export function sideOf(share: number, maxShare: number, max: number = MARK.max, min: number = MARK.min): number {
+  if (!(share > 0)) return min
+  if (!(maxShare > 0) || share >= maxShare) return max
+  return Math.min(max, Math.max(min, Math.sqrt(share / maxShare) * max))
+}
 
 export function Grid({
   game,
@@ -48,7 +94,8 @@ export function Grid({
 }) {
   const INNER_ROWS = game.rows
   const OUTER_COLS = game.cols
-  const maxShare = Math.max(1e-9, ...view.cells.flat().map((c) => c.share))
+  // Over the cells in view: under a filter the masked-off regions have share 0 (see the docstring).
+  const maxShare = Math.max(0, ...view.cells.flat().map((c) => c.share))
   const toggle = (set: ReadonlySet<number> | null, i: number, size: number): ReadonlySet<number> | null => {
     const next = new Set(set ?? [])
     if (next.has(i)) next.delete(i)
@@ -103,8 +150,8 @@ export function Grid({
         ))}
       </div>
       <p className="legend-line">
-        rows: the {inHand} in hand · columns: two of them with the board · a square's area is the region's share of the whole range · its bands are the mix ·
-        corner word: what most of the region does
+        rows: the {inHand} in hand · columns: two of them with the board · a square's area is the region's share, relative to the largest region in view · its
+        bands are the mix · corner word: what most of the region does
       </p>
     </div>
   )
@@ -123,7 +170,7 @@ export function Grid({
           const cell = view.cells[i][j]
           const pinned = pin?.row === i && pin?.col === j
           if (cell.n === 0) return <div key={c.label} className="cell empty" aria-hidden />
-          const side = Math.max(9, Math.sqrt(cell.share / maxShare) * 50)
+          const side = sideOf(cell.share, maxShare)
           const dom = dominant(cell)
           return (
             <button
@@ -134,13 +181,15 @@ export function Grid({
               aria-pressed={pinned}
               aria-label={`${r.long} × ${c.long}: ${pct(cell.share)} of the range; fold ${pct(cell.f)}, ${word('c')} ${pct(cell.c)}, pot ${pct(cell.p)}`}
             >
-              <span className={`dom ${dom}`}>{word(dom)}</span>
+              <span className="lab">
+                <span className={`dom ${dom}`}>{word(dom)}</span>
+                <span className="pct">{cell.share >= 0.001 ? pct(cell.share) : '<0.1%'}</span>
+              </span>
               <span className="sq" style={{ width: side, height: side }}>
                 <i className="p" style={{ flex: cell.p }} />
                 <i className="c" style={{ flex: cell.c }} />
                 <i className="f" style={{ flex: cell.f }} />
               </span>
-              <span className="pct">{cell.share >= 0.001 ? pct(cell.share) : '<0.1%'}</span>
             </button>
           )
         })}
