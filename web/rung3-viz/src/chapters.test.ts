@@ -22,15 +22,19 @@ describe('the research page is numbered in page order', () => {
     expect(rendered).toEqual(declared.map((c) => c.id))
   })
 
-  it('numbers its figures 1..N in the order they appear', () => {
+  it('numbers its figures 1..N in the order they appear, every one a literal', () => {
+    const opened = (source.match(/<Figure\b/g) ?? []).length
     const figures = [...source.matchAll(/<Figure\s+n=\{(\d+)\}/g)].map((m) => Number(m[1]))
+    expect(figures.length).toBe(opened)
     expect(figures.length).toBeGreaterThan(0)
     expect(figures).toEqual(figures.map((_, i) => i + 1))
   })
 
-  it('cites no chapter number past the last one', () => {
+  it('cites no chapter number past the last one, counting every number in a phrase and across a wrapped line', () => {
     const last = [...source.matchAll(/<Chapter id="ch-(\d\d)"/g)].length
-    const cited = [...source.matchAll(/[Cc]hapters? (\d\d)/g)].map((m) => Number(m[1]))
+    const phrases = [...source.matchAll(/[Cc]hapters?\s+(\d\d(?:\s*(?:,|and|to|–)\s*\d\d)*)/g)].map((m) => m[1])
+    const cited = phrases.flatMap((p) => (p.match(/\d\d/g) ?? []).map(Number))
+    expect(cited.length).toBeGreaterThan(0)
     for (const n of cited) expect(n).toBeLessThanOrEqual(last)
   })
 })
