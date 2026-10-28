@@ -191,8 +191,10 @@ class DeepConfig:
     # Each regret sample is divided by its spot's pot to this power before the
     # refit; see `pot_scaled`. 0 is the spec's raw chips; 1/2, the default
     # since 2026-10-27, weighs each spot by what a σ mistake there costs, and
-    # cut the 4 × 256 arm's exact average by a quarter at 2M hands per seat
-    # (`docs/notes/rung4-run-log.md`).
+    # cut the 4 × 256, 16,000-step, lr 5e-4 arm's exact average by a quarter
+    # at 2M hands per seat, one seed (`docs/notes/rung4-run-log.md`, finding
+    # 7). That arm ran at half this config's `lr`: √pot with lr 1e-3 has not
+    # been run, so the quarter is the 5e-4 pairing's, not this default's.
     pot_power: float = 0.5
     grid: tuple[int, ...] = GRID
     # The resume state carries 3.6 GB of memories at the run's C, so 30
@@ -544,8 +546,16 @@ def config_from_saved(record: Mapping) -> DeepConfig:
 
     `record` is a config as JSON left it: the grid a list, and any field in
     `ADDED_LATER` possibly absent, in which case it takes the value that
-    run had. Bad values are refused by name, as `DeepConfig` refuses them.
+    run had. Bad values are refused by name, as `DeepConfig` refuses them,
+    and so is a field this code does not know: that record was written by
+    newer code, and this code cannot continue the run it describes.
     """
+    unknown = sorted(set(record) - set(DeepConfig.__dataclass_fields__))
+    if unknown:
+        raise ValueError(
+            f"the saved config has fields this code does not know: {', '.join(unknown)}; "
+            "it was written by newer code, and only that code can continue the run"
+        )
     saved = {**ADDED_LATER, **record}
     saved["grid"] = tuple(saved["grid"])
     return DeepConfig(**saved)
@@ -950,9 +960,13 @@ def rule_targets(targets: np.ndarray, t: np.ndarray, *, now: int, rule: str) -> 
 def spot_pots() -> np.ndarray:
     """The pot at each of the 141 public decision points, in the table's point order; (141,) float64.
 
-    Read from the betting line alone (`chip_state`), so it is a property of
-    the spot: 2 at the ante, 52 after three pot-limit raises. Built once a
-    process, as `layout` is.
+    `ChipState.pot` after replaying the betting line alone (`chip_state`):
+    every chip in the middle as the actor decides, the bet they face
+    included, so it is a property of the spot and not of the hand. The
+    seven pots the game reaches are 2, 4, 6, 12, 18, 35 and 52: 2 at the
+    ante, 12 for the opener facing the raise, 35 facing the all-in third
+    bet, and 52, the largest, once that bet is called and the hand goes to
+    the draw. Built once a process, as `layout` is.
     """
     pots = np.array([chip_state(point.betting).pot for point in layout().points], dtype=np.float64)
     pots.setflags(write=False)
@@ -974,9 +988,11 @@ def pot_scaled(rows: np.ndarray, targets: np.ndarray, *, power: float) -> np.nda
     constant across its actions, and regret matching, which reads only the
     sign pattern and the ratios of a row (`RegretMatcher.strategy`, and the
     all-negative one-hot `materialise` writes), plays the same σ from the
-    scaled regrets as from the raw ones. A divisor drawn from the sampled
-    hand's outcome would reweight samples within a spot and move its mean;
-    this one cannot.
+    scaled regrets as from the raw ones. That is exact for the regrets
+    themselves, a spot's true mean or any sample of it; what the fitted net
+    gets wrong, and so the σ it actually plays, is what the weighting moves,
+    and is the point. A divisor drawn from the sampled hand's outcome would
+    reweight samples within a spot and move its mean; this one cannot.
 
     What k does: dividing by pot^k leaves a weight of how often × pot^(2 − 2k).
     k = 0 is raw chips, pot². k = 1/2 leaves how often × pot, the chips a

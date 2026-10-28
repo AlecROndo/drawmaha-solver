@@ -48,10 +48,11 @@ itself is complete; what remains is the paid run and its grades.
   resumed them under ½ with nothing in the log.
 - **The refit's targets are each regret sample over its spot's pot^k**
   (`pot_scaled`, k = `pot_power`, ½ by default). The divisor is the spot's,
-  never the sampled outcome's, so regret matching plays the same σ; what it
-  changes is where the squared-error fit spends its accuracy. A divisor that
-  varied within a spot would move the spot's mean regret and be a different
-  algorithm.
+  never the sampled outcome's, so regret matching plays the same σ from the
+  same regrets; what it changes is where the squared-error fit spends its
+  accuracy, and so what the fitted net gets wrong and the σ actually played.
+  A divisor that varied within a spot would move the spot's mean regret and
+  be a different algorithm.
 - **An observer that carries state has `name`, `save` and `load`**
   (`StatefulObserver` in `train.py`; `ExactAverage` in `average.py` is the one). Its file
   joins the resume set and every mark, named in `state.json`. A resume

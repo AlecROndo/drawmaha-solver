@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import os
 import signal
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import numpy as np
@@ -63,6 +63,7 @@ from drawmaha_solver.minidrawmaha.solver.lockstep import (
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.solver.regret_rules import Average, RegretRule
 from drawmaha_solver.minidrawmaha.answer.strategy import StrategyInfo
+from drawmaha_solver.regret_matching import RegretMatcher
 
 # ---------------------------------------------------------------------------
 # Spies
@@ -697,6 +698,14 @@ def test_a_state_written_before_pot_scaling_existed_was_a_raw_run_and_resumes_as
         drive(tmp_path, 2)
     assert drive(tmp_path, 2, replace(DRIVEN, pot_power=0.0)).t == 2
 
+def test_a_saved_config_with_a_field_this_code_does_not_know_is_refused_by_name():
+    # The mirror case of `ADDED_LATER`: a record from newer code. It is a
+    # `ValueError` naming the field, like every other refusal, not the bare
+    # `TypeError` `DeepConfig(**saved)` would raise.
+    carried = {**asdict(DeepConfig()), "grid": list(GRID), "coinage": 3}
+    with pytest.raises(ValueError, match="coinage"):
+        train.config_from_saved(carried)
+
 def test_a_changed_config_is_refused_before_the_memories_are_read(tmp_path):
     drive(tmp_path, 2)
     # A refusal must cost a read of state.json, not of the 3.6 GB behind it:
@@ -802,16 +811,16 @@ def test_pot_scaling_leaves_the_strategy_regret_matching_plays_unchanged():
     rows = rng.integers(0, built.row_offset[-1], size=500)
     targets = rng.normal(scale=10.0, size=(500, 4)).astype(np.float32)
     scaled = pot_scaled(rows, targets, power=0.5)
-    # Regret matching normalises the positive part; the all-negative row is
-    # the argmax one-hot (`materialise`). Both read only each row's ratios.
+    # The ledger's own `strategy()` normalises the positive part; a row with
+    # none is the argmax one-hot (`materialise`, torch-bound, so its rule is
+    # run on scaled regrets in `test_train_torch.py`). Both read only ratios.
     for before, after in zip(targets, scaled, strict=True):
         assert (before > 0).tolist() == (after > 0).tolist()
         if (before > 0).any():
-            np.testing.assert_allclose(
-                np.maximum(after, 0) / np.maximum(after, 0).sum(),
-                np.maximum(before, 0) / np.maximum(before, 0).sum(),
-                rtol=1e-5,
-            )
+            raw, pot = RegretMatcher(4), RegretMatcher(4)
+            raw.cumulative_regret = before.astype(np.float64)
+            pot.cumulative_regret = after.astype(np.float64)
+            np.testing.assert_allclose(pot.strategy(), raw.strategy(), rtol=1e-5)
         else:
             assert np.argmax(after) == np.argmax(before)
 

@@ -106,9 +106,11 @@ spot by how often it is reached × pot², which makes the 52-chip spots count 67
 last. *Why dividing is free:* the divisor is the pot at the decision, which every sample at
 that spot shares, so the spot's mean regret is scaled by one constant across its actions and
 regret matching, which reads only a row's sign pattern and ratios, plays the same σ from the
-scaled regrets as from the raw ones. A divisor that depended on the sampled hand's outcome
-would reweight samples within a spot and move its mean; this one cannot (`pot_scaled` in
-`train.py`; `tests/deepcfr/test_train.py` pins the σ invariance). *What k does:* dividing by
+scaled regrets as from the raw ones. That is exact for the regrets themselves, a spot's true
+mean or any sample of it; what the fitted net gets wrong, and so the σ it actually plays, is
+what the weighting moves, and is the point. A divisor that depended on the sampled hand's
+outcome would reweight samples within a spot and move its mean; this one cannot (`pot_scaled`
+in `train.py`; `tests/deepcfr/test_train.py` pins the σ invariance). *What k does:* dividing by
 pot^k leaves a weight of how often × pot^(2 − 2k). k = ½ leaves how often × pot, the chips a
 σ mistake at that spot costs the player; k = 1 weighs every spot alike, however small its
 pot. The accuracy the net gives up at the biggest pots it spends at the many small ones,
@@ -124,9 +126,15 @@ chip-cost argument picks, so k = ½ is the default for new runs. The t = 10 grad
 other way, both pot arms worse than raw early (0.879 and raw 0.643), as a longer fit was
 worse early in finding 2; compare arms at t ≥ 100. The full-rate arm (lr 1e-3, raw targets)
 is a separate, single-seed gain over 5e-4 (0.104 against 0.115 at 2M hands): √pot with
-lr 1e-3 together has not been run, and the lr default is unchanged. Whether the pot arms
-flatten where the raw arm did (0.108 at t = 500) is the next thing to grade; both were stopped
-at t = 200.
+lr 1e-3 together has not been run, and the lr default is unchanged, so the default config
+(√pot at lr 1e-3) is a pairing no arm has graded. One more confound: `fit.py` does not
+normalise its targets (each row is weighted by t over the batch's mean t, nothing else), so
+dividing them by up to √52 ≈ 7.2 also shrinks the residuals, and with them the gradient norms
+the clip of 1.0 sees. Adam's step is scale-free, the clip is not: it bites less often in the
+pot arms than in the raw arm, so part of the gain may be a changed clipping regime rather than
+the reweighting. A raw arm with a looser clip would separate the two; it has not been run.
+Whether the pot arms flatten where the raw arm did (0.108 at t = 500) is the next thing to
+grade; both were stopped at t = 200.
 
 ## The Modal main run: started, then stopped
 
@@ -206,7 +214,10 @@ its state reads as raw chips, and a resume under the new default is refused by n
   16,000-step arm answered the fit-size question in the negative (a longer refit does not move
   the 4 × 256 floor), so the run's net and refit are Alec's call from the arms above.
 - The tᵞ sample-weight arm (γ = 0 vanilla, γ = 2 quadratic). Linear is γ = 1.
-- ÷ √pot with lr 1e-3: the two single-seed gains of finding 7 have not been tried together.
+- ÷ √pot with lr 1e-3: the two single-seed gains of finding 7 have not been tried together,
+  and it is the pairing the default config now runs.
+- A raw arm with a looser gradient clip, to separate the pot weighting from the clipping
+  regime it changes (finding 7's last caveat).
 - The pot arms past t = 200: whether they flatten where the raw arm did.
 - A second seed for any arm. Every comparison above is one seed, so differences under ~10% are
   suggestive, not settled.
