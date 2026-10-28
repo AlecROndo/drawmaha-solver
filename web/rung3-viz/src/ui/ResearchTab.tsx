@@ -34,6 +34,7 @@ import {
 } from '../research'
 import { AveragesChart } from './AveragesChart'
 import { ColumnsChart } from './ColumnsChart'
+import { currentSection } from './contents'
 import { DeepRaceChart } from './DeepRaceChart'
 import { Figure } from './Figure'
 import { fraction } from './scales'
@@ -89,13 +90,15 @@ function Chapter({ id, title, children }: { id: string; title: React.ReactNode; 
 }
 
 /**
- * Which entry of the contents rail the reader is at: the last section whose
- * top has crossed a reading line a third of the way down the viewport, or the
- * last section once the page is scrolled to its end (the methods are short
- * enough that their top may never reach the line). Nothing is current above
- * chapter 01. Measured on scroll and resize, one layout read per section,
- * coalesced to a frame; the hash jump the rail's links make is a scroll like
- * any other, so the box follows a click too.
+ * Which entry of the contents rail the reader is at (`currentSection` in
+ * `contents.ts` makes the call): the last section whose top has crossed a
+ * reading line 30% of the way down the viewport, or the last section once a
+ * page that scrolls is at its end (the methods are short enough that their
+ * top may never reach the line). Nothing is current above chapter 01.
+ * Measured on scroll, on resize and whenever the body changes height (a
+ * figure or a font sizing late), one layout read per section, coalesced to a
+ * frame; the hash jump the rail's links make is a scroll like any other, so
+ * the box follows a click too.
  */
 function useCurrentSection(ids: readonly string[]): string | null {
   const [current, setCurrent] = useState<string | null>(null)
@@ -104,13 +107,10 @@ function useCurrentSection(ids: readonly string[]): string | null {
     const measure = () => {
       frame = 0
       const line = Math.max(innerHeight * 0.3, 120)
-      const atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 2
-      let at: string | null = null
-      for (const id of ids) {
-        const el = document.getElementById(id)
-        if (el && el.getBoundingClientRect().top <= line) at = id
-      }
-      setCurrent(atEnd ? (ids.at(-1) ?? null) : at)
+      const atEnd = scrollY > 0 && scrollY + innerHeight >= document.documentElement.scrollHeight - 2
+      const tops = ids.map((id) => document.getElementById(id)?.getBoundingClientRect().top ?? Infinity)
+      const at = currentSection(tops, line, atEnd)
+      setCurrent(at < 0 ? null : ids[at])
     }
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(measure)
@@ -118,10 +118,13 @@ function useCurrentSection(ids: readonly string[]): string | null {
     measure()
     addEventListener('scroll', schedule, { passive: true })
     addEventListener('resize', schedule)
+    const grew = new ResizeObserver(schedule)
+    grew.observe(document.body)
     return () => {
       if (frame) cancelAnimationFrame(frame)
       removeEventListener('scroll', schedule)
       removeEventListener('resize', schedule)
+      grew.disconnect()
     }
   }, [ids])
   return current
