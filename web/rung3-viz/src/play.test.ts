@@ -165,6 +165,8 @@ describe('the mix and the roll', () => {
       { n: 0.1, l: 0.6, m: 0.1, t: 0.2 },
       { f: 0.333, c: 0.333, p: 0.334 },
       { f: 0, c: 0.001, p: 0.999 }, // a sliver and an action never taken: no minimum width pads them
+      { n: 0.001, l: 0.063, m: 0.936, t: 0 }, // a never-taken action LAST: the running sum before it is 100.00000000000001 uncapped
+      { n: 0.001, l: 0.02, m: 0.979, t: 0 }, // the same with the noise the other way: 99.99999999999999, so `t` is a hair wide, not negative
     ]
     for (const mix of mixes) {
       const bands = segments(mix)
@@ -172,6 +174,7 @@ describe('the mix and the roll', () => {
       expect(bands[0].start).toBe(0)
       expect(bands[bands.length - 1].end).toBe(100) // pinned: the thousandths' float sum lands a hair off on its own
       bands.slice(1).forEach((b, i) => expect(b.start).toBe(bands[i].end))
+      bands.forEach((b) => expect(b.end, `${b.act} under ${JSON.stringify(mix)}`).toBeGreaterThanOrEqual(b.start))
       for (let roll = 0; roll < 100; roll++) {
         const under = bands.find((b) => b.start <= roll && roll < b.end)
         expect(under?.act, `roll ${roll} under ${JSON.stringify(mix)}`).toBe(prescribed(mix, roll))

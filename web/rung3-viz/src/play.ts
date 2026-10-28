@@ -202,8 +202,10 @@ const present = (mix: Mix): Act[] => AGGRESSION.filter((a) => a in mix)
  * gaps. A roll is an integer in 0–99 (`Math.floor(uniform() * 100)` in
  * `drive`), and a pack vector partitions 1000 exactly, so the shares sum
  * to one; but `/ 1000 * 100` is float arithmetic and the running sum can
- * land a hair either side of 100, so the last segment's end is pinned to
- * 100 and the tiling is exact rather than close. `prescribed` reads the
+ * land a hair either side of 100, so every end is capped at 100 and the
+ * last is pinned to it: the tiling is exact rather than close, and an
+ * action with no share at the end of the order gets a band of zero width,
+ * never a negative one. `prescribed` reads the
  * segment the roll fell in, `mistakeOf` the one the played action owns, and
  * the trainer draws the coach's band bar from the same list at the same
  * widths, so the tick it puts at the roll always falls inside the band of
@@ -213,7 +215,7 @@ export function segments(mix: Mix): { act: Act; start: number; end: number }[] {
   const acts = present(mix)
   let start = 0
   return acts.map((act, i) => {
-    const end = i === acts.length - 1 ? 100 : start + (mix[act] ?? 0) * 100
+    const end = i === acts.length - 1 ? 100 : Math.min(100, start + (mix[act] ?? 0) * 100)
     const segment = { act, start, end }
     start = end
     return segment
@@ -222,10 +224,11 @@ export function segments(mix: Mix): { act: Act; start: number; end: number }[] {
 
 /** The [start, end) roll segment (0–100) an action owns under `mix`. */
 function segmentOf(mix: Mix, act: Act): [number, number] {
-  const own = segments(mix).find((s) => s.act === act)
+  const all = segments(mix)
+  const own = all.find((s) => s.act === act)
   if (own) return [own.start, own.end]
-  const total = segments(mix).reduce((sum, s) => sum + (s.end - s.start), 0)
-  return [total, total]
+  const end = all.length ? all[all.length - 1].end : 0 // an action not in the mix: the empty segment past the last
+  return [end, end]
 }
 
 /**
