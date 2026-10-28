@@ -54,7 +54,14 @@ const VARIANTS = { PathScore, StripScore }
 
 type Pressable = { label: string; onClick: () => void }
 
-/** Every <button aria-label> in an element tree, in document order, expanding function components by calling them. */
+/**
+ * Every <button aria-label> in an element tree, in document order, expanding
+ * function components by calling them as plain functions. That is only valid
+ * while neither layout (nor anything they render) calls a hook: the day one
+ * takes a `useState`, this throws React's invalid-hook-call error from inside
+ * the walk, and the fix is to render through a real renderer, not to drop the
+ * click tests.
+ */
 function buttonsOf(node: unknown, out: Pressable[] = []): Pressable[] {
   if (node === null || node === undefined || typeof node === 'boolean' || typeof node === 'string' || typeof node === 'number') return out
   if (Array.isArray(node)) {
@@ -67,8 +74,9 @@ function buttonsOf(node: unknown, out: Pressable[] = []): Pressable[] {
   return buttonsOf(el.props.children, out)
 }
 
-/** The button's inner HTML in a static render, by its aria label. */
-const buttonHtml = (html: string, label: string): string | null => html.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>((?:(?!</button>)[\\s\\S])*)</button>`))?.[1] ?? null
+/** The button's inner HTML in a static render, by its aria label (escaped, so a label is matched literally). */
+const buttonHtml = (html: string, label: string): string | null =>
+  html.match(new RegExp(`<button[^>]*aria-label="${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>((?:(?!</button>)[\\s\\S])*)</button>`))?.[1] ?? null
 
 describe.each(Object.entries(VARIANTS))('%s', (_name, Variant) => {
   for (const s of STATES) {
@@ -160,6 +168,8 @@ describe('the layout switch', () => {
   })
 
   it('exports the default layout where there is no window to read a query string from', () => {
+    // The precondition, stated: vitest runs these under node, so the module saw no window at import.
+    expect(typeof window).toBe('undefined')
     expect(HandScore).toBe(VARIANTS[DEFAULT_LAYOUT === 'path' ? 'PathScore' : 'StripScore'])
   })
 })

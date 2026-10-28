@@ -5,7 +5,7 @@ import { maskFor } from '../engine/filter'
 import { policyFor } from '../engine/policy'
 import { sampleRange } from '../engine/sample'
 import { tableOf } from '../engine/table'
-import { MARK, sideOf } from './Grid'
+import { MARK, maxShareOf, sideOf } from './Grid'
 
 describe('sideOf: the square of a region, sized against the largest region in view', () => {
   it('gives the largest region the whole mark', () => {
@@ -36,8 +36,8 @@ describe('sideOf: the square of a region, sized against the largest region in vi
 })
 
 describe('the mark is sized against the view, so a filter is a zoom', () => {
-  // The same maximum Grid takes: over the cells gridView returns under the mask.
-  const maxOf = (v: GridView) => Math.max(0, ...v.cells.flat().map((c) => c.share))
+  // Grid's own maximum, not a copy of it: over the cells gridView returns under the mask.
+  const maxOf = (v: GridView) => maxShareOf(v)
 
   it('masking off the largest region drops it to share 0 and hands the whole mark to the largest survivor', () => {
     const s = sampleRange(parseBoard('Ks 9s 4d'), 2000, 11)
@@ -48,7 +48,7 @@ describe('the mark is sized against the view, so a filter is a zoom', () => {
     let big = { r: 0, c: 0, share: -1 }
     whole.cells.forEach((row, r) => row.forEach((cell, c) => { if (cell.share > big.share) big = { r, c, share: cell.share } }))
     const kept = new Set(whole.rows.map((row, r) => (row.n > 0 && r !== big.r ? r : -1)).filter((r) => r >= 0))
-    expect(kept.size).toBeGreaterThan(0)
+    expect(kept.size, 'the fixture (Ks 9s 4d, seed 11) must leave mass in a row other than the largest region\'s, or there is nothing to zoom to').toBeGreaterThan(0)
 
     const view = gridView(t, maskFor(s, { rows: kept, cols: null, held: [] }))
     // The masked row is empty in the view: nothing there can set the maximum.

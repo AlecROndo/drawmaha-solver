@@ -76,6 +76,14 @@ export function sideOf(share: number, maxShare: number, max: number = MARK.max, 
   return Math.min(max, Math.max(min, Math.sqrt(share / maxShare) * max))
 }
 
+/**
+ * The largest share in view, the `maxShare` every cell's `sideOf` is sized
+ * against. It is taken over the cells `gridView` returns under the mask, so a
+ * masked-off region (share 0) never sets it and narrowing the filter is a
+ * zoom; the test pins that through this same function rather than a copy.
+ */
+export const maxShareOf = (view: GridView): number => Math.max(0, ...view.cells.flat().map((c) => c.share))
+
 export function Grid({
   game,
   view,
@@ -99,8 +107,7 @@ export function Grid({
 }) {
   const INNER_ROWS = game.rows
   const OUTER_COLS = game.cols
-  // Over the cells in view: under a filter the masked-off regions have share 0 (see the docstring).
-  const maxShare = Math.max(0, ...view.cells.flat().map((c) => c.share))
+  const maxShare = maxShareOf(view)
   const toggle = (set: ReadonlySet<number> | null, i: number, size: number): ReadonlySet<number> | null => {
     const next = new Set(set ?? [])
     if (next.has(i)) next.delete(i)
