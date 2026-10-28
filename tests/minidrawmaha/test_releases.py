@@ -165,3 +165,12 @@ def test_read_grade_refuses_another_mark_s_grade_under_a_release_s_digest(tmp_pa
     drifted = replace(RELEASES["deep-pot-exact"], grade_file="grades.json", grade_key="deep/00500/exact")
     with pytest.raises(ValueError, match="iteration = 500 and the strategy's is 200"):
         read_grade(drifted, DEEP, root=tmp_path)
+
+
+def test_read_grade_refuses_an_entry_that_is_no_grade_by_name(tmp_path):
+    info = StrategyInfo(rule="deep", column="exact", iteration=200, seed=0, workers=0)
+    bare = replace(RELEASES["deep-pot-exact"], grade_file="grades.json")
+    for not_a_grade in ({"value_p0": 0.0, "hands_per_seat": 5}, 0.1, "0.1"):
+        (tmp_path / "grades.json").write_text(json.dumps({"deep/00200/exact": not_a_grade}))
+        with pytest.raises(KeyError, match="records no exploitability"):
+            read_grade(bare, info, root=tmp_path)
