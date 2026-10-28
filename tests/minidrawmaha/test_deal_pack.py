@@ -6,6 +6,7 @@ A stand-in profile plays here (uniform, or a pure one), so nothing needs the
 
 import json
 from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -15,23 +16,32 @@ from drawmaha_solver.minidrawmaha.answer import deal_pack
 from drawmaha_solver.minidrawmaha.rules.cards import DECK, parse_cards
 from drawmaha_solver.minidrawmaha.answer.deal_pack import (
     CHOP,
+    PACK_DIR,
+    PACK_RELEASE,
     PER_MILLE,
     STUB,
     THROW_CODE,
     card_index,
     deal_from_deck,
     export_deal,
+    main,
     per_mille,
     random_decks,
     write_pack,
 )
+from drawmaha_solver.minidrawmaha.answer.releases import RELEASES, REPO
 from drawmaha_solver.minidrawmaha.rules.game import (
     DRAW_ACTIONS,
     Action,
     draw_order,
     pot_shares,
 )
-from drawmaha_solver.minidrawmaha.answer.strategy import StrategyInfo
+from drawmaha_solver.minidrawmaha.answer.strategy import (
+    StrategyInfo,
+    save_strategy,
+    sha256_of,
+    uniform_strategy,
+)
 
 
 class Uniform(Mapping):
@@ -250,11 +260,15 @@ def test_the_pack_is_chunked_with_a_manifest_and_stale_chunks_are_removed(tmp_pa
     out = tmp_path / "deals"
     out.mkdir()
     (out / "pack-07.json").write_text("[]")
-    manifest = write_pack([deal] * 5, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32)
+    manifest = write_pack([deal] * 5, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32, asset="standin.npz")
     assert manifest["chunks"] == ["pack-00.json", "pack-01.json", "pack-02.json"]
     assert manifest["deals"] == 5 and manifest["chunk"] == 2 and manifest["seed"] == 9
     assert manifest["strategy"]["sha256"] == "ab" * 32
     assert manifest["strategy"]["rule"] == "test"
+    # A stand-in is no release: the page has a digest but no number to quote.
+    assert manifest["strategy"]["release"] is None
+    assert manifest["strategy"]["asset"] == "standin.npz"
+    assert manifest["grade"] is None
     assert not (out / "pack-07.json").exists()
     assert not list(out.glob("*.tmp"))
     assert json.loads((out / "index.json").read_text()) == manifest
@@ -265,7 +279,7 @@ def test_the_pack_is_chunked_with_a_manifest_and_stale_chunks_are_removed(tmp_pa
 
 def test_an_export_that_dies_while_staging_leaves_the_previous_pack_whole(tmp_path, deal, monkeypatch):
     out = tmp_path / "deals"
-    before = write_pack([deal] * 5, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32)
+    before = write_pack([deal] * 5, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32, asset="standin.npz")
     (out / "pack-09.json.tmp").write_text("left by an earlier crash")
     real = Path.write_text
 
@@ -276,7 +290,7 @@ def test_an_export_that_dies_while_staging_leaves_the_previous_pack_whole(tmp_pa
 
     monkeypatch.setattr(Path, "write_text", dies_on_the_manifest)
     with pytest.raises(OSError, match="disk full"):
-        write_pack([deal], out, chunk=1, seed=10, info=INFO, sha256="cd" * 32)
+        write_pack([deal], out, chunk=1, seed=10, info=INFO, sha256="cd" * 32, asset="standin.npz")
     assert json.loads((out / "index.json").read_text()) == before
     assert sorted(p.name for p in out.iterdir()) == ["index.json", "pack-00.json", "pack-01.json", "pack-02.json"]
     assert len(json.loads((out / "pack-00.json").read_text())) == 2
@@ -285,18 +299,102 @@ def test_an_export_that_dies_while_staging_leaves_the_previous_pack_whole(tmp_pa
 def test_an_empty_export_or_a_non_positive_chunk_is_refused_before_anything_is_written(tmp_path, deal):
     out = tmp_path / "deals"
     with pytest.raises(ValueError, match="at least one deal"):
-        write_pack([], out, chunk=2, seed=0, info=INFO, sha256="ab" * 32)
+        write_pack([], out, chunk=2, seed=0, info=INFO, sha256="ab" * 32, asset="standin.npz")
     with pytest.raises(ValueError, match="positive number of deals"):
-        write_pack([deal], out, chunk=0, seed=0, info=INFO, sha256="ab" * 32)
+        write_pack([deal], out, chunk=0, seed=0, info=INFO, sha256="ab" * 32, asset="standin.npz")
     with pytest.raises(ValueError, match="positive number of deals"):
-        write_pack([deal], out, chunk=-1, seed=0, info=INFO, sha256="ab" * 32)
+        write_pack([deal], out, chunk=-1, seed=0, info=INFO, sha256="ab" * 32, asset="standin.npz")
     assert not out.exists()
 
 
 def test_a_shorter_export_keeps_the_chunks_it_names_and_removes_the_rest(tmp_path, deal):
     out = tmp_path / "deals"
-    write_pack([deal] * 5, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32)
-    manifest = write_pack([deal] * 3, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32)
+    write_pack([deal] * 5, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32, asset="standin.npz")
+    manifest = write_pack([deal] * 3, out, chunk=2, seed=9, info=INFO, sha256="ab" * 32, asset="standin.npz")
     assert manifest["chunks"] == ["pack-00.json", "pack-01.json"]
     assert sorted(p.name for p in out.iterdir()) == ["index.json", "pack-00.json", "pack-01.json"]
     assert len(json.loads((out / "pack-01.json").read_text())) == 1
+
+
+# ---------------------------------------------------------------------------
+# The CLI and the committed pack
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def standin(tmp_path_factory):
+    """A saved uniform strategy that hashes to no release."""
+    saved = tmp_path_factory.mktemp("standin") / "standin.npz"
+    save_strategy(uniform_strategy(), saved)
+    return saved
+
+
+def test_a_strategy_that_is_no_release_needs_an_out_directory(standin, tmp_path):
+    with pytest.raises(SystemExit):
+        main(["--strategy", str(standin), "--deals", "1", "--chunk", "1"])
+    assert not (tmp_path / "deals").exists()
+
+
+def test_only_the_pack_s_own_release_lands_in_the_shipped_directory_unasked(standin, tmp_path, monkeypatch):
+    """A pack of `/solver`'s or any other release must be told where to go, so the committed pack is replaced on purpose."""
+    other = replace(RELEASES["deep-pot-pi"], sha256=sha256_of(standin), grade_file="figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json")
+    monkeypatch.setattr(deal_pack, "RELEASES", {other.name: other})
+    with pytest.raises(SystemExit):
+        main(["--release", other.name, "--strategy", str(standin), "--deals", "1", "--chunk", "1"])
+    with pytest.raises(SystemExit):
+        main(["--strategy", str(standin), "--deals", "1", "--chunk", "1"])
+    assert not (tmp_path / "deals").exists()
+
+
+def test_a_file_that_hashes_to_no_release_packs_with_no_grade(standin, tmp_path):
+    out = tmp_path / "deals"
+    main(["--strategy", str(standin), "--out", str(out), "--deals", "2", "--chunk", "1", "--seed", "3"])
+    manifest = json.loads((out / "index.json").read_text())
+    assert manifest["deals"] == 2 and manifest["chunks"] == ["pack-00.json", "pack-01.json"]
+    assert manifest["strategy"]["sha256"] == sha256_of(standin)
+    assert manifest["strategy"]["release"] is None
+    assert manifest["strategy"]["rule"] == "uniform"
+    assert manifest["grade"] is None
+
+
+def test_a_file_that_hashes_to_a_release_packs_as_that_release_with_its_grade(standin, tmp_path, monkeypatch):
+    """The documented shortcut: a copy already on this machine is known by its digest and needs no download."""
+    grades = tmp_path / "grades.json"
+    grades.write_text(json.dumps({"test/standin": {"exploitability": 0.25, "value_p0": -0.05, "hands_per_seat": 7}}))
+    # `grade_file` is joined onto the repo root; an absolute path survives the join.
+    packed = replace(RELEASES[PACK_RELEASE], sha256=sha256_of(standin), grade_file=str(grades), grade_key="test/standin")
+    other = RELEASES["deep-pot-pi"]
+    monkeypatch.setattr(deal_pack, "RELEASES", {packed.name: packed, other.name: other})
+    out = tmp_path / "deals"
+    main(["--release", packed.name, "--strategy", str(standin), "--out", str(out), "--deals", "1", "--chunk", "1"])
+    manifest = json.loads((out / "index.json").read_text())
+    assert manifest["strategy"]["sha256"] == packed.sha256
+    assert manifest["strategy"]["release"] == packed.tag
+    assert manifest["strategy"]["asset"] == "standin.npz"
+    assert manifest["grade"] == {
+        "exploitability": 0.25,
+        "valueP0": -0.05,
+        "handsPerSeat": 7,
+        "file": str(grades),
+        "key": "test/standin",
+    }
+    # Named as one release but hashing to another is refused before anything is written.
+    with pytest.raises(ValueError, match="hashes to"):
+        main(["--release", other.name, "--strategy", str(standin), "--out", str(tmp_path / "other")])
+    assert not (tmp_path / "other").exists()
+
+
+def test_the_committed_pack_deals_against_the_pack_release_and_quotes_its_grade():
+    """What `/rung3`'s Play tab reads: the released strategy by digest, and its grade as the grades file records it."""
+    release = RELEASES[PACK_RELEASE]
+    manifest = json.loads((REPO / PACK_DIR / "index.json").read_text())
+    assert manifest["deals"] == 600 and manifest["chunk"] == 100 and manifest["seed"] == 0
+    assert manifest["strategy"]["sha256"] == release.sha256
+    assert manifest["strategy"]["release"] == release.tag
+    assert manifest["strategy"]["asset"] == release.asset
+    assert (manifest["strategy"]["rule"], manifest["strategy"]["column"]) == ("deep", "exact")
+    recorded = json.loads((REPO / release.grade_file).read_text())[release.grade_key]
+    assert manifest["grade"]["exploitability"] == recorded["exploitability"]
+    assert manifest["grade"]["valueP0"] == recorded["value_p0"]
+    assert manifest["grade"]["handsPerSeat"] == recorded["hands_per_seat"]
+    assert (manifest["grade"]["file"], manifest["grade"]["key"]) == (release.grade_file, release.grade_key)

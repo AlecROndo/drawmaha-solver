@@ -37,14 +37,17 @@ pieces of `game.py`/`hands.py` and nothing else, and the fixtures are what
 pin the port to the original. Every number the page shows is read off the
 export; the port only has to NAME things the same way.
 
-The site ships three strategies of the same game, one export each
-(`RELEASES`): rung 3's tabular LCFR average, and rung 4's two Deep CFR
-answers at iteration 500 — Π, the policy net, which is the average a game
-too big for tables can keep, and the exact running average, which
-mini-drawmaha is small enough to hold beside it. Each is a GitHub release
-asset fetched by digest, and each `index.json` carries its grade copied from
-the committed grades file, so the page's status line quotes a number with a
-committed source and the tests hold the copy to the file. The three exports
+`/solver` ships three strategies of the same game, one export each: the
+releases in `releases.py`'s catalogue that name a `directory` — rung 3's
+tabular LCFR average, and rung 4's two Deep CFR answers at iteration 500 —
+Π, the policy net, which is the average a game too big for tables can keep,
+and the exact running average, which mini-drawmaha is small enough to hold
+beside it. (The catalogue also holds the strategy the deal pack ships to
+`/rung3`'s Play tab; it is not exported here unless `--out` says where.)
+Each is a GitHub release asset fetched by digest, and each `index.json`
+carries its grade copied from the committed grades file, so the page's
+status line quotes a number with a committed source and the tests hold the
+copy to the file. The three exports
 share their key tables and their point walk byte for byte — only the chunks
 differ — which is what lets the page switch strategy under a spot without
 changing what the spot's states are. Every export holds a row for every
@@ -79,6 +82,19 @@ from drawmaha_solver.minidrawmaha.rules.cards import (
     parse_cards,
 )
 from drawmaha_solver.minidrawmaha.answer.deal_pack import THROW_CODE, indices
+# `PUBLIC`, `REPO`, `Grade`, `Release`, `read_grade` and `release_of` are re-exported:
+# the tests and the earlier callers import them from here, and the catalogue
+# itself lives in `releases.py` since the deal pack reads it too.
+from drawmaha_solver.minidrawmaha.answer.releases import (  # noqa: F401
+    PUBLIC,
+    RELEASES,
+    REPO,
+    Grade,
+    Release,
+    provenance_json,
+    read_grade,
+    release_of,
+)
 from drawmaha_solver.minidrawmaha.rules.enumeration import (
     PrivateKey,
     PublicPoint,
@@ -101,9 +117,6 @@ from drawmaha_solver.minidrawmaha.rules.hands import (
     outer_score,
 )
 from drawmaha_solver.minidrawmaha.answer.strategy import (
-    RELEASE_TAG,
-    STRATEGY_FILE,
-    STRATEGY_SHA256,
     StrategyInfo,
     fetch_strategy,
     load_strategy,
@@ -177,153 +190,6 @@ FLUSH_PICTURES = (
     ("4c 5c 6c", "", "2c"),
     ("4c 5c 6c", "3d", "2c 3h"),
 )
-
-# ---------------------------------------------------------------------------
-# The releases: the strategies the site ships
-# ---------------------------------------------------------------------------
-
-# The repo root, for the grades files a release names. The package is
-# installed editable, so this file sits under `src/` in the checkout.
-REPO = Path(__file__).resolve().parents[4]
-
-# Where the exports land, relative to the repo root the CLI is run from.
-PUBLIC = Path("web/solver-viz/public")
-
-GITHUB_RELEASES = "https://github.com/AlecROndo/drawmaha-solver/releases/download"
-
-@dataclass(frozen=True, slots=True)
-class Release:
-    """One strategy the site ships: where its file is published, and where its grade is recorded.
-
-    `name` is what `--release` takes and `directory` where the export lands
-    under `web/solver-viz/public/`. The asset is fetched by `tag` and `asset`
-    and refused unless it hashes to `sha256`, so the export is reproducible
-    from a clean checkout. `grade_file` is the committed record the page
-    quotes and `grade_key` the object in it that holds the strategy's
-    `exploitability`; the exporter copies the number into `index.json`, and
-    `test_range_export.py` holds the committed copy to the file.
-    """
-
-    name: str
-    directory: str
-    tag: str
-    asset: str
-    sha256: str
-    grade_file: str
-    grade_key: str
-
-    @property
-    def url(self) -> str:
-        return f"{GITHUB_RELEASES}/{self.tag}/{self.asset}"
-
-    @property
-    def out(self) -> Path:
-        return PUBLIC / self.directory
-
-RELEASES: dict[str, Release] = {
-    release.name: release
-    for release in (
-        Release(
-            name="tabular",
-            directory="mini",
-            tag=RELEASE_TAG,
-            asset=STRATEGY_FILE,
-            sha256=STRATEGY_SHA256,
-            grade_file="figures/rung3/answer_sheet.json",
-            grade_key="frozen_strategy",
-        ),
-        Release(
-            name="deep-pi",
-            directory="mini-deep-pi",
-            tag="rung4-deep-t500",
-            asset="deep-256x4-s16000-lr5e-4-t500-pi.npz",
-            sha256="7aa08383a7f6389bc60633904b050793ed7a3d42cb017c877c3d26ca5a2058a5",
-            grade_file="figures/rung4/sweep_256x4-s16000-lr5e-4.json",
-            grade_key="deep/00500/pi",
-        ),
-        Release(
-            name="deep-exact",
-            directory="mini-deep-exact",
-            tag="rung4-deep-t500",
-            asset="deep-256x4-s16000-lr5e-4-t500-exact.npz",
-            sha256="117c936030b0271c73db516ec4bcedaf83162952ee2a9740e8fd4832424115aa",
-            grade_file="figures/rung4/sweep_256x4-s16000-lr5e-4.json",
-            grade_key="deep/00500/exact",
-        ),
-    )
-}
-
-def release_of(sha256: str) -> Release | None:
-    """The release whose asset hashes to `sha256`, so a local copy of one is treated as it."""
-    return next((release for release in RELEASES.values() if release.sha256 == sha256), None)
-
-@dataclass(frozen=True, slots=True)
-class Grade:
-    """The strategy's exact exploitability as the page quotes it, and where the number was read from."""
-
-    exploitability: float
-    hands_per_seat: int
-    file: str
-    key: str
-
-    def as_json(self) -> dict[str, object]:
-        return {
-            "exploitability": self.exploitability,
-            "handsPerSeat": self.hands_per_seat,
-            "file": self.file,
-            "key": self.key,
-        }
-
-def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Grade:
-    """`release`'s grade from its committed file under `root`.
-
-    The entry's `hands_per_seat` is kept when it is there (rung 4's grades
-    carry it). Rung 3's answer sheet predates the field, and lockstep plays
-    one hand per seat per worker per iteration, so there it is
-    iteration × workers. The fallback is taken only when the field is absent
-    — a recorded 0 is a recorded 0, not a missing field — and neither route
-    may come to zero: a deep strategy records `workers=0` (its hands are
-    counted by the run, not by lockstep), so a deep entry without the field
-    would fall through to 0 × iteration, and the page would print "0 hands".
-    A missing file, a file without the key, a count of zero and a count that
-    is not an integer are each refused by name rather than read as a number
-    the page would then quote.
-    """
-    file = root / release.grade_file
-    if not file.exists():
-        raise FileNotFoundError(
-            f"{release.name}'s grades file {release.grade_file} is not under {root}; the exporter "
-            "reads it from the checkout (the package installed editable), not from site-packages"
-        )
-    recorded = json.loads(file.read_text())
-    if release.grade_key not in recorded:
-        raise KeyError(f"{release.grade_file} has no {release.grade_key}; it holds {sorted(recorded)}")
-    entry = recorded[release.grade_key]
-    recorded_hands = "hands_per_seat" in entry
-    # `type(...) is int`, not `isinstance`: a bool is an int to isinstance, and
-    # a JSON `true` would otherwise be read as one hand.
-    if recorded_hands and type(entry["hands_per_seat"]) is not int:
-        raise ValueError(
-            f"{release.grade_file}'s {release.grade_key} records hands_per_seat = "
-            f"{entry['hands_per_seat']!r}, not an integer"
-        )
-    hands = entry["hands_per_seat"] if recorded_hands else info.iteration * info.workers
-    if hands <= 0:
-        counted = (
-            f"records hands_per_seat = {hands}"
-            if recorded_hands
-            else f"records no hands_per_seat and the strategy's iteration × workers is {info.iteration} × {info.workers}"
-        )
-        raise ValueError(
-            f"{release.grade_file}'s {release.grade_key} {counted}; a grade the page quotes "
-            "must say how many hands it was trained on"
-        )
-    return Grade(
-        exploitability=float(entry["exploitability"]),
-        hands_per_seat=hands,
-        file=release.grade_file,
-        key=release.grade_key,
-    )
 
 # ---------------------------------------------------------------------------
 # The manifest
@@ -400,16 +266,7 @@ class Manifest:
 
     def as_json(self) -> dict[str, object]:
         return {
-            "strategy": {
-                "sha256": self.sha256,
-                "release": self.release.tag if self.release else None,
-                "asset": self.asset,
-                "rule": self.info.rule,
-                "column": self.info.column,
-                "iteration": self.info.iteration,
-                "workers": self.info.workers,
-                "seed": self.info.seed,
-            },
+            "strategy": provenance_json(self.info, sha256=self.sha256, asset=self.asset, release=self.release),
             "grade": self.grade.as_json() if self.grade else None,
             "deck": {"ranks": RANK_SYMBOL, "suits": SUIT_SYMBOL},
             "scale": self.scale,
@@ -715,9 +572,12 @@ def main(argv: list[str] | None = None) -> None:
     experiment can never overwrite a shipped export by default.
     """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    # Only the releases `/solver` carries can be exported to their own directory;
+    # the deal pack's strategy is in the catalogue but not behind the switch.
+    exported = {name: release for name, release in RELEASES.items() if release.exported}
     parser.add_argument(
         "--release",
-        choices=sorted(RELEASES),
+        choices=sorted(exported),
         help="which shipped strategy to fetch and export (default: tabular)",
     )
     parser.add_argument(
@@ -742,18 +602,24 @@ def main(argv: list[str] | None = None) -> None:
     if args.strategy:
         path = args.strategy
         digest = sha256_of(path)
-        release = release_of(digest)
+        release = release_of(digest, RELEASES)
         if args.release and (release is None or release.name != args.release):
             raise ValueError(
                 f"{path} hashes to {digest}, not to release {args.release}'s "
                 f"{RELEASES[args.release].sha256}"
             )
     else:
-        release = RELEASES[args.release or "tabular"]
+        release = exported[args.release or "tabular"]
         path = fetch_strategy(url=release.url, sha256=release.sha256)
         digest = release.sha256
-    if release is None and args.out is None:
-        parser.error(f"{path} is not a shipped strategy; say where its export goes with --out")
+    if args.out is None:
+        if release is None:
+            parser.error(f"{path} is not a shipped strategy; say where its export goes with --out")
+        if not release.exported:
+            parser.error(
+                f"release {release.name} is shipped in the deal pack, not behind /solver's switch; "
+                "say where its export goes with --out"
+            )
     out = args.out or release.out
 
     # The fixtures first: a rules change fails here, before the walk writes anything.

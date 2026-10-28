@@ -52,14 +52,21 @@ export async function loadManifest(fetcher: typeof fetch = fetch): Promise<Manif
 /** What `write_pack` names a chunk, and all a chunk name is allowed to be before it goes into a URL. */
 const CHUNK_NAME = /^pack-\d{2}\.json$/
 
+const DIGEST = /^[0-9a-f]{64}$/
+
 /**
  * Refuse a manifest whose own arithmetic does not close: `deals` in chunks
  * of `chunk` must name exactly ceil(deals / chunk) chunks, and at least one,
  * each a plain `pack-NN.json`. `expectedDeals` divides by this and
- * `loadChunk` fetches by it, so it is checked before anything is.
+ * `loadChunk` fetches by it, so it is checked before anything is. The
+ * `strategy` and `grade` blocks are held to their shape the same way: the
+ * panel prints the digest and formats the grade's numbers, so a stale or
+ * hand-edited manifest is refused here by name rather than thrown from a
+ * render. A null grade is allowed — a pack of a strategy nobody graded — and
+ * the panel then quotes nothing.
  */
 export function checkManifest(manifest: Manifest): void {
-  const { deals, chunk, chunks } = manifest
+  const { deals, chunk, chunks, strategy, grade } = manifest
   const named = Array.isArray(chunks) ? chunks.length : 0
   const whole = Number.isInteger(deals) && deals > 0 && Number.isInteger(chunk) && chunk > 0
   if (!whole || named !== Math.ceil(deals / chunk)) {
@@ -67,6 +74,18 @@ export function checkManifest(manifest: Manifest): void {
   }
   const odd = chunks.find((name) => typeof name !== 'string' || !CHUNK_NAME.test(name))
   if (odd !== undefined) throw new Error(`the manifest names a chunk that is not a pack-NN.json: ${String(odd)}`)
+  if (typeof strategy?.sha256 !== 'string' || !DIGEST.test(strategy.sha256)) {
+    throw new Error(`the manifest's strategy has no SHA-256 digest: ${String(strategy?.sha256)}`)
+  }
+  if (typeof strategy.rule !== 'string' || typeof strategy.column !== 'string' || !Number.isInteger(strategy.iteration)) {
+    throw new Error(`the manifest's strategy is not named by rule, column and iteration: ${JSON.stringify(strategy)}`)
+  }
+  if (grade === null || grade === undefined) return
+  const finite = Number.isFinite(grade.exploitability) && Number.isFinite(grade.valueP0)
+  const counted = Number.isInteger(grade.handsPerSeat) && grade.handsPerSeat > 0
+  if (!finite || !counted) {
+    throw new Error(`the manifest's grade is not a finite exploitability and value with a hand count: ${JSON.stringify(grade)}`)
+  }
 }
 
 export async function loadChunk(name: string, fetcher: typeof fetch = fetch): Promise<Deal[]> {

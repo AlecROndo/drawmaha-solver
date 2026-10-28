@@ -208,6 +208,15 @@ copied into `figures/rung4/` as `sweep_256x4-s16000.json` (lr 1e-3; the name fol
 Finding 7 reads them. A run saved before `pot_power` existed resumes only with `--pot-power 0`:
 its state reads as raw chips, and a resume under the new default is refused by name.
 
+**What shipped from it.** The ÷ √pot arm's two averages at t = 200 are the release
+`rung4-deep-pot0.5-t200` (`deep-pot0.5-256x4-s16000-lr5e-4-t200-exact.npz` and `…-pi.npz`, the
+files `grade` wrote under `runs/pot0.5-…/frozen/`), catalogued with the three earlier releases in
+`src/drawmaha_solver/minidrawmaha/answer/releases.py`. The exact average — 0.086, the best
+graded Deep CFR object so far — is what `uv run minidraw-deals` packs for `/rung3`'s Play tab,
+which quotes that grade from the pack's manifest. `/solver` and the Learn tab still show the
+t = 500 raw arm's Π and exact average (`rung4-deep-t500`); moving them to this release is a
+catalogue edit and a re-export.
+
 ## Not yet run
 
 - The 2,000-iteration Modal run at the chosen size. It was the spec's headline. The

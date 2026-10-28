@@ -11,6 +11,7 @@
  },
  "grade": {
   "exploitability": 0.10794019398465793,
+  "valueP0": -0.1192499398900545,
   "handsPerSeat": 5000000,
   "file": "figures/rung4/sweep_256x4-s16000-lr5e-4.json",
   "key": "deep/00500/exact"
