@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { WORKERS, perHundred, series } from './research'
 import piResults from './data/rung4/pi_sweep_results.json'
-import { POT_DOMAIN, hoursAt } from './ui/scales'
+import { EQUAL_DOMAIN, POT_DOMAIN, hoursAt } from './ui/scales'
 import {
   ARMS,
   BEST,
@@ -45,7 +45,19 @@ describe('the best arm against the table at equal hands', () => {
       expect(lcfrMarkAt(m.hands).iteration).toBe(m.t * 1000)
       expect(lcfrMarkAt(m.hands).iteration * WORKERS).toBe(m.hands)
     }
-    expect(() => lcfrMarkAt(150_000)).toThrow('no LCFR grade at 150000')
+    expect(() => lcfrMarkAt(150_000)).toThrow('rung 3 has no LCFR grade at 150000 hands per seat')
+  })
+
+  it('grades the table 304.8 falling to 26.4 across the marks, every mark inside the ruler\'s axes', () => {
+    // Figure 8's bottom row and the caption's two ends; the scales clamp rather than fail, so the domain is held here.
+    expect(perHundred(lcfrAt(BEST.marks[0].hands))).toBeCloseTo(304.8, 1)
+    expect(perHundred(lcfrAt(BEST.marks.at(-1)!.hands))).toBeCloseTo(26.4, 1)
+    for (const m of BEST.marks) {
+      expect(m.hands).toBeGreaterThanOrEqual(EQUAL_DOMAIN.hands[0])
+      expect(m.hands).toBeLessThanOrEqual(EQUAL_DOMAIN.hands[1])
+      expect(perHundred(lcfrAt(m.hands))).toBeGreaterThanOrEqual(EQUAL_DOMAIN.per100[0])
+      expect(perHundred(lcfrAt(m.hands))).toBeLessThanOrEqual(EQUAL_DOMAIN.per100[1])
+    }
   })
 
   it('took 0.4 hours to the first mark and 21 to the last, the wall clock rising with every mark', () => {
@@ -53,7 +65,6 @@ describe('the best arm against the table at equal hands', () => {
     expect(hoursAt(BEST.marks[0].wallClockS)).toBe('0.4 h')
     expect(hoursAt(BEST.marks.at(-1)!.wallClockS)).toBe('21 h')
     for (let i = 1; i < BEST.marks.length; i++) expect(BEST.marks[i].wallClockS).toBeGreaterThan(BEST.marks[i - 1].wallClockS)
-    expect(perHundred(lcfrAt(BEST.marks[0].hands))).toBeCloseTo(304.8, 1)
   })
 
   it('reads the run log: 0.133 / 0.115 / 0.108 against LCFR 1.131 / 0.630 / 0.264 at 1M / 2M / 5M', () => {

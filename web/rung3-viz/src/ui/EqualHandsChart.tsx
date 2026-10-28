@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { BEST, lcfrMarkAt } from '../deep'
 import { perHundred } from '../research'
-import { fmtHands, hoursAt, logScale } from './scales'
+import { EQUAL_DOMAIN, fmtHands, hoursAt, logScale } from './scales'
 
 /**
  * Two clocks on one ruler. The ruler is hands per seat on a log axis, so a
@@ -30,8 +30,8 @@ const H = 252
 const M = { l: 248, r: 64 }
 const ROW = { deep: 36, hours: 52, ruler: 108, hands: 128, table: 166, gradeTop: 196, gradeBottom: 240 }
 
-const x = logScale(1e5, 5e6, M.l, W - M.r)
-const yGrade = logScale(20, 400, ROW.gradeBottom, ROW.gradeTop)
+const x = logScale(EQUAL_DOMAIN.hands[0], EQUAL_DOMAIN.hands[1], M.l, W - M.r)
+const yGrade = logScale(EQUAL_DOMAIN.per100[0], EQUAL_DOMAIN.per100[1], ROW.gradeBottom, ROW.gradeTop)
 
 export function EqualHandsChart() {
   const marks = BEST.marks
