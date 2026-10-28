@@ -121,3 +121,19 @@ def test_the_run_log_scoreboard_quotes_the_committed_grades():
             checked += 1
     # Every cell with a digit is checked or fails in quoted(), so this guards only an empty table.
     assert checked > 0
+
+
+def test_the_readme_headline_rows_and_readings_quote_the_committed_grades():
+    # The ladder table at the top of README.md, and the two rung-4 readings no table carries.
+    readme = (ROOT / "README.md").read_text()
+    pot_sqrt = "figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json"
+    pot_one = "figures/rung4/pot_1-256x4-s16000-lr5e-4.json"
+    quotes = {
+        "| 3 | Mini-drawmaha": f"LCFR wins: {lcfr(2_000):.3f} chips/hand at 20M hands per seat",
+        "| 4 | Mini-drawmaha": f"{mark(pot_sqrt, 200):.3f} chips/hand at 2M hands per seat, where LCFR is at {lcfr(200):.3f}",
+    }
+    for row_start, text in quotes.items():
+        (row,) = [line for line in readme.splitlines() if line.startswith(row_start)]
+        assert text in row, (row_start, text)
+    assert f"reaches {lcfr(1_000):.3f} at 10M and {lcfr(2_000):.3f} at 20M" in readme
+    assert f"grades {mark(pot_sqrt, 200):.3f} with ÷ √pot and {mark(pot_one, 200):.3f} with ÷ pot" in readme

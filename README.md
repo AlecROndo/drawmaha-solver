@@ -13,7 +13,7 @@ A game-theory solver for heads-up pot-limit **Drawmaha**, the split-pot draw/Oma
 | 4 | Mini-drawmaha | Deep CFR | rung 3's grader and rung 3's answer | 0.086 chips/hand at 2M hands per seat, where LCFR is at 0.630 | [`/solver`](https://drawmaha-solver.vercel.app/solver) |
 | next | Full Drawmaha | Deep CFR at scale | a head-to-head checkpoint ladder and a trained exploiter | not started; the range interface is built ahead of it | [`/solver`](https://drawmaha-solver.vercel.app/solver) |
 
-Every result is exploitability: what a perfect adversary wins against the strategy, averaged over the two seats, in chips per hand (per round for rock-paper-scissors). It is zero exactly at equilibrium, and unlike a training loss it cannot be fooled by self-play.
+Every result is exploitability: what a perfect adversary wins against the strategy, averaged over the two seats, in chips per hand (per round for rock-paper-scissors). It is computed exactly, by a best-response walk that shares no code with the solver: zero exactly at equilibrium, and unlike a training loss it cannot be fooled by self-play.
 
 ## Quick start
 
