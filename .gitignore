@@ -24,7 +24,7 @@ wandb/
 /data/
 /solves/
 
-# Agent workspace scratch (Conductor); never committed
+# Per-workspace agent scratch notes; never committed
 .context/
 
 # OS / editor

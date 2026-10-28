@@ -33,7 +33,7 @@ uv run kuhn-play         # play the solved strategy in the terminal: rps-, kuhn-
 | [`scripts/`](scripts) | hand-run entry points: the OpenSpiel referee, the Modal launchers, the site build |
 | [`web/`](web) | the site: three static pages and five Vite + React visualizers |
 | [`figures/`](figures) | every analysis command's output, committed so a changed number shows up in the diff |
-| [`paper/`](paper) | a 26-page survey of the ML behind the solver ([PDF](paper/drawmaha-ml-survey.pdf)) |
+| [`paper/`](paper) | a survey of the ML behind the solver ([PDF](paper/drawmaha-ml-survey.pdf)) |
 | [`docs/`](docs) | design specs and implementation plans, the rung-4 run log, the literature notes and the rung-0 writeup |
 
 ## The target game
