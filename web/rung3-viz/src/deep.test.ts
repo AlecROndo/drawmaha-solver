@@ -10,6 +10,7 @@ import {
   PI_REFERENCE,
   PI_SWEEP,
   POT_ARMS,
+  POT_SERIES,
   REFIT_ARMS,
   RULE_SCREEN,
   SIGN_FLIPS,
@@ -103,6 +104,16 @@ describe('the ablations', () => {
     expect(markOf(ARMS['pot0.5-4x256-s16000-lr5e-4'], 10).exact.exploitability).toBeCloseTo(0.879, 3)
     expect(markOf(BEST, 10).exact.exploitability).toBeCloseTo(0.6433, 3)
     expect(ARMS['pot1-4x256-s16000-lr5e-4'].marks.map((m) => m.t)).toEqual([100, 200])
+  })
+
+  it('the pot curves carry every graded mark: raw 5e-4 to 5M hands, raw 1e-3 and √pot from 100k, ÷ pot from 1M', () => {
+    expect(POT_SERIES.map((s) => s.points.map((p) => p.t))).toEqual([[10, 20, 50, 100, 200, 500], [10, 100, 200], [10, 100, 200], [100, 200]])
+    for (const s of POT_SERIES) for (const p of s.points) expect(p.hands).toBe(p.t * 10_000)
+    // the raw arm's floor at 5M hands is above both pot arms at 2M
+    const floor = POT_SERIES[0].points.at(-1)!.exact
+    expect(floor).toBeCloseTo(0.1079, 3)
+    expect(POT_SERIES[2].points.at(-1)!.exact).toBeLessThan(floor)
+    expect(POT_SERIES[3].points.at(-1)!.exact).toBeLessThan(floor)
   })
 
   it('reads pot_power from the config, and a file written before it existed as raw chips', () => {

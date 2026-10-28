@@ -310,7 +310,22 @@ const potPoint = (id: string): PotPoint => {
   }
 }
 
-export const POT_ARMS: PotPoint[] = ['4x256-s16000-lr5e-4', '4x256-s16000', 'pot0.5-4x256-s16000-lr5e-4', 'pot1-4x256-s16000-lr5e-4'].map(potPoint)
+const POT_IDS = ['4x256-s16000-lr5e-4', '4x256-s16000', 'pot0.5-4x256-s16000-lr5e-4', 'pot1-4x256-s16000-lr5e-4']
+
+export const POT_ARMS: PotPoint[] = POT_IDS.map(potPoint)
+
+/** The same four arms as curves: every graded mark's exact average, the raw 5e-4 arm out to its five-million-hand floor. */
+export interface PotSeries {
+  arm: Arm
+  potPower: number
+  lr: number
+  points: { t: number; hands: number; exact: number }[]
+}
+
+export const POT_SERIES: PotSeries[] = POT_IDS.map((id) => {
+  const arm = ARMS[id]
+  return { arm, potPower: arm.potPower, lr: arm.lr, points: arm.marks.map((m) => ({ t: m.t, hands: m.hands, exact: m.exact.exploitability })) }
+})
 
 // ------------------------------------------------------- the rule screens
 
