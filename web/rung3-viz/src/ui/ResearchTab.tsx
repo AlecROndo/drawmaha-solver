@@ -69,7 +69,7 @@ const CHAPTERS = [
   { id: 'ch-03', n: '03', short: 'Four rules, one walk' },
   { id: 'ch-04', n: '04', short: 'What the answer does' },
   { id: 'ch-05', n: '05', short: 'A net for the ledger' },
-  { id: 'ch-06', n: '06', short: 'Width, depth, steps, rate, pot' },
+  { id: 'ch-06', n: '06', short: 'Width, depth, refit, pot' },
   { id: 'ch-07', n: '07', short: 'Three averages, one loss' },
   { id: 'ch-08', n: '08', short: 'Rules under a net' },
   { id: 'ch-09', n: '09', short: 'What is not settled' },
