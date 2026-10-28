@@ -231,9 +231,12 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
     may come to zero: a deep strategy records `workers=0` (its hands are
     counted by the run, not by lockstep), so a deep entry without the field
     would fall through to 0 × iteration, and the page would print "0 hands".
-    A missing file, a file without the key, an entry without `value_p0`, a
-    count of zero and a count that is not an integer are each refused by
-    name rather than read as a number the page would then quote.
+    A missing file, a file without the key, an entry that is not an object,
+    an `exploitability` or `value_p0` that is missing or not a number (the
+    Play tab quotes what each seat is worth in self-play, so a grade it reads
+    must carry both), a count of zero and a count that is not an integer are
+    each refused by name rather than read as a number the page would then
+    quote.
 
     The entry must also be the strategy's own. The digest pins the file and
     the key names the grade, and nothing else ties the two: a catalogue entry
@@ -254,17 +257,18 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
     if release.grade_key not in recorded:
         raise KeyError(f"{release.grade_file} has no {release.grade_key}; it holds {sorted(recorded)}")
     entry = recorded[release.grade_key]
-    if not isinstance(entry, Mapping) or "exploitability" not in entry:
-        raise KeyError(
-            f"{release.grade_file}'s {release.grade_key} is not a grade: it records no exploitability"
-        )
+    if not isinstance(entry, Mapping):
+        raise TypeError(f"{release.grade_file}'s {release.grade_key} is not a grade object but {entry!r}")
+    for number in ("exploitability", "value_p0"):
+        if number not in entry:
+            raise KeyError(f"{release.grade_file}'s {release.grade_key} records no {number}")
+        # `bool` is a number to isinstance and `float(True)` is 1.0; neither is a grade.
+        if isinstance(entry[number], bool) or not isinstance(entry[number], (int, float)):
+            raise ValueError(
+                f"{release.grade_file}'s {release.grade_key} records {number} = {entry[number]!r}, not a number"
+            )
     if (why := entry_mismatch(release, entry, info)) is not None:
         raise ValueError(f"{release.grade_file}'s {release.grade_key} is not {release.name}'s grade: {why}")
-    if "value_p0" not in entry:
-        raise KeyError(
-            f"{release.grade_file}'s {release.grade_key} records no value_p0; the Play tab "
-            "quotes what each seat is worth in self-play, so a grade it reads must carry it"
-        )
     recorded_hands = "hands_per_seat" in entry
     # `type(...) is int`, not `isinstance`: a bool is an int to isinstance, and
     # a JSON `true` would otherwise be read as one hand.
