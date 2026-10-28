@@ -69,9 +69,15 @@ export interface StrategyMeta {
   seed: number
 }
 
-/** The exact best response's verdict, copied from the committed grades file (`file`, object `key`) at export time. */
+/**
+ * The exact best response's verdict, copied from the committed grades file
+ * (`file`, object `key`) at export time: what a perfect adversary wins per
+ * hand, and P0's expectation when the strategy plays itself (`valueP0`),
+ * which is what each seat is worth to a player who matches it.
+ */
 export interface GradeMeta {
   exploitability: number
+  valueP0: number
   handsPerSeat: number
   file: string
   key: string

@@ -23,7 +23,8 @@ describe('a chunk against the manifest', () => {
     deals: 5,
     chunk: 2,
     chunks: ['pack-00.json', 'pack-01.json', 'pack-02.json'],
-    strategy: { sha256: 'ab'.repeat(32), rule: 'test', column: 'linear', iteration: 1, workers: 1, seed: 0 },
+    strategy: { sha256: 'ab'.repeat(32), release: null, asset: 'standin.npz', rule: 'test', column: 'linear', iteration: 1, workers: 1, seed: 0 },
+    grade: null,
   }
 
   it('expects a full chunk everywhere but the last, which holds what is left', () => {
@@ -55,6 +56,20 @@ describe('a chunk against the manifest', () => {
     expect(() => checkManifest(odd('pack-02.json'))).not.toThrow()
   })
 
+  it('refuses a strategy block without a digest or a name, and a grade that is not numbers', () => {
+    const broken = (patch: Partial<Manifest>): Manifest => ({ ...manifest, ...patch })
+    expect(() => checkManifest(broken({ strategy: { ...manifest.strategy, sha256: 'ab' } }))).toThrow('no SHA-256 digest: ab')
+    expect(() => checkManifest(broken({ strategy: { ...manifest.strategy, iteration: 1.5 } }))).toThrow('rule, column and iteration')
+    const grade = { exploitability: 0.0859, valueP0: -0.1058, handsPerSeat: 2_000_000, file: 'f', key: 'k' }
+    expect(() => checkManifest(broken({ grade }))).not.toThrow()
+    expect(() => checkManifest(broken({ grade: null }))).not.toThrow()
+    expect(() => checkManifest(broken({ grade: { ...grade, exploitability: '0.0859' as unknown as number } }))).toThrow('finite exploitability')
+    expect(() => checkManifest(broken({ grade: { ...grade, valueP0: Number.NaN } }))).toThrow('finite exploitability')
+    expect(() => checkManifest(broken({ grade: { ...grade, handsPerSeat: 0 } }))).toThrow('hand count')
+    const { valueP0: _dropped, ...noValue } = grade
+    expect(() => checkManifest(broken({ grade: noValue as unknown as Manifest['grade'] }))).toThrow('finite exploitability')
+  })
+
   it('refuses a count the manifest did not describe, and names a malformed deal', () => {
     expect(() => checkChunk(manifest, 0, [])).toThrow('pack-00.json holds 0 deals; the manifest says 2')
     expect(() => checkChunk(manifest, 2, [{} as Deal])).toThrow('pack-02.json, deal 0: the deck is not a permutation')
@@ -64,13 +79,20 @@ describe('a chunk against the manifest', () => {
 describe('the committed pack', () => {
   const manifest = read('index.json') as Manifest
 
-  it('is 600 deals in six chunks of 100, from the frozen LCFR strategy', () => {
+  it("is 600 deals in six chunks of 100, from rung 4's released Deep CFR exact average, with its grade", () => {
     expect(() => checkManifest(manifest)).not.toThrow()
     expect(manifest.deals).toBe(600)
     expect(manifest.chunk).toBe(100)
     expect(manifest.chunks.length).toBe(6)
-    expect(manifest.strategy.rule).toBe('lcfr')
+    expect(manifest.strategy.rule).toBe('deep')
+    expect(manifest.strategy.column).toBe('exact')
+    expect(manifest.strategy.release).toMatch(/^rung4-deep-/)
     expect(manifest.strategy.sha256).toMatch(/^[0-9a-f]{64}$/)
+    // The Python side holds these to the committed grades file; here only that the page has numbers to say.
+    expect(manifest.grade).not.toBeNull()
+    expect(manifest.grade!.exploitability).toBeGreaterThan(0)
+    expect(manifest.grade!.handsPerSeat).toBe(2_000_000)
+    expect(Number.isFinite(manifest.grade!.valueP0)).toBe(true)
   })
 
   it('passes every chunk through the grammar the browser plays by', () => {

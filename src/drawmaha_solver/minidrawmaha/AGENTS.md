@@ -18,7 +18,9 @@ Three subpackages, and one module that stays alone on purpose:
   LCFR average, a release asset pinned by SHA-256), `analysis`
   (`minidraw-analysis`, writes `figures/rung3/`), `play` (`minidraw-play`),
   `deal_pack` (`minidraw-deals`, the `/rung3` trainer's pack), `range_export`
-  (`minidraw-ranges`, the `/solver` export).
+  (`minidraw-ranges`, the `/solver` export), `releases` (the catalogue both
+  exporters read: every released strategy, its digest, and where its grade
+  is recorded).
 - `exploitability.py` — the exact meter. It imports `rules/` only, nothing
   from `solver/`, and stays at this level to make that visible.
 
@@ -46,9 +48,13 @@ Three subpackages, and one module that stays alone on purpose:
   record the rule and the averaging columns they banked; a resume refuses a
   different W or rule by name.
 - **The release asset** (tag `rung3-lcfr-2m`, file `strategy-lcfr-2m.npz`) is
-  the rung's answer. Its digest is pinned in `answer/strategy.py` and is
-  recorded again in `web/rung3-viz/public/deals/index.json` and in the
-  `/solver` export; re-freezing the strategy changes all three in one PR.
+  the rung's answer. Its digest is pinned in `answer/strategy.py`, catalogued
+  in `answer/releases.py` and recorded again in the `/solver` export
+  `web/solver-viz/public/mini/index.json`; re-freezing the strategy changes
+  all three in one PR. The `/rung3` trainer's pack
+  (`web/rung3-viz/public/deals/index.json`) records the digest of the
+  strategy it deals against, which since the pot-normalised arm is rung 4's
+  Deep CFR exact average, not this one.
 - **Sampling is sparse where play is rare.** Of the 6.2 million rows, about
   2.7 million were never banked by the 2M-iteration LCFR run and 3.5 million
   read exactly uniform; nearly all sit in round 2. A human who deviates walks

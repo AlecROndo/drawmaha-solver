@@ -35,15 +35,20 @@ its regret targets divided by √pot and by pot at each spot (`--pot-power`,
 the number after `pot_`; `train.pot_scaled`), the setting that became the
 default. Which arm is which, and what they showed, is `docs/notes/rung4-run-log.md`.
 
-Two of these files are also what `/solver` quotes. `rung3/answer_sheet.json`'s
+Three of these files are also what the site quotes. `rung3/answer_sheet.json`'s
 `frozen_strategy` object and the Π and exact objects of mark 500 in
 `rung4/sweep_256x4-s16000-lr5e-4.json` are the grades of the three released
-strategies the range exporter ships (`RELEASES` in
-`src/drawmaha_solver/minidrawmaha/answer/range_export.py`); each export's
-`index.json` under `web/solver-viz/public/` carries a copy, written at export
-time and held to the file by `tests/minidrawmaha/test_range_export.py`. A
-re-grade of one of those marks therefore means re-exporting its strategy
-(`uv run minidraw-ranges --release <name>`) in the same change.
+strategies the range exporter ships to `/solver`, and the exact object of mark
+200 in `rung4/pot_0.5-256x4-s16000-lr5e-4.json` is the grade of the one the
+deal pack ships to `/rung3`'s Play tab (all five releases are `RELEASES` in
+`src/drawmaha_solver/minidrawmaha/answer/releases.py`); each export's
+`index.json` — under `web/solver-viz/public/` and at
+`web/rung3-viz/public/deals/` — carries a copy of its grade (`exploitability`
+and `value_p0`), written at export time and held to the file by
+`tests/minidrawmaha/test_range_export.py` and `tests/minidrawmaha/test_deal_pack.py`. A re-grade
+of one of those marks therefore means re-exporting its strategy
+(`uv run minidraw-ranges --release <name>`, `uv run minidraw-deals`) in the
+same change.
 
 `rung3/exploit_by_reach.json` (and its `.png`) is where the frozen table's
 exploitability lives: every spot's one-step best-response gain from the exact

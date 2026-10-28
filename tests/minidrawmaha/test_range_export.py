@@ -344,9 +344,13 @@ def _committed(release):
     return out, json.loads((out / "index.json").read_text())
 
 
-@pytest.fixture(scope="module", params=sorted(RELEASES), ids=sorted(RELEASES))
+# The releases `/solver` carries behind its switch; the catalogue also holds the deal pack's.
+EXPORTED = sorted(name for name, release in RELEASES.items() if release.exported)
+
+
+@pytest.fixture(scope="module", params=EXPORTED, ids=EXPORTED)
 def committed(request):
-    """One committed export: the release, its directory and its manifest, once per release."""
+    """One committed export: the release, its directory and its manifest, once per exported release."""
     release = RELEASES[request.param]
     return (release, *_committed(release))
 
@@ -361,6 +365,7 @@ def test_the_committed_manifest_names_its_release_and_its_grade(committed):
     # The grade is copied at export time; a re-grade without a re-export must fail here.
     recorded = json.loads((REPO / release.grade_file).read_text())[release.grade_key]
     assert manifest["grade"]["exploitability"] == recorded["exploitability"]
+    assert manifest["grade"]["valueP0"] == recorded["value_p0"]
     assert manifest["grade"]["file"] == release.grade_file
     assert manifest["grade"]["key"] == release.grade_key
     assert manifest["grade"]["handsPerSeat"] > 0
@@ -441,18 +446,16 @@ def test_pi_is_a_real_mix_where_the_exact_average_is_flat():
 # ---------------------------------------------------------------------------
 
 
-def test_the_three_releases_have_their_own_directories_and_digests():
-    assert set(RELEASES) == {"tabular", "deep-pi", "deep-exact"}
-    assert len({release.directory for release in RELEASES.values()}) == 3
-    assert len({release.sha256 for release in RELEASES.values()}) == 3
+def test_solver_exports_the_three_releases_with_a_directory_each():
+    """The catalogue itself is pinned in `test_releases.py`; this is what the range exporter reads off it."""
+    assert EXPORTED == ["deep-exact", "deep-pi", "tabular"]
+    assert len({RELEASES[name].directory for name in EXPORTED}) == 3
     assert RELEASES["tabular"].sha256 == STRATEGY_SHA256
     assert RELEASES["tabular"].url == RELEASE_URL
     assert RELEASES["tabular"].directory == "mini"
-    for name, release in RELEASES.items():
-        assert release.name == name
+    for name in EXPORTED:
+        release = RELEASES[name]
         assert release.out == Path("web/solver-viz/public") / release.directory
-        assert release.url.endswith(f"/{release.tag}/{release.asset}")
-        assert (REPO / release.grade_file).exists(), release.grade_file
 
 
 def test_release_of_finds_a_release_by_digest_and_nothing_otherwise():
@@ -461,11 +464,25 @@ def test_release_of_finds_a_release_by_digest_and_nothing_otherwise():
     assert release_of("0" * 64) is None
 
 
+def test_the_deal_pack_s_release_is_not_a_choice_and_its_file_needs_an_out_directory(exported, tmp_path, monkeypatch):
+    """A release without a directory is in the catalogue for the pack; `/solver`'s switch never grows one by accident."""
+    out, _, _ = exported
+    saved = out.parent / "standin.npz"
+    with pytest.raises(SystemExit):
+        main(["--release", "deep-pot-exact", "--fixtures", str(tmp_path / "f.json")])
+    packed = replace(RELEASES["deep-pot-exact"], sha256=sha256_of(saved))
+    monkeypatch.setattr(range_export, "RELEASES", {packed.name: packed})
+    with pytest.raises(SystemExit):
+        main(["--strategy", str(saved), "--fixtures", str(tmp_path / "f.json")])
+    assert not (tmp_path / "f.json").exists()
+
+
 def test_read_grade_quotes_the_committed_grades_files():
     lcfr = StrategyInfo(rule="lcfr", column="linear", iteration=2_000_000, seed=0, workers=10)
     tabular = read_grade(RELEASES["tabular"], lcfr)
     sheet = json.loads((REPO / "figures/rung3/answer_sheet.json").read_text())
     assert tabular.exploitability == sheet["frozen_strategy"]["exploitability"]
+    assert tabular.value_p0 == sheet["frozen_strategy"]["value_p0"]
     # Lockstep plays one hand per seat per worker per iteration.
     assert tabular.hands_per_seat == 20_000_000
     assert (tabular.file, tabular.key) == ("figures/rung3/answer_sheet.json", "frozen_strategy")
@@ -479,7 +496,7 @@ def test_read_grade_quotes_the_committed_grades_files():
 
 
 def test_read_grade_refuses_a_grades_file_without_the_key(tmp_path):
-    (tmp_path / "grades.json").write_text(json.dumps({"deep/00500/exact": {"exploitability": 0.1}}))
+    (tmp_path / "grades.json").write_text(json.dumps({"deep/00500/exact": {"exploitability": 0.1, "value_p0": 0.0}}))
     orphan = replace(RELEASES["deep-pi"], grade_file="grades.json")
     deep = StrategyInfo(rule="deep", column="pi", iteration=500, seed=0, workers=0)
     with pytest.raises(KeyError, match="deep/00500/pi"):
@@ -494,8 +511,9 @@ def test_read_grade_names_a_missing_grades_file(tmp_path):
 
 def test_read_grade_refuses_a_deep_entry_that_records_no_hands(tmp_path):
     """A deep strategy has workers=0, so without `hands_per_seat` the fallback is 0 × iteration."""
-    (tmp_path / "grades.json").write_text(json.dumps({"deep/00500/pi": {"exploitability": 0.1}}))
-    bare = replace(RELEASES["deep-pi"], grade_file="grades.json")
+    (tmp_path / "grades.json").write_text(json.dumps({"test/pi": {"exploitability": 0.1, "value_p0": 0.0}}))
+    # A key that spells no mark, so the tabular fallback below is not refused for being another strategy's.
+    bare = replace(RELEASES["deep-pi"], grade_file="grades.json", grade_key="test/pi")
     deep = StrategyInfo(rule="deep", column="pi", iteration=500, seed=0, workers=0)
     with pytest.raises(ValueError, match="500 × 0"):
         read_grade(bare, deep, root=tmp_path)
@@ -504,7 +522,7 @@ def test_read_grade_refuses_a_deep_entry_that_records_no_hands(tmp_path):
     assert read_grade(bare, lcfr, root=tmp_path).hands_per_seat == 5_000
     # A recorded zero is a recorded zero, not a missing field: no fallback hides it.
     (tmp_path / "grades.json").write_text(
-        json.dumps({"deep/00500/pi": {"exploitability": 0.1, "hands_per_seat": 0}})
+        json.dumps({"test/pi": {"exploitability": 0.1, "value_p0": 0.0, "hands_per_seat": 0}})
     )
     with pytest.raises(ValueError, match="hands_per_seat = 0"):
         read_grade(bare, lcfr, root=tmp_path)
@@ -512,7 +530,7 @@ def test_read_grade_refuses_a_deep_entry_that_records_no_hands(tmp_path):
     # neither is a count of hands, so neither is read.
     for not_a_count in (5e6, 1.5, True):
         (tmp_path / "grades.json").write_text(
-            json.dumps({"deep/00500/pi": {"exploitability": 0.1, "hands_per_seat": not_a_count}})
+            json.dumps({"test/pi": {"exploitability": 0.1, "value_p0": 0.0, "hands_per_seat": not_a_count}})
         )
         with pytest.raises(ValueError, match="not an integer"):
             read_grade(bare, lcfr, root=tmp_path)
@@ -544,7 +562,9 @@ def test_a_local_file_that_hashes_to_a_release_exports_as_that_release(exported,
     out, _, _ = exported
     saved = out.parent / "standin.npz"
     grades = tmp_path / "grades.json"
-    grades.write_text(json.dumps({"test/standin": {"exploitability": 0.25, "hands_per_seat": 7}}))
+    grades.write_text(
+        json.dumps({"test/standin": {"exploitability": 0.25, "value_p0": -0.05, "hands_per_seat": 7}})
+    )
     # `grade_file` is joined onto the repo root; an absolute path survives the join.
     standin = replace(
         RELEASES["deep-pi"], sha256=sha256_of(saved), grade_file=str(grades), grade_key="test/standin"
@@ -555,7 +575,13 @@ def test_a_local_file_that_hashes_to_a_release_exports_as_that_release(exported,
     assert manifest["strategy"]["sha256"] == standin.sha256
     assert manifest["strategy"]["release"] == standin.tag
     assert manifest["strategy"]["asset"] == "standin.npz"
-    assert manifest["grade"] == {"exploitability": 0.25, "handsPerSeat": 7, "file": str(grades), "key": "test/standin"}
+    assert manifest["grade"] == {
+        "exploitability": 0.25,
+        "valueP0": -0.05,
+        "handsPerSeat": 7,
+        "file": str(grades),
+        "key": "test/standin",
+    }
 
 
 # ---------------------------------------------------------------------------
