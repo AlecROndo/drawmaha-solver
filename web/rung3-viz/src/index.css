@@ -1,8 +1,8 @@
 /*
  * Rung 3's own figures, on top of the shared theme (theme.css): the identity
  * inks for the four regret rules, rung 4's three averages and the actions,
- * the race and the bar charts, the stacked category bars, the oval table
- * with three cards a seat and two on the board, and the decision sidebar.
+ * the race and the bar charts, the stacked category bars, the trainer's
+ * three-lane table and the coach's rows beside it, in the Learn tab's register.
  * Everything here reads the theme's tokens and moves the way web/DESIGN.md
  * says: the only motion this sheet owns is the swept chips, one-shot, 400 ms,
  * allowlisted in the standard's test as `.sweep`, and the press on the
@@ -50,6 +50,15 @@
   --seat-p1: var(--yellow);
 
   /* your hand on the hand: the roll */
+  /* The coach's mix bands: the harbour pair the Learn tab draws its grid
+     with (solver-viz/src/index.css, --call-fill / --pot-fill), so a mix
+     reads the same on both tabs. Named apart because the two sheets sit on
+     one page and tests/test_ui_standard.py forbids them a token in common;
+     a change to the pair there is made here too. */
+  --mix-fold: var(--iv-45);
+  --mix-call: #6ab4f0;
+  --mix-pot: #ff7f2a;
+
   --lock: var(--ivory);
   --win: var(--yellow);
   --loss: var(--pink);
@@ -165,110 +174,171 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- the trainer's oval table -------------------------------------- */
+/* ---------- the trainer ----------------------------------------------------
+   In the register of the Learn tab beside it: the window's header states the
+   spot, the table is three hairline lanes in a well, the cards are Learn's,
+   and the coach's mix is Learn's band bar. Nothing here is drawn as a felt. */
 
-.table {
-  position: relative;
-  max-width: 560px;
-  margin: 22px auto 0;
+/* the header: the spot in the display voice, what to do about it in mono,
+   and your chips at the right, the way Learn's range window sets its seat
+   and round beside the share of the range in view */
+.playhead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 22px;
+  align-items: start;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--iv-10);
 }
 
-.table .felt {
+.playhead .who {
+  font: 600 20px/1.1 var(--display);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.playhead .who small {
   display: block;
-  width: 100%;
-  height: auto;
+  font: 400 11.5px/1.5 var(--mono);
   color: var(--iv-60);
+  margin-top: 6px;
+  letter-spacing: 0.02em;
+  max-width: 64ch;
 }
 
-.seat-spot {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+.playhead .cue {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 7px;
-}
-
-.seat-spot.villain {
-  top: 7%;
-}
-
-.seat-spot.centre {
-  top: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.seat-spot.you {
-  bottom: 7%;
-}
-
-.seat-spot .who {
-  font: 500 10px/1 var(--mono);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--iv-60);
-  white-space: nowrap;
-}
-
-.seat-spot .cards {
-  display: flex;
-  gap: 6px;
-}
-
-.seat-spot .pot {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font: 400 11.5px/1.4 var(--mono);
+  align-items: flex-end;
+  gap: 5px;
+  text-align: right;
+  font: 400 11px/1.5 var(--mono);
   color: var(--iv-60);
   font-variant-numeric: tabular-nums;
 }
 
-/* The playing cards, as the homepage draws them: a face is ivory paper with
-   the rank in oxblood and the suit glyph under it, a back is oxblood
-   pinstripe, a board card is a transparent frame with ivory ink. */
-.pcard {
-  width: 46px;
-  height: 64px;
-  border-radius: 5px;
+.playhead .cue b {
+  font: 600 26px/1 var(--display);
+  letter-spacing: -0.02em;
+  color: var(--ivory);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the table and the coach side by side, as Learn's grid sits beside its ribbon */
+.playwrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 28px;
+  align-items: start;
+  margin-top: 18px;
+}
+
+/* the table: three lanes in a well, the solver / the board / you, each a
+   label, the cards, the seat's last word and its chips in the round */
+.table {
+  position: relative;
+  background: var(--well);
+  border: 1px solid var(--iv-10);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.lane {
+  display: grid;
+  grid-template-columns: 136px auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 18px;
+  min-height: 88px;
+}
+
+.lane + .lane {
+  border-top: 1px solid var(--iv-10);
+}
+
+.lane.centre {
+  background: var(--iv-03);
+}
+
+.lane .who {
+  font: 500 10.5px/1.5 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+}
+
+.lane.you .who,
+.lane.villain .who {
+  color: var(--iv-60);
+}
+
+.lane .who small {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--iv-45);
+}
+
+.lane .cards {
   display: flex;
-  flex-direction: column;
+  gap: 5px;
+}
+
+.lane .did {
+  font: 400 11.5px/1.4 var(--mono);
+  color: var(--iv-60);
+  min-width: 0;
+}
+
+.lane .pot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 11px/1.4 var(--mono);
+  color: var(--iv-60);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lane .pot b {
+  color: var(--ivory);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+/* The playing cards, as Learn draws them: ivory, the rank and the suit on one
+   mono line, the red suits in red; a board card is a transparent frame with
+   ivory ink; a card not yet dealt is a dashed frame; a back is the homepage's
+   oxblood pinstripe. */
+.pcard {
+  width: 40px;
+  height: 54px;
+  border-radius: 5px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 1px;
   background: var(--ivory);
-  color: var(--ox);
+  color: #111;
+  font: 600 15px/1 var(--mono);
   flex: none;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.6);
+  box-shadow:
+    0 1px 0 var(--iv-30) inset,
+    0 8px 18px rgba(0, 0, 0, 0.45);
 }
 
-.pcard b {
-  font: 600 24px/1 var(--display);
-}
-
-.pcard i {
-  font-style: normal;
-  font-size: 13px;
-  line-height: 1;
-}
-
-/* the suits: the heart keeps the oxblood, the diamond and the club are told
-   apart by glyph and a quieter ink */
-.pcard.s0 {
-  color: #2a2426;
-}
-
-.pcard.s1 {
-  color: #8a5a12;
+/* the suits: the diamond and the heart red, the club dark */
+.pcard.s1,
+.pcard.s2 {
+  color: #b5203a;
 }
 
 .pcard.back {
   background: repeating-linear-gradient(45deg, var(--ox) 0 2px, transparent 2px 6px) var(--well);
   border: 1px solid var(--ox-lit);
+  box-shadow: none;
 }
 
-.seat-spot.centre .pcard {
+.lane.centre .pcard {
   background: transparent;
   border: 1px solid var(--iv-30);
   color: var(--ivory);
@@ -276,185 +346,22 @@
 }
 
 .pcard.empty {
-  border: 1px dashed var(--iv-16);
+  border: 1px dashed var(--iv-30);
   background: transparent;
   box-shadow: none;
 }
 
 .pcard.small {
-  width: 22px;
-  height: 30px;
-  border-radius: 3px;
-  box-shadow: none;
-  gap: 0;
-}
-
-.pcard.small b {
+  width: 26px;
+  height: 36px;
+  border-radius: 4px;
   font-size: 12px;
+  box-shadow: 0 1px 0 var(--iv-30) inset;
 }
 
-.pcard.small i {
-  font-size: 8px;
-}
-
-.play-buttons {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 22px;
-  min-height: 40px;
-  align-items: center;
-}
-
-.play-buttons .waiting {
-  font: 400 11.5px/1 var(--mono);
-  color: var(--iv-45);
-}
-
-.playpanel .stat {
-  justify-content: center;
-}
-
-.playpanel .stat dd.seat {
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-/* ---------- the decision sidebar ----------------------------------------- */
-
-.playwrap {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 312px;
-  gap: 30px;
-  align-items: start;
-  margin-top: 8px;
-}
-
-.playside .k {
-  display: block;
-  margin-bottom: 4px;
-  font: 400 10px/1.4 var(--mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--iv-45);
-}
-
-.playside ol {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.side-row {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  gap: 10px;
-  align-items: baseline;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--iv-10);
-}
-
-.side-who {
-  font: 500 9.5px/1.6 var(--mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--iv-45);
-}
-
-.side-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font: 400 12px/1.5 var(--mono);
-}
-
-.side-main b {
-  font: 600 13px/1.4 var(--mono);
-}
-
-.side-main b small {
-  font-weight: 400;
-  color: var(--iv-60);
-}
-
-.side-main b .note-drew {
-  color: var(--yellow);
-}
-
-.side-mix {
-  display: flex;
-  gap: 10px;
-  font-size: 10.5px;
-  color: var(--iv-60);
-  font-variant-numeric: tabular-nums;
-  flex-wrap: wrap;
-}
-
-.side-mix .chosen {
-  color: var(--ivory);
-  font-weight: 600;
-}
-
-.side-row.board {
-  align-items: center;
-}
-
-.side-grade {
-  grid-column: 2;
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-  margin-top: 4px;
-  font: 400 11px/1.4 var(--mono);
-  font-variant-numeric: tabular-nums;
-}
-
-/* The roll is an instruction, so it wears the lock's ink: your hand on the hand. */
-.side-grade .roll {
-  border: 1px solid var(--lock);
-  color: var(--lock);
-  border-radius: 3px;
-  padding: 2px 7px;
-  font-weight: 600;
-}
-
-.side-grade .ok {
-  color: var(--win);
-  font-weight: 600;
-}
-
-.side-grade .bad {
-  color: var(--loss);
-  font-weight: 500;
-}
-
-.side-row.live {
-  border-left: 2px solid var(--lock);
-  padding-left: 10px;
-  margin-left: -12px;
-}
-
-.side-row.verdict .side-main {
-  color: var(--iv-80);
-  font-size: 11.5px;
-}
-
-.side-total {
-  margin: 12px 0 0;
-  font: 400 11.5px/1.5 var(--mono);
-  color: var(--iv-60);
-  font-variant-numeric: tabular-nums;
-}
-
-.side-total b {
-  color: var(--ivory);
-}
-
-.seat-spot .did {
-  font: 400 11px/1 var(--mono);
-  color: var(--iv-60);
-  min-height: 11px;
+.lane.centre .pcard.small,
+.side-row .pcard.small {
+  box-shadow: none;
 }
 
 /* chips: monoline plates, the amount beside them */
@@ -477,43 +384,277 @@
   color: var(--ivory);
 }
 
-/* A closed round's chips slide to the pile. The tokens are transient: they
-   spawn at the seat, glide to the middle, fade, and unmount. They leave fast
-   and settle (ease-out): a chip pushed across felt does not accelerate. */
+/* the actions under the table, the roll beside them: the roll is an
+   instruction, so it wears the lock's ink — your hand on the hand */
+.play-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 16px;
+  min-height: 40px;
+}
+
+.play-buttons .waiting {
+  font: 400 11.5px/1 var(--mono);
+  color: var(--iv-45);
+}
+
+.rollcue {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  font: 400 11px/1.4 var(--mono);
+  color: var(--iv-45);
+}
+
+.rollcue .roll,
+.side-grade .roll {
+  border: 1px solid var(--lock);
+  color: var(--lock);
+  border-radius: 3px;
+  padding: 3px 8px;
+  font: 600 11px/1.4 var(--mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* the session, under a hairline, left-aligned like Learn's readouts */
+.playpanel .stat {
+  justify-content: flex-start;
+  gap: 32px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--iv-10);
+}
+
+.playpanel .stat dd.seat {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.playnote {
+  margin: 12px 0 0;
+  font: 400 11px/1.6 var(--mono);
+  color: var(--iv-45);
+  max-width: 72ch;
+}
+
+/* the status bar along the window's foot, as Learn's range window has */
+.playpanel .statusbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--iv-10);
+  font: 400 11px/1.4 var(--mono);
+  color: var(--iv-45);
+  flex-wrap: wrap;
+}
+
+.playpanel .statusbar b {
+  color: var(--yellow);
+  font-weight: 500;
+}
+
+/* ---------- the coach: the hand, decision by decision -------------------- */
+
+.playside .k {
+  display: block;
+  margin-bottom: 6px;
+  font: 500 10.5px/1.4 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+}
+
+.playside ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--iv-16);
+}
+
+.side-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--iv-10);
+}
+
+.side-who {
+  font: 500 9.5px/1.6 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--iv-45);
+}
+
+.side-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font: 400 12px/1.5 var(--mono);
+}
+
+.side-main b {
+  font: 500 12.5px/1.4 var(--mono);
+}
+
+.side-main b small {
+  font-weight: 400;
+  color: var(--iv-60);
+}
+
+.side-main b .note-drew {
+  color: var(--yellow);
+}
+
+/* the strategy's mix at a spot you played: Learn's band bar in roll order,
+   a tick where your roll fell, the words under it */
+.side-mix {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mixband {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mixband i {
+  display: block;
+  flex-basis: 0;
+  height: 100%;
+}
+
+.mixband .fold {
+  background: var(--mix-fold);
+}
+
+.mixband .call {
+  background: var(--mix-call);
+}
+
+.mixband .pot {
+  background: var(--mix-pot);
+}
+
+.mixband .pot.d2 {
+  opacity: 0.75;
+}
+
+.mixband .pot.d3 {
+  opacity: 0.5;
+}
+
+.mixband .tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ivory);
+}
+
+.mixwords {
+  display: flex;
+  gap: 10px;
+  font-size: 10.5px;
+  color: var(--iv-60);
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+}
+
+.mixwords .chosen {
+  color: var(--ivory);
+  font-weight: 600;
+}
+
+.side-row.board {
+  align-items: center;
+}
+
+.side-grade {
+  grid-column: 2;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 2px;
+  font: 400 11px/1.4 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.side-grade .ok {
+  color: var(--win);
+  font-weight: 500;
+}
+
+.side-grade .bad {
+  color: var(--loss);
+  font-weight: 500;
+}
+
+.side-row.verdict .side-main {
+  color: var(--iv-80);
+  font-size: 11.5px;
+}
+
+.side-total {
+  margin: 12px 0 0;
+  font: 400 11.5px/1.5 var(--mono);
+  color: var(--iv-60);
+  font-variant-numeric: tabular-nums;
+}
+
+.side-total b {
+  color: var(--ivory);
+}
+
+/* A closed round's chips slide to the board's lane. The tokens are
+   transient: they spawn at the seat's chips, glide to the middle lane, fade,
+   and unmount. They leave fast and settle (ease-out): a chip pushed across
+   the table does not accelerate. */
 .sweep {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 18px;
   pointer-events: none;
 }
 
 .sweep.from-villain {
-  top: 30%;
+  top: 32px;
   animation: sweep-down 0.4s var(--ease-out) forwards;
 }
 
 .sweep.from-you {
-  bottom: 30%;
+  bottom: 32px;
   animation: sweep-up 0.4s var(--ease-out) forwards;
 }
 
 @keyframes sweep-down {
   to {
-    transform: translateX(-50%) translateY(58px);
+    transform: translateY(58px);
     opacity: 0;
   }
 }
 
 @keyframes sweep-up {
   to {
-    transform: translateX(-50%) translateY(-58px);
+    transform: translateY(-58px);
     opacity: 0;
   }
 }
 
 /* Under reduced motion the chips do not travel, but they must still leave:
    the token unmounts on animationend, so `animation: none` would strand it
-   on the felt. It fades in place for the same 400 ms instead. */
+   on the table. It fades in place for the same 400 ms instead. */
 @keyframes sweep-fade {
   to {
     opacity: 0;
@@ -933,6 +1074,17 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .lane {
+    grid-template-columns: 64px auto minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 12px 10px;
+    min-height: 78px;
+  }
+
+  .playhead .who {
+    font-size: 18px;
+  }
+
   .contents ol {
     columns: 1;
   }
@@ -949,6 +1101,21 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .playhead {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .playhead .cue {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .lane {
+    grid-template-columns: 92px auto minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 14px;
+  }
+
   .spots {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -956,7 +1123,7 @@
 
 /* Reduced motion (web/DESIGN.md): the contents rail's links are this
    sheet's one pressable, and the swept chips fade where they are instead of
-   crossing the felt. */
+   crossing the table. */
 @media (prefers-reduced-motion: reduce) {
   .sweep.from-villain,
   .sweep.from-you {
