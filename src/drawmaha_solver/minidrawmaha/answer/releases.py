@@ -33,6 +33,7 @@ rules, exported or packed.
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -262,10 +263,12 @@ def read_grade(release: Release, info: StrategyInfo, *, root: Path = REPO) -> Gr
     for number in ("exploitability", "value_p0"):
         if number not in entry:
             raise KeyError(f"{release.grade_file}'s {release.grade_key} records no {number}")
-        # `bool` is a number to isinstance and `float(True)` is 1.0; neither is a grade.
-        if isinstance(entry[number], bool) or not isinstance(entry[number], (int, float)):
+        # `bool` is a number to isinstance and `float(True)` is 1.0; Python's json
+        # also reads `NaN` and `Infinity` as floats. None of them is a grade.
+        value = entry[number]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
             raise ValueError(
-                f"{release.grade_file}'s {release.grade_key} records {number} = {entry[number]!r}, not a number"
+                f"{release.grade_file}'s {release.grade_key} records {number} = {value!r}, not a finite number"
             )
     if (why := entry_mismatch(release, entry, info)) is not None:
         raise ValueError(f"{release.grade_file}'s {release.grade_key} is not {release.name}'s grade: {why}")

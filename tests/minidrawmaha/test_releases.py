@@ -182,8 +182,8 @@ def test_read_grade_refuses_an_entry_that_is_no_grade_by_name(tmp_path):
     refused("0.1", TypeError, "not a grade object")
     refused({k: v for k, v in good.items() if k != "exploitability"}, KeyError, "records no exploitability")
     refused({k: v for k, v in good.items() if k != "value_p0"}, KeyError, "records no value_p0")
-    for not_a_number in (None, "0.1", True):
-        refused({**good, "exploitability": not_a_number}, ValueError, "exploitability = .*not a number")
-        refused({**good, "value_p0": not_a_number}, ValueError, "value_p0 = .*not a number")
+    for not_a_number in (None, "0.1", True, float("nan"), float("inf")):
+        refused({**good, "exploitability": not_a_number}, ValueError, "exploitability = .*not a finite number")
+        refused({**good, "value_p0": not_a_number}, ValueError, "value_p0 = .*not a finite number")
     (tmp_path / "grades.json").write_text(json.dumps({"deep/00200/exact": good}))
     assert read_grade(bare, info, root=tmp_path).exploitability == 0.1
