@@ -46,7 +46,10 @@ afterwards run
   `solver-viz/src/index.css`, because stacked bands of yellow and pink were
   too close in weight to read. The ribbon's slices are mix bands and take
   the pair; the hand-so-far chips, the pinned cell and the ribbon's sort
-  tabs there still use yellow and pink.
+  tabs there still use yellow and pink. `/rung3`'s trainer draws the coach's
+  mix in the same pair under its own names (`--mix-call` / `--mix-pot` in
+  `rung3-viz/src/index.css`, because the two sheets share one page and may
+  not share a token); a change to the pair is made in both.
 - **Where a number is illustrative rather than a solver's output, the page
   says so** in its status line. Keep that sentence true when changing what is
   drawn.

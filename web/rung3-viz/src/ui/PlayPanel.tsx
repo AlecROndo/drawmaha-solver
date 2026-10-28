@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 
 import {
   SUIT_GLYPH,
@@ -33,18 +33,25 @@ import {
 } from '../play'
 import { loadedDeals, type PackState } from '../deals'
 import { describeStrategy } from '../../../solver-viz/src/mini/strategies'
-import { Panel } from './site'
 
 /**
- * One hand against the shipped strategy, on the oval table rung 2 drew, with
- * three cards a seat and two on the board. The bot reads its mix out of the
- * deal pack and never adapts. Seats alternate each hand; both holdings are
- * revealed at settlement, a fold included, because the point is the line.
+ * One hand against the shipped strategy, in the register of the Learn tab
+ * beside it: a numbered window whose header states the spot (the hand, the
+ * round, who is to act) the way Learn's range window states its seat and
+ * round; the table as three hairline lanes in a well — the solver, the board
+ * with the pot, you — rather than a drawn felt; the cards as Learn draws them,
+ * rank and suit on one mono line; and the coach's rows carrying the
+ * strategy's mix as the same fold / call / pot bands Learn's grid uses, with
+ * a tick where your roll fell. Three cards a seat and two on the board. The
+ * bot reads its mix out of the deal pack and never adapts. Seats alternate
+ * each hand; both holdings are revealed at settlement, a fold included,
+ * because the point is the line.
  *
  * Which strategy, and how it grades, is read off the pack's manifest — the
  * same two blocks `/solver`'s manifests carry, named through the same
  * `describeStrategy` — never typed here, so a re-export of the pack against
- * another release changes what the panel says without a code change.
+ * another release changes what the window's status bar says without a code
+ * change.
  *
  * The session (hand, bankroll, the deals still to come) lives in App so
  * flipping tabs does not tear down a hand in progress. The transitions are
@@ -60,16 +67,39 @@ const seatValue = (valueP0: number, seat: 0 | 1): number => (seat === 0 ? valueP
 
 const signed = (n: number, digits = 0): string => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(digits)}`
 
+/**
+ * Which of the three mix bands an action belongs to, as Learn draws them:
+ * going along (check, call, standing pat) is the calm band, pushing (bet,
+ * raise, a throw) the hot one, the fold the quiet ink. The three throws share
+ * the hot band at three depths, low to top, as rung 3's action palette does.
+ */
+const BAND: Record<Act, string> = { f: 'fold', c: 'call', p: 'pot', n: 'call', l: 'pot d1', m: 'pot d2', t: 'pot d3' }
+
+/**
+ * The strategy's mix at a spot you played, as a band bar in roll order:
+ * aggression owns the low rolls, so the bar reads left to right the way the
+ * roll's segments do, and the tick is where your roll fell. Under it, each
+ * action's word and share; the one you took in ivory.
+ */
 function MixCaption({ row }: { row: Extract<PlayRow, { kind: 'action' }> }) {
   // AGGRESSION is the roll's own segment order; row.words carries each
   // action's word in the context the actor faced.
+  const acts = AGGRESSION.filter((a) => a in row.mix)
   return (
     <span className="side-mix">
-      {AGGRESSION.filter((a) => a in row.mix).map((a) => (
-        <span key={a} className={a === row.act ? 'chosen' : ''}>
-          {row.words[a]} {pct(row.mix[a] ?? 0)}
-        </span>
-      ))}
+      <span className="mixband" aria-hidden>
+        {acts.map((a) => (
+          <i key={a} className={BAND[a]} style={{ flexGrow: Math.max(row.mix[a] ?? 0, 0.002) }} />
+        ))}
+        {row.roll !== null && <em className="tick" style={{ left: `${row.roll}%` }} />}
+      </span>
+      <span className="mixwords">
+        {acts.map((a) => (
+          <span key={a} className={a === row.act ? 'chosen' : ''}>
+            {row.words[a]} {pct(row.mix[a] ?? 0)}%
+          </span>
+        ))}
+      </span>
     </span>
   )
 }
@@ -78,14 +108,14 @@ function MixCaption({ row }: { row: Extract<PlayRow, { kind: 'action' }> }) {
  * The hand, decision by decision: every node a row, newest at the bottom.
  * Human rows carry the pre-drawn roll — the instruction — and the grade.
  */
-function SidePanel({ rows, pendingRoll, over }: { rows: PlayRow[]; pendingRoll: number | null; over: boolean }) {
+function SidePanel({ rows }: { rows: PlayRow[] }) {
   const mistakes = rows.reduce(
     (sum, r) => sum + (r.kind === 'action' && r.human ? Math.round(r.mistake ?? 0) : 0),
     0,
   )
   return (
     <aside className="playside" aria-label="The hand, decision by decision">
-      <span className="k">the hand · low rolls play aggressive · low rolls stand pat</span>
+      <span className="k">the hand, decision by decision</span>
       <ol>
         {rows.map((row, i) =>
           row.kind === 'board' ? (
@@ -116,7 +146,7 @@ function SidePanel({ rows, pendingRoll, over }: { rows: PlayRow[]; pendingRoll: 
                 <span className="side-grade">
                   <span className="roll">roll {row.roll}</span>
                   {row.mistake === 0 ? (
-                    <span className="ok">✓</span>
+                    <span className="ok">✓ the roll agrees</span>
                   ) : (
                     <span className="bad">
                       {Math.round(row.mistake ?? 0)}% off — roll said {row.words[row.correct as Act]}
@@ -126,18 +156,6 @@ function SidePanel({ rows, pendingRoll, over }: { rows: PlayRow[]; pendingRoll: 
               )}
             </li>
           ),
-        )}
-        {!over && pendingRoll !== null && (
-          <li className="side-row live">
-            <span className="side-who">you</span>
-            <span className="side-main">
-              <b>your move</b>
-              <span className="side-mix">the roll picks the strategy’s action for you</span>
-            </span>
-            <span className="side-grade">
-              <span className="roll live">roll {pendingRoll}</span>
-            </span>
-          </li>
         )}
       </ol>
       <p className="side-total">
@@ -177,15 +195,20 @@ const lastActionOf = (rows: PlayRow[], seat: 0 | 1): string | null => {
   return null
 }
 
-/** A card face: rank large, suit glyph beneath, the suit's own ink. Face down is oxblood pinstripe. */
-export function CardGlyph({ card, hidden, small, thrown }: { card?: CardIndex; hidden?: boolean; small?: boolean; thrown?: boolean }) {
+/**
+ * A card face as Learn draws one: ivory, the rank and the suit glyph on one
+ * mono line, the red suits in red. A board card is a transparent frame with
+ * ivory ink; a card not yet dealt is a dashed frame; face down is the
+ * homepage's oxblood pinstripe.
+ */
+export function CardGlyph({ card, hidden, small }: { card?: CardIndex; hidden?: boolean; small?: boolean }) {
   const size = small ? 'pcard small' : 'pcard'
   if (hidden) return <span className={`${size} back`} aria-label="a card, face down" />
   if (card === undefined) return <span className={`${size} empty`} aria-label="no card yet" />
   return (
-    <span className={`${size} face s${suitOf(card)}${thrown ? ' thrown' : ''}`} aria-label={sym(card)}>
-      <b>{'23456'[rankOf(card)]}</b>
-      <i>{SUIT_GLYPH[suitOf(card)]}</i>
+    <span className={`${size} face s${suitOf(card)}`} aria-label={sym(card)}>
+      {'23456'[rankOf(card)]}
+      {SUIT_GLYPH[suitOf(card)]}
     </span>
   )
 }
@@ -200,6 +223,46 @@ function buttonWord(h: Hand, act: Act): string {
   const word = betWord(act as Bet, lines[lines.length - 1])
   const cost = costOf(lines, act as Bet)
   return cost > 0 ? `${word} ${cost}` : word
+}
+
+/**
+ * The trainer's window: the same frame Learn's range window has — a title
+ * bar with the window's number and field, the pane, and a status bar along
+ * the foot naming the strategy. `PackBoundary` and the loading state render
+ * the same frame around a sentence, so the window never changes shape.
+ */
+export function PlayWindow({
+  k,
+  live,
+  foot,
+  children,
+}: {
+  k: string
+  live?: boolean
+  foot?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <section className="panel wide playpanel" aria-label="Play a hand against the solver">
+      <div className="titlebar">
+        <span className="dots">
+          <i />
+          <i />
+          <i />
+        </span>
+        <span className="k">{k}</span>
+        {live && (
+          <span className="live">
+            <i />
+            live
+          </span>
+        )}
+        <span className="no">01</span>
+      </div>
+      <div className="pane">{children}</div>
+      {foot && <div className="statusbar">{foot}</div>}
+    </section>
+  )
 }
 
 export function PlayPanel({
@@ -238,9 +301,9 @@ export function PlayPanel({
 
   if (!hand) {
     return (
-      <Panel n="07" className="playpanel" k="Fig. 7 · the table" title="Play the solver." label="Play a hand against the solver">
-        <p className="say">{pack.error ? `The deal pack did not load: ${pack.error}` : 'Shuffling the deal pack…'}</p>
-      </Panel>
+      <PlayWindow k="01 · the table">
+        <p className="playnote">{pack.error ? `The deal pack did not load: ${pack.error}` : 'Shuffling the deal pack…'}</p>
+      </PlayWindow>
     )
   }
 
@@ -273,54 +336,105 @@ export function PlayPanel({
   const manifest = pack.manifest
   const grade = manifest?.grade ?? null
   const words = manifest ? describeStrategy(manifest) : null
-  const facing = words ? `${words.name}, ${words.detail}` : 'the strategy in the deal pack'
-  // The grade as `describeStrategy` quotes it everywhere else: three decimals, the run log's precision.
-  const graded = words?.grade ? ` — exploitable for ${words.grade} chips/hand by a perfect adversary` : ' — ungraded'
   const seatWorth = (seat: 0 | 1) => (grade ? ` · seat worth ${signed(seatValue(grade.valueP0, seat), 3)}` : '')
 
+  // The header states the spot, as Learn's does: the hand, where in it we
+  // are, and whose decision it is. The subline says what to do about it.
+  // `hands` is banked in the same update that settles a hand, so once a
+  // hand is over it is already counted: its number is `hands`, not the next.
+  const n = over ? hands : hands + 1
+  const result = hand.result ?? 0
+  const stage = drawing ? 'the draw' : phase === 'round1' ? 'round 1' : over ? 'settled' : 'round 2'
+  const headline = over
+    ? `Hand ${n} · ${result === 0 ? 'a push' : result > 0 ? `you win ${fmt(result)}` : `the solver wins ${fmt(-result)}`}`
+    : `Hand ${n} · ${stage} — ${myTurn ? 'you' : 'the solver'} to act`
+  const subline = over
+    ? 'Both holdings are up. The next hand swaps seats; the deal pack moves on.'
+    : !myTurn
+      ? 'The solver reads its mix at this spot from the deal pack and never adapts.'
+      : drawing
+        ? 'Your three cards are shown low, mid, top. Throw one, or stand pat.'
+        : `You are P${you}. Pick an action; the roll grades it against the strategy’s mix once you have.`
+
+  const foot = (
+    <>
+      <span>
+        {words ? (
+          <>
+            <b>{words.name}</b> · {words.detail}
+            {words.grade ? (
+              <>
+                {' '}
+                · exploitable for <b>{words.grade}</b> chips/hand
+              </>
+            ) : (
+              ' · ungraded'
+            )}
+          </>
+        ) : (
+          'the strategy in the deal pack'
+        )}
+      </span>
+      {manifest && (
+        <span>
+          {manifest.deals} deals · seed {manifest.seed} · {loadedDeals(manifest, pack.loaded)} loaded · digest{' '}
+          {manifest.strategy.sha256.slice(0, 12)}
+          {pack.error ? ` · a later chunk was refused (${pack.error}); play goes on with the hands already in` : ''}
+        </span>
+      )}
+    </>
+  )
+
   return (
-    <Panel
-      n="07"
-      className="playpanel"
-      k={`Fig. 7 · hand ${hands + 1} — you are P${you}`}
-      live={!over}
-      title="Play the solver."
-      say={`The bot reads ${facing}${graded}. It never adapts. Seats alternate; both holdings show at the end.`}
-      label="Play a hand against the solver"
-    >
+    <PlayWindow k={`01 · the table — hand ${n} · you are P${you}`} live={!over} foot={foot}>
+      <div className="playhead">
+        <div className="who">
+          {headline}
+          <small>{subline}</small>
+        </div>
+        <div className="cue">
+          <b>{chips >= 0 ? `+${fmt(chips)}` : `−${fmt(-chips)}`}</b>
+          <span>
+            your chips · {hands} {hands === 1 ? 'hand' : 'hands'}
+            {hands > 0 ? ` · ${signed(chips / hands, 3)} a hand` : ''}
+          </span>
+        </div>
+      </div>
+
       <div className="playwrap">
         <div className="playmain">
           <div className="table">
-            <svg className="felt" viewBox="0 0 560 400" aria-hidden>
-              <ellipse cx="280" cy="200" rx="266" ry="186" fill="none" stroke="currentColor" strokeWidth="1.5" />
-              <ellipse cx="280" cy="200" rx="246" ry="168" fill="none" stroke="currentColor" strokeWidth="1" strokeOpacity="0.25" />
-            </svg>
-            <div className="seat-spot villain">
+            <div className="lane villain">
               <span className="who">the solver · P{bot}</span>
               <span className="cards">
                 {botHole.map((c, i) => (reveal ? <CardGlyph key={c} card={c} /> : <CardGlyph key={i} hidden />))}
               </span>
-              <span className="did">{lastActionOf(hand.rows, bot) ?? ' '}</span>
+              <span className="did">{lastActionOf(hand.rows, bot) ?? ''}</span>
               <Chips n={liveInFor[bot]} />
             </div>
-            <div className="seat-spot centre">
+            <div className="lane centre">
+              <span className="who">board</span>
               <span className="cards board">
                 <CardGlyph card={b1} />
                 <CardGlyph card={b2} />
               </span>
+              <span className="did" />
               <span className="pot">
-                <Chips n={pile} quiet /> pot {pot}
+                <Chips n={pile} quiet /> pot <b>{pot}</b>
               </span>
             </div>
-            <div className="seat-spot you">
-              <Chips n={liveInFor[you]} />
-              <span className="did">{lastActionOf(hand.rows, you) ?? ' '}</span>
+            <div className="lane you">
+              <span className="who">
+                you · P{you}
+                {drawing && myTurn ? <small>low · mid · top</small> : null}
+              </span>
               <span className="cards">
                 {(drawing && myTurn ? hand.deal.order[you] : yourHole).map((c) => (
                   <CardGlyph key={c} card={c} />
                 ))}
               </span>
-              <span className="who">you · P{you}{drawing && myTurn ? ' · low, mid, top' : ''}</span>
+              <span className="did">{lastActionOf(hand.rows, you) ?? ''}</span>
+              <Chips n={liveInFor[you]} />
             </div>
             {sweep && sweep.amounts[bot] > 0 && (
               <span key={`v${sweep.id}`} className="sweep from-villain" onAnimationEnd={() => setSweep(null)}>
@@ -348,43 +462,32 @@ export function PlayPanel({
             ) : (
               <span className="waiting">the solver is thinking…</span>
             )}
+            {myTurn && hand.pendingRoll !== null && (
+              <span className="rollcue">
+                <span className="roll">roll {hand.pendingRoll}</span>
+                the roll picks the strategy’s action for you
+              </span>
+            )}
           </div>
+
+          <dl className="stat">
+            <div>
+              <dt>as P0{seatWorth(0)}</dt>
+              <dd className="seat">{perSeat(0)}</dd>
+            </div>
+            <div>
+              <dt>as P1{seatWorth(1)}</dt>
+              <dd className="seat">{perSeat(1)}</dd>
+            </div>
+          </dl>
+          <p className="playnote">
+            Matching the bot in both seats averages zero{grade ? `; a perfect adversary makes at most ${grade.exploitability.toFixed(3)} a hand` : ''}.
+            A hand swings by several chips, so short sessions are mostly noise.
+          </p>
         </div>
 
-        <SidePanel rows={hand.rows} pendingRoll={hand.pendingRoll} over={over} />
+        <SidePanel rows={hand.rows} />
       </div>
-
-      <dl className="stat">
-        <div>
-          <dt>hands</dt>
-          <dd>{hands}</dd>
-        </div>
-        <div>
-          <dt>your chips</dt>
-          <dd>{chips >= 0 ? `+${fmt(chips)}` : `−${fmt(-chips)}`}</dd>
-        </div>
-        <div>
-          <dt>per hand</dt>
-          <dd>{hands === 0 ? '—' : signed(chips / hands, 3)}</dd>
-        </div>
-        <div>
-          <dt>as P0{seatWorth(0)}</dt>
-          <dd className="seat">{perSeat(0)}</dd>
-        </div>
-        <div>
-          <dt>as P1{seatWorth(1)}</dt>
-          <dd className="seat">{perSeat(1)}</dd>
-        </div>
-      </dl>
-      <p className="side-total">
-        {pack.manifest
-          ? `${pack.manifest.deals} pre-dealt hands in the pack (seed ${pack.manifest.seed}) — the same ${pack.manifest.deals} for every visitor, reshuffled each sitting, the seats alternating and the coach's roll drawn live — ${loadedDeals(pack.manifest, pack.loaded)} loaded; the strategy's digest is ${pack.manifest.strategy.sha256.slice(0, 12)}…. `
-          : ''}
-        {pack.error && pack.manifest
-          ? `A later chunk was refused (${pack.error}), so play goes on with the hands already in and comes round to them again. `
-          : ''}
-        Matching the bot in both seats averages zero{grade ? `; a perfect adversary makes at most ${grade.exploitability.toFixed(3)} a hand` : ''}. A hand swings by several chips, so short sessions are mostly noise.
-      </p>
-    </Panel>
+    </PlayWindow>
   )
 }
