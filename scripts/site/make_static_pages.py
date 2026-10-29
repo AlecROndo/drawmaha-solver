@@ -600,7 +600,7 @@ FOOTER = f"""<footer>
     <div class="foot-cols">
       <div class="foot-about">
         <a class="chip-end" href="/" aria-label="Drawmaha home"><canvas aria-hidden="true"></canvas></a>
-        <p>A research project by Alec Ondo. A heads-up pot-limit Drawmaha solver, built one game at a time, each graded against a known answer. Python, NumPy and torch; training on Modal; the site on Vercel. The code, the graders and the data behind every figure are public.</p>
+        <p>A research project by Alec Ondo. A heads-up pot-limit Drawmaha solver, built one solved game at a time, each graded against a known answer. Python, NumPy and torch; training on Modal; the site on Vercel. The code, the graders and the data behind every figure are public.</p>
       </div>
       <div>
         <h4>Product</h4>
@@ -626,7 +626,6 @@ FOOTER = f"""<footer>
           <li><a href="{REPO}">GitHub</a></li>
           <li><a href="{REPO}/tree/main/figures">Figure data</a></li>
           <li><a href="{REPO}/releases">Strategy packs</a></li>
-          <li><a href="/cover">The old cover</a></li>
         </ul>
       </div>
     </div>

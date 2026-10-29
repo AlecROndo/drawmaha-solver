@@ -135,9 +135,6 @@ export function Footer() {
               <li>
                 <a href={`${REPO}/releases`}>Strategy packs</a>
               </li>
-              <li>
-                <a href={`${HOME}/cover`}>The old cover</a>
-              </li>
             </ul>
           </div>
         </div>

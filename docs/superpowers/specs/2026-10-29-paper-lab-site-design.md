@@ -122,7 +122,8 @@ action, **Open the solver**. The Rungs menu is gone.
 Footer: the chip, a one-paragraph project line, then three columns:
 Product (Range explorer, Play the solver, Rules, Releases), Research
 (Mini-drawmaha solved, Learn, Benchmarks, ML survey PDF), Resources (GitHub,
-figure data, strategy packs, the old cover).
+figure data, strategy packs). The archived old cover stays at `/cover`,
+linked from nowhere.
 
 ### Routes
 

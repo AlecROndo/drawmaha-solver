@@ -36,6 +36,10 @@ whenever any of those files changes; `tests/test_cover_page.py` renders the
 pages in memory and fails if a committed page differs.
 
 `cover.html` is the exception: it is an archive, edited by hand if at all.
+It is served as-is and loads the fonts of the old front page, which the
+build no longer ships, so `/cover` renders in fallback faces by design; the
+font check in `tests/test_cover_page.py` reads `fonts.css` alone and does not
+hold the archive to it.
 
 ## What a page loads
 

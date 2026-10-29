@@ -263,3 +263,68 @@ def test_the_pages_are_what_the_generator_writes(pages: dict[str, str]) -> None:
             f"{name} is not what make_static_pages.py writes; edit the generator and run "
             "`uv run python scripts/site/make_static_pages.py`"
         )
+
+
+SITE_TSX = ROOT / "web" / "rung0-viz" / "src" / "ui" / "site.tsx"
+
+
+def _squash(text: str) -> str:
+    return re.sub(r"\s+", " ", html.unescape(text)).strip()
+
+
+def _tsx_href(expr: str) -> str:
+    """A JSX href (`REPO`, `` `${HOME}/solver` ``) as the generator writes it: root-relative or the repo URL."""
+    expr = expr.strip().strip("`'\"")
+    if expr == "REPO":
+        return REPO
+    expr = expr.replace("${REPO}", REPO).replace("${HOME}", "")
+    return expr or "/"
+
+
+def _chrome_of_site_tsx() -> dict[str, object]:
+    """The nav, the footer's project paragraph, its column headings and its links, read out of site.tsx."""
+    source = SITE_TSX.read_text()
+    nav = [
+        (_tsx_href(href), label)
+        for label, href in re.findall(
+            r"\{\s*id:\s*'\w+',\s*label:\s*'([^']+)',\s*href:\s*(`[^`]+`|'[^']+')\s*\}", source
+        )
+    ]
+    footer = re.search(r"<footer>(.*?)</footer>", source, re.DOTALL)
+    assert nav and footer, "site.tsx's NAV or <footer> stopped matching"
+    body = footer.group(1)
+    paragraph = re.search(r"<p>(.*?)</p>", body, re.DOTALL)
+    links = [
+        (_tsx_href(href), _squash(label))
+        for href, label in re.findall(r"<li>\s*<a\s+href=\{(`[^`]*`|\w+)\}\s*>(.*?)</a>\s*</li>", body, re.DOTALL)
+    ]
+    headings = [_squash(h) for h in re.findall(r"<h4>(.*?)</h4>", body, re.DOTALL)]
+    assert paragraph and links and headings, "site.tsx's footer paragraph, links or headings stopped matching"
+    return {"nav": nav, "paragraph": _squash(paragraph.group(1)), "links": links, "headings": headings}
+
+
+@pytest.mark.parametrize("name", GENERATED)
+def test_the_pages_chrome_says_what_site_tsx_says(name: str, pages: dict[str, str]) -> None:
+    """The top bar and the footer are site.tsx's markup written out twice; the two copies say the same words.
+
+    The generator writes the chrome by hand from site.tsx, so a wording change
+    made in one and not the other drifts silently: the nav labels and hrefs,
+    the footer's project paragraph, its column headings and its links (label
+    and destination, in order) are held equal here.
+    """
+    want = _chrome_of_site_tsx()
+    page = pages[name]
+    nav = re.search(r'<nav class="nav"[^>]*>(.*?)</nav>', page, re.DOTALL)
+    footer = re.search(r"<footer>(.*?)</footer>", page, re.DOTALL)
+    assert nav and footer, f"{name}: no top-bar nav or footer found"
+    got_nav = [(href, _squash(label)) for href, label in re.findall(r'<a\b[^>]*\bhref="([^"]+)"[^>]*>(.*?)</a>', nav.group(1))]
+    assert got_nav == want["nav"], f"{name}: nav {got_nav} != site.tsx {want['nav']}"
+    body = footer.group(1)
+    paragraph = re.search(r"<p>(.*?)</p>", body, re.DOTALL)
+    assert paragraph and _squash(paragraph.group(1)) == want["paragraph"], (
+        f"{name}: the footer paragraph differs from site.tsx's:\n{paragraph and _squash(paragraph.group(1))}\n{want['paragraph']}"
+    )
+    got_links = [(href, _squash(label)) for href, label in re.findall(r'<li><a href="([^"]+)">(.*?)</a></li>', body, re.DOTALL)]
+    assert got_links == want["links"], f"{name}: footer links {got_links} != site.tsx {want['links']}"
+    got_headings = [_squash(h) for h in re.findall(r"<h4>(.*?)</h4>", body, re.DOTALL)]
+    assert got_headings == want["headings"], f"{name}: footer headings {got_headings} != {want['headings']}"
