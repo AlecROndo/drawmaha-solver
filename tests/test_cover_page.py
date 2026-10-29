@@ -244,6 +244,7 @@ def test_chip_js_draws_the_same_chip_as_mark_ts(pages: dict[str, str]) -> None:
     """
     ts = (ROOT / "web" / "rung0-viz" / "src" / "ui" / "mark.ts").read_text()
     js = (COVER / "chip.js").read_text()
+    found = {}
     for name, pattern in (
         ("FONT", r'const FONT = ("[^"]+")'),
         ("EMBOLDEN", r"const EMBOLDEN = ([0-9.]+)"),
@@ -254,10 +255,8 @@ def test_chip_js_draws_the_same_chip_as_mark_ts(pages: dict[str, str]) -> None:
     ):
         in_ts, in_js = re.findall(pattern, ts), re.findall(pattern, js)
         assert len(in_ts) == 1 and in_ts == in_js, f"{name}: mark.ts has {in_ts}, chip.js has {in_js}"
-    default = (
-        re.search(r"opts\.mark \?\? '(#[0-9a-f]{6})'", ts)[1],
-        re.search(r"opts\.ink \?\? '(#[0-9a-f]{6})'", ts)[1],
-    )
+        found[name] = in_ts[0]
+    default = (found["the default mark"], found["the default ink"])
     mounting = re.compile(r"mark: '(#[0-9a-f]{6})', ink: '(#[0-9a-f]{6})'")
     site = (ROOT / "web" / "rung0-viz" / "src" / "ui" / "site.tsx").read_text()
     mounted = {"site.tsx": mounting.findall(site)} | {name: mounting.findall(pages[name]) for name in GENERATED}
