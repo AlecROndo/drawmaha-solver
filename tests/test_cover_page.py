@@ -271,6 +271,30 @@ def test_no_page_says_rung_or_ladder_in_its_copy(name: str, pages: dict[str, str
     assert not found, f"{name} says {sorted(set(found))} in its copy"
 
 
+def test_every_policy_net_grades_above_its_runs_exact_average() -> None:
+    """The Releases page says the exact average grades lower than the Π of the same run.
+
+    That sentence is typed in the generator, not computed, so a release that
+    broke it would leave the page wrong with every number on it still right.
+    "The same run" is the same grade file at the same iteration.
+    """
+    from drawmaha_solver.minidrawmaha.answer.releases import RELEASES
+
+    key = re.compile(r"^deep/(\d+)/(exact|pi)$")
+    graded: dict[tuple[str, str], dict[str, float]] = {}
+    for release in RELEASES.values():
+        match = key.match(release.grade_key)
+        if match is None:
+            continue
+        grades = json.loads((ROOT / release.grade_file).read_text())
+        run = graded.setdefault((release.grade_file, match[1]), {})
+        run[match[2]] = grades[release.grade_key]["exploitability"]
+    pairs = {run: objects for run, objects in graded.items() if objects.keys() == {"exact", "pi"}}
+    assert pairs, "no release pairs a Π with its run's exact average; the Releases note has nothing to say"
+    for run, objects in pairs.items():
+        assert objects["exact"] < objects["pi"], f"{run}: exact {objects['exact']} is not below Π {objects['pi']}"
+
+
 def _generator():
     spec = importlib.util.spec_from_file_location("make_static_pages", GENERATOR)
     module = importlib.util.module_from_spec(spec)

@@ -654,8 +654,8 @@ main { padding-bottom: 0; }
 .muted { color: var(--ink-3); }
 .more { color: var(--ink); font-weight: 500; text-decoration: none; border-bottom: 1px solid var(--rule-2); transition: color 0.15s, border-color 0.15s; }
 .more:hover { color: var(--accent); border-color: var(--accent); }
-.prose a, .fig-cap a, td a.in { color: var(--accent); text-decoration: underline; text-decoration-color: var(--accent-tint); text-underline-offset: 3px; transition: text-decoration-color 0.15s; }
-.prose a:hover, .fig-cap a:hover, td a.in:hover { text-decoration-color: var(--accent); }
+.prose a, .fig-cap a, td a.in, .note a { color: var(--accent); text-decoration: underline; text-decoration-color: var(--accent-tint); text-underline-offset: 3px; transition: text-decoration-color 0.15s; }
+.prose a:hover, .fig-cap a:hover, td a.in:hover, .note a:hover { text-decoration-color: var(--accent); }
 code { font-family: var(--mono); font-size: 0.86em; background: var(--paper-2); padding: 1px 5px; border-radius: 3px; color: var(--ink); }
 .band { margin-top: 112px; }
 .split-aside h2 { margin-top: 0; }
@@ -1354,6 +1354,7 @@ def releases_page() -> str:
   <table class="hair releases"><thead><tr><th>Release</th><th>Published</th><th>Tag</th><th>Exploitability</th><th>Shipped to</th><th>Exported by</th></tr></thead>
   <tbody>{"".join(rows)}</tbody></table>
   <p class="note">The catalogue is <code>RELEASES</code> in <code>src/drawmaha_solver/minidrawmaha/answer/releases.py</code>; each grade is read from the file and key it names (<code>figures/rung3/answer_sheet.json</code>, <code>figures/rung4/</code>). An export copies the grade into its manifest, and the tests hold the copy to the file.</p>
+  <p class="note">Π, the policy net, is the original Deep CFR's average: a second net fit to the strategies a run sampled. The exact average sums those strategies with no second fit, and it grades lower than the Π of the same run; <a href="/research#ch-07">the research page</a> traces the gap to Π's fit.</p>
 </section>
 """
     css = """
