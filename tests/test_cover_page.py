@@ -11,7 +11,8 @@ reviewer catches by reading:
 - an `href` to a route that does not exist — the temptation each round is to
   link a page "for later", which ships a page whose every third click is a 404;
 - a font the pages declare but the build never puts under `/fonts/`, which
-  falls back to a system face and nobody notices until a screenshot;
+  falls back to a system face and nobody notices until a screenshot, or a
+  face the apps bundle that the pages never declare;
 - an inline script that no longer parses;
 - a request leaving the host — the pages self-host everything, no CDN;
 - a page that drifted from what its generator writes, i.e. a hand edit to a
@@ -170,6 +171,32 @@ def test_the_fonts_it_loads_are_the_ones_the_build_serves() -> None:
     assert set(declared) <= copied, f"fonts.css declares {set(declared) - copied}, which the build never copies"
     assert copied - set(declared) == {"instrument-serif-latin-400-normal.woff2"}, (
         f"the build copies {copied - set(declared)} that fonts.css does not declare"
+    )
+
+
+def test_the_static_pages_load_the_faces_the_apps_bundle() -> None:
+    """`fonts.css` declares exactly the faces the apps import from @fontsource.
+
+    The apps bundle their fonts through `main.tsx` (one copy, held equal across
+    the five by `test_shared_chrome.py`); the static pages read the same faces
+    through `fonts.css`. The two lists are written by hand, so a weight added
+    to `main.tsx` alone would render in the apps and fall back to a system
+    face on the homepage, Rules, Benchmarks and Releases.
+    """
+    imports = re.findall(
+        r"^import '@fontsource/([a-z-]+)/(\d+)(-italic)?\.css'$",
+        (ROOT / "web" / "rung0-viz" / "src" / "main.tsx").read_text(),
+        re.MULTILINE,
+    )
+    assert imports, "no @fontsource import parsed from main.tsx — the regex stopped matching"
+    bundled = {
+        f"{family}-latin-{weight}-{'italic' if italic else 'normal'}.woff2"
+        for family, weight, italic in imports
+    }
+    declared = set(re.findall(r"url\(/fonts/([a-z0-9-]+\.woff2)\)", (COVER / "fonts.css").read_text()))
+    assert bundled == declared, (
+        f"main.tsx bundles {sorted(bundled - declared)} that fonts.css lacks; "
+        f"fonts.css declares {sorted(declared - bundled)} that the apps do not bundle"
     )
 
 

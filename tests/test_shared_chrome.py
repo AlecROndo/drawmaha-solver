@@ -6,7 +6,7 @@ head, figures, footer) and its test, and the turning chip. They are copied rathe
 extracted to a package on purpose (see the note at the top of
 `src/ui/site.tsx`: the apps deploy independently, and a workspace would buy
 ~300 lines at the cost of a build step). The cost of copying is that the next
-edit to one copy drifts the other two silently: nothing in a build or a vitest
+edit to one copy drifts the other four silently: nothing in a build or a vitest
 run compares apps. This does.
 
 Rung 0's copy is the reference only because it is the first; a fix belongs in
@@ -42,5 +42,5 @@ def test_the_shared_file_is_byte_identical_in_every_app(path: str) -> None:
         )
         assert copy.read_bytes() == expected, (
             f"web/{app}/{path} differs from web/{APPS[0]}/{path}: a change to "
-            "a shared file goes into all three apps (cp it across, then cmp)"
+            "a shared file goes into all five apps (cp it across, then cmp)"
         )
