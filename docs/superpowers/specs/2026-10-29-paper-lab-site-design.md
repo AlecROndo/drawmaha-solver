@@ -61,7 +61,7 @@ for branding).
 | `--ink` | `#16140f` | text, primary chart series, the primary button |
 | `--ink-2` / `--ink-3` | `#4b4740` / `#857f74` | secondary text, captions, muted series |
 | `--accent` | `#8e2038` | the chip's oxblood: the winning series in every chart, bet / raise, links, the focus ring |
-| `--accent-tint` | `#f0dfe3` | bet-dominant matrix cells |
+| `--accent-tint` | `#f0dfe3` | the accent at its lightest: the homepage matrix's bet tint (mixed into the paper by bet share), text selection, a link's underline |
 | `--act-call` | `#2f7d4a` | call |
 | `--act-check` | `#2f66a3` | check and fold |
 

@@ -78,7 +78,7 @@ it runs five `npm ci` builds first. To look at just these pages, mimic
 
 ```bash
 tmp=$(mktemp -d); mkdir "$tmp/fonts"
-cp web/cover/{index,rules,benchmarks,releases,cover}.html web/cover/fonts.css web/cover/chip.js "$tmp/"
+cp web/cover/{index,rules,benchmarks,releases,cover}.html web/cover/fonts.css web/cover/chip.js web/cover/favicon.svg "$tmp/"
 cp web/rung0-viz/src/theme.css "$tmp/theme.css"
 f=web/rung0-viz/node_modules/@fontsource   # after `npm install` in web/rung0-viz
 for w in 400 500; do cp $f/newsreader/files/newsreader-latin-$w-normal.woff2 "$tmp/fonts/"; done

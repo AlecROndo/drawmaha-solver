@@ -44,7 +44,7 @@
 
   /* the one accent, and the action triplet */
   --accent: #8e2038; /* the chip's oxblood: the winning series, bet / raise, links, the focus ring */
-  --accent-tint: #f0dfe3; /* bet-dominant matrix cells */
+  --accent-tint: #f0dfe3; /* the accent at its lightest: the homepage matrix's bet tint, text selection, a link's underline */
   --act-bet: var(--accent);
   --act-call: #2f7d4a;
   --act-check: #2f66a3; /* check and fold */
@@ -66,8 +66,6 @@
   --panel-border: var(--rule-2);
   --panel: var(--paper-2);
   --well: var(--paper-3);
-  --yellow: var(--accent); /* retired: task 9 removes */
-  --pink: var(--ink-3); /* retired: task 9 removes */
 
   /* the voices */
   --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
@@ -392,7 +390,7 @@ h2 em {
 }
 
 .page-head h1 {
-  max-width: 18ch;
+  max-width: 24ch;
 }
 
 .lede {
@@ -430,6 +428,25 @@ h2 em {
 .note b {
   color: var(--ink-2);
   font-weight: 500;
+}
+
+/* the way back from a game's page to the page that grades all four: one line under the lede */
+.page-head .back {
+  display: inline-block;
+  margin-top: 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule-2);
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.page-head .back:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* ---------- the split: eyebrow and sentences at left, the thing at right -- */

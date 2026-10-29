@@ -98,8 +98,7 @@ PRESSABLES = {
 
 # The tokens of the field the site left (`--yellow`, `--pink`, the black
 # `--field`, the `--ivory` ink, the `--ox` brand pair): gone from every sheet
-# but the archived Cover once each surface is restyled. The theme keeps
-# `--yellow` and `--pink` as aliases until the last app stops reading them.
+# but the archived Cover.
 RETIRED_TOKENS = ("--yellow", "--pink", "--field", "--ivory", "--ox", "--ox-lit")
 ARCHIVED = ("cover.html",)
 
@@ -236,14 +235,8 @@ def test_the_motion_tokens_are_declared_and_agree(name: str) -> None:
         )
 
 
-@pytest.mark.xfail(strict=True, reason="until the per-surface restyles land")
 def test_retired_tokens_are_gone() -> None:
-    """No sheet but the archived Cover names a token of the black field.
-
-    Strict: this is red on purpose while the apps' own sheets and the two
-    pages not yet rewritten still read `--yellow` and friends, and it turns
-    green (and the mark comes off) when the last restyle lands.
-    """
+    """No sheet but the archived Cover names a token of the black field."""
     offenders = {}
     for name, css in SHEETS.items():
         if name in ARCHIVED:

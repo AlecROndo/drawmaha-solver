@@ -183,6 +183,27 @@ def test_each_page_links_the_theme_the_fonts_and_the_chip(name: str, pages: dict
     assert page.count("mountChip(") == 2, f"{name} should mount the chip twice, in the bar and the footer"
 
 
+APPS = ("rung0", "rung1", "rung2", "rung3", "solver")
+
+
+def test_the_favicon_every_page_links_is_one_the_build_serves(pages: dict[str, str]) -> None:
+    """Every page and every app links `/favicon.svg`, and the build copies the chip's to exactly that path.
+
+    A linked icon the build never copies is a 404 in every page's console.
+    """
+    icon = re.compile(r'<link rel="icon" href="([^"]+)"')
+    linked = {name: icon.findall(pages[name]) for name in GENERATED}
+    for app in APPS:
+        linked[f"{app}-viz"] = icon.findall((ROOT / "web" / f"{app}-viz" / "index.html").read_text())
+    assert all(hrefs == ["/favicon.svg"] for hrefs in linked.values()), f"icon links: {linked}"
+    script = (ROOT / "scripts" / "site" / "vercel_build.sh").read_text()
+    assert re.search(r"^cp web/cover/favicon\.svg public/favicon\.svg$", script, re.MULTILINE), (
+        "vercel_build.sh does not copy web/cover/favicon.svg to public/favicon.svg"
+    )
+    svg = (COVER / "favicon.svg").read_text()
+    assert svg.lstrip().startswith("<svg") and "#8e2038" in svg, "favicon.svg is not the oxblood chip"
+
+
 @pytest.mark.parametrize("name", PAGES)
 def test_every_inline_script_parses(name: str, pages: dict[str, str]) -> None:
     node = shutil.which("node")

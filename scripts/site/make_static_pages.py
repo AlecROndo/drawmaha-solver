@@ -460,7 +460,7 @@ def line_chart(
     def Y(v: float) -> float:
         return top + (1 - (math.log10(v) - y0) / (y1 - y0)) * ph
 
-    o = [f'<svg viewBox="0 0 {w} {h}" role="img" aria-label="{esc(label)}">']
+    o = [f'<svg viewBox="0 0 {w} {h}" style="max-width:{w}px" role="img" aria-label="{esc(label)}">']
     for text, v in yticks:
         y = Y(v)
         o.append(f'<line class="ch-grid" x1="{left}" x2="{left + pw}" y1="{y:.1f}" y2="{y:.1f}"/>')
@@ -510,7 +510,7 @@ def hbars(rows: list[tuple[str, float, str, str]], *, w: int, label: str, labw: 
     h = len(rows) * (barh + gap) - gap + 2
     pw = w - labw - 80
     maxv = maxv or max(v for _, v, _, _ in rows)
-    o = [f'<svg viewBox="0 0 {w} {h}" role="img" aria-label="{esc(label)}">']
+    o = [f'<svg viewBox="0 0 {w} {h}" style="max-width:{w}px" role="img" aria-label="{esc(label)}">']
     y = 0
     for name, v, printed, tone in rows:
         bw = max(v / maxv * pw, 1.5)
@@ -683,7 +683,7 @@ table.hair td.k a { text-decoration: none; }
 table.hair td.k a:hover { color: var(--accent); }
 /* cards */
 .cards { display: flex; gap: 8px; align-items: center; }
-.pc { width: 44px; height: 62px; border: 1px solid var(--rule-2); border-radius: 4px; background: #fffdf8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+.pc { width: 46px; height: 62px; border: 1px solid var(--rule-2); border-radius: 6px; background: #fffdf8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
 .pc.red { color: var(--accent); }
 .pc.out { opacity: 0.4; text-decoration: line-through; }
 .pc.blank { background: var(--paper-2); border-style: dashed; color: var(--ink-3); }
@@ -712,6 +712,8 @@ def page(*, title: str, description: str, here: str, css: str, body: str, source
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(description)}">
+<meta name="theme-color" content="#f7f5f0">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/fonts.css">
 <link rel="stylesheet" href="/theme.css">
 <style>{BASE_CSS}{css}</style>
@@ -1361,6 +1363,8 @@ table.releases td { font-size: 14px; }
 table.releases td .sub { display: block; margin-top: 4px; font-size: 13px; color: var(--ink-3); max-width: 34ch; }
 table.releases td.k .sub { font-weight: 400; }
 table.releases td .asset { display: block; margin-top: 4px; font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--ink-3); }
+/* the code voice, chosen rather than fallen back on: Plex Mono 400 (self-hosted beside the chip's 600) at 13 px */
+code { font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace; font-size: 13px; }
 table.releases code { white-space: nowrap; }
 table.releases td.tag, table.releases td.date { white-space: nowrap; }
 table.releases .ship { display: block; width: max-content; margin-bottom: 4px; }
