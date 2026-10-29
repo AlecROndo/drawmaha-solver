@@ -260,7 +260,7 @@ def test_chip_js_draws_the_same_chip_as_mark_ts(pages: dict[str, str]) -> None:
     mounting = re.compile(r"mark: '(#[0-9a-f]{6})', ink: '(#[0-9a-f]{6})'")
     site = (ROOT / "web" / "rung0-viz" / "src" / "ui" / "site.tsx").read_text()
     mounted = {"site.tsx": mounting.findall(site)} | {name: mounting.findall(pages[name]) for name in GENERATED}
-    assert all(found == [default] for found in mounted.values()), f"mark.ts defaults to {default}; mounted with {mounted}"
+    assert all(mounts == [default] for mounts in mounted.values()), f"mark.ts defaults to {default}; mounted with {mounted}"
 
 
 @pytest.mark.parametrize("name", PAGES)
