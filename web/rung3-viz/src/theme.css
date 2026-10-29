@@ -4,8 +4,9 @@
  * file to /theme.css):
  *
  *   1. Paper, ink and one accent. Warm paper for the page, near-black ink for
- *      text and the primary series, and the chip's oxblood as the only accent:
- *      the winning series in a chart, bet / raise, a link, the focus ring.
+ *      text and the primary series, and oxblood, the chip's red deepened, as
+ *      the only accent: the winning series in a chart, bet / raise, a link,
+ *      the focus ring.
  *      The action triplet is bet oxblood, call green, check / fold blue.
  *   2. Two voices and the chip's mono. Newsreader (serif) for display,
  *      headings and the research body; Geist (sans) for the UI, tables, charts
@@ -38,7 +39,7 @@
   --ink-3: #857f74; /* captions, muted series */
 
   /* the one accent, and the action triplet */
-  --accent: #8e2038; /* the chip's oxblood: the winning series, bet / raise, links, the focus ring */
+  --accent: #8e2038; /* oxblood, the chip's red deepened: the winning series, bet / raise, links, the focus ring */
   --accent-tint: #f0dfe3; /* the accent at its lightest: the homepage matrix's bet tint, text selection, a link's underline */
   --act-bet: var(--accent);
   --act-call: #2f7d4a;

@@ -60,15 +60,15 @@ for branding).
 | `--rule` / `--rule-2` | `#d8d2c6` / `#c2bbac` | hairlines, grid lines, control borders |
 | `--ink` | `#16140f` | text, primary chart series, the primary button |
 | `--ink-2` / `--ink-3` | `#4b4740` / `#857f74` | secondary text, captions, muted series |
-| `--accent` | `#8e2038` | the chip's oxblood: the winning series in every chart, bet / raise, links, the focus ring |
+| `--accent` | `#8e2038` | oxblood, the deeper shade of the chip's red: the winning series in every chart, bet / raise, links, the focus ring |
 | `--accent-tint` | `#f0dfe3` | the accent at its lightest: the homepage matrix's bet tint (mixed into the paper by bet share), text selection, a link's underline |
 | `--act-call` | `#2f7d4a` | call |
 | `--act-check` | `#2f66a3` | check and fold |
 
-The accent is the chip's own colour, so the logo and "this is the finding"
-are one colour. The action triplet is GTO Wizard's convention shifted to this
-palette (bet oxblood, call green, check / fold blue) and passes the dataviz
-validator on paper. Comparison charts use ink, accent and ink-3 with a dash
+The accent is the chip's red deepened, so the logo and "this is the finding"
+are one hue at two depths. The action triplet is GTO Wizard's convention
+shifted to this palette (bet oxblood, call green, check / fold blue) and
+passes the dataviz validator on paper. Comparison charts use ink, accent and ink-3 with a dash
 pattern for a fourth series; every line ends in a direct label. The old
 `--yellow` / `--pink` tokens are retired; each app renames its uses to the
 semantic tokens above.

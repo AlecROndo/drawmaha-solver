@@ -24,9 +24,9 @@ declares.
   `--paper-2` / `--paper-3` are recessed cells, bar tracks and code;
   `--rule` / `--rule-2` are hairlines and control borders. `--ink`
   `#16140f` is text and the primary series, `--ink-2` / `--ink-3` secondary
-  text and muted series. `--accent` `#8e2038` is the chip's oxblood and the
-  only accent: the winning series in a chart, bet and raise, links, the
-  focus ring; `--accent-tint` is a link's underline and the text selection,
+  text and muted series. `--accent` `#8e2038` is oxblood, the deeper shade of
+  the chip's red (`#c8102e`), and the only accent: the winning series in a
+  chart, bet and raise, links, the focus ring; `--accent-tint` is a link's underline and the text selection,
   and on the homepage's opening matrix alone it fills the bet-dominant cells.
 - **Charts and actions read semantic tokens.** `--series-1/2/3` are ink,
   accent and muted ink, with a dash pattern for a fourth series and a direct
