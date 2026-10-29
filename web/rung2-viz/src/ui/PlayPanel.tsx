@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 import { legal, potAfter, roundInFor, word, BETS, ANTE, type Act, type Rank } from '../leduc'
 import { AGGRESSION, nextHand, playAct, roundLine, type PlayRow, type Session } from '../play'
 import { SOLVE } from '../solve'
-import { Panel } from './site'
+import { Figure } from './site'
 
 /**
  * One hand against the committed solve. The bot samples the final average
@@ -29,6 +29,7 @@ function MixCaption({ row }: { row: Extract<PlayRow, { kind: 'action' }> }) {
     <span className="side-mix">
       {AGGRESSION.filter((a) => a in row.mix).map((a) => (
         <span key={a} className={a === row.act ? 'chosen' : ''}>
+          <i className={`sw ${word(a, row.line)}`} aria-hidden />
           {word(a, row.line)} {pct(row.mix[a] ?? 0)}
         </span>
       ))}
@@ -61,7 +62,7 @@ function SidePanel({
   )
   return (
     <aside className="playside" aria-label="The hand, decision by decision">
-      <span className="k">the hand · low rolls play aggressive</span>
+      <span className="k">The hand, decision by decision</span>
       <ol>
         {rows.map((row, i) =>
           row.kind === 'board' ? (
@@ -98,7 +99,7 @@ function SidePanel({
             <span className="side-who">you</span>
             <span className="side-main">
               <b>your move</b>
-              <span className="side-mix">low roll bets, high roll gives up</span>
+              <span className="side-mix">a low roll takes the aggressive action, a high roll gives up</span>
             </span>
             <span className="side-grade">
               <span className="roll live">roll {pendingRoll}</span>
@@ -113,7 +114,7 @@ function SidePanel({
         )}
       </ol>
       <p className="side-total">
-        mistakes this hand <b>{mistakes}%</b>
+        Mistakes this hand <b>{mistakes}%</b>
       </p>
     </aside>
   )
@@ -126,7 +127,7 @@ function Chips({ n, quiet }: { n: number; quiet?: boolean }) {
   return (
     <span className="chipstack" aria-label={`${n} chips`}>
       <svg viewBox="0 0 26 20" aria-hidden>
-        <g fill="none" stroke="currentColor" strokeWidth="1.2">
+        <g className="plates" strokeWidth="1.2">
           {Array.from({ length: plates }, (_, i) => (
             <g key={i}>
               <ellipse cx="13" cy={16 - i * 3.4} rx="9" ry="3" />
@@ -211,27 +212,27 @@ export function PlayPanel({
   }, [handId, phase])
 
   return (
-    <Panel
-      n="02"
+    <Figure
+      n="Figure 3"
       className="playpanel"
-      k={`Fig. 2 · hand ${hands + 1} — you are P${hand.humanSeat}`}
-      live={!over}
-      title="Play the solver."
-      say={`The bot samples the committed ${SOLVE.iterations.toLocaleString()}-iteration average strategy — exploitability ${SOLVE.exploitabilityAverage.toFixed(4)} chips/hand. It never adapts.`}
+      title={`Hand ${over ? hands : hands + 1}: you are P${hand.humanSeat}, the solver is P${1 - hand.humanSeat}`}
+      sub={`The solver samples the committed ${SOLVE.iterations.toLocaleString()}-iteration average strategy, exploitable by ${SOLVE.exploitabilityAverage.toFixed(3)} chips/hand. It never adapts.`}
       label="Play a hand against the solver"
     >
       <div className="playwrap">
         <div className="playmain">
           <div className="table">
-        <svg className="felt" viewBox="0 0 560 380" aria-hidden>
-          <ellipse cx="280" cy="190" rx="266" ry="176" fill="none" stroke="currentColor" strokeWidth="1.5" />
-          <ellipse cx="280" cy="190" rx="246" ry="158" fill="none" stroke="currentColor" strokeWidth="1" strokeOpacity="0.25" />
+        <svg className="felt" viewBox="0 0 560 440" aria-hidden>
+          <ellipse className="felt-edge" cx="280" cy="220" rx="266" ry="206" strokeWidth="1.5" />
+          <ellipse className="felt-line" cx="280" cy="220" rx="246" ry="188" strokeWidth="1" />
         </svg>
         <div className="seat-spot villain">
           <span className="who">the solver · P{1 - hand.humanSeat}</span>
           {reveal ? <CardGlyph rank={hand.cards[1 - hand.humanSeat].rank} /> : <CardGlyph hidden />}
-          <span className="did">{lastActionOf(hand.rows, (1 - hand.humanSeat) as 0 | 1) ?? '\u00A0'}</span>
-          <Chips n={liveInFor[1 - hand.humanSeat]} />
+          <span className="in-front">
+            <span className="did">{lastActionOf(hand.rows, (1 - hand.humanSeat) as 0 | 1) ?? '\u00A0'}</span>
+            <Chips n={liveInFor[1 - hand.humanSeat]} />
+          </span>
         </div>
         <div className="seat-spot centre">
           <CardGlyph rank={hand.board ?? undefined} />
@@ -240,8 +241,10 @@ export function PlayPanel({
           </span>
         </div>
         <div className="seat-spot you">
-          <Chips n={liveInFor[hand.humanSeat]} />
-          <span className="did">{lastActionOf(hand.rows, hand.humanSeat) ?? '\u00A0'}</span>
+          <span className="in-front">
+            <span className="did">{lastActionOf(hand.rows, hand.humanSeat) ?? '\u00A0'}</span>
+            <Chips n={liveInFor[hand.humanSeat]} />
+          </span>
           <CardGlyph rank={hand.cards[hand.humanSeat].rank} />
           <span className="who">you · P{hand.humanSeat}</span>
         </div>
@@ -259,12 +262,13 @@ export function PlayPanel({
 
           <div className="play-buttons">
             {over ? (
-              <button className="btn" onClick={next}>
-                Next hand
+              <button className="btn primary" onClick={next}>
+                Deal the next hand
               </button>
             ) : (
-              legal(line).map((a, i) => (
-                <button key={a} className={i === 0 ? 'btn' : 'btn ghost'} onClick={() => act(a)}>
+              legal(line).map((a) => (
+                <button key={a} className="btn act-btn" onClick={() => act(a)}>
+                  <i className={`sw ${word(a, line)}`} aria-hidden />
                   {word(a, line)}
                 </button>
               ))
@@ -280,23 +284,23 @@ export function PlayPanel({
         />
       </div>
 
-      <dl className="stat">
-        <div>
-          <dt>hands</dt>
+      <dl className="stats play-stats">
+        <div className="stat">
+          <dt>Hands</dt>
           <dd>{hands}</dd>
         </div>
-        <div>
-          <dt>your chips</dt>
+        <div className="stat">
+          <dt>Your chips</dt>
           <dd>
             {chips >= 0 ? '+' : ''}
             {chips}
           </dd>
         </div>
-        <div>
-          <dt>per hand</dt>
+        <div className="stat">
+          <dt>Per hand</dt>
           <dd>{hands === 0 ? '—' : (chips / hands).toFixed(3)}</dd>
         </div>
       </dl>
-    </Panel>
+    </Figure>
   )
 }
