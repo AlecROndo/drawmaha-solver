@@ -155,16 +155,17 @@ def _copied_fonts() -> set[str]:
 
 
 def test_the_fonts_it_loads_are_the_ones_the_build_serves() -> None:
-    """`fonts.css` declares the seven files the build copies, and only those.
+    """`fonts.css` declares the eight files the build copies, and only those.
 
     Newsreader 400 / 500 / 400 italic, Geist Sans 400 / 500 / 600 and IBM
-    Plex Mono 400. The build copies one more, Instrument Serif 400, for the
-    hero studies at /hero, which load it themselves; no static page names it.
+    Plex Mono 400 (code) and 600 (the chip's glyph grid). The build copies
+    one more, Instrument Serif 400, for the hero studies at /hero, which load
+    it themselves; no static page names it.
     A file declared and not copied is a 404 the browser hides behind a
     fallback face.
     """
     declared = re.findall(r"url\(/fonts/([a-z0-9-]+\.woff2)\)", (COVER / "fonts.css").read_text())
-    assert len(declared) == 7 == len(set(declared)), f"fonts.css declares {declared}"
+    assert len(declared) == 8 == len(set(declared)), f"fonts.css declares {declared}"
     copied = _copied_fonts()
     assert set(declared) <= copied, f"fonts.css declares {set(declared) - copied}, which the build never copies"
     assert copied - set(declared) == {"instrument-serif-latin-400-normal.woff2"}, (

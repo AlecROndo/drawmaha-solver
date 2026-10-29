@@ -1,12 +1,20 @@
 /* chip.js — the Drawmaha chip: a dithered, tilted poker chip turning on its axis, drawn as ASCII on a canvas.
    The plain-JS twin of the apps' src/ui/mark.ts, served at /chip.js and loaded by every static page. The mark on
-   paper: glyphs default to ink (#16140f), the pattern to the chip's oxblood (#8e2038). Transparent field.
+   paper: the face in ink (#16140f), the edge sectors and the inner ring in the chip's oxblood (#8e2038). Transparent
+   field. On paper how dark a cell reads is how much of it the glyph covers, so — as in mark.ts — the grid is set in
+   Plex Mono 600, every glyph is emboldened by a stroke of its own colour (EMBOLDEN of the cell size), the face's ramp
+   starts at ':' and the pattern is always '@'. Every glyph is drawn at full opacity.
    Two ways in:
      mountChip(canvas, { mark, ink, font, speed, tilt })  — one canvas, the same options as mark.ts; returns a teardown.
      mountChips({ mark, ink })                            — every <canvas data-chip> on the page, options per canvas via
                                                             data-font="1.5" (cell px), data-speed="0.3" (rad/s), data-tilt="0.8". */
 (function () {
-const FONT = "'IBM Plex Mono', ui-monospace, Menlo, monospace";
+const FONT = "600 {px}px 'IBM Plex Mono', ui-monospace, Menlo, monospace";
+const font = (px) => FONT.replace('{px}', String(px));
+/* the stroke laid over each glyph, as a fraction of the cell size: the coverage that makes 1.5 px cells read */
+const EMBOLDEN = 0.16;
+/* the face's glyphs from shadow to light; the pattern is always the last */
+const FACE = ':+%#@@';
 const RAMP = " .'`,:;~-=+*x%#@";
 let CHARSET = '';
 for (let c = 32; c < 127; c++) CHARSET += String.fromCharCode(c);
@@ -49,7 +57,7 @@ class Grid {
     this.canvas.width = Math.round(r.width * dpr); this.canvas.height = Math.round(r.height * dpr);
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.font = `${this.fontPx}px ${FONT}`;
+    ctx.font = font(this.fontPx);
     this.cw = ctx.measureText('M').width;
     this.ch = this.fontPx * 1.02;
     this.cols = Math.floor(r.width / this.cw); this.rows = Math.floor(r.height / this.ch);
@@ -68,8 +76,12 @@ class Grid {
       const c = document.createElement('canvas');
       c.width = gw * CHARSET.length; c.height = gh;
       const x = c.getContext('2d');
-      x.font = `${this.fontPx * dpr}px ${FONT}`; x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillStyle = col;
-      for (let i = 0; i < CHARSET.length; i++) x.fillText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5);
+      x.font = font(this.fontPx * dpr); x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillStyle = col;
+      x.strokeStyle = col; x.lineWidth = this.fontPx * dpr * EMBOLDEN; x.lineJoin = 'round';
+      for (let i = 0; i < CHARSET.length; i++) {
+        x.fillText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5);
+        x.strokeText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5);
+      }
       return c;
     });
   }
@@ -138,7 +150,7 @@ function rayChip(g, o) {
   const toWorld = (x, y, z) => [m[0][0] * x + m[0][1] * y + m[0][2] * z, m[1][0] * x + m[1][1] * y + m[1][2] * z, m[2][0] * x + m[2][1] * y + m[2][2] * z];
   const R = o.R, hz = o.hz, L = o.L, sectors = o.sectors || 12;
   const d = toLocal(0, 0, 1);
-  const chars = [0, CIDX['.'], CIDX[':'], CIDX['+'], CIDX['%'], CIDX['@']];
+  const chars = [...FACE].map((c) => CIDX[c]);
   const ext = R * 1.05 + hz;
   const cx0 = Math.max(0, Math.floor(o.cx - ext)), cx1 = Math.min(cols - 1, Math.ceil(o.cx + ext));
   const cy0 = Math.max(0, Math.floor((o.cy - ext) / ar)), cy1 = Math.min(rows - 1, Math.ceil((o.cy + ext) / ar));
@@ -191,9 +203,9 @@ function rayChip(g, o) {
       const col = mat === 1 ? o.colBase : o.colPattern;
       if (o.dither) {
         const bay = (BAYER[cyy % 4][cxx % 4] + 0.5) / 16 - 0.5;
-        /* the pattern never drops below '%': the sectors are what make the disc read as a chip, even in shadow */
-        const lv = Math.max(mat === 2 ? 4 : 0, clamp(Math.floor(I * 5 + bay * 1.15), 0, 5));
-        if (lv > 0) { g.chb[i] = chars[lv]; g.cob[i] = col; } else { g.chb[i] = chars[1]; g.cob[i] = o.colDim; }
+        /* the pattern is always the densest glyph: the sectors are what make the disc read as a chip, even in shadow */
+        const lv = mat === 2 ? 5 : clamp(Math.floor(I * 5 + bay * 1.15), 0, 5);
+        g.chb[i] = chars[lv]; g.cob[i] = col;
       } else {
         g.chb[i] = g.ramp(clamp(I, 0.08, 1)); g.cob[i] = col;
       }
@@ -204,15 +216,14 @@ function rayChip(g, o) {
 const CHIP_SCENES = [];
 function mountChips(opts) {
   const mark = (opts && opts.mark) || '#16140f', ink = (opts && opts.ink) || '#8e2038';
-  const hexA = (hex, a) => { let h = hex.replace('#', ''); if (h.length === 3) h = h.split('').map((c) => c + c).join(''); const n = parseInt(h, 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   for (const canvas of document.querySelectorAll('canvas[data-chip]')) {
-    const g = new Grid(canvas, ['transparent', mark, ink, hexA(mark, 0.5)], parseFloat(canvas.dataset.font || '1.5'));
+    const g = new Grid(canvas, ['transparent', mark, ink], parseFloat(canvas.dataset.font || '1.5'));
     CHIP_SCENES.push({ g, canvas, yaw: 0.6, t: 0, speed: parseFloat(canvas.dataset.speed || '0.3'), tilt: parseFloat(canvas.dataset.tilt || '0.8'), drawn: false });
   }
   const ro = new ResizeObserver(() => CHIP_SCENES.forEach((s) => { s.g.resize(); s.drawn = false; }));
   CHIP_SCENES.forEach((s) => ro.observe(s.canvas));
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => CHIP_SCENES.forEach((s) => { s.g.resize(); s.drawn = false; }));
+  if (document.fonts && document.fonts.load) document.fonts.load(font(12)).then(() => CHIP_SCENES.forEach((s) => { s.g.resize(); s.drawn = false; }));
   let last = performance.now();
   function tick(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -222,7 +233,7 @@ function mountChips(opts) {
       if (!reduced) { s.t += dt; s.yaw += dt * (s.g.mouse.in ? s.speed * 3.5 : s.speed); }
       const g = s.g, { W, H } = g; const R = Math.min(W, H) * 0.46;
       g.clear();
-      rayChip(g, { cx: W / 2, cy: H / 2, R, hz: R * 0.13, M: mul(rotX(s.tilt + 0.12 * Math.sin(s.t * 0.37)), mul(rotY(0.25 * Math.sin(s.t * 0.29)), rotZ(s.yaw))), L: norm3([-0.55, -0.5, -0.67]), colBase: 1, colPattern: 2, colDim: 3, dither: true, sectors: 12 });
+      rayChip(g, { cx: W / 2, cy: H / 2, R, hz: R * 0.13, M: mul(rotX(s.tilt + 0.12 * Math.sin(s.t * 0.37)), mul(rotY(0.25 * Math.sin(s.t * 0.29)), rotZ(s.yaw))), L: norm3([-0.55, -0.5, -0.67]), colBase: 1, colPattern: 2, dither: true, sectors: 12 });
       g.draw();
     }
     requestAnimationFrame(tick);
@@ -236,13 +247,12 @@ window.mountChips = mountChips;
 function mountChip(canvas, opts) {
   opts = opts || {};
   const mark = opts.mark || '#16140f', ink = opts.ink || '#8e2038';
-  const hexA = (hex, a) => { let h = hex.replace('#', ''); if (h.length === 3) h = h.split('').map((c) => c + c).join(''); const n = parseInt(h, 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const g = new Grid(canvas, ['transparent', mark, ink, hexA(mark, 0.5)], opts.font || 1.5);
+  const g = new Grid(canvas, ['transparent', mark, ink], opts.font || 1.5);
   const s = { yaw: 0.6, t: 0, speed: opts.speed == null ? 0.3 : opts.speed, tilt: opts.tilt == null ? 0.8 : opts.tilt, drawn: false };
   const ro = new ResizeObserver(() => { g.resize(); s.drawn = false; });
   ro.observe(canvas);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { g.resize(); s.drawn = false; });
+  if (document.fonts && document.fonts.load) document.fonts.load(font(12)).then(() => { g.resize(); s.drawn = false; });
   let raf = 0, last = performance.now();
   function tick(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -251,7 +261,7 @@ function mountChip(canvas, opts) {
       if (!reduced) { s.t += dt; s.yaw += dt * (g.mouse.in ? s.speed * 3.5 : s.speed); }
       const { W, H } = g; const R = Math.min(W, H) * 0.46;
       g.clear();
-      rayChip(g, { cx: W / 2, cy: H / 2, R, hz: R * 0.13, M: mul(rotX(s.tilt + 0.12 * Math.sin(s.t * 0.37)), mul(rotY(0.25 * Math.sin(s.t * 0.29)), rotZ(s.yaw))), L: norm3([-0.55, -0.5, -0.67]), colBase: 1, colPattern: 2, colDim: 3, dither: true, sectors: 12 });
+      rayChip(g, { cx: W / 2, cy: H / 2, R, hz: R * 0.13, M: mul(rotX(s.tilt + 0.12 * Math.sin(s.t * 0.37)), mul(rotY(0.25 * Math.sin(s.t * 0.29)), rotZ(s.yaw))), L: norm3([-0.55, -0.5, -0.67]), colBase: 1, colPattern: 2, dither: true, sectors: 12 });
       g.draw();
     }
     raf = requestAnimationFrame(tick);

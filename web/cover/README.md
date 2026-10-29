@@ -40,9 +40,9 @@ pages in memory and fails if a committed page differs.
 ## What a page loads
 
 - `/fonts.css` — `fonts.css` in this directory: the `@font-face` rules for the
-  seven woff2 files `scripts/site/vercel_build.sh` copies to `/fonts/` out of
+  eight woff2 files `scripts/site/vercel_build.sh` copies to `/fonts/` out of
   rung 0's `@fontsource` packages (Newsreader 400, 500 and 400 italic; Geist
-  Sans 400, 500, 600; IBM Plex Mono 400 for the chip). A page never names a
+  Sans 400, 500, 600; IBM Plex Mono 600 for the chip and 400 for code). A page never names a
   font file itself.
 - `/theme.css` — the apps' theme, `web/rung0-viz/src/theme.css`, copied by the
   build. The top bar, the footer, buttons, figures, hairline tables and the
@@ -84,7 +84,7 @@ f=web/rung0-viz/node_modules/@fontsource   # after `npm install` in web/rung0-vi
 for w in 400 500; do cp $f/newsreader/files/newsreader-latin-$w-normal.woff2 "$tmp/fonts/"; done
 cp $f/newsreader/files/newsreader-latin-400-italic.woff2 "$tmp/fonts/"
 for w in 400 500 600; do cp $f/geist-sans/files/geist-sans-latin-$w-normal.woff2 "$tmp/fonts/"; done
-cp $f/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2 "$tmp/fonts/"
+for w in 400 600; do cp $f/ibm-plex-mono/files/ibm-plex-mono-latin-$w-normal.woff2 "$tmp/fonts/"; done
 (cd "$tmp" && python3 -m http.server 8790)
 ```
 

@@ -33,9 +33,10 @@ cp -r web/hero-studies public/hero
 #
 # The site's voices: Newsreader (serif; 400, 500 and the 400 italic) for display
 # and the research body, Geist (sans; 400, 500, 600) for the UI and every
-# number, and IBM Plex Mono 400 for one job, the chip's glyph grid. The static
-# pages read them through /fonts.css, so what is copied here and what that file
-# declares are the same seven files. Instrument Serif is not a voice of the
+# number, and IBM Plex Mono 600 for one job, the chip's glyph grid (400 is the
+# code voice of the Releases page). The static pages read them through
+# /fonts.css, so what is copied here and what that file declares are the same
+# eight files. Instrument Serif is not a voice of the
 # site; it is copied for the hero studies at /hero, which are kept as they were,
 # and rung 0 keeps the package for that reason.
 fontsource=web/rung0-viz/node_modules/@fontsource
@@ -48,7 +49,7 @@ copy_font_italic() {
 for weight in 400 500; do copy_font newsreader "$weight"; done
 copy_font_italic newsreader 400
 for weight in 400 500 600; do copy_font geist-sans "$weight"; done
-copy_font ibm-plex-mono 400
+for weight in 400 600; do copy_font ibm-plex-mono "$weight"; done
 copy_font instrument-serif 400
 
 # The static pages are plain HTML written in the repo (web/cover/README.md):
