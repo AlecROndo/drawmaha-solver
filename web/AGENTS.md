@@ -71,9 +71,8 @@ from there.
   ink, rung 3's `--rule-*` and `--obj-*`); the raw colours left in the app
   sheets are white and near-white card faces and rung 3's two lighter
   throw depths, the accent at 0.42 and 0.7 alpha. `--yellow` and `--pink` are
-  retired: no app sheet or generated page names them, and the theme keeps
-  them only as aliases until `test_retired_tokens_are_gone` loses its xfail
-  mark. The solver's mix bands read the triplet through `--rx-f`, `--rx-c`
+  retired: no sheet but the archived Cover names them, the theme included,
+  and `test_retired_tokens_are_gone` holds it. The solver's mix bands read the triplet through `--rx-f`, `--rx-c`
   and `--rx-p` on `.rx` (the middle band is a check where the betting opens,
   `.rx[data-node='open']`), and `/rung3`'s Learn tab, which imports that
   view, inherits them; the trainer's coach bands use the action tokens

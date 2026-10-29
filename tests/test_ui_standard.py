@@ -55,23 +55,13 @@ PRESS_RANGE = (0.95, 0.98)
 # itself, a section arriving on scroll, a status pulse. Each is allowed to
 # exceed 300 ms, to own a curve, or to animate a layout property — and each
 # says why. Matched inside the rule's selector at a selector boundary, so
-# `.card` covers `.card.lit` and `.card .n` but not `.cardinal`.
+# `.sweep` covers `.sweep.from-you` but not `.sweeper`. An entry must still
+# match a rule that moves; the first test below refuses a ghost.
 EXPLANATORY = {
-    ".reveal": "a section arriving on scroll, seen once per visit; 550 ms travel",
-    ".beat": "the Rules hand's current beat lights as it reaches mid-screen",
-    ".fig ": "the ladder's figures draw themselves once as they scroll in",
-    ".meter .track": "the Leduc meter fills once; its fill is a gradient scaleX would squash",
-    ".sizes .bar": "the Rules tab's game-size bars fill once on scroll",
-    ".act .bar": "the homepage's action-mix bars, a reading not a control",
-    ".bars .b i": "the homepage's side-panel strategy bars, a reading not a control",
-    ".console .prog .bar": "a progress bar: linear, 120 ms, tracks a live counter",
-    ".live i": "the live dot's pulse, 2 s, constant",
-    ".st i": "the in-progress status dot's pulse",
-    ".st.prog i": "the ladder's in-progress badge pulse",
-    ".st::before": "the Cover ladder's in-progress dot pulse",
+    ".live i": "the archived Cover's live dot, a 2 s constant pulse",
+    ".st::before": "the archived Cover's in-progress dot pulse on its ladder",
     ".sweep": "rungs 2 and 3's chips crossing 58 px of felt to the pot, one-shot, 400 ms",
-    ".rungs-menu": "the old chrome's Rungs menu animates width on purpose; the archived Cover inlines it, as do the pages not yet rewritten",
-    ".card": "the Rules tab's worked-hand cards, highlighted once by the reading",
+    ".rungs-menu": "the old chrome's Rungs menu animates width on purpose; only the archived Cover still inlines it",
 }
 
 # Every pressable thing, per stylesheet. A pressable has `.x:active` with a
@@ -216,6 +206,22 @@ def _motion_values(rule: Rule) -> list[str]:
     for prop in ("transition", "animation", "transition-duration", "animation-duration"):
         values.extend(rule.declarations(prop))
     return values
+
+
+# ------------------------------------------------------------ the allowlist
+
+
+@pytest.mark.parametrize("key", sorted(EXPLANATORY))
+def test_every_allowlisted_selector_names_a_rule_that_moves(key: str) -> None:
+    """An entry that exempts nothing is a ghost, and a ghost hides the next real exception."""
+    pattern = rf"{re.escape(key)}(?![\w-])"
+    moving = [
+        f"{name}: {rule!r}"
+        for name, rules in RULES.items()
+        for rule in rules
+        if re.search(pattern, rule.selector) and _motion_values(rule)
+    ]
+    assert moving, f"EXPLANATORY names {key!r}, which matches no rule that moves; delete the entry"
 
 
 # -------------------------------------------------------------- the tokens

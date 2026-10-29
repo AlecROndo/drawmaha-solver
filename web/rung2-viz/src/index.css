@@ -82,13 +82,14 @@
   padding-bottom: 6px;
 }
 
-.tl .track {
+/* The positioned box the track and the stations are laid out in. */
+.tl .stations {
   position: relative;
 }
 
-/* The rail runs through the middle of the station boxes: 10 px of button
+/* The track runs through the middle of the station boxes: 10 px of button
    padding, 16 px of seat label, 14 px of margin, then half the 16 px box. */
-.tl .rail {
+.tl .track {
   position: absolute;
   top: 47.5px;
   height: 1px;
@@ -96,7 +97,7 @@
   background: var(--rule-2);
 }
 
-.tl .rail.done {
+.tl .track.done {
   background: var(--ink);
   height: 2px;
   top: 47px;
@@ -114,7 +115,7 @@
 }
 
 /* Fixed-width stations: the strip scrolls rather than compressing, so adding
-   a node never squeezes the ones already drawn. The rail math in Timeline.tsx
+   a node never squeezes the ones already drawn. The track math in Timeline.tsx
    hardcodes the same 150. */
 .tl li {
   flex: 0 0 150px;
@@ -149,7 +150,7 @@
   background: var(--paper-2);
 }
 
-/* An inline span ignores height, and the rail's offset is measured through
+/* An inline span ignores height, and the track's offset is measured through
    this 16 px — leave it block or the boxes sag below the line. */
 .tl .who {
   display: block;
@@ -163,7 +164,7 @@
   white-space: nowrap;
 }
 
-/* A station is a small square on the rail: hollow ahead, filled behind, and
+/* A station is a small square on the track: hollow ahead, filled behind, and
    the one being looked at ringed in the accent. */
 .tl .stn-box {
   display: block;

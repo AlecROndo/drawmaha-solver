@@ -50,7 +50,7 @@ function WalkTab({ walk, setWalk, x }: { walk: Walk; setWalk: (w: Walk) => void;
         n="Figure 1"
         className="timeline"
         title="A hand of Leduc is a line of decisions, one station each"
-        sub="Press a station to rewind to it; press the board card to change it. The rail is solid as far as the hand has gone."
+        sub="Press a station to rewind to it; press the board card to change it. The track is solid as far as the hand has gone."
         caption={
           <>
             Rewinding keeps the stations ahead. Choosing a different action at a station replaces them, and the strip

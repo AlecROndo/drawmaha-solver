@@ -11,7 +11,7 @@ import {
 import { SOLVE } from '../solve'
 import { boardPending, handOver, lineOver, stateAt, type Step, type Walk } from '../timeline'
 
-/** Matches `.tl li { flex: 0 0 150px }` — the rail is measured in these. */
+/** Matches `.tl li { flex: 0 0 150px }` — the track is measured in these. */
 const STATION_W = 150
 
 interface Station {
@@ -57,9 +57,9 @@ export function Timeline({ walk, onJump }: { walk: Walk; onJump: (n: number) => 
   return (
     <div className="tl">
       <div className="scroller">
-        <div className="track">
-          <div className="rail" style={{ left: mid, width: (all.length - 1) * STATION_W }} />
-          <div className="rail done" style={{ left: mid, width: walk.cur * STATION_W }} />
+        <div className="stations">
+          <div className="track" style={{ left: mid, width: (all.length - 1) * STATION_W }} />
+          <div className="track done" style={{ left: mid, width: walk.cur * STATION_W }} />
           <ol>
             {all.map((st, i) => {
               const cls = [

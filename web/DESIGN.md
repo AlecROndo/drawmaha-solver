@@ -122,20 +122,19 @@ Chrome never does.
 ### The allowlist, as it stands
 
 `EXPLANATORY` in the test names the selectors whose motion is explanatory
-rather than chrome, each with its reason. Four of its entries match a rule
-that moves today:
+rather than chrome, each with its reason, and every entry matches a rule
+that moves today (`test_every_allowlisted_selector_names_a_rule_that_moves`
+fails on an entry that exempts nothing):
 
 - `.sweep`: rungs 2 and 3's chips crossing 58 px of felt to the pot,
   one-shot, 400 ms;
 - `.rungs-menu`, `.live i`, `.st::before`: the archived Cover's menu
   width, live dot and in-progress pulse, kept as they were.
 
-The other entries (`.reveal`, `.beat`, `.fig `, `.meter .track`,
-`.sizes .bar`, `.act .bar`, `.bars .b i`, `.console .prog .bar`, `.st i`,
-`.st.prog i`, `.card`) named figures of the pages before the rebuild and
-match no moving rule now. No sheet on the live site animates `width`: a bar
-that updates while the user acts is drawn with `transform: scaleX()` from
-`transform-origin: left`, or not animated at all (rung 0's `.bar-fill`).
+Only `.rungs-menu` is a width exception, and only on the archived Cover. No
+sheet on the live site animates `width`: a bar that updates while the user
+acts is drawn with `transform: scaleX()` from `transform-origin: left`, or
+not animated at all (rung 0's `.bar-fill`).
 New UI does not get the width exception.
 
 ## Adding motion to the site
