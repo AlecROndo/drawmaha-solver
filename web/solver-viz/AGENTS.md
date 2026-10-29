@@ -18,8 +18,10 @@ Two games behind one interface, and they are not equally real:
   at a spot from the export, weighted by the actor's own action
   probabilities along the line. Each `index.json` names its strategy and
   carries its grade, copied from the committed grades file at export time;
-  the status line is read from that manifest, never typed in TypeScript, and
-  the Python tests hold the copy to the file. `src/mini/canonical.ts`,
+  the Strategy select in the page head and the exploitability row under
+  "This spot" read it from that manifest (`describeStrategy` in
+  `src/mini/strategies.ts`), never typed in TypeScript, and the Python
+  tests hold the copy to the file. `src/mini/canonical.ts`,
   `src/mini/ranking.ts`, `src/mini/grammar.ts` and `src/mini/points.ts` are
   ports of the Python key, hand ranking, betting grammar and public tree,
   pinned to `src/mini/fixtures.json`, which the Python side generates and
