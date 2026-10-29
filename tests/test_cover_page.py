@@ -271,8 +271,8 @@ def test_no_page_says_rung_or_ladder_in_its_copy(name: str, pages: dict[str, str
     assert not found, f"{name} says {sorted(set(found))} in its copy"
 
 
-def test_every_policy_net_grades_above_its_runs_exact_average() -> None:
-    """The Releases page says the exact average grades lower than the Π of the same run.
+def test_every_policy_net_is_more_exploitable_than_its_runs_exact_average() -> None:
+    """The Releases page says the exact average is less exploitable than the Π of the same run.
 
     That sentence is typed in the generator, not computed, so a release that
     broke it would leave the page wrong with every number on it still right.

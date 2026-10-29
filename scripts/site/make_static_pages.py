@@ -1354,7 +1354,7 @@ def releases_page() -> str:
   <table class="hair releases"><thead><tr><th>Release</th><th>Published</th><th>Tag</th><th>Exploitability</th><th>Shipped to</th><th>Exported by</th></tr></thead>
   <tbody>{"".join(rows)}</tbody></table>
   <p class="note">The catalogue is <code>RELEASES</code> in <code>src/drawmaha_solver/minidrawmaha/answer/releases.py</code>; each grade is read from the file and key it names (<code>figures/rung3/answer_sheet.json</code>, <code>figures/rung4/</code>). An export copies the grade into its manifest, and the tests hold the copy to the file.</p>
-  <p class="note">Π, the policy net, is the original Deep CFR's average: a second net fit to the strategies a run sampled. The exact average sums those strategies with no second fit, and it grades lower than the Π of the same run; <a href="/research#ch-07">the research page</a> traces the gap to Π's fit.</p>
+  <p class="note">Π is the original Deep CFR's policy net: a second net fit to the strategies a run sampled, standing in for their average. The exact average sums those strategies with no second fit, and it is less exploitable than the Π of the same run; <a href="/research#ch-07">the research page</a> traces the gap to Π's fit.</p>
 </section>
 """
     css = """
