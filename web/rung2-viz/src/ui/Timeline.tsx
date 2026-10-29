@@ -119,7 +119,7 @@ export function NextActions({ walk, onStep }: { walk: Walk; onStep: (step: Step)
   if (boardPending(s)) {
     body = (
       <>
-        <span className="lab">the board turns</span>
+        <span className="lab">The board card</span>
         {RANKS.map((b) => (
           <button
             key={b}
@@ -135,12 +135,12 @@ export function NextActions({ walk, onStep }: { walk: Walk; onStep: (step: Step)
     )
   } else if (lineOver(s)) {
     body = (
-      <span className="done-msg">The hand is over on this line — click a station to go back.</span>
+      <span className="done-msg">The hand is over on this line. Press a station to go back.</span>
     )
   } else {
     body = (
       <>
-        <span className="lab">next</span>
+        <span className="lab">Next</span>
         {legal(line).map((a) => {
           // Deliberate scope: `reach` is a round-1 pass, so round-2 buttons
           // carry no percentage — a board-conditioned reach is future work.
@@ -151,6 +151,7 @@ export function NextActions({ walk, onStep }: { walk: Walk; onStep: (step: Step)
               className={onPath?.k === 'a' && onPath.v === a ? 'onpath' : ''}
               onClick={() => onStep({ k: 'a', v: a })}
             >
+              <i className={`sw ${word(a as Act, line)}`} aria-hidden />
               {word(a as Act, line)}
               {w !== null && <span className="w">{(w * 100).toFixed(0)}%</span>}
             </button>
@@ -165,7 +166,7 @@ export function NextActions({ walk, onStep }: { walk: Walk; onStep: (step: Step)
       {body}
       {ahead > 0 && (
         <span className="fork-note">
-          — a different choice here replaces the {ahead} step{ahead > 1 ? 's' : ''} ahead
+          A different choice here replaces the {ahead} step{ahead > 1 ? 's' : ''} ahead.
         </span>
       )}
     </div>
