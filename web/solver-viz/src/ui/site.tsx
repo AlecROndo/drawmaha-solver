@@ -84,8 +84,8 @@ export function Footer() {
               <Mark font={1.5} speed={0.32} />
             </a>
             <p>
-              A research project by Alec Ondo. A heads-up pot-limit Drawmaha solver, built as a ladder of games each
-              graded against a known answer. Python, NumPy and torch; training on Modal; the site on Vercel. The code,
+              A research project by Alec Ondo. A heads-up pot-limit Drawmaha solver, built one solved game at a time,
+              each graded against a known answer. Python, NumPy and torch; training on Modal; the site on Vercel. The code,
               the graders and the data behind every figure are public.
             </p>
           </div>

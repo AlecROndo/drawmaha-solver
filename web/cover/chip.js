@@ -28,9 +28,18 @@ class Grid {
       this.mouse.in = true;
       this.dirty = true;
     };
-    canvas.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
-    canvas.addEventListener('mouseleave', () => { this.mouse.in = false; this.dirty = true; });
-    canvas.addEventListener('touchmove', (e) => { const t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: true });
+    this.onMove = (e) => move(e.clientX, e.clientY);
+    this.onLeave = () => { this.mouse.in = false; this.dirty = true; };
+    this.onTouch = (e) => { const t = e.touches[0]; move(t.clientX, t.clientY); };
+    canvas.addEventListener('mousemove', this.onMove);
+    canvas.addEventListener('mouseleave', this.onLeave);
+    canvas.addEventListener('touchmove', this.onTouch, { passive: true });
+  }
+  /* the teardown's half: the listeners the constructor attached, removed by name */
+  detach() {
+    this.canvas.removeEventListener('mousemove', this.onMove);
+    this.canvas.removeEventListener('mouseleave', this.onLeave);
+    this.canvas.removeEventListener('touchmove', this.onTouch);
   }
   resize() {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -248,7 +257,7 @@ function mountChip(canvas, opts) {
     raf = requestAnimationFrame(tick);
   }
   raf = requestAnimationFrame(tick);
-  return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  return () => { cancelAnimationFrame(raf); ro.disconnect(); g.detach(); };
 }
 window.mountChip = mountChip;
 })();
