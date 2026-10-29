@@ -99,20 +99,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The mode switch and the ledger's player switch are the theme's .seg; this
-   names their press for the UI standard's test, which lists this app's own
-   pressables by class. */
-.mode-tabs button {
-  transition:
-    background 0.15s,
-    color 0.15s,
-    transform var(--t-press) var(--ease-out);
-}
-
-.mode-tabs button:active {
-  transform: scale(0.97);
-}
-
 /* ---------- figures on this page ----------------------------------------- */
 
 .legend svg.key {
@@ -381,12 +367,6 @@ table.recent td.tied {
 
 /* ---------- the page's last lines ------------------------------------------ */
 
-.note a {
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px solid currentColor;
-}
-
 .kbd-hint {
   font-size: 13px;
   line-height: 1.6;
@@ -429,13 +409,5 @@ kbd {
 @media (max-width: 768px) {
   .field {
     margin-left: 0;
-  }
-}
-
-/* The press is one of the things reduced motion turns off (web/DESIGN.md);
-   the theme only knows its own pressables, so this page's are named here. */
-@media (prefers-reduced-motion: reduce) {
-  .mode-tabs button:active {
-    transform: none;
   }
 }

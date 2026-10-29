@@ -78,11 +78,12 @@ EXPLANATORY = {
 # scale in range and `transform` in its base transition list.
 PRESSABLES = {
     "theme": (".btn", ".navbtn", ".view", ".seg button", ".radios label", ".rail a"),
-    "rung0-viz": (".mode-tabs button",),
-    "rung1-viz": (".locks button.unlock",),
+    # rung 0's switches are the theme's .seg and rung 1's unlock its .btn
+    "rung0-viz": (),
+    "rung1-viz": (),
     "rung2-viz": (".tl button.stn", ".next button", ".lockbtn"),
-    # rung 3's buttons are the theme's .btn; the research page's contents rail is its one pressable
-    "rung3-viz": (".contents a",),
+    # rung 3's buttons are the theme's .btn and its contents rail the theme's .rail
+    "rung3-viz": (),
     # the range interface: the score's chips, the header's controls, the filter
     # chips, the grid's cells, the ledger's rows, the ribbon's keys, the deck,
     # and the hand so far's steps, options, board cards and picker cards
@@ -381,7 +382,17 @@ def test_a_hover_that_moves_something_is_gated_on_a_real_pointer(name: str) -> N
 @pytest.mark.parametrize("name", sorted(SHEETS))
 def test_reduced_motion_is_fewer_and_gentler_not_none(name: str) -> None:
     reduced = [r for r in RULES[name] if _reduced(r)]
-    assert reduced, f"{name}: no @media (prefers-reduced-motion: reduce) block"
+    # A sheet whose only motion is colour (its presses are the theme's, it
+    # animates and travels nothing) has nothing to quiet and needs no block.
+    travels = any(
+        re.search(r"\btransform\b", v) or "animation" in v or rule.declarations("animation")
+        for rule in RULES[name]
+        if not _reduced(rule)
+        for v in rule.declarations("transition") + [""]
+    )
+    assert reduced or not (travels or PRESSABLES.get(name)), (
+        f"{name}: no @media (prefers-reduced-motion: reduce) block"
+    )
     for rule in reduced:
         if rule.selector.strip() == "*":
             assert "!important" not in rule.body, (

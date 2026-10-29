@@ -10,39 +10,12 @@
   /* Identity inks, inside a figure only, and the chart system's three series.
      The jack is the card that bluffs, the finding of the page, so it wears
      the accent; the king is ink; the queen, which never bets, is the muted
-     ink. In a convergence chart the average is the thing pointed at (accent)
-     and the current iterate is the restless one (muted ink). */
+     ink. In a convergence chart the average is the thing pointed at
+     (--series-2, the accent) and the current iterate is the restless one
+     (--series-3, the muted ink); the chart reads the series tokens directly. */
   --jack: var(--series-2);
   --queen: var(--series-3);
   --king: var(--series-1);
-  --avg-obj: var(--series-2);
-  --cur-obj: var(--series-3);
-}
-
-/* The title names the grade, a number, and the theme's 18ch measure would
-   break it over three lines at 52 px; two read as one statement. */
-.page-head h1 {
-  max-width: 24ch;
-}
-
-/* ---------- the link under the lede -------------------------------------- */
-
-.page-head .back {
-  display: inline-block;
-  margin-top: 18px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink);
-  text-decoration: none;
-  border-bottom: 1px solid var(--rule-2);
-  transition:
-    color 0.15s,
-    border-color 0.15s;
-}
-
-.page-head .back:hover {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 
 /* ---------- transport ---------------------------------------------------- */
@@ -403,21 +376,13 @@ table.hair.sheet .card.c-k {
   color: var(--ink);
 }
 
-/* The unlock is a quiet theme button (.btn.quiet), squared to its glyph; it
-   keeps its own press rule here because the UI standard's test names it. */
+/* The unlock is a quiet theme button (.btn.quiet), squared to its glyph; its
+   press is the theme's. */
 .locks button.unlock {
   padding: 4px 0;
   width: 32px;
   font-size: 16px;
   line-height: 1;
-  transition:
-    background 0.15s,
-    color 0.15s,
-    transform var(--t-press) var(--ease-out);
-}
-
-.locks button.unlock:active {
-  transform: scale(0.97);
 }
 
 /* A solver error: the one red the theme has. */
@@ -558,13 +523,5 @@ table.hair.sheet .card.c-k {
 @media (max-width: 1024px) {
   .play {
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* The press is one of the things reduced motion turns off (web/DESIGN.md);
-   the theme only knows its own pressables, so this figure's are named here. */
-@media (prefers-reduced-motion: reduce) {
-  .locks button.unlock:active {
-    transform: none;
   }
 }

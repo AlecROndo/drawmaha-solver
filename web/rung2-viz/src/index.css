@@ -37,16 +37,6 @@
   white-space: nowrap;
 }
 
-/* the eyebrow's way back to the page that grades all four games */
-.page-head .eyebrow a {
-  text-decoration: none;
-  transition: color 0.15s;
-}
-
-.page-head .eyebrow a:hover {
-  color: var(--ink);
-}
-
 /* the label above a figure's part */
 .holding .k,
 .playside .k {

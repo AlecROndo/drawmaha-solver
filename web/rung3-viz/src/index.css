@@ -6,8 +6,8 @@
  * coach's mix bands in the action colours, the ledger as a hairline table).
  * Every colour is a theme token or a name for one declared below; the only
  * hex is the card face. The motion this sheet owns is the swept chips,
- * one-shot, 400 ms, allowlisted in the standard's test as `.sweep`, and the
- * press on the contents rail's links.
+ * one-shot, 400 ms, allowlisted in the standard's test as `.sweep`; the
+ * contents rail presses as the theme's `.rail` does.
  */
 
 :root {
@@ -162,19 +162,11 @@
   margin-top: 56px;
 }
 
-/* The rail is the theme's `.rail`; `.contents a` adds the chapter number and
-   keeps this sheet's one pressable, which presses as the theme's rail does. */
+/* The rail is the theme's `.rail`, press and all; `.contents a` only adds
+   the chapter number. */
 .contents a {
   display: flex;
   gap: 8px;
-  transition:
-    color 0.15s,
-    border-color 0.15s,
-    transform var(--t-press) var(--ease-out);
-}
-
-.contents a:active {
-  transform: scale(0.97);
 }
 
 .contents a i {
@@ -1085,16 +1077,11 @@ table.settled td.k {
   }
 }
 
-/* Reduced motion (web/DESIGN.md): the contents rail's links are this
-   sheet's one pressable, and the swept chips fade where they are instead of
-   crossing the table. */
+/* Reduced motion (web/DESIGN.md): the swept chips fade where they are
+   instead of crossing the table. */
 @media (prefers-reduced-motion: reduce) {
   .sweep.from-villain,
   .sweep.from-you {
     animation-name: sweep-fade;
-  }
-
-  .contents a:active {
-    transform: none;
   }
 }

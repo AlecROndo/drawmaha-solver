@@ -111,11 +111,7 @@ export default function App() {
 
       <main className="wrap">
         <PageHead
-          eyebrow={
-            <>
-              <a href="https://drawmaha.app/benchmarks">Benchmarks</a> · Leduc poker
-            </>
-          }
+          eyebrow="Benchmarks · Leduc poker"
           title="Vanilla CFR on Leduc poker grades 0.011 chips per hand."
           lede={
             <>
@@ -148,6 +144,9 @@ export default function App() {
             {SOLVE.iterations.toLocaleString()}-iteration solve. The exact value is OpenSpiel’s linear-program
             answer, frozen in the repository as a fixture.
           </p>
+          <a className="back" href="https://drawmaha.app/benchmarks">
+            All benchmarks →
+          </a>
         </PageHead>
 
         <div className="views" role="tablist" aria-label="Views">

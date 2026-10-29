@@ -29,9 +29,9 @@ export default function App() {
           }
           controls={<ModeSwitch sim={sim} />}
         >
-          <p className="note">
-            The first of four games graded against a known answer. <a href="/benchmarks">All four benchmarks</a>
-          </p>
+          <a className="back" href="https://drawmaha.app/benchmarks">
+            All benchmarks →
+          </a>
         </PageHead>
 
         <Controls sim={sim} />
