@@ -1,8 +1,8 @@
 """The visualizers each carry a copy of the site's chrome; keep them one.
 
 `web/rung{0,1,2,3}-viz` and `web/solver-viz` each hold the same set of files,
-`SHARED` below: the theme, the entry point, the shared chrome (top bar, hero,
-figure windows, footer), the turning chip and the rung objects. They are copied rather than
+`SHARED` below: the theme, the entry point, the shared chrome (top bar, page
+head, figures, footer) and its test, and the turning chip. They are copied rather than
 extracted to a package on purpose (see the note at the top of
 `src/ui/site.tsx`: the apps deploy independently, and a workspace would buy
 ~300 lines at the cost of a build step). The cost of copying is that the next
@@ -24,7 +24,7 @@ SHARED = (
     "src/main.tsx",
     "src/ui/site.tsx",
     "src/ui/mark.ts",
-    "src/ui/ascii.ts",
+    "src/ui/site.test.tsx",
 )
 
 

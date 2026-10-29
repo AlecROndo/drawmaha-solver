@@ -72,7 +72,7 @@ export default function App() {
 
   return (
     <>
-      <TopBar here={3} />
+      <TopBar here="research" />
 
       <main className="wrap publication">
         <Masthead

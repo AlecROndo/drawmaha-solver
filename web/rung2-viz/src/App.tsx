@@ -97,7 +97,7 @@ export default function App() {
 
   return (
     <>
-      <TopBar here={2} />
+      <TopBar here="benchmarks" />
 
       <main className="wrap">
         <Hero

@@ -1,8 +1,9 @@
 /**
  * The Drawmaha chip: a dithered, tilted poker chip turning on its axis, drawn
- * as ASCII on a canvas. A port of the homepage's chip.js, so the mark on a rung
- * page is the same object as the mark on the cover — same ramp, same tilt,
- * same wobble, same speed-up under the mouse.
+ * as ASCII on a canvas. The mark on paper now: the glyphs default to ink
+ * (#16140f) and the pattern to the chip's oxblood, so the logo and "this is
+ * the finding" are one colour. The twin of the static pages' chip.js — same
+ * ramp, same tilt, same wobble, same speed-up under the mouse.
  *
  * The canvas is sized by CSS (square); the glyph grid follows its box. The
  * field is transparent, so the chip sits on whatever the page is.
@@ -301,7 +302,7 @@ export interface ChipOptions {
  * reduced motion the chip is drawn once and still answers a resize.
  */
 export function mountChip(canvas: HTMLCanvasElement, opts: ChipOptions = {}): () => void {
-  const mark = opts.mark ?? '#f5f0e6'
+  const mark = opts.mark ?? '#16140f'
   const ink = opts.ink ?? '#8e2038'
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
   const g = new Grid(canvas, ['transparent', mark, ink, hexA(mark, 0.5)], opts.font ?? 1.5)

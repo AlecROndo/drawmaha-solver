@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmarks · Drawmaha Solver</title>
+<meta name="description" content="Rock-paper-scissors, Kuhn poker, Leduc poker and mini-drawmaha, in the order they were built. Each has an exact answer or an outside engine to grade against; the next game was not started until the previous one passed.">
+<link rel="stylesheet" href="/fonts.css">
+<link rel="stylesheet" href="/theme.css">
+<style>
+/* Page layout only; the chrome, the tokens and the type come from /theme.css. */
+.pending { padding: 40px 0 0; max-width: 640px; font-family: var(--serif); font-size: 18px; line-height: 1.6; color: var(--ink-2); }
+.pending a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="chip-home" href="/" aria-label="Drawmaha home"><canvas data-chip aria-hidden="true"></canvas><span class="word">Drawmaha <small>Solver</small></span></a>
+    <nav class="nav" aria-label="Site">
+      <a class="navbtn" href="/research">Research</a>
+      <a class="navbtn" href="/solver">Solver</a>
+      <a class="navbtn" href="/benchmarks" aria-current="page">Benchmarks</a>
+      <a class="navbtn" href="/play">Play</a>
+      <a class="navbtn" href="/rules">Rules</a>
+    </nav>
+    <a class="btn primary" href="/solver">Open the solver</a>
+  </div>
+</header>
+<main class="wrap">
+  <header class="page-head">
+    <div class="page-head-copy">
+      <p class="eyebrow">Benchmarks</p>
+      <h1>Four games, each solved and graded against a known answer.</h1>
+      <p class="lede">Rock-paper-scissors, Kuhn poker, Leduc poker and mini-drawmaha, in the order they were built. Each has an exact answer or an outside engine to grade against; the next game was not started until the previous one passed.</p>
+    </div>
+  </header>
+  <p class="pending">The results table, each game's convergence chart and its grade, and the mini-drawmaha and Deep CFR summary are being laid out on this page. Until then the live demos are at <a href="/rung0">rock-paper-scissors</a>, <a href="/rung1">Kuhn</a>, <a href="/rung2">Leduc</a> and <a href="/research">mini-drawmaha</a>.</p>
+</main>
+<footer>
+  <div class="wrap">
+    <div class="foot-cols">
+      <div class="foot-about">
+        <a class="chip-end" href="/" aria-label="Drawmaha home"><canvas data-chip data-speed="0.32" aria-hidden="true"></canvas></a>
+        <p>A research project by Alec Ondo. A heads-up pot-limit Drawmaha solver, built as a ladder of games each graded against a known answer. Python, NumPy and torch; training on Modal; the site on Vercel. The code, the graders and the data behind every figure are public.</p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="/solver">Range explorer</a></li>
+          <li><a href="/play">Play the solver</a></li>
+          <li><a href="/rules">Rules of Drawmaha</a></li>
+          <li><a href="/releases">Releases</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Research</h4>
+        <ul>
+          <li><a href="/research">Mini-drawmaha, solved</a></li>
+          <li><a href="/learn">Learn</a></li>
+          <li><a href="/benchmarks">Benchmarks</a></li>
+          <li><a href="https://github.com/AlecROndo/drawmaha-solver/blob/main/paper/drawmaha-ml-survey.pdf">ML survey (PDF)</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Resources</h4>
+        <ul>
+          <li><a href="https://github.com/AlecROndo/drawmaha-solver">GitHub</a></li>
+          <li><a href="https://github.com/AlecROndo/drawmaha-solver/tree/main/figures">Figure data</a></li>
+          <li><a href="https://github.com/AlecROndo/drawmaha-solver/releases">Strategy packs</a></li>
+          <li><a href="/cover">The old cover</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-line">
+      <span>© 2026 Alec Ondo · Built in public</span>
+      <a href="https://github.com/AlecROndo/drawmaha-solver">github.com/AlecROndo/drawmaha-solver</a>
+    </div>
+  </div>
+</footer>
+<script src="/chip.js"></script>
+<script>if (window.mountChips) mountChips();</script>
+</body>
+</html>

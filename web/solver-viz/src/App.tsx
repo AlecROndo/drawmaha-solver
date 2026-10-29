@@ -51,7 +51,7 @@ export default function App() {
 
   return (
     <>
-      <TopBar here={4} />
+      <TopBar here="solver" />
       <main className="wrap">
         <Hero
           eyebrow="Rung 4 of 4 · in progress · the interface"

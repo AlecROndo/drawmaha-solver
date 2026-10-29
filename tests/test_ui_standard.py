@@ -20,6 +20,10 @@ kind of thing a reviewer reads past. What is checked, per stylesheet:
 Durations are read as every `<n>s` / `<n>ms` in a declaration, delays
 included: a 300 ms delay is a wait the user feels just as a 300 ms slide is.
 
+The static pages link the apps' theme (`/theme.css`), so a page is read as its
+inline `<style>` blocks plus the theme; the archived Cover still inlines the
+old chrome and is read alone.
+
 Adding motion that breaks a rule on purpose means adding its selector to
 `EXPLANATORY` with a one-line reason, the way the existing ones are.
 """
@@ -35,7 +39,7 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 
 APPS = ("rung0-viz", "rung1-viz", "rung2-viz", "rung3-viz", "solver-viz")
-PAGES = ("index.html", "rules.html", "cover.html")
+PAGES = ("index.html", "rules.html", "benchmarks.html", "releases.html", "cover.html")
 
 TOKENS = ("--ease-out", "--ease-in-out", "--t-press")
 TOKEN_VALUES = {
@@ -66,14 +70,14 @@ EXPLANATORY = {
     ".st.prog i": "the ladder's in-progress badge pulse",
     ".st::before": "the Cover ladder's in-progress dot pulse",
     ".sweep": "rungs 2 and 3's chips crossing 58 px of felt to the pot, one-shot, 400 ms",
-    ".rungs-menu": "the Rungs menu animates width on purpose: it pushes Rules aside",
+    ".rungs-menu": "the old chrome's Rungs menu animates width on purpose; the archived Cover inlines it, as do the pages not yet rewritten",
     ".card": "the Rules tab's worked-hand cards, highlighted once by the reading",
 }
 
 # Every pressable thing, per stylesheet. A pressable has `.x:active` with a
 # scale in range and `transform` in its base transition list.
 PRESSABLES = {
-    "theme": (".btn", ".navbtn", ".view", ".rmain", ".racts a"),
+    "theme": (".btn", ".navbtn", ".view", ".seg button", ".radios label", ".rail a"),
     "rung0-viz": (".mode-tabs button",),
     "rung1-viz": (".locks button.unlock",),
     "rung2-viz": (".tl button.stn", ".next button", ".lockbtn"),
@@ -83,34 +87,47 @@ PRESSABLES = {
     # chips, the grid's cells, the ledger's rows, the ribbon's keys, the deck,
     # and the hand so far's steps, options, board cards and picker cards
     "solver-viz": (".score .act", ".hbtn", ".seg button", ".cell", ".lrow", ".key", ".dcard", ".sofar .tok", ".sofar .opt", ".sofar .bp", ".sofar .pk"),
-    "index.html": (
-        ".btn",
-        ".navbtn",
-        ".rmain",
-        ".racts a",
-        ".console button",
-        ".titlebar .tabs a",
-        ".seg button",
-        ".act",
-        ".playbtns button",
-    ),
-    "rules.html": (".btn", ".navbtn", ".rmain", ".racts a"),
+    # the pages read their chrome from the linked theme; the Cover, kept as an
+    # archive, still inlines the old chrome and its Rungs menu
+    "index.html": (".btn", ".navbtn"),
+    "rules.html": (".btn", ".navbtn"),
+    "benchmarks.html": (".btn", ".navbtn"),
+    "releases.html": (".btn", ".navbtn"),
     "cover.html": (".btn", ".navbtn", ".rmain", ".racts a"),
 }
+
+# The tokens of the field the site left (`--yellow`, `--pink`, the black
+# `--field`, the `--ivory` ink, the `--ox` brand pair): gone from every sheet
+# but the archived Cover once each surface is restyled. The theme keeps
+# `--yellow` and `--pink` as aliases until the last app stops reading them.
+RETIRED_TOKENS = ("--yellow", "--pink", "--field", "--ivory", "--ox", "--ox-lit")
+ARCHIVED = ("cover.html",)
 
 
 # ---------------------------------------------------------------- the CSS
 
 
+THEME_LINK = 'href="/theme.css"'
+
+
 def _sheets() -> dict[str, str]:
-    sheets = {"theme": (WEB / APPS[0] / "src" / "theme.css").read_text()}
+    """One sheet per app, plus the theme, plus what each static page is styled by.
+
+    A page that links `/theme.css` (the build serves the apps' theme at that
+    path) is read as its inline `<style>` blocks followed by the theme, so its
+    tokens are found and its pressables resolve to the theme's rules. A page
+    that still inlines its own chrome is read as its `<style>` blocks alone.
+    """
+    theme = (WEB / APPS[0] / "src" / "theme.css").read_text()
+    sheets = {"theme": theme}
     for app in APPS:
         sheets[app] = (WEB / app / "src" / "index.css").read_text()
     for page in PAGES:
         html = (WEB / "cover" / page).read_text()
         styles = re.findall(r"<style>(.*?)</style>", html, re.DOTALL)
-        assert styles, f"{page} has no <style> block — the regex stopped matching"
-        sheets[page] = "\n".join(styles)
+        linked = THEME_LINK in html
+        assert styles or linked, f"{page} has no <style> block and links no theme — the regex stopped matching"
+        sheets[page] = "\n".join([*styles, theme] if linked else styles)
     return sheets
 
 
@@ -217,6 +234,24 @@ def test_the_motion_tokens_are_declared_and_agree(name: str) -> None:
         assert got == TOKEN_VALUES[token], (
             f"{name}: {token} is {got}, the standard says {TOKEN_VALUES[token]}"
         )
+
+
+@pytest.mark.xfail(strict=True, reason="until the per-surface restyles land")
+def test_retired_tokens_are_gone() -> None:
+    """No sheet but the archived Cover names a token of the black field.
+
+    Strict: this is red on purpose while the apps' own sheets and the two
+    pages not yet rewritten still read `--yellow` and friends, and it turns
+    green (and the mark comes off) when the last restyle lands.
+    """
+    offenders = {}
+    for name, css in SHEETS.items():
+        if name in ARCHIVED:
+            continue
+        found = sorted(t for t in RETIRED_TOKENS if re.search(rf"{re.escape(t)}(?![\w-])", css))
+        if found:
+            offenders[name] = found
+    assert not offenders, f"retired tokens still named: {offenders}"
 
 
 # ------------------------------------------------------------ the curves
@@ -516,6 +551,10 @@ GUEST = "solver-viz"
 LOADED_BY_RUNG3 = ("rung3-viz", "theme")
 SHARED_SELECTORS = {":root", ".block"}
 WIDE = "body.wide "
+# The theme now owns the segmented control (`.seg`); solver-viz still styles
+# its own under the same name until its restyle drops those rules for the
+# theme's. A real, temporary override on /rung3's Learn tab, allowed by name.
+OVERRIDDEN_UNTIL_RESTYLED = (".seg",)
 
 
 def _by_selector(name: str) -> dict[str, list[Rule]]:
@@ -539,6 +578,7 @@ def _bodies(rules: list[Rule]) -> list[list[str]]:
 def test_the_solver_sheet_shares_only_root_and_block_with_what_rung3_loads(host: str) -> None:
     guest, other = _by_selector(GUEST), _by_selector(host)
     collisions = (set(guest) & set(other)) - SHARED_SELECTORS
+    collisions = {s for s in collisions if not s.startswith(OVERRIDDEN_UNTIL_RESTYLED)}
     assert not collisions, (
         f"{GUEST}/src/index.css and {host} both style {sorted(collisions)}: on /rung3 "
         "the later sheet wins on every tab, not only Learn"

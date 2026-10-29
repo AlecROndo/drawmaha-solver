@@ -22,7 +22,7 @@ afterwards run
 - **Five files are byte-identical across the five apps**:
   `rung0-viz/src/theme.css`, `rung0-viz/src/main.tsx`,
   `rung0-viz/src/ui/site.tsx`, `rung0-viz/src/ui/mark.ts`,
-  `rung0-viz/src/ui/ascii.ts` and their copies. Edit rung 0's, `cp` it to the
+  `rung0-viz/src/ui/site.test.tsx` and their copies. Edit rung 0's, `cp` it to the
   other four, `cmp` them; `tests/test_shared_chrome.py` fails otherwise.
   Per-app styling lives in that app's `src/index.css`, on top of the theme.
 - **The three cover pages each inline their own copy of the chrome CSS.** A
