@@ -8,6 +8,7 @@ import {
   board2,
   dealHand,
   freshSession,
+  handNumber,
   holeOf,
   mistakeOf,
   nextHand,
@@ -16,11 +17,13 @@ import {
   prescribed,
   replacementOf,
   runningLow,
+  segments,
   spotOf,
   toMix,
   validateDeal,
   verdictOf,
   type Deal,
+  type Mix,
   type Showdown,
 } from './play'
 
@@ -155,6 +158,29 @@ describe('the mix and the roll', () => {
     expect(prescribed(mix, 75)).toBe('m')
     expect(prescribed(mix, 99)).toBe('t')
   })
+
+  it('tiles the hundred rolls with the segments the band bar draws, each roll inside the band it prescribes', () => {
+    const mixes: Mix[] = [
+      { c: 0.6, p: 0.4 },
+      { n: 0.1, l: 0.6, m: 0.1, t: 0.2 },
+      { f: 0.333, c: 0.333, p: 0.334 },
+      { f: 0, c: 0.001, p: 0.999 }, // a sliver and an action never taken: no minimum width pads them
+      { n: 0.001, l: 0.063, m: 0.936, t: 0 }, // a never-taken action LAST: the running sum before it is 100.00000000000001 uncapped
+      { n: 0.001, l: 0.02, m: 0.979, t: 0 }, // the same with the noise the other way: 99.99999999999999, so `t` is a hair wide, not negative
+    ]
+    for (const mix of mixes) {
+      const bands = segments(mix)
+      expect(bands.map((b) => b.act)).toEqual(['p', 'c', 'f', 'n', 'l', 'm', 't'].filter((a) => a in mix))
+      expect(bands[0].start).toBe(0)
+      expect(bands[bands.length - 1].end).toBe(100) // pinned: the thousandths' float sum lands a hair off on its own
+      bands.slice(1).forEach((b, i) => expect(b.start).toBe(bands[i].end))
+      bands.forEach((b) => expect(b.end, `${b.act} under ${JSON.stringify(mix)}`).toBeGreaterThanOrEqual(b.start))
+      for (let roll = 0; roll < 100; roll++) {
+        const under = bands.find((b) => b.start <= roll && roll < b.end)
+        expect(under?.act, `roll ${roll} under ${JSON.stringify(mix)}`).toBe(prescribed(mix, roll))
+      }
+    }
+  })
 })
 
 describe('one hand against the pack', () => {
@@ -251,6 +277,23 @@ describe('the session', () => {
     expect(s.hand).not.toBeNull()
     expect(s.pending.length).toBe(2)
     expect(s.used.length).toBe(0)
+  })
+
+  it('numbers the hand on the table: the next while it is live, the one just settled once it is over', () => {
+    const deal = fixture()
+    deal.r1[''] = [0, 1000] // the solver in seat 0 opens; a fold settles the hand at once
+    let s = freshSession([deal, fixture()], always(0.5))
+    expect(handNumber(s)).toBe(1) // live, none settled yet
+    s = nextHand(s, always(0.5)) // skip to the seat-1 hand, which the solver opens
+    expect(s.hand!.humanSeat).toBe(1)
+    expect(handNumber(s)).toBe(1) // still the first to count: nothing has settled
+    s = playAct(s, 'f', always(0.5))
+    expect(phaseOf(s.hand!)).toBe('over')
+    expect(s.hands).toBe(1)
+    expect(handNumber(s)).toBe(1) // settled: already counted, so not the next
+    s = nextHand(s, always(0.5))
+    expect(handNumber(s)).toBe(2)
+    expect(handNumber(freshSession([], never))).toBe(0)
   })
 
   it('takes more deals as a later chunk arrives, and starts with no hand when none has', () => {

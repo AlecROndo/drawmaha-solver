@@ -49,7 +49,8 @@ afterwards run
   tabs there still use yellow and pink. `/rung3`'s trainer draws the coach's
   mix in the same pair under its own names (`--mix-call` / `--mix-pot` in
   `rung3-viz/src/index.css`, because the two sheets share one page and may
-  not share a token); a change to the pair is made in both.
+  not share a token); a change to the pair is made in both, and
+  `tests/test_ui_standard.py` holds the copy equal to the original.
 - **Where a number is illustrative rather than a solver's output, the page
   says so** in its status line. Keep that sentence true when changing what is
   drawn.

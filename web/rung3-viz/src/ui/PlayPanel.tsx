@@ -15,16 +15,17 @@ import {
   type Throw,
 } from '../minidraw'
 import {
-  AGGRESSION,
   actorAt,
   board1,
   board2,
   fmt,
+  handNumber,
   holeOf,
   linesOf,
   nextHand,
   phaseOf,
   playAct,
+  segments,
   spotOf,
   thrownCard,
   type Hand,
@@ -70,8 +71,14 @@ const signed = (n: number, digits = 0): string => `${n >= 0 ? '+' : '−'}${Math
 /**
  * Which of the three mix bands an action belongs to, as Learn draws them:
  * going along (check, call, standing pat) is the calm band, pushing (bet,
- * raise, a throw) the hot one, the fold the quiet ink. The three throws share
- * the hot band at three depths, low to top, as rung 3's action palette does.
+ * raise, a throw) the hot one, the fold the quiet ink. The three throws
+ * share the hot band at three depths — `d1` the low throw, faintest, up to
+ * `d3` the top throw at full strength — the order the draw buttons' own
+ * palette uses (`--throw-low` / `--throw-mid` / `--throw-top` in
+ * `index.css`, the pink at 45%, 70% and full). The order is what is
+ * borrowed, not the numbers: the `.mixband .pot.d*` rules key an `opacity`
+ * of 0.5, 0.75 and 1 over the pot fill on these classes, and that need not
+ * equal the palette's alphas.
  */
 const BAND: Record<Act, string> = { f: 'fold', c: 'call', p: 'pot', n: 'call', l: 'pot d1', m: 'pot d2', t: 'pot d3' }
 
@@ -80,23 +87,30 @@ const BAND: Record<Act, string> = { f: 'fold', c: 'call', p: 'pot', n: 'call', l
  * aggression owns the low rolls, so the bar reads left to right the way the
  * roll's segments do, and the tick is where your roll fell. Under it, each
  * action's word and share; the one you took in ivory.
+ *
+ * The bands are `segments` at their exact widths, no gaps and no minimum:
+ * the same partition `prescribed` graded the roll against, so the tick at
+ * `roll%` stands inside the band of the action the roll prescribed (it is
+ * placed at the roll's left edge and extends right, as the segment's
+ * half-open interval does). An action the strategy never takes here gets
+ * no band and keeps its word below; a sliver for it would push every band
+ * right of it off the roll's scale.
  */
 function MixCaption({ row }: { row: Extract<PlayRow, { kind: 'action' }> }) {
-  // AGGRESSION is the roll's own segment order; row.words carries each
-  // action's word in the context the actor faced.
-  const acts = AGGRESSION.filter((a) => a in row.mix)
+  // row.words carries each action's word in the context the actor faced.
+  const bands = segments(row.mix)
   return (
     <span className="side-mix">
       <span className="mixband" aria-hidden>
-        {acts.map((a) => (
-          <i key={a} className={BAND[a]} style={{ flexGrow: Math.max(row.mix[a] ?? 0, 0.002) }} />
+        {bands.map(({ act, start, end }) => (
+          <i key={act} className={BAND[act]} style={{ width: `${end - start}%` }} />
         ))}
         {row.roll !== null && <em className="tick" style={{ left: `${row.roll}%` }} />}
       </span>
       <span className="mixwords">
-        {acts.map((a) => (
-          <span key={a} className={a === row.act ? 'chosen' : ''}>
-            {row.words[a]} {pct(row.mix[a] ?? 0)}%
+        {bands.map(({ act }) => (
+          <span key={act} className={act === row.act ? 'chosen' : ''}>
+            {row.words[act]} {pct(row.mix[act] ?? 0)}%
           </span>
         ))}
       </span>
@@ -340,9 +354,7 @@ export function PlayPanel({
 
   // The header states the spot, as Learn's does: the hand, where in it we
   // are, and whose decision it is. The subline says what to do about it.
-  // `hands` is banked in the same update that settles a hand, so once a
-  // hand is over it is already counted: its number is `hands`, not the next.
-  const n = over ? hands : hands + 1
+  const n = handNumber(session)
   const result = hand.result ?? 0
   const stage = drawing ? 'the draw' : phase === 'round1' ? 'round 1' : over ? 'settled' : 'round 2'
   const headline = over
@@ -481,6 +493,9 @@ export function PlayPanel({
             </div>
           </dl>
           <p className="playnote">
+            {manifest
+              ? `The pack is ${manifest.deals} pre-dealt hands — the same ${manifest.deals} for every visitor, reshuffled each sitting, not fresh draws; the seats alternate and the coach's roll is drawn live, so a deal plays differently each time it comes round. `
+              : ''}
             Matching the bot in both seats averages zero{grade ? `; a perfect adversary makes at most ${grade.exploitability.toFixed(3)} a hand` : ''}.
             A hand swings by several chips, so short sessions are mostly noise.
           </p>
