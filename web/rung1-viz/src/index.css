@@ -281,9 +281,9 @@ table.hair.sheet .card.c-k {
   color: var(--king);
 }
 
-/* the path the footnote names */
+/* the path the footnote names, in the site's code voice */
 .foot code {
-  font-family: var(--sans);
+  font-family: var(--mono);
   color: var(--ink-2);
 }
 

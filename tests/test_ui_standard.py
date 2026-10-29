@@ -5,7 +5,7 @@ does, what reduced motion keeps — and this is where it is enforced, because
 the next edit to a minified `<style>` block or a copied theme is exactly the
 kind of thing a reviewer reads past. What is checked, per stylesheet:
 
-- the motion tokens exist in every `:root` and agree across the four copies;
+- the motion tokens exist in every `:root` and agree across the five copies;
 - no `transition: all`, no `ease-in`, and no hard-coded curve outside the
   tokens except in a figure that is allowlisted with its reason;
 - nothing in the chrome runs over 300 ms, and only `transform`/`opacity`
@@ -553,13 +553,12 @@ def test_every_pulse_and_travel_is_quieted_under_reduced_motion(name: str) -> No
 # than remembered: a rule added to either that names a selector the other
 # also names would restyle the research and play tabs silently, the later
 # sheet winning. The guest may agree with what /rung3 already loads only on
-# `:root`, declaring tokens of its own, and `.block`, declaring the same
-# thing; and it reaches the shared chrome — the wrap, the hero copy — only
+# `:root`, declaring tokens of its own; and it reaches the shared chrome — the wrap, the hero copy — only
 # under `body.wide`, which /rung3 sets while Learn shows and never otherwise.
 
 GUEST = "solver-viz"
 LOADED_BY_RUNG3 = ("rung3-viz", "theme")
-SHARED_SELECTORS = {":root", ".block"}
+SHARED_SELECTORS = {":root"}
 WIDE = "body.wide "
 
 
@@ -576,12 +575,8 @@ def _tokens(rules: list[Rule]) -> set[str]:
     return {m.group(1) for rule in rules for m in re.finditer(r"(--[\w-]+)\s*:", rule.body)}
 
 
-def _bodies(rules: list[Rule]) -> list[list[str]]:
-    return [rule.body.split() for rule in rules]
-
-
 @pytest.mark.parametrize("host", LOADED_BY_RUNG3)
-def test_the_solver_sheet_shares_only_root_and_block_with_what_rung3_loads(host: str) -> None:
+def test_the_solver_sheet_shares_only_root_with_what_rung3_loads(host: str) -> None:
     guest, other = _by_selector(GUEST), _by_selector(host)
     collisions = (set(guest) & set(other)) - SHARED_SELECTORS
     assert not collisions, (
@@ -589,8 +584,6 @@ def test_the_solver_sheet_shares_only_root_and_block_with_what_rung3_loads(host:
         "the later sheet wins on every tab, not only Learn"
     )
     assert not _tokens(guest[":root"]) & _tokens(other[":root"]), "the two :root blocks redefine a token"
-    if ".block" in other and ".block" in guest:
-        assert _bodies(guest[".block"]) == _bodies(other[".block"]), ".block is declared differently by the two sheets"
 
 
 def test_the_solver_sheet_reaches_the_chrome_only_under_body_wide() -> None:

@@ -1009,7 +1009,7 @@ def rules() -> str:
     streets = [
         ("Deal", "Five cards to each player, face down. Both ante: a bomb pot, so there is no betting before the flop.", "no betting"),
         ("Flop", "Three cards to the board, face up and shared.", "a betting round"),
-        ("Draw", "Each player discards none to all five and takes as many back. One card drawn comes face up; keep it, or take the next one face down.", "no betting"),
+        ("Draw", "Each player discards none to all five and takes as many back. A player who draws exactly one card gets it dealt face up; keep it, or take the next one face down.", "no betting"),
         ("Turn", "A fourth card to the board.", "a betting round"),
         ("River", "The fifth and last board card.", "a betting round"),
     ]
@@ -1363,7 +1363,7 @@ table.releases td .sub { display: block; margin-top: 4px; font-size: 13px; color
 table.releases td.k .sub { font-weight: 400; }
 table.releases td .asset { display: block; margin-top: 4px; font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--ink-3); }
 /* the code voice, chosen rather than fallen back on: Plex Mono 400 (self-hosted beside the chip's 600) at 13 px */
-code { font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace; font-size: 13px; }
+code { font-family: var(--mono); font-size: 13px; }
 table.releases code { white-space: nowrap; }
 table.releases td.tag, table.releases td.date { white-space: nowrap; }
 table.releases .ship { display: block; width: max-content; margin-bottom: 4px; }

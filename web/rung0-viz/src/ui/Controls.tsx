@@ -73,7 +73,7 @@ export function Controls({ sim }: { sim: Simulation }) {
           <>
             <button
               type="button"
-              className="btn solid run"
+              className="btn primary run"
               onClick={() => sim.setRunning(!sim.running)}
             >
               {sim.running ? 'Pause' : 'Run'}

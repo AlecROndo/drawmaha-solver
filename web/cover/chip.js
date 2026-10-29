@@ -4,10 +4,7 @@
    field. On paper how dark a cell reads is how much of it the glyph covers, so — as in mark.ts — the grid is set in
    Plex Mono 600, every glyph is emboldened by a stroke of its own colour (EMBOLDEN of the cell size), the face's ramp
    starts at ':' and the pattern is always '@'. Every glyph is drawn at full opacity.
-   Two ways in:
-     mountChip(canvas, { mark, ink, font, speed, tilt })  — one canvas, the same options as mark.ts; returns a teardown.
-     mountChips({ mark, ink })                            — every <canvas data-chip> on the page, options per canvas via
-                                                            data-font="1.5" (cell px), data-speed="0.3" (rad/s), data-tilt="0.8". */
+   One way in: mountChip(canvas, { mark, ink, font, speed, tilt }), the same options as mark.ts; returns a teardown. */
 (function () {
 const FONT = "600 {px}px 'IBM Plex Mono', ui-monospace, Menlo, monospace";
 const font = (px) => FONT.replace('{px}', String(px));
@@ -15,19 +12,16 @@ const font = (px) => FONT.replace('{px}', String(px));
 const EMBOLDEN = 0.16;
 /* the face's glyphs from shadow to light; the pattern is always the last */
 const FACE = ':+%#@@';
-const RAMP = " .'`,:;~-=+*x%#@";
 let CHARSET = '';
 for (let c = 32; c < 127; c++) CHARSET += String.fromCharCode(c);
 CHARSET += '♠♥♦♣·';
 const CIDX = {}; for (let i = 0; i < CHARSET.length; i++) CIDX[CHARSET[i]] = i;
-const RAMPIDX = [...RAMP].map((c) => CIDX[c]);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 class Grid {
   constructor(canvas, palette, fontPx) {
     this.canvas = canvas; this.ctx = canvas.getContext('2d');
     this.palette = palette; this.fontPx = fontPx || 11;
     this.mouse = { x: -1e6, y: -1e6, in: false };
-    this.c = 1;
     this.resize();
     const move = (cx, cy) => {
       const r = canvas.getBoundingClientRect();
@@ -89,8 +83,7 @@ class Grid {
   draw() {
     const ctx = this.ctx, { gw, gh, cols, rows, dpr } = this;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (this.palette[0] === 'transparent') ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    else { ctx.fillStyle = this.palette[0]; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     const ox = this.ox * dpr, oy = this.oy * dpr, pw = this.cw * dpr, ph = this.ch * dpr;
     let i = 0;
     for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++, i++) {
@@ -98,46 +91,8 @@ class Grid {
       ctx.drawImage(this.atlas[this.cob[i]], c * gw, 0, gw, gh, ox + x * pw, oy + y * ph, gw, gh);
     }
   }
-  /* set a cell by cell coordinates */
-  set(cx, cy, ci, col) {
-    if (cx < 0 || cy < 0 || cx >= this.cols || cy >= this.rows) return;
-    const i = cy * this.cols + cx; this.chb[i] = ci; this.cob[i] = col;
-  }
-  ramp(v) { return RAMPIDX[clamp(Math.round(v * (RAMP.length - 1)), 0, RAMP.length - 1)]; }
-  /* fill a bbox (scene units) with fn(px,py) -> brightness; fn may reassign g.c for colour */
-  fill(x0, y0, x1, y1, col, fn) {
-    const cx0 = Math.max(0, Math.floor(x0)), cx1 = Math.min(this.cols - 1, Math.ceil(x1));
-    const cy0 = Math.max(0, Math.floor(y0 / this.ar)), cy1 = Math.min(this.rows - 1, Math.ceil(y1 / this.ar));
-    for (let cy = cy0; cy <= cy1; cy++) {
-      const py = (cy + 0.5) * this.ar;
-      for (let cx = cx0; cx <= cx1; cx++) {
-        this.c = col;
-        const v = fn(cx + 0.5, py);
-        if (v > 0) { const i = cy * this.cols + cx; this.chb[i] = this.ramp(v); this.cob[i] = this.c; }
-        else if (v < -1) { const i = cy * this.cols + cx; this.chb[i] = 0; }
-      }
-    }
-  }
-  /* a stroke between two scene points; the glyph follows the slope unless given */
-  line(x0, y0, x1, y1, col, ch) {
-    const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy / this.ar);
-    const n = Math.max(1, Math.ceil(len * 2));
-    const ci = CIDX[ch || slopeChar(Math.atan2(dy, dx))];
-    for (let k = 0; k <= n; k++) {
-      const s = k / n;
-      this.set(Math.floor(x0 + dx * s), Math.floor((y0 + dy * s) / this.ar), ci, col);
-    }
-  }
-  text(cx, cy, str, col) {
-    for (let i = 0; i < str.length; i++) { const ci = CIDX[str[i]]; if (ci) this.set(cx + i, cy, ci, col); }
-  }
-  /* where a scene point lands, in cells */
-  cellOf(x, y) { return [Math.floor(x), Math.floor(y / this.ar)]; }
 }
 const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
-/* ================================================================
-   SHARED PIECES FOR THE SECOND ROUND
-   ================================================================ */
 const rotX = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[1, 0, 0], [0, c, -s], [0, s, c]]; };
 const rotY = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, 0, s], [0, 1, 0], [-s, 0, c]]; };
 const rotZ = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, -s, 0], [s, c, 0], [0, 0, 1]]; };
@@ -200,47 +155,13 @@ function rayChip(g, o) {
       }
       if (mat === 0) continue;
       const i = cyy * cols + cxx;
-      const col = mat === 1 ? o.colBase : o.colPattern;
-      if (o.dither) {
-        const bay = (BAYER[cyy % 4][cxx % 4] + 0.5) / 16 - 0.5;
-        /* the pattern is always the densest glyph: the sectors are what make the disc read as a chip, even in shadow */
-        const lv = mat === 2 ? 5 : clamp(Math.floor(I * 5 + bay * 1.15), 0, 5);
-        g.chb[i] = chars[lv]; g.cob[i] = col;
-      } else {
-        g.chb[i] = g.ramp(clamp(I, 0.08, 1)); g.cob[i] = col;
-      }
+      const bay = (BAYER[cyy % 4][cxx % 4] + 0.5) / 16 - 0.5;
+      /* the pattern is always the densest glyph: the sectors are what make the disc read as a chip, even in shadow */
+      const lv = mat === 2 ? 5 : clamp(Math.floor(I * 5 + bay * 1.15), 0, 5);
+      g.chb[i] = chars[lv]; g.cob[i] = mat === 1 ? o.colBase : o.colPattern;
     }
   }
 }
-
-const CHIP_SCENES = [];
-function mountChips(opts) {
-  const mark = (opts && opts.mark) || '#8e2038', ink = (opts && opts.ink) || '#16140f';
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  for (const canvas of document.querySelectorAll('canvas[data-chip]')) {
-    const g = new Grid(canvas, ['transparent', mark, ink], parseFloat(canvas.dataset.font || '1.5'));
-    CHIP_SCENES.push({ g, canvas, yaw: 0.6, t: 0, speed: parseFloat(canvas.dataset.speed || '0.3'), tilt: parseFloat(canvas.dataset.tilt || '0.8'), drawn: false });
-  }
-  const ro = new ResizeObserver(() => CHIP_SCENES.forEach((s) => { s.g.resize(); s.drawn = false; }));
-  CHIP_SCENES.forEach((s) => ro.observe(s.canvas));
-  if (document.fonts && document.fonts.load) document.fonts.load(font(12)).then(() => CHIP_SCENES.forEach((s) => { s.g.resize(); s.drawn = false; }));
-  let last = performance.now();
-  function tick(now) {
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    if (!document.hidden) for (const s of CHIP_SCENES) {
-      if (reduced && s.drawn && !s.g.dirty) continue;
-      s.g.dirty = false; s.drawn = true;
-      if (!reduced) { s.t += dt; s.yaw += dt * (s.g.mouse.in ? s.speed * 3.5 : s.speed); }
-      const g = s.g, { W, H } = g; const R = Math.min(W, H) * 0.46;
-      g.clear();
-      rayChip(g, { cx: W / 2, cy: H / 2, R, hz: R * 0.13, M: mul(rotX(s.tilt + 0.12 * Math.sin(s.t * 0.37)), mul(rotY(0.25 * Math.sin(s.t * 0.29)), rotZ(s.yaw))), L: norm3([-0.55, -0.5, -0.67]), colBase: 1, colPattern: 2, dither: true, sectors: 12 });
-      g.draw();
-    }
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-}
-window.mountChips = mountChips;
 
 /* One canvas, the way mark.ts mounts it: draw the chip and keep it turning; returns the teardown. With reduced motion
    the chip is drawn once and still answers a resize. */
@@ -261,7 +182,7 @@ function mountChip(canvas, opts) {
       if (!reduced) { s.t += dt; s.yaw += dt * (g.mouse.in ? s.speed * 3.5 : s.speed); }
       const { W, H } = g; const R = Math.min(W, H) * 0.46;
       g.clear();
-      rayChip(g, { cx: W / 2, cy: H / 2, R, hz: R * 0.13, M: mul(rotX(s.tilt + 0.12 * Math.sin(s.t * 0.37)), mul(rotY(0.25 * Math.sin(s.t * 0.29)), rotZ(s.yaw))), L: norm3([-0.55, -0.5, -0.67]), colBase: 1, colPattern: 2, dither: true, sectors: 12 });
+      rayChip(g, { cx: W / 2, cy: H / 2, R, hz: R * 0.13, M: mul(rotX(s.tilt + 0.12 * Math.sin(s.t * 0.37)), mul(rotY(0.25 * Math.sin(s.t * 0.29)), rotZ(s.yaw))), L: norm3([-0.55, -0.5, -0.67]), colBase: 1, colPattern: 2, sectors: 12 });
       g.draw();
     }
     raf = requestAnimationFrame(tick);

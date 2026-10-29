@@ -262,9 +262,9 @@
   text-decoration-color: var(--accent);
 }
 
-/* code: a file or a command, in the system's monospace on a recessed ground */
+/* code: a file or a command, in the site's code voice, Plex Mono 400, on a recessed ground */
 .doc code {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--mono);
   font-size: 0.82em;
   background: var(--paper-2);
   padding: 1px 5px;

@@ -10,21 +10,16 @@
  *   2. Two voices and the chip's mono. Newsreader (serif) for display,
  *      headings and the research body; Geist (sans) for the UI, tables, charts
  *      and captions, with tabular numerals wherever a number appears. IBM
- *      Plex Mono has one job, the glyph grid of the chip; it is never a text
- *      voice.
- *   3. The chip is the mark: the ASCII chip turning in the top bar, glyphs in
- *      ink and the pattern in oxblood, and again where the footer closes the
- *      page. Nothing else moves on load.
+ *      Plex Mono has two jobs, the glyph grid of the chip and inline code and
+ *      commands; it is never a prose or UI voice.
+ *   3. The chip is the mark: the ASCII chip turning in the top bar, its face
+ *      in oxblood and its pattern in ink, and again where the footer closes
+ *      the page. Nothing else moves on load.
  *   4. Figures are titled blocks, not windows: a number, a bold title that
  *      states the finding, a one-line sub-title naming the measure and the
  *      run, the figure, a caption of at most two sentences, on a top hairline.
  *   5. Anything tabular is hairline rows, never cards. The only radii on the
  *      site are 6 px on buttons and controls; nothing casts a shadow.
- *
- * The figure sections of the apps still speak the old duotone's names
- * (--mark, --panel-mark, --panel-dim, --panel-hair, --well): they are aliased
- * onto the paper tokens here so a chart's rule resolves without being
- * rewritten; each surface's restyle renames its uses and the alias goes.
  */
 
 :root {
@@ -55,23 +50,10 @@
   --series-3: var(--ink-3);
   --grid: var(--rule);
 
-  /* the old duotone's names, aliased onto paper: ink on the page, ink on a panel */
-  --mark: var(--ink);
-  --mark-dim: var(--ink-3);
-  --hair: var(--rule);
-  --hair-strong: var(--rule-2);
-  --panel-mark: var(--ink);
-  --panel-dim: var(--ink-3);
-  --panel-hair: var(--rule);
-  --panel-border: var(--rule-2);
-  --panel: var(--paper-2);
-  --well: var(--paper-3);
-
   /* the voices */
   --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
   --sans: 'Geist Sans', 'Geist', Inter, system-ui, -apple-system, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-  --display: var(--serif); /* the old name for the headline voice */
 
   /* the grid: 1160 px of content inside 40 px of page padding */
   --max: 1160px;
@@ -269,15 +251,13 @@ button {
 }
 
 /* the one filled button on a page: the thing it asks you to do */
-.btn.primary,
-.btn.solid {
+.btn.primary {
   background: var(--ink);
   color: var(--paper);
   border-color: var(--ink);
 }
 
-.btn.primary:hover:not(:disabled),
-.btn.solid:hover:not(:disabled) {
+.btn.primary:hover:not(:disabled) {
   background: var(--ink-2);
   border-color: var(--ink-2);
 }
@@ -291,17 +271,6 @@ button {
 
 .btn.quiet:hover:not(:disabled) {
   background: var(--paper-2);
-  color: var(--ink);
-}
-
-/* the old name for the turned-down button, kept while the surfaces are restyled */
-.btn.ghost {
-  border-color: var(--rule);
-  color: var(--ink-2);
-}
-
-.btn.ghost:hover:not(:disabled) {
-  border-color: var(--ink);
   color: var(--ink);
 }
 
@@ -476,7 +445,7 @@ h2 em {
   min-width: 0;
 }
 
-/* a section of the page: the old name, kept while the surfaces are restyled */
+/* a section of the page under its own head: the reading guide in rung 0 and rung 1 */
 section.stop {
   padding: 96px 0 0;
 }
@@ -628,21 +597,6 @@ figure.fig {
   width: 14px;
   height: 2px;
   border-radius: 1px;
-}
-
-/* Ink is inherited, never named: a chip reads the ink of wherever it sits. */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  flex: none;
 }
 
 /* ---------- hairline rows ------------------------------------------------ */

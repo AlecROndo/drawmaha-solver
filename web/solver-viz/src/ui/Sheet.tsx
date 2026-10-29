@@ -31,7 +31,7 @@ export function Sheet({
     <div className="sheet" role="dialog" aria-label={title} tabIndex={-1} ref={ref}>
       <div className="sheet-bar">
         <span className="lbl">{title}</span>
-        <button className="btn ghost" type="button" onClick={onClose}>
+        <button className="btn quiet" type="button" onClick={onClose}>
           Close
         </button>
       </div>

@@ -80,8 +80,8 @@ semantic tokens above.
   Research body at 18 / 1.6.
 - **Geist** (sans) for UI, tables, charts, captions: 400 / 500 / 600 with
   tabular numerals wherever a number appears.
-- **IBM Plex Mono** is kept for exactly one job: the glyph grid of the ASCII
-  chip. It is never a text voice.
+- **IBM Plex Mono** is kept for two jobs: the glyph grid of the ASCII chip
+  (600), and inline code and commands (400); never a prose or UI voice.
 
 Scale: display 64 (home hero), title 52, h2 32 (30 inside the publication),
 h3 22, lede 21, body 18 serif, UI 15, captions 13 / 12 / 11, eyebrow 12
@@ -218,7 +218,8 @@ each with its grade and the command that produced it.
   the new fonts. `mark.ts` is unchanged except for its default colours.
 - **Fonts.** `@fontsource/newsreader` (400, 500, 400-italic) and
   `@fontsource/geist-sans` (400, 500, 600) are added to every app;
-  `@fontsource/ibm-plex-mono` 400 stays for the chip. Plus Jakarta Sans and
+  `@fontsource/ibm-plex-mono` stays, 600 for the chip and 400 for inline
+  code and commands. Plus Jakarta Sans and
   Instrument Sans are removed, from the packages and from `web/cover/fonts/`.
   `scripts/site/vercel_build.sh` copies the new files to `/fonts/`;
   Instrument Serif stays copied for `/hero`.

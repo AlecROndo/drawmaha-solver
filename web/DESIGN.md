@@ -26,7 +26,8 @@ declares.
   `#16140f` is text and the primary series, `--ink-2` / `--ink-3` secondary
   text and muted series. `--accent` `#8e2038` is the chip's oxblood and the
   only accent: the winning series in a chart, bet and raise, links, the
-  focus ring; `--accent-tint` fills bet-dominant matrix cells.
+  focus ring; `--accent-tint` is a link's underline and the text selection,
+  and on the homepage's opening matrix alone it fills the bet-dominant cells.
 - **Charts and actions read semantic tokens.** `--series-1/2/3` are ink,
   accent and muted ink, with a dash pattern for a fourth series and a direct
   label at the end of every line; `--grid` is the rule. The action triplet
@@ -35,7 +36,8 @@ declares.
 - **Two voices and the chip's mono.** Newsreader (`--serif`) for display,
   headings and the research body; Geist (`--sans`) for the UI, tables,
   charts and captions, with tabular numerals. IBM Plex Mono (`--mono`)
-  draws the chip's glyph grid and is never a text voice.
+  draws the chip's glyph grid (600) and sets inline code and commands (400);
+  it is never a prose or UI voice.
 - **The scale.** Display 64 (the home hero), `h1` 52, `h2` 32 (30 inside
   the publication), `h3` 22, lede 21, research body 18 serif, UI 15,
   captions 13 / 12 / 11, the eyebrow 12 uppercase at 0.08 em.

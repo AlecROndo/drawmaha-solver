@@ -10,10 +10,6 @@
  * package: the apps deploy independently and a shared build step would buy
  * ~300 lines at the cost of a workspace. Keep the five copies identical; a
  * change here is a change in all five (`tests/test_shared_chrome.py`).
- *
- * `Panel`, `Hero` and `Squiggle` are kept as thin aliases over `Figure` and
- * `PageHead` so every app compiles while its own surface is restyled; each
- * app's restyle replaces its calls and the aliases go when the last one does.
  */
 
 import { useEffect, useRef } from 'react'
@@ -218,65 +214,4 @@ export function Figure({
       {caption && <figcaption className="fig-cap">{caption}</figcaption>}
     </figure>
   )
-}
-
-/* ---------- aliases kept while the surfaces are restyled ------------------ */
-
-/** The old figure window, now a `Figure`: `k` and `live` have no place on paper, `say` is the sub-title. */
-export function Panel({
-  n,
-  id,
-  k: _k,
-  title,
-  say,
-  wide,
-  className,
-  label,
-  live: _live,
-  children,
-}: {
-  n?: string
-  id?: string
-  k?: string
-  title?: string
-  say?: React.ReactNode
-  wide?: boolean
-  className?: string
-  label?: string
-  live?: boolean
-  children: React.ReactNode
-}) {
-  return (
-    <Figure n={n} id={id} title={title} sub={say} wide={wide} className={className} label={label}>
-      {children}
-    </Figure>
-  )
-}
-
-/** The old hero, now a `PageHead`: the ASCII object and its dot are gone, the copy stays. */
-export function Hero({
-  eyebrow,
-  done: _done,
-  title,
-  icon: _icon,
-  iconLabel: _iconLabel,
-  children,
-}: {
-  eyebrow: React.ReactNode
-  done?: boolean
-  title: React.ReactNode
-  icon?: string
-  iconLabel?: string
-  children?: React.ReactNode
-}) {
-  return (
-    <PageHead eyebrow={eyebrow} title={title}>
-      {children}
-    </PageHead>
-  )
-}
-
-/** The red squiggle under a headline is gone from the paper system; the alias renders nothing. */
-export function Squiggle() {
-  return null
 }
