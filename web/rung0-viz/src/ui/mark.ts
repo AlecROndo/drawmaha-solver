@@ -30,6 +30,8 @@ for (let c = 32; c < 127; c++) CHARSET += String.fromCharCode(c)
 CHARSET += '♠♥♦♣·█'
 const CIDX: Record<string, number> = {}
 for (let i = 0; i < CHARSET.length; i++) CIDX[CHARSET[i]] = i
+/** the solid block the indents are drawn in; its atlas cell is a filled rectangle, see buildAtlas */
+const BLOCK = CIDX['█']
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v)
 const BAYER = [
   [0, 8, 2, 10],
@@ -118,6 +120,12 @@ class Grid {
       x.lineWidth = this.fontPx * dpr * EMBOLDEN
       x.lineJoin = 'round'
       for (let i = 0; i < CHARSET.length; i++) {
+        /* the block is painted as the whole cell, not set as a glyph: no Plex Mono subset carries U+2588, so a
+           font's '█' would come from a fallback face at its own width and leave paper between the indents */
+        if (i === BLOCK) {
+          x.fillRect(i * gw, 0, gw, gh)
+          continue
+        }
         x.fillText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5)
         x.strokeText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5)
       }
@@ -277,7 +285,7 @@ function rayChip(g: Grid, o: ChipParams) {
       /* the pattern is always the densest glyph: the sectors are what make the disc read as a chip, even in shadow */
       const lv = mat === 2 ? 5 : clamp(Math.floor(I * 5 + bay * 1.15), 0, 5)
       /* the pattern is a solid block, so the sectors and the ring read as black indents, not as dark glyphs over paper */
-      g.chb[i] = mat === 2 ? CIDX['█'] : chars[lv]
+      g.chb[i] = mat === 2 ? BLOCK : chars[lv]
       g.cob[i] = mat === 1 ? o.colBase : o.colPattern
     }
   }

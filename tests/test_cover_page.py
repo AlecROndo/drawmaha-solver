@@ -14,6 +14,8 @@ reviewer catches by reading:
   falls back to a system face and nobody notices until a screenshot, or a
   face the apps bundle that the pages never declare;
 - an inline script that no longer parses;
+- `chip.js`, the static pages' hand-kept twin of the apps' `mark.ts`, drawing
+  a different chip, or a page mounting it in other colours;
 - a request leaving the host — the pages self-host everything, no CDN;
 - a page that drifted from what its generator writes, i.e. a hand edit to a
   file that is regenerated;
@@ -229,6 +231,37 @@ def test_the_favicon_every_page_links_is_one_the_build_serves(pages: dict[str, s
     )
     svg = (COVER / "favicon.svg").read_text()
     assert svg.lstrip().startswith("<svg") and "#c8102e" in svg and "#141414" in svg, "favicon.svg is not the red chip with black indents"
+
+
+def test_chip_js_draws_the_same_chip_as_mark_ts(pages: dict[str, str]) -> None:
+    """`chip.js` is `mark.ts` rewritten by hand in plain JS, so nothing keeps the two chips alike but this.
+
+    The constants that decide how the chip looks (its font, the stroke that
+    emboldens a glyph, the face's ramp, the extra glyphs, the default colours)
+    must read the same in both, and every place that mounts the chip, the
+    apps' top bar and footer in `site.tsx` and the static pages, must pass
+    those same two colours.
+    """
+    ts = (ROOT / "web" / "rung0-viz" / "src" / "ui" / "mark.ts").read_text()
+    js = (COVER / "chip.js").read_text()
+    for name, pattern in (
+        ("FONT", r'const FONT = ("[^"]+")'),
+        ("EMBOLDEN", r"const EMBOLDEN = ([0-9.]+)"),
+        ("FACE", r"const FACE = '([^']+)'"),
+        ("the extra glyphs", r"CHARSET \+= '([^']+)'"),
+        ("the default mark", r"opts\.mark (?:\?\?|\|\|) '(#[0-9a-f]{6})'"),
+        ("the default ink", r"opts\.ink (?:\?\?|\|\|) '(#[0-9a-f]{6})'"),
+    ):
+        in_ts, in_js = re.findall(pattern, ts), re.findall(pattern, js)
+        assert len(in_ts) == 1 and in_ts == in_js, f"{name}: mark.ts has {in_ts}, chip.js has {in_js}"
+    default = (
+        re.search(r"opts\.mark \?\? '(#[0-9a-f]{6})'", ts)[1],
+        re.search(r"opts\.ink \?\? '(#[0-9a-f]{6})'", ts)[1],
+    )
+    mounting = re.compile(r"mark: '(#[0-9a-f]{6})', ink: '(#[0-9a-f]{6})'")
+    site = (ROOT / "web" / "rung0-viz" / "src" / "ui" / "site.tsx").read_text()
+    mounted = {"site.tsx": mounting.findall(site)} | {name: mounting.findall(pages[name]) for name in GENERATED}
+    assert all(found == [default] for found in mounted.values()), f"mark.ts defaults to {default}; mounted with {mounted}"
 
 
 @pytest.mark.parametrize("name", PAGES)

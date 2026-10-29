@@ -16,6 +16,8 @@ let CHARSET = '';
 for (let c = 32; c < 127; c++) CHARSET += String.fromCharCode(c);
 CHARSET += '♠♥♦♣·█';
 const CIDX = {}; for (let i = 0; i < CHARSET.length; i++) CIDX[CHARSET[i]] = i;
+/* the solid block the indents are drawn in; its atlas cell is a filled rectangle, see buildAtlas */
+const BLOCK = CIDX['█'];
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 class Grid {
   constructor(canvas, palette, fontPx) {
@@ -73,6 +75,9 @@ class Grid {
       x.font = font(this.fontPx * dpr); x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillStyle = col;
       x.strokeStyle = col; x.lineWidth = this.fontPx * dpr * EMBOLDEN; x.lineJoin = 'round';
       for (let i = 0; i < CHARSET.length; i++) {
+        /* the block is painted as the whole cell, not set as a glyph: no Plex Mono subset carries U+2588, so a
+           font's '█' would come from a fallback face at its own width and leave paper between the indents */
+        if (i === BLOCK) { x.fillRect(i * gw, 0, gw, gh); continue; }
         x.fillText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5);
         x.strokeText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5);
       }
@@ -158,7 +163,7 @@ function rayChip(g, o) {
       const bay = (BAYER[cyy % 4][cxx % 4] + 0.5) / 16 - 0.5;
       /* the pattern is always the densest glyph: the sectors are what make the disc read as a chip, even in shadow */
       const lv = mat === 2 ? 5 : clamp(Math.floor(I * 5 + bay * 1.15), 0, 5);
-      g.chb[i] = mat === 2 ? CIDX['█'] : chars[lv]; g.cob[i] = mat === 1 ? o.colBase : o.colPattern;
+      g.chb[i] = mat === 2 ? BLOCK : chars[lv]; g.cob[i] = mat === 1 ? o.colBase : o.colPattern;
     }
   }
 }
