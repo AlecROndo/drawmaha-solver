@@ -640,7 +640,7 @@ FOOTER = f"""<footer>
 CHIP = """<script src="/chip.js"></script>
 <script>
 (function () {
-  var colours = { mark: '#16140f', ink: '#8e2038' };
+  var colours = { mark: '#8e2038', ink: '#16140f' };
   mountChip(document.querySelector('.chip-home canvas'), { font: 1.5, mark: colours.mark, ink: colours.ink });
   mountChip(document.querySelector('.chip-end canvas'), { font: 1.5, speed: 0.32, mark: colours.mark, ink: colours.ink });
 })();

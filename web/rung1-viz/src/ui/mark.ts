@@ -1,8 +1,9 @@
 /**
  * The Drawmaha chip: a dithered, tilted poker chip turning on its axis, drawn
- * as ASCII on a canvas. The mark on paper: the face in ink (#16140f), the
- * edge sectors and the inner ring in the chip's oxblood, so the logo and
- * "this is the finding" are one colour. The twin of the static pages'
+ * as ASCII on a canvas. The mark on paper: the face in the chip's oxblood
+ * (#8e2038), the edge sectors and the inner ring in ink (#16140f), so the
+ * chip reads as an oxblood chip and the logo and "this is the finding" are
+ * one colour. The twin of the static pages'
  * chip.js — same ramp, same tilt, same wobble, same speed-up under the mouse.
  *
  * On paper a glyph is ink over a light ground, so how dark a cell reads is how
@@ -296,8 +297,8 @@ export interface ChipOptions {
  * reduced motion the chip is drawn once and still answers a resize.
  */
 export function mountChip(canvas: HTMLCanvasElement, opts: ChipOptions = {}): () => void {
-  const mark = opts.mark ?? '#16140f'
-  const ink = opts.ink ?? '#8e2038'
+  const mark = opts.mark ?? '#8e2038'
+  const ink = opts.ink ?? '#16140f'
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
   const g = new Grid(canvas, ['transparent', mark, ink], opts.font ?? 1.5)
   const s = { yaw: 0.6, t: 0, speed: opts.speed ?? 0.3, tilt: opts.tilt ?? 0.8, drawn: false }

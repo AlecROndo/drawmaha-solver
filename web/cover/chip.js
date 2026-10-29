@@ -1,6 +1,6 @@
 /* chip.js — the Drawmaha chip: a dithered, tilted poker chip turning on its axis, drawn as ASCII on a canvas.
    The plain-JS twin of the apps' src/ui/mark.ts, served at /chip.js and loaded by every static page. The mark on
-   paper: the face in ink (#16140f), the edge sectors and the inner ring in the chip's oxblood (#8e2038). Transparent
+   paper: the face in the chip's oxblood (#8e2038), the edge sectors and the inner ring in ink (#16140f). Transparent
    field. On paper how dark a cell reads is how much of it the glyph covers, so — as in mark.ts — the grid is set in
    Plex Mono 600, every glyph is emboldened by a stroke of its own colour (EMBOLDEN of the cell size), the face's ramp
    starts at ':' and the pattern is always '@'. Every glyph is drawn at full opacity.
@@ -215,7 +215,7 @@ function rayChip(g, o) {
 
 const CHIP_SCENES = [];
 function mountChips(opts) {
-  const mark = (opts && opts.mark) || '#16140f', ink = (opts && opts.ink) || '#8e2038';
+  const mark = (opts && opts.mark) || '#8e2038', ink = (opts && opts.ink) || '#16140f';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   for (const canvas of document.querySelectorAll('canvas[data-chip]')) {
     const g = new Grid(canvas, ['transparent', mark, ink], parseFloat(canvas.dataset.font || '1.5'));
@@ -246,7 +246,7 @@ window.mountChips = mountChips;
    the chip is drawn once and still answers a resize. */
 function mountChip(canvas, opts) {
   opts = opts || {};
-  const mark = opts.mark || '#16140f', ink = opts.ink || '#8e2038';
+  const mark = opts.mark || '#8e2038', ink = opts.ink || '#16140f';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const g = new Grid(canvas, ['transparent', mark, ink], opts.font || 1.5);
   const s = { yaw: 0.6, t: 0, speed: opts.speed == null ? 0.3 : opts.speed, tilt: opts.tilt == null ? 0.8 : opts.tilt, drawn: false };

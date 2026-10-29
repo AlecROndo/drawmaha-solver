@@ -34,7 +34,7 @@ const NAV: { id: Surface; label: string; href: string }[] = [
 ]
 
 /**
- * The chip, turning: glyphs in ink, the pattern in the accent. `font` is the
+ * The chip, turning: the face in the accent, the pattern in ink. `font` is the
  * cell size in px: 1.5 both in the bar and where it closes the page, fine
  * enough that the sectors read.
  */
@@ -42,7 +42,7 @@ export function Mark({ font, speed }: { font: number; speed?: number }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     if (!ref.current) return
-    return mountChip(ref.current, { font, speed, mark: '#16140f', ink: '#8e2038' })
+    return mountChip(ref.current, { font, speed, mark: '#8e2038', ink: '#16140f' })
   }, [font, speed])
   return <canvas ref={ref} aria-hidden />
 }

@@ -109,8 +109,8 @@ figures that already draw themselves once on scroll.
 ### The chip
 
 The turning ASCII chip from `mark.ts` / `chip.js`, unchanged in geometry,
-recoloured for paper: glyphs in ink, the pattern in oxblood
-(`mountChip(canvas, { mark: '#16140f', ink: '#8e2038' })`). It is the mark in
+recoloured for paper: the face in oxblood, the pattern in ink
+(`mountChip(canvas, { mark: '#8e2038', ink: '#16140f' })`). It is the mark in
 the top bar, 1.5 px cells, and closes every page in the footer. The per-rung
 ASCII hero objects (`ascii.ts`) are removed.
 
