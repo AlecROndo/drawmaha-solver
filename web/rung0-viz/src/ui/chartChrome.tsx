@@ -35,8 +35,8 @@ export function DecadeGridlines({ scale, box }: { scale: LogXScale; box: ChartBo
     <>
       {scale.decades.map((d) => (
         <g key={d}>
-          <line x1={scale.x(d)} x2={scale.x(d)} y1={box.t} y2={box.h - box.b} stroke="var(--panel-hair)" />
-          <text x={scale.x(d)} y={box.h - 8} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+          <line x1={scale.x(d)} x2={scale.x(d)} y1={box.t} y2={box.h - box.b} stroke="var(--grid)" />
+          <text x={scale.x(d)} y={box.h - 8} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
             {decadeLabel(d)}
           </text>
         </g>
@@ -72,8 +72,8 @@ export function YGridline({
 }) {
   return (
     <g>
-      <line x1={box.l} x2={box.w - box.r} y1={y} y2={y} stroke="var(--panel-hair)" />
-      <text x={box.l - 8} y={y + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+      <line x1={box.l} x2={box.w - box.r} y1={y} y2={y} stroke="var(--grid)" />
+      <text x={box.l - 8} y={y + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
         {label}
       </text>
     </g>
@@ -82,28 +82,53 @@ export function YGridline({
 
 /** Vertical hairline at the hovered x. */
 export function HoverCrosshair({ x, box }: { x: number; box: ChartBox }) {
-  return <line x1={x} x2={x} y1={box.t} y2={box.h - box.b} stroke="var(--panel-hair)" />
+  return <line x1={x} x2={x} y1={box.t} y2={box.h - box.b} stroke="var(--rule-2)" />
 }
 
-/** Direct label at the right edge: colored tick + text ink, instead of a legend lookup. */
+/**
+ * Direct label at the right edge: a short stroke in the series' colour and
+ * dash, then the name in text ink, instead of a legend lookup.
+ */
 export function EdgeLabel({
   y,
   color,
+  dash,
   text,
   box,
 }: {
   y: number
   color: string
+  dash?: string
   text: string
   box: ChartBox
 }) {
   return (
     <g>
-      <rect x={box.w - box.r + 6} y={y - 1.5} width={10} height={3} rx={1.5} fill={color} />
-      <text x={box.w - box.r + 20} y={y + 3.5} fontSize="11" fill="var(--panel-dim)">
+      <line
+        x1={box.w - box.r + 6}
+        x2={box.w - box.r + 22}
+        y1={y}
+        y2={y}
+        stroke={color}
+        strokeWidth={2}
+        strokeDasharray={dash}
+      />
+      <text x={box.w - box.r + 28} y={y + 3.5} fontSize="12" fill="var(--ink-2)">
         {text}
       </text>
     </g>
+  )
+}
+
+/** A legend key: the series' stroke as drawn, colour and dash, beside its name. */
+export function LegendKey({ color, dash, children }: { color: string; dash?: string; children: React.ReactNode }) {
+  return (
+    <span className="item">
+      <svg width="18" height="4" aria-hidden className="key">
+        <line x1="0" x2="18" y1="2" y2="2" stroke={color} strokeWidth="2" strokeDasharray={dash} />
+      </svg>
+      {children}
+    </span>
   )
 }
 

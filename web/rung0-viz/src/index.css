@@ -1,58 +1,108 @@
 /*
- * Rung 0's own figures, on top of the shared theme (theme.css): the identity
- * inks the figures use, the console strip, the ledger bars, the update trace,
- * the charts and the scoreboard. Everything here reads the theme's tokens;
- * the old duotone names (--panel-mark, --panel-dim, --panel-hair) are the
- * theme's aliases for ink on a window.
+ * The rock-paper-scissors page's own figures, on top of the shared theme
+ * (theme.css): the run console, the ledger bars, the update trace, the charts
+ * and the scoreboard. Everything reads the theme's tokens.
+ *
+ * Colour says which estimate a mark is, never which action: the average S/n
+ * is --series-2 (the accent, the thing the page points at), the current σ is
+ * --series-3 (grey, the restless one), cumulative regret is --series-1 (ink).
+ * The three actions are told apart by position, by name and, where they share
+ * a chart, by dash.
  */
 
-:root {
-  /* Identity colour, inside a figure only. Three actions, three inks: rock
-     is plain ivory, paper the yellow, scissors the pink. The average is the
-     product and gets the pointing colour; the current iterate is the
-     restless one and gets the action colour. */
-  --rock: var(--ivory);
-  --paper: var(--yellow);
-  --scissors: var(--pink);
-  --avg-obj: var(--yellow);
-  --cur-obj: var(--pink);
-  --win: var(--yellow);
-  --loss: var(--pink);
+/* ---------- the run console: a toolbar under the page head's hairline ----- */
 
-}
-
-/* ---------- controls: the console strip ---------------------------------- */
-
-.controls {
+/* no rule of its own below: the first figure's top hairline closes it */
+.console-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  margin-top: 26px;
-  border: 1px solid var(--iv-10);
-  border-radius: 6px;
-  background: var(--panel);
-  font-family: var(--mono);
-  font-size: 12px;
+  gap: 8px 10px;
+  padding: 16px 0;
 }
 
-.controls .grow {
+.console-row + .console-row {
+  border-top: 1px solid var(--rule);
+}
+
+.console .grow {
   flex: 1;
 }
 
-.mode-tabs {
-  display: flex;
-  gap: 2px;
-  margin-right: 6px;
+.console .run {
+  min-width: 76px;
 }
 
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--ink-2);
+  margin-left: 14px;
+}
+
+.field-k {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.console-row > .field-k {
+  margin-right: 4px;
+}
+
+.console input[type='range'] {
+  accent-color: var(--accent);
+  width: 120px;
+}
+
+.console input[type='text'] {
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  width: 72px;
+  padding: 7px 10px;
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  transition: border-color 0.15s;
+}
+
+.console input[type='text']:hover {
+  border-color: var(--ink-3);
+}
+
+.console .readout {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  min-width: 112px;
+}
+
+.console .dist .field {
+  margin-left: 0;
+  margin-right: 16px;
+}
+
+.console .dist input[type='range'] {
+  width: 84px;
+}
+
+.console .pct {
+  width: 36px;
+  text-align: right;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The mode switch and the ledger's player switch are the theme's .seg; this
+   names their press for the UI standard's test, which lists this app's own
+   pressables by class. */
 .mode-tabs button {
-  font: 500 12px/1 var(--mono);
-  letter-spacing: 0.04em;
-  color: var(--iv-60);
-  padding: 8px 10px;
-  border-radius: 3px;
   transition:
     background 0.15s,
     color 0.15s,
@@ -63,150 +113,72 @@
   transform: scale(0.97);
 }
 
-.mode-tabs button:hover {
-  color: var(--ivory);
-  background: var(--iv-06);
+/* ---------- figures on this page ----------------------------------------- */
+
+.legend svg.key {
+  display: block;
+  width: 18px;
+  height: 4px;
+  overflow: visible;
 }
 
-.mode-tabs button[aria-selected='true'] {
-  color: var(--ivory);
-  background: var(--iv-10);
+.fig .stats {
+  margin-top: 20px;
 }
 
-.controls label.inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font: 400 11px/1 var(--mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--iv-45);
+canvas.simplex {
+  display: block;
+  width: 100%;
+  max-width: 470px;
+  aspect-ratio: 1;
 }
 
-.controls input[type='range'] {
-  accent-color: var(--yellow);
-  width: 110px;
+.fig-sub kbd {
+  font-size: 11px;
 }
 
-.controls input[type='text'] {
-  font: 400 12px/1 var(--mono);
-  width: 70px;
-  padding: 7px 9px;
-  border: 1px solid var(--iv-16);
-  border-radius: 3px;
-  background: var(--well);
-  color: var(--ivory);
-}
-
-.controls .readout {
-  font: 400 12px/1 var(--mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--iv-80);
-  min-width: 88px;
-}
-
-.controls .btn {
-  padding: 7px 11px;
-  font-size: 12px;
-}
-
-.dist-sliders {
-  flex-basis: 100%;
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  flex-wrap: wrap;
-  padding-top: 12px;
-  border-top: 1px solid var(--iv-10);
-  font: 400 12px/1 var(--mono);
-  color: var(--iv-60);
-}
-
-.dist-sliders label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dist-sliders input[type='range'] {
-  width: 62px;
-  accent-color: var(--yellow);
-}
-
-.dist-sliders .pct {
-  width: 34px;
-  text-align: right;
-  color: var(--ivory);
-  font-variant-numeric: tabular-nums;
-}
-
-.dist-sliders .label {
-  font: 500 10.5px/1 var(--mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--iv-45);
-}
-
-/* ---------- the ledger bars (rung 0's figure 1) -------------------------- */
+/* ---------- the ledger bars (figure 1) ------------------------------------ */
 
 .ledger-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 16px;
-  flex-wrap: wrap;
-  margin-top: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--iv-10);
-}
-
-.ledger-head .grow {
-  flex: 1;
-}
-
-.ledger-head .mode-tabs button {
-  color: var(--iv-60);
-}
-
-.ledger-head .mode-tabs button:hover,
-.ledger-head .mode-tabs button[aria-selected='true'] {
-  color: var(--ivory);
-}
-
-.ledger-head .readout {
-  font: 400 12px/1.4 var(--mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--iv-60);
-}
-
-.ledger-head .readout b {
-  color: var(--yellow);
-  font-weight: 500;
+  margin-bottom: 8px;
 }
 
 .ledger-flow {
   display: grid;
-  grid-template-columns: 1fr 22px 1fr 22px 1fr;
-  gap: 18px;
+  grid-template-columns: 1fr 24px 1fr 24px 1fr;
+  gap: 24px;
   align-items: center;
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .ledger-stage {
   min-width: 0;
 }
 
-.ledger-stage .k {
-  display: block;
-  margin-bottom: 14px;
-  font: 400 10px/1 var(--mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--iv-45);
+.stage-k {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.stage-k .sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
 }
 
 .ledger-arrow {
-  font: 400 18px/1 var(--mono);
-  color: var(--iv-45);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--ink-3);
   text-align: center;
 }
 
@@ -215,7 +187,6 @@
   display: flex;
   gap: 14px;
   justify-content: space-around;
-  height: 150px;
   padding: 0 4px;
 }
 
@@ -223,7 +194,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 46px;
+  width: 52px;
 }
 
 .bar-track {
@@ -237,29 +208,44 @@
    would disagree with the number printed above it. */
 .bar-fill {
   position: absolute;
-  left: 9px;
-  right: 9px;
-  border-radius: 3px 3px 0 0;
+  left: 10px;
+  right: 10px;
+  border-radius: 4px 4px 0 0;
 }
 
+/* a negative regret: drawn hollow below the baseline, because R⁺ clips it */
 .bar-fill.neg {
-  border-radius: 0 0 3px 3px;
-  opacity: 0.4;
+  border-radius: 0 0 4px 4px;
+  border: 1px solid var(--ink-3);
+  border-top: 0;
+  background: transparent;
 }
 
 .bar-value {
-  font: 400 11.5px/1 var(--mono);
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: var(--iv-80);
+  color: var(--ink-2);
+}
+
+.bar-names {
+  display: flex;
+  justify-content: space-around;
+  gap: 14px;
+  padding: 0 4px;
 }
 
 .bar-name {
-  font: 400 11px/1 var(--mono);
-  color: var(--iv-60);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  width: 52px;
   margin-top: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-3);
 }
 
 .zero-line,
@@ -271,72 +257,83 @@
 }
 
 .zero-line {
-  border-top: 1px solid var(--iv-30);
+  border-top: 1px solid var(--ink-3);
 }
 
 .third-line {
-  border-top: 1px dashed var(--iv-30);
+  border-top: 1px dashed var(--ink-3);
 }
 
 .third-label {
   position: absolute;
   right: 0;
-  font: 400 10px/1 var(--mono);
-  color: var(--iv-45);
-  transform: translateY(-115%);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--ink-3);
+  transform: translateY(-120%);
 }
 
-/* ---------- the update trace --------------------------------------------- */
+/* ---------- the update trace (figure 4) ----------------------------------- */
 
 .trace {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 16px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
 .trace td {
   padding: 10px 0;
-  border-bottom: 1px solid var(--iv-10);
+  border-bottom: 1px solid var(--rule);
   vertical-align: baseline;
-  font: 400 12px/1.45 var(--mono);
-  font-variant-numeric: tabular-nums;
+  color: var(--ink);
 }
 
 .trace tr:first-child td {
-  border-top: 1px solid var(--iv-10);
+  border-top: 1px solid var(--ink);
 }
 
 .trace td.lbl {
-  color: var(--iv-60);
-  width: 38%;
-  padding-right: 20px;
+  color: var(--ink-3);
+  width: 32%;
+  padding-right: 24px;
 }
 
 .trace-empty,
 .trace-compact {
-  font: 400 12px/1.6 var(--mono);
-  color: var(--iv-60);
-  margin: 16px 0 0;
-  min-height: calc(2 * 1.6em);
+  font-size: 14px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  margin: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  min-height: calc(2 * 1.6em + 24px);
 }
 
-/* ---------- charts -------------------------------------------------------- */
+.act {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ---------- charts ---------------------------------------------------------- */
 
 .chart-wrap {
   position: relative;
-  margin-top: 14px;
 }
 
 .chart-tooltip {
   position: absolute;
   pointer-events: none;
-  background: var(--field);
-  border: 1px solid var(--iv-16);
-  border-radius: 3px;
-  padding: 6px 9px;
-  font: 400 11px/1.5 var(--mono);
+  background: var(--paper);
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+  line-height: 1.5;
   font-variant-numeric: tabular-nums;
-  color: var(--iv-80);
+  color: var(--ink-2);
   white-space: nowrap;
   z-index: 2;
 }
@@ -349,85 +346,64 @@
 }
 
 .chart-tooltip .row .val {
-  margin-left: 14px;
-  color: var(--ivory);
+  margin-left: 16px;
+  color: var(--ink);
+  font-weight: 500;
 }
 
-/* ---------- scoreboard ---------------------------------------------------- */
+/* ---------- the scoreboard (figure 6) ------------------------------------- */
 
-.outcome-strip {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  min-height: 54px;
-  margin-top: 16px;
+/* five short columns: at the figure's full width the eye loses the row */
+table.recent {
+  margin-top: 28px;
+  max-width: 640px;
+}
+
+table.recent td {
+  padding: 10px 12px 10px 0;
+}
+
+table.recent td.won {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+table.recent td.lost,
+table.recent td.tied {
+  color: var(--ink-3);
 }
 
 .strip-empty {
-  font: 400 12px/1.5 var(--mono);
-  color: var(--iv-60);
-  align-self: center;
+  font-size: 14px;
+  color: var(--ink-3);
+  margin: 20px 0 0;
 }
 
-.outcome {
-  border: 1px solid var(--iv-16);
-  border-radius: 4px;
-  background: var(--well);
-  padding: 6px 9px;
-  font: 400 11.5px/1.35 var(--mono);
-  text-align: center;
-  min-width: 56px;
-}
+/* ---------- the page's last lines ------------------------------------------ */
 
-.outcome .who {
-  display: flex;
-  gap: 4px;
-  justify-content: center;
-  align-items: center;
-}
-
-.outcome .res {
-  font-weight: 500;
-  margin-top: 2px;
-}
-
-.outcome .res.w {
-  color: var(--win);
-}
-
-.outcome .res.l {
-  color: var(--loss);
-}
-
-.outcome .res.t {
-  color: var(--iv-60);
-}
-
-.play-buttons {
-  display: flex;
-  gap: 10px;
-  padding: 18px 0 0;
-  flex-wrap: wrap;
-}
-
-.play-buttons .btn {
-  padding: 12px 18px;
-  font-size: 13px;
+.note a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
 }
 
 .kbd-hint {
-  font: 400 12px/1.6 var(--mono);
-  color: var(--iv-45);
-  margin: 40px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-3);
+  margin: 32px 0 0;
 }
 
 kbd {
-  border: 1px solid var(--iv-30);
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 0 6px;
+  border: 1px solid var(--rule-2);
   border-bottom-width: 2px;
-  border-radius: 3px;
-  padding: 0 5px;
-  font: 400 11px/1.6 var(--mono);
-  color: var(--iv-80);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink-2);
 }
 
 /* ---------- narrow -------------------------------------------------------- */
@@ -443,8 +419,21 @@ kbd {
   }
 }
 
+/* one column: a half-width chart would scale its type up with its width */
+@media (max-width: 1024px) {
+  .fig:not(.wide) .chart-wrap {
+    max-width: 640px;
+  }
+}
+
+@media (max-width: 768px) {
+  .field {
+    margin-left: 0;
+  }
+}
+
 /* The press is one of the things reduced motion turns off (web/DESIGN.md);
-   the theme only knows its own pressables, so this figure's are named here. */
+   the theme only knows its own pressables, so this page's are named here. */
 @media (prefers-reduced-motion: reduce) {
   .mode-tabs button:active {
     transform: none;
