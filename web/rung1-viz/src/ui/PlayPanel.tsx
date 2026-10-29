@@ -10,7 +10,7 @@ import {
   type Act,
   type Card,
 } from '../kuhn'
-import { Panel } from './site'
+import { Figure } from './site'
 import { SOLVE } from './useSolve'
 
 /**
@@ -113,68 +113,72 @@ export function PlayPanel() {
   const botCard = hand.cards[1 - hand.humanSeat]
 
   return (
-    <Panel
-      n="03"
+    <Figure
+      n="Figure 4"
       id="play"
-      k="Fig. 3 · play it"
-      title="You cannot beat it. The number is how fast you lose."
-      say={`The bot plays the solved average strategy, so it is a genuine equilibrium and never adapts to you — exploitable for ${SOLVE.exploitabilityAverage[FINAL].toFixed(5)} chips a hand. Seats alternate because Kuhn is asymmetric.`}
+      title="You cannot beat it; the number is how fast you lose"
+      sub={`The bot plays the solved average strategy, exploitable for ${SOLVE.exploitabilityAverage[FINAL].toFixed(5)} chips a hand, and never adapts to you.`}
+      caption="Seats alternate because Kuhn is asymmetric: the first player's game value is −1/18, and a fixed seat would mix your mistakes with the seat's own edge."
+      wide
       label="Play against the equilibrium"
     >
-      <div className="hand">
-        {/* The cards the way the homepage draws them: your card face up, the
-            bot's face down until the hand is over, then turned so you can see
-            whether you were bluffed. */}
-        <div className="cards" aria-label="The cards">
-          <div className="cardglyph">
-            {CARD_SYMBOL[yourCard]}
-            <span className="who">you</span>
-          </div>
-          <div
-            className={over ? 'cardglyph' : 'cardglyph back'}
-            aria-label={over ? undefined : 'Bot’s card, face down'}
-          >
-            {over ? CARD_SYMBOL[botCard] : '?'}
-            <span className="who">bot</span>
-          </div>
-        </div>
+      <div className="play">
         <div>
-          <span className="k">
-            Hand {hands + 1} · you are P{hand.humanSeat}
-          </span>
-          <p className="play-log">{hand.lines.length ? hand.lines.join('\n') : 'Your move.'}</p>
+          <div className="hand">
+            {/* Your card face up, the bot's face down until the hand is over,
+                then turned so you can see whether you were bluffed. */}
+            <div className="cards" aria-label="The cards">
+              <div className={`cardglyph c-${CARD_SYMBOL[yourCard].toLowerCase()}`}>
+                {CARD_SYMBOL[yourCard]}
+                <span className="who">you</span>
+              </div>
+              <div
+                className={over ? `cardglyph c-${CARD_SYMBOL[botCard].toLowerCase()}` : 'cardglyph back'}
+                aria-label={over ? undefined : 'Bot’s card, face down'}
+              >
+                {over ? CARD_SYMBOL[botCard] : '?'}
+                <span className="who">bot</span>
+              </div>
+            </div>
+            <div>
+              <span className="k">
+                Hand {hands + 1} · you are P{hand.humanSeat}
+              </span>
+              <p className="play-log">{hand.lines.length ? hand.lines.join('\n') : 'Your move.'}</p>
+            </div>
+          </div>
+          <div className="play-buttons">
+            {over ? (
+              <button className="btn" onClick={next}>
+                Next hand
+              </button>
+            ) : (
+              (['b', 'p'] as Act[]).map((a) => (
+                <button key={a} className="btn" onClick={() => act(a)}>
+                  {actionLabel(a, history)}
+                </button>
+              ))
+            )}
+          </div>
         </div>
+        <dl className="stats">
+          <div className="stat">
+            <dt>Hands</dt>
+            <dd>{hands}</dd>
+          </div>
+          <div className="stat">
+            <dt>Your chips</dt>
+            <dd>
+              {chips > 0 ? '+' : chips < 0 ? '−' : ''}
+              {Math.abs(chips)}
+            </dd>
+          </div>
+          <div className="stat">
+            <dt>Per hand</dt>
+            <dd>{hands === 0 ? '—' : `${chips < 0 ? '−' : ''}${Math.abs(chips / hands).toFixed(3)}`}</dd>
+          </div>
+        </dl>
       </div>
-      <div className="play-buttons">
-        {over ? (
-          <button className="btn" onClick={next}>
-            Next hand
-          </button>
-        ) : (
-          (['b', 'p'] as Act[]).map((a, i) => (
-            <button key={a} className={i === 0 ? 'btn' : 'btn ghost'} onClick={() => act(a)}>
-              {actionLabel(a, history)}
-            </button>
-          ))
-        )}
-      </div>
-      <ul className="fields">
-        <li>
-          <span>Hands</span>
-          <span className="v">{hands}</span>
-        </li>
-        <li>
-          <span>Your chips</span>
-          <span className="v">
-            {chips >= 0 ? '+' : ''}
-            {chips}
-          </span>
-        </li>
-        <li>
-          <span>Per hand</span>
-          <span className="v">{hands === 0 ? '—' : (chips / hands).toFixed(3)}</span>
-        </li>
-      </ul>
-    </Panel>
+    </Figure>
   )
 }
