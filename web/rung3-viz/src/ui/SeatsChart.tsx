@@ -9,7 +9,7 @@ import { FROZEN } from '../research'
  * hand, because the seat is worth −0.091 to begin with.
  */
 
-const W = 560
+const W = 860
 const H = 120
 const M = { l: 30, r: 30 }
 const X_MIN = -0.2
@@ -31,18 +31,18 @@ export function SeatsChart() {
       <svg className="chart seats" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Seat values and best responses on a number line">
         {[-0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4].map((v) => (
           <g key={v}>
-            <line x1={x(v)} x2={x(v)} y1={22} y2={H - 26} stroke={v === 0 ? 'var(--panel-dim)' : 'var(--panel-hair)'} />
-            <text x={x(v)} y={H - 10} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+            <line x1={x(v)} x2={x(v)} y1={22} y2={H - 26} stroke={v === 0 ? 'var(--ink-3)' : 'var(--grid)'} />
+            <text x={x(v)} y={H - 10} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
               {v === 0 ? '0' : signed(v, 1)}
             </text>
           </g>
         ))}
         {/* P0's row */}
-        <text x={M.l} y={38} fontSize="10.5" fill="var(--panel-dim)">
+        <text x={M.l} y={38} fontSize="10.5" fill="var(--ink-3)">
           P0
         </text>
         <line x1={x(v0)} x2={x(br0)} y1={46} y2={46} stroke="var(--seat-p0)" strokeWidth={2} />
-        <circle cx={x(v0)} cy={46} r={4.5} fill="var(--panel)" stroke="var(--seat-p0)" strokeWidth={1.6} />
+        <circle cx={x(v0)} cy={46} r={4.5} fill="var(--paper)" stroke="var(--seat-p0)" strokeWidth={1.6} />
         <circle cx={x(br0)} cy={46} r={4.5} fill="var(--seat-p0)" />
         <text x={x(v0)} y={35} textAnchor="middle" fontSize="10.5" fill="var(--seat-p0)">
           self-play {signed(v0)}
@@ -51,11 +51,11 @@ export function SeatsChart() {
           best response {signed(br0)} · gains {signed(gain0)}
         </text>
         {/* P1's row */}
-        <text x={M.l} y={72} fontSize="10.5" fill="var(--panel-dim)">
+        <text x={M.l} y={72} fontSize="10.5" fill="var(--ink-3)">
           P1
         </text>
         <line x1={x(v1)} x2={x(br1)} y1={80} y2={80} stroke="var(--seat-p1)" strokeWidth={2} />
-        <circle cx={x(v1)} cy={80} r={4.5} fill="var(--panel)" stroke="var(--seat-p1)" strokeWidth={1.6} />
+        <circle cx={x(v1)} cy={80} r={4.5} fill="var(--paper)" stroke="var(--seat-p1)" strokeWidth={1.6} />
         <circle cx={x(br1)} cy={80} r={4.5} fill="var(--seat-p1)" />
         <text x={x(v1)} y={69} textAnchor="middle" fontSize="10.5" fill="var(--seat-p1)">
           self-play {signed(v1)}
@@ -64,7 +64,7 @@ export function SeatsChart() {
           best response {signed(br1)} · gains {signed(gain1)}
         </text>
       </svg>
-      <dl className="stat">
+      <dl className="readout">
         <div>
           <dt>exploitability</dt>
           <dd>{FROZEN.exploitability.toFixed(4)}</dd>

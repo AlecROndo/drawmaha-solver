@@ -1,164 +1,519 @@
 /*
- * Rung 3's own figures, on top of the shared theme (theme.css): the identity
- * inks for the four regret rules, rung 4's three averages and the actions,
- * the race and the bar charts, the stacked category bars, the trainer's
- * three-lane table and the coach's rows beside it, in the Learn tab's register.
- * Everything here reads the theme's tokens and moves the way web/DESIGN.md
- * says: the only motion this sheet owns is the swept chips, one-shot, 400 ms,
- * allowlisted in the standard's test as `.sweep`, and the press on the
- * contents rail's links. The research tab is a publication: the masthead,
- * the key numbers, the contents rail, the chapters and the figures with
- * their captions are the "publication" section below.
+ * The research page, Learn and Play, on top of the paper theme (theme.css).
+ * Three parts: the publication (the title block and its results strip, the
+ * contents rail, the chapters, pull quotes and the seventeen figures), the
+ * Learn tab's view switch, and the trainer (the table as hairline lanes, the
+ * coach's mix bands in the action colours, the ledger as a hairline table).
+ * Every colour is a theme token or a name for one declared below; the only
+ * hex is the card face. The motion this sheet owns is the swept chips,
+ * one-shot, 400 ms, allowlisted in the standard's test as `.sweep`, and the
+ * press on the contents rail's links.
  */
 
 :root {
-  /* The four rules, held across every figure: the winner is the yellow (the
-     thing you are pointing at), vanilla plain ivory, and the two rules that
-     discard negative regret share the pink — CFR+ solid, DCFR dashed, because
-     the finding is that they became one rule. */
-  --rule-vanilla: var(--ivory);
-  --rule-lcfr: var(--yellow);
-  --rule-cfrplus: var(--pink);
-  --rule-dcfr: var(--ox-lit);
+  /* The four rules, held across every figure: the winner, LCFR, is the
+     accent; vanilla, the other rule that keeps negative regret, the ink; the
+     two that discard it share the muted ink, CFR+ solid and DCFR dashed,
+     because the finding is that they became one rule. */
+  --rule-vanilla: var(--series-1);
+  --rule-lcfr: var(--series-2);
+  --rule-cfrplus: var(--series-3);
+  --rule-dcfr: var(--series-3);
 
-  /* Action identity, as on rung 2: the bet is the aggressive act and takes
-     the pink, the check the yellow, the fold the quiet ink. At the draw,
-     standing pat is the quiet choice (yellow) and the three throws are the
-     pink at three depths, low to top. */
-  --act-check: var(--yellow);
-  --act-bet: var(--pink);
-  --act-fold: var(--iv-45);
-  --throw-low: rgba(216, 86, 111, 0.45);
-  --throw-mid: rgba(216, 86, 111, 0.7);
-  --throw-top: var(--pink);
+  /* At the draw the three throws are the accent at three depths, low to
+     top; standing pat is the quiet choice, the check's blue (inks.ts). */
+  --throw-low: rgba(142, 32, 56, 0.42);
+  --throw-mid: rgba(142, 32, 56, 0.7);
+  --throw-top: var(--act-bet);
 
-  /* Rung 4's three graded objects, and the losses of the policy-net sweep:
-     the exact average is the thing pointed at (yellow), Π the plain ivory,
-     the current iterate the pink the theme reserves for it; the table is
-     the quiet reference. Cross-entropy, the loss the sweep points at, takes
-     the yellow. */
-  --obj-exact: var(--yellow);
-  --obj-pi: var(--iv-80);
-  --obj-current: var(--pink);
-  --table-ink: var(--iv-45);
-  --loss-ce: var(--yellow);
-  --loss-mse: var(--iv-80);
-  --loss-is: var(--iv-45);
+  /* Deep CFR's three graded objects and the table beside them: the exact
+     average is the finding (accent), the table the reference (ink), Π the
+     muted ink, the current iterate the muted ink dashed. The policy-net
+     sweep's losses: cross-entropy, the one the sweep points at, in the
+     accent. */
+  --obj-exact: var(--series-2);
+  --obj-pi: var(--series-3);
+  --obj-current: var(--series-3);
+  --table-ink: var(--series-1);
+  --loss-ce: var(--series-2);
+  --loss-mse: var(--series-1);
+  --loss-is: var(--series-3);
 
-  /* the two seats in Fig. 4 */
-  --seat-p0: var(--ivory);
-  --seat-p1: var(--yellow);
+  /* the two seats in Figure 4: P1, the seat that wins, in the accent */
+  --seat-p0: var(--series-1);
+  --seat-p1: var(--series-2);
 
-  /* your hand on the hand: the roll */
-  /* The coach's mix bands: the harbour pair the Learn tab draws its grid
-     with (solver-viz/src/index.css, --call-fill / --pot-fill), so a mix
-     reads the same on both tabs. Named apart because the two sheets sit on
-     one page and tests/test_ui_standard.py forbids them a token in common;
-     a change to the pair there is made here too. */
-  --mix-fold: var(--iv-45);
-  --mix-call: #6ab4f0;
-  --mix-pot: #ff7f2a;
-
-  --lock: var(--ivory);
-  --win: var(--yellow);
-  --loss: var(--pink);
+  /* the trainer's card face, a shade lighter than the paper it lies on */
+  --card-face: #fffdf8;
 }
 
-.block {
-  margin-top: 26px;
+/* ---------- the head of every tab ------------------------------------------ */
+
+/* Learn and Play open on the theme's page head; the views under it carry the
+   one rule between head and content. */
+.rung3 .page-head {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
-/* ---------- charts -------------------------------------------------------- */
+.rung3 .page-head .note {
+  margin-top: 14px;
+}
 
-.chart {
-  margin-top: 12px;
+/* the research title block: left-aligned to 900 px, results on a top rule */
+.masthead {
+  padding: 64px 0 0;
+}
+
+.masthead h1 {
+  max-width: 900px;
+  margin-top: 6px;
+}
+
+.masthead .dek {
+  max-width: 760px;
+  margin-top: 24px;
+}
+
+.masthead .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.masthead .meta b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.masthead .meta a,
+.results .l a {
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule-2);
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.masthead .meta a:hover,
+.results .l a:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.results {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--ink);
+  margin-top: 40px;
+}
+
+.results > div {
+  padding: 20px 24px 4px 0;
+}
+
+.results > div + div {
+  border-left: 1px solid var(--rule);
+  padding-left: 24px;
+}
+
+.results .v {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.results .l {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-3);
+  max-width: 34ch;
+}
+
+.masthead + .views {
+  margin-top: 48px;
+}
+
+/* the Learn tab's own switch, under the page's views */
+.views.sub {
+  margin-top: 24px;
+  gap: 20px;
+}
+
+/* ---------- the publication: rail and document ----------------------------- */
+
+.article {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 860px);
+  gap: 64px;
+  align-items: start;
+  margin-top: 56px;
+}
+
+/* The rail is the theme's `.rail`; `.contents a` adds the chapter number and
+   keeps this sheet's one pressable, which presses as the theme's rail does. */
+.contents a {
+  display: flex;
+  gap: 8px;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    transform var(--t-press) var(--ease-out);
+}
+
+.contents a:active {
+  transform: scale(0.97);
+}
+
+.contents a i {
+  flex: none;
+  width: 18px;
+  font-style: normal;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.rail-note {
+  margin: 28px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.doc {
+  min-width: 0;
+}
+
+.chapter,
+.methods {
+  scroll-margin-top: 24px;
+}
+
+.chapter + .chapter,
+.methods {
+  margin-top: 88px;
+}
+
+.chapter > .chapter-n,
+.methods > .chapter-n {
+  margin: 0 0 12px;
+  font-family: var(--sans);
+  line-height: 1.4;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.chapter h2 {
+  font-size: 30px;
+  line-height: 1.18;
+  max-width: 760px;
+  text-wrap: balance;
+}
+
+.chapter h3 {
+  font-size: 22px;
+  line-height: 1.3;
+  max-width: 640px;
+  margin: 48px 0 0;
+  text-wrap: pretty;
+}
+
+/* the body: serif at 18 / 1.6, a 640 px measure inside the 860 px document */
+.chapter > p,
+.methods > p {
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--ink);
+  max-width: 640px;
+  margin: 18px 0 0;
+}
+
+.chapter h2 + p {
+  margin-top: 22px;
+}
+
+.chapter > p b,
+.methods > p b {
+  font-weight: 500;
+}
+
+.chapter a,
+.methods a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--accent-tint);
+  transition: text-decoration-color 0.15s;
+}
+
+.chapter a:hover,
+.methods a:hover {
+  text-decoration-color: var(--accent);
+}
+
+/* code: a file or a command, in the system's monospace on a recessed ground */
+.doc code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.82em;
+  background: var(--paper-2);
+  padding: 1px 5px;
+  color: var(--ink-2);
+}
+
+/* a formula on its own line: the UI voice, on a recessed band at the measure */
+.doc code.eq {
+  display: block;
+  max-width: 640px;
+  margin: 14px 0;
+  padding: 10px 16px;
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--paper-2);
+}
+
+.doc code.eq + code.eq {
+  margin-top: -14px;
+  padding-top: 0;
+}
+
+/* a pull quote: one finding, set large, against the accent */
+.pull {
+  max-width: 720px;
+  margin: 44px 0;
+  padding: 4px 0 4px 24px;
+  border-left: 2px solid var(--accent);
+}
+
+.pull p {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 28px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.pull small {
+  display: block;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+/* a note beside the argument: where to look next, or a pointer to a file */
+.chapter > p.note-line {
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin-top: 28px;
+  padding-left: 16px;
+  border-left: 1px solid var(--rule-2);
+}
+
+/* what is and is not settled: the theme's hairline table */
+table.settled {
+  margin-top: 22px;
+  max-width: 860px;
+}
+
+table.settled td {
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+table.settled td.k {
+  width: 180px;
+  white-space: nowrap;
+}
+
+.methods ol {
+  max-width: 760px;
+  margin: 16px 0 0;
+  padding-left: 22px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.methods li + li {
+  margin-top: 6px;
+}
+
+.methods > p.authors {
+  margin-top: 28px;
+  color: var(--ink-2);
+}
+
+/* ---------- figures -------------------------------------------------------- */
+
+.doc figure.fig {
+  margin: 40px 0 0;
+}
+
+.doc figure.fig + p,
+.doc figure.fig + h3 {
+  margin-top: 32px;
+}
+
+.fig-src {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  opacity: 0.85;
 }
 
 .chart.race:focus-visible,
-.chart.equal:focus-visible {
-  outline: 2px solid var(--yellow);
+.chart.equal:focus-visible,
+.chart.deeprace:focus-visible,
+.chart.averages:focus-visible,
+.chart.pot:focus-visible,
+.chart.reach:focus-visible {
+  outline: 2px solid var(--accent);
   outline-offset: 4px;
-  border-radius: 4px;
 }
 
 .legend .item small {
-  color: var(--iv-45);
+  color: var(--ink-3);
+}
+
+.legend .swatch.sq {
+  width: 10px;
+  height: 10px;
+  border-radius: 0;
 }
 
 .legend .swatch.dcfr {
-  background: repeating-linear-gradient(90deg, var(--ox-lit) 0 4px, transparent 4px 7px) !important;
+  background: repeating-linear-gradient(90deg, var(--rule-dcfr) 0 4px, transparent 4px 7px) !important;
 }
 
 .legend .swatch.col-linear {
-  background: var(--iv-80);
+  width: 10px;
+  height: 10px;
+  background: var(--ink-2);
 }
 
 .legend .swatch.col-uniform {
-  background: var(--iv-30);
+  width: 10px;
+  height: 10px;
+  background: var(--paper-3);
+  box-shadow: inset 0 0 0 1px var(--ink-3);
 }
 
 .legend .swatch.col-quadratic {
-  background: repeating-linear-gradient(90deg, var(--iv-60) 0 3px, transparent 3px 5px);
+  width: 10px;
+  height: 10px;
+  box-shadow: inset 0 0 0 1px var(--ink-3);
+  background: repeating-linear-gradient(90deg, var(--ink-3) 0 2px, transparent 2px 4px);
 }
 
-/* the checkpoint readout's rule names wear the rule's ink */
-.panel .stat dt[style] {
-  opacity: 0.9;
+/* the readout under an interactive figure: what the hovered column holds */
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 32px;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
 }
 
-/* a formula on its own line, in the mono voice, inside a chapter */
-.eq {
+.readout > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.readout dt {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.readout dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.readout dd small {
   display: block;
-  margin: 10px 0 10px 18px;
-  font: 500 13px/1.6 var(--mono);
-  color: var(--ivory);
-  letter-spacing: 0.01em;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-3);
 }
 
-/* ---------- figs. 5–6: stacked category bars ------------------------------ */
-
+/* figs. 5–6: one stacked bar per hand category, one column per spot */
 .spots {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 26px;
+  gap: 28px;
   margin-top: 6px;
 }
 
 .spot .k {
   display: block;
-  font: 400 10px/1 var(--mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--iv-45);
   margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 .catbars {
   list-style: none;
   margin: 0;
   padding: 0;
+  border-top: 1px solid var(--rule);
 }
 
 .catbars li {
   display: grid;
-  grid-template-columns: 86px minmax(0, 1fr);
+  grid-template-columns: 84px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   padding: 6px 0;
-  border-bottom: 1px solid var(--iv-06);
+  border-bottom: 1px solid var(--rule);
 }
 
 .catbars .cat {
-  font: 400 11px/1.3 var(--mono);
-  color: var(--iv-60);
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--ink-2);
 }
 
 .catbars .mix {
   display: flex;
   height: 18px;
-  border-radius: 3px;
   overflow: hidden;
-  background: var(--well);
+  background: var(--paper-2);
 }
 
 .catbars .mix i {
@@ -170,207 +525,187 @@
 }
 
 .catbars .mix i small {
-  font: 500 10px/1 var(--mono);
-  color: var(--field);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- the trainer ----------------------------------------------------
-   In the register of the Learn tab beside it: the window's header states the
-   spot, the table is three hairline lanes in a well, the cards are Learn's,
-   and the coach's mix is Learn's band bar. Nothing here is drawn as a felt. */
+/* ---------- the trainer ------------------------------------------------------
+   In the solver's register: the table at left as hairline lanes on the paper,
+   the actions under it, the coach at right; then the sitting and the ledger.
+   Nothing here is drawn as a felt. */
 
-/* the header: the spot in the display voice, what to do about it in mono,
-   and your chips at the right, the way Learn's range window sets its seat
-   and round beside the share of the range in view */
-.playhead {
+.trainer {
+  margin-top: 40px;
+}
+
+.trainer-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 56px;
   align-items: start;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--iv-10);
 }
 
-.playhead .who {
-  font: 600 20px/1.1 var(--display);
-  letter-spacing: -0.01em;
-  text-wrap: balance;
+.trainer-main {
+  min-width: 0;
 }
 
-.playhead .who small {
-  display: block;
-  font: 400 11.5px/1.5 var(--mono);
-  color: var(--iv-60);
-  margin-top: 6px;
-  letter-spacing: 0.02em;
+/* the section labels: the sitting, the coach, the ledger */
+.coach-k {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* the turn: where the hand is, and what to do about it */
+.turn-k {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.turn-say {
+  margin: 8px 0 0;
+  font-family: var(--serif);
+  font-size: 30px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.turn-sub {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-2);
   max-width: 64ch;
 }
 
-.playhead .cue {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 5px;
-  text-align: right;
-  font: 400 11px/1.5 var(--mono);
-  color: var(--iv-60);
-  font-variant-numeric: tabular-nums;
-}
-
-.playhead .cue b {
-  font: 600 26px/1 var(--display);
-  letter-spacing: -0.02em;
-  color: var(--ivory);
-  font-variant-numeric: tabular-nums;
-}
-
-/* the table and the coach side by side, as Learn's grid sits beside its ribbon */
-.playwrap {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 28px;
-  align-items: start;
-  margin-top: 18px;
-}
-
-/* the table: three lanes in a well, the solver / the board / you, each a
+/* the table: three lanes on hairlines, the solver / the board / you, each a
    label, the cards, the seat's last word and its chips in the round */
-.table {
+.felt {
   position: relative;
-  background: var(--well);
-  border: 1px solid var(--iv-10);
-  border-radius: 8px;
-  overflow: hidden;
+  margin-top: 24px;
+  border-top: 1px solid var(--ink);
 }
 
 .lane {
   display: grid;
-  grid-template-columns: 136px auto minmax(0, 1fr) auto;
-  gap: 16px;
+  grid-template-columns: 132px auto minmax(0, 1fr) auto;
+  gap: 20px;
   align-items: center;
-  padding: 16px 18px;
-  min-height: 88px;
-}
-
-.lane + .lane {
-  border-top: 1px solid var(--iv-10);
-}
-
-.lane.centre {
-  background: var(--iv-03);
+  min-height: 104px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
 }
 
 .lane .who {
-  font: 500 10.5px/1.5 var(--mono);
-  letter-spacing: 0.12em;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--iv-45);
-}
-
-.lane.you .who,
-.lane.villain .who {
-  color: var(--iv-60);
+  color: var(--ink-3);
 }
 
 .lane .who small {
   display: block;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: var(--iv-45);
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .lane .cards {
   display: flex;
-  gap: 5px;
+  gap: 8px;
 }
 
 .lane .did {
-  font: 400 11.5px/1.4 var(--mono);
-  color: var(--iv-60);
   min-width: 0;
+  font-size: 14px;
+  color: var(--ink-2);
 }
 
 .lane .pot {
   display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font: 400 11px/1.4 var(--mono);
-  color: var(--iv-60);
-  font-variant-numeric: tabular-nums;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
   white-space: nowrap;
 }
 
 .lane .pot b {
-  color: var(--ivory);
-  font-weight: 500;
-  font-size: 13px;
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
-/* The playing cards, as Learn draws them: ivory, the rank and the suit on one
-   mono line, the red suits in red; a board card is a transparent frame with
-   ivory ink; a card not yet dealt is a dashed frame; a back is the homepage's
-   oxblood pinstripe. */
+.lane .pot .chipstack {
+  align-self: center;
+}
+
+/* a playing card: rank and suit on a face a shade lighter than the paper,
+   the red suits in the accent; a card not yet dealt is a dashed recess; face
+   down is the chip's oxblood pinstripe */
 .pcard {
-  width: 40px;
-  height: 54px;
-  border-radius: 5px;
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--ivory);
-  color: #111;
-  font: 600 15px/1 var(--mono);
-  flex: none;
-  box-shadow:
-    0 1px 0 var(--iv-30) inset,
-    0 8px 18px rgba(0, 0, 0, 0.45);
+  width: 52px;
+  height: 72px;
+  border-radius: 6px;
+  border: 1px solid var(--rule-2);
+  background: var(--card-face);
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
 }
 
-/* the suits: the diamond and the heart red, the club dark */
 .pcard.s1,
 .pcard.s2 {
-  color: #b5203a;
+  color: var(--accent);
 }
 
 .pcard.back {
-  background: repeating-linear-gradient(45deg, var(--ox) 0 2px, transparent 2px 6px) var(--well);
-  border: 1px solid var(--ox-lit);
-  box-shadow: none;
-}
-
-.lane.centre .pcard {
-  background: transparent;
-  border: 1px solid var(--iv-30);
-  color: var(--ivory);
-  box-shadow: none;
+  background:
+    repeating-linear-gradient(45deg, color-mix(in srgb, var(--accent) 55%, transparent) 0 1px, transparent 1px 6px),
+    var(--paper-2);
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--rule-2));
 }
 
 .pcard.empty {
-  border: 1px dashed var(--iv-30);
-  background: transparent;
-  box-shadow: none;
+  border-style: dashed;
+  background: var(--paper-2);
 }
 
 .pcard.small {
-  width: 26px;
-  height: 36px;
-  border-radius: 4px;
-  font-size: 12px;
-  box-shadow: 0 1px 0 var(--iv-30) inset;
-}
-
-.lane.centre .pcard.small,
-.side-row .pcard.small {
-  box-shadow: none;
+  width: 28px;
+  height: 38px;
+  font-size: 13px;
 }
 
 /* chips: monoline plates, the amount beside them */
 .chipstack {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: var(--iv-80);
+  gap: 6px;
+  color: var(--ink-3);
 }
 
 .chipstack svg {
@@ -380,25 +715,59 @@
 }
 
 .chipstack b {
-  font: 600 11.5px/1 var(--mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
-  color: var(--ivory);
 }
 
-/* the actions under the table, the roll beside them: the roll is an
-   instruction, so it wears the lock's ink — your hand on the hand */
+/* the actions under the table; each button keyed by its action's colour */
 .play-buttons {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
   align-items: center;
-  margin-top: 16px;
+  gap: 10px;
   min-height: 40px;
+  margin-top: 20px;
 }
 
 .play-buttons .waiting {
-  font: 400 11.5px/1 var(--mono);
-  color: var(--iv-45);
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
+.akey {
+  flex: none;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+
+.akey.bet,
+.mixband .bet {
+  background: var(--act-bet);
+}
+
+.akey.call,
+.mixband .call {
+  background: var(--act-call);
+}
+
+.akey.check,
+.mixband .check {
+  background: var(--act-check);
+}
+
+.akey.d2,
+.mixband .d2 {
+  opacity: 0.7;
+}
+
+.akey.d3,
+.mixband .d3 {
+  opacity: 0.45;
 }
 
 .rollcue {
@@ -406,128 +775,83 @@
   align-items: center;
   gap: 10px;
   margin-left: auto;
-  font: 400 11px/1.4 var(--mono);
-  color: var(--iv-45);
+  font-size: 13px;
+  color: var(--ink-3);
 }
 
-.rollcue .roll,
-.side-grade .roll {
-  border: 1px solid var(--lock);
-  color: var(--lock);
-  border-radius: 3px;
-  padding: 3px 8px;
-  font: 600 11px/1.4 var(--mono);
+.roll {
+  padding: 2px 7px;
+  border: 1px solid var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-/* the session, under a hairline, left-aligned like Learn's readouts */
-.playpanel .stat {
-  justify-content: flex-start;
-  gap: 32px;
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--iv-10);
-}
-
-.playpanel .stat dd.seat {
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.playnote {
-  margin: 12px 0 0;
-  font: 400 11px/1.6 var(--mono);
-  color: var(--iv-45);
-  max-width: 72ch;
-}
-
-/* the status bar along the window's foot, as Learn's range window has */
-.playpanel .statusbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 9px 14px;
-  border-top: 1px solid var(--iv-10);
-  font: 400 11px/1.4 var(--mono);
-  color: var(--iv-45);
-  flex-wrap: wrap;
-}
-
-.playpanel .statusbar b {
-  color: var(--yellow);
-  font-weight: 500;
-}
-
-/* ---------- the coach: the hand, decision by decision -------------------- */
-
-.playside .k {
-  display: block;
-  margin-bottom: 6px;
-  font: 500 10.5px/1.4 var(--mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--iv-45);
-}
-
-.playside ol {
+/* the coach: the hand, decision by decision */
+.coach ol {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-top: 1px solid var(--iv-16);
+  border-top: 1px solid var(--ink);
 }
 
 .side-row {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
-  gap: 10px;
+  gap: 12px;
   align-items: baseline;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--iv-10);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.side-row.board {
+  align-items: center;
 }
 
 .side-who {
-  font: 500 9.5px/1.6 var(--mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--iv-45);
+  font-size: 12px;
+  color: var(--ink-3);
 }
 
 .side-main {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font: 400 12px/1.5 var(--mono);
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--ink-2);
 }
 
 .side-main b {
-  font: 500 12.5px/1.4 var(--mono);
+  font-weight: 500;
+  color: var(--ink);
 }
 
 .side-main b small {
+  font-size: 13px;
   font-weight: 400;
-  color: var(--iv-60);
+  color: var(--ink-3);
 }
 
 .side-main b .note-drew {
-  color: var(--yellow);
+  color: var(--accent);
 }
 
-/* the strategy's mix at a spot you played: Learn's band bar in roll order,
-   a tick where your roll fell, the words under it */
+/* the strategy's mix at a spot you played: the bands in roll order, a tick
+   where your roll fell, each action's word and share under them */
 .side-mix {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .mixband {
   position: relative;
   display: flex;
   gap: 2px;
-  height: 6px;
-  border-radius: 3px;
-  overflow: hidden;
+  height: 8px;
 }
 
 .mixband i {
@@ -536,119 +860,163 @@
   height: 100%;
 }
 
-.mixband .fold {
-  background: var(--mix-fold);
-}
-
-.mixband .call {
-  background: var(--mix-call);
-}
-
-.mixband .pot {
-  background: var(--mix-pot);
-}
-
-.mixband .pot.d2 {
-  opacity: 0.75;
-}
-
-.mixband .pot.d3 {
-  opacity: 0.5;
-}
-
 .mixband .tick {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: -3px;
+  bottom: -3px;
   width: 2px;
   margin-left: -1px;
-  background: var(--ivory);
+  background: var(--ink);
 }
 
 .mixwords {
   display: flex;
-  gap: 10px;
-  font-size: 10.5px;
-  color: var(--iv-60);
-  font-variant-numeric: tabular-nums;
   flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.mixwords > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .mixwords .chosen {
-  color: var(--ivory);
+  color: var(--ink);
   font-weight: 600;
-}
-
-.side-row.board {
-  align-items: center;
 }
 
 .side-grade {
   grid-column: 2;
   display: flex;
-  gap: 10px;
   align-items: center;
-  margin-top: 2px;
-  font: 400 11px/1.4 var(--mono);
+  gap: 10px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
 .side-grade .ok {
-  color: var(--win);
+  color: var(--act-call);
   font-weight: 500;
 }
 
 .side-grade .bad {
-  color: var(--loss);
+  color: var(--accent);
   font-weight: 500;
 }
 
 .side-row.verdict .side-main {
-  color: var(--iv-80);
-  font-size: 11.5px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .side-total {
   margin: 12px 0 0;
-  font: 400 11.5px/1.5 var(--mono);
-  color: var(--iv-60);
+  font-size: 13px;
+  color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
 
 .side-total b {
-  color: var(--ivory);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* the sitting and the ledger, full width under the table and the coach */
+.sitting {
+  margin-top: 56px;
+}
+
+.sitting .stat dd {
+  font-size: 26px;
+}
+
+.sitting .stat dd small {
+  display: block;
+  margin-top: 6px;
+}
+
+.ledger-block {
+  margin-top: 48px;
+}
+
+.handlog th,
+.handlog .cards-cell {
+  white-space: nowrap;
+}
+
+.ctext {
+  margin-right: 4px;
+}
+
+.ctext.s1,
+.ctext.s2 {
+  color: var(--accent);
+}
+
+.handlog .sep {
+  margin: 0 6px 0 2px;
+  color: var(--ink-3);
+}
+
+.handlog .choices b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.handlog .mixline,
+.handlog .arrow {
+  color: var(--ink-3);
+}
+
+.playnote {
+  max-width: 72ch;
+  margin: 14px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.packline {
+  margin: 20px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
 }
 
 /* A closed round's chips slide to the board's lane. The tokens are
-   transient: they spawn at the seat's chips, glide to the middle lane, fade,
-   and unmount. They leave fast and settle (ease-out): a chip pushed across
-   the table does not accelerate. */
+   transient: they spawn at the seat's chips, glide toward the middle lane,
+   fade, and unmount. They leave fast and settle (ease-out): a chip pushed
+   across the table does not accelerate. */
 .sweep {
   position: absolute;
-  right: 18px;
+  right: 0;
   pointer-events: none;
 }
 
 .sweep.from-villain {
-  top: 32px;
+  top: 40px;
   animation: sweep-down 0.4s var(--ease-out) forwards;
 }
 
 .sweep.from-you {
-  bottom: 32px;
+  bottom: 40px;
   animation: sweep-up 0.4s var(--ease-out) forwards;
 }
 
 @keyframes sweep-down {
   to {
-    transform: translateY(58px);
+    transform: translateY(72px);
     opacity: 0;
   }
 }
 
 @keyframes sweep-up {
   to {
-    transform: translateY(-58px);
+    transform: translateY(-72px);
     opacity: 0;
   }
 }
@@ -662,392 +1030,7 @@
   }
 }
 
-/* ---------- the publication ---------------------------------------------- */
-
-/* The reading column fills the page's width beside the contents rail: 220 px
-   of rail, 48 px of gutter, and the rest of the wrap (about 1,040 px at the
-   site's maximum) for the chapters, so a figure gets the room it needs. Prose
-   keeps a measure of its own (78ch) inside that column. The masthead shares
-   the wrap's left edge with the rail. */
-.masthead {
-  padding: 30px 0 4px;
-}
-
-.masthead h1 {
-  font-size: clamp(34px, 3.6vw, 54px);
-  max-width: 22ch;
-}
-
-.masthead .meta {
-  margin: 18px 0 0;
-  font: 400 12px/1.6 var(--mono);
-  color: var(--iv-60);
-}
-
-.masthead .meta .sep {
-  margin: 0 8px;
-  color: var(--iv-30);
-}
-
-.masthead .summary {
-  font-size: 17px;
-  line-height: 1.6;
-  color: var(--iv-80);
-  max-width: 78ch;
-  margin: 22px 0 0;
-}
-
-.masthead .summary b {
-  color: var(--ivory);
-  font-weight: 500;
-}
-
-.publication .views {
-  margin-top: 26px;
-}
-
-.article {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 48px;
-  align-items: start;
-}
-
-/* the key numbers: four tiles in hairline frames, the number in the display voice */
-.keynums {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin: 28px 0 8px;
-}
-
-.keynums > div {
-  border: 1px solid var(--iv-16);
-  border-radius: 6px;
-  padding: 16px 16px 14px;
-}
-
-.keynums b {
-  display: block;
-  font: 600 26px/1.1 var(--display);
-  letter-spacing: -0.02em;
-  color: var(--ivory);
-  font-variant-numeric: tabular-nums;
-}
-
-.keynums b small {
-  font: 500 14px/1 var(--mono);
-  color: var(--iv-60);
-  letter-spacing: 0;
-  margin-left: 2px;
-}
-
-/* the unit, after the number: the page's one unit for exploitability, chips per hundred hands at ante 1 */
-.keynums b .unit {
-  font-size: 12px;
-  color: var(--iv-45);
-  margin-left: 6px;
-}
-
-.keynums span {
-  display: block;
-  margin-top: 8px;
-  font: 400 11px/1.5 var(--mono);
-  color: var(--iv-60);
-}
-
-/* the contents rail: sticky beside the chapters on wide screens */
-.contents {
-  position: sticky;
-  top: 84px;
-  padding-top: 34px;
-}
-
-.contents .k {
-  display: block;
-  font: 400 10.5px/1 var(--mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--iv-45);
-  margin-bottom: 14px;
-}
-
-.contents ol {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.contents li {
-  margin: 0 0 2px;
-}
-
-/* Every entry carries the frame, transparent; the one the reader is at shows
-   it (`li.current`, set from the scroll position), so the text never moves
-   when the box arrives. The frame hangs 8 px into the gutter so the entries'
-   text stays on the rail's left edge with the Contents label. */
-.contents a {
-  display: block;
-  margin-left: -8px;
-  padding: 4px 8px 3px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  font: 400 12px/1.45 var(--mono);
-  color: var(--iv-60);
-  text-decoration: none;
-  transition:
-    color 0.15s ease,
-    border-color 0.15s ease,
-    transform var(--t-press) var(--ease-out);
-}
-
-.contents a:hover {
-  color: var(--ivory);
-}
-
-.contents a:active {
-  transform: scale(0.97);
-}
-
-.contents a i {
-  font-style: normal;
-  color: var(--iv-30);
-  margin-right: 8px;
-  transition: color 0.15s ease;
-}
-
-.contents li.current a {
-  color: var(--ivory);
-  border-color: var(--iv-30);
-}
-
-.contents li.current a i {
-  color: var(--iv-60);
-}
-
-.chapters {
-  min-width: 0;
-}
-
-.chapter {
-  padding-top: 34px;
-}
-
-.chapter + .chapter {
-  padding-top: 56px;
-}
-
-.chapter .label {
-  font: 400 11px/1 var(--mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ox-lit);
-  margin: 0 0 14px;
-}
-
-.chapter h2 {
-  font-size: clamp(24px, 2.4vw, 32px);
-  line-height: 1.12;
-  max-width: 32ch;
-}
-
-.chapter h3 {
-  font: 600 17px/1.3 var(--display);
-  margin: 30px 0 0;
-  max-width: 48ch;
-}
-
-.chapter p {
-  font-size: 16.5px;
-  line-height: 1.65;
-  color: var(--iv-80);
-  max-width: 78ch;
-  margin: 16px 0 0;
-}
-
-.chapter p b {
-  color: var(--ivory);
-  font-weight: 600;
-}
-
-.chapter p i {
-  font-style: italic;
-}
-
-.chapter p code {
-  font: 400 13.5px/1 var(--mono);
-  color: var(--ivory);
-}
-
-.chapter .eq {
-  margin: 12px 0 12px 20px;
-}
-
-.chapter ul {
-  margin: 14px 0 0;
-  padding-left: 20px;
-  color: var(--iv-80);
-  font-size: 16px;
-  line-height: 1.6;
-  max-width: 78ch;
-}
-
-.chapter li + li {
-  margin-top: 6px;
-}
-
-/* a figure: the drawing at column width, then a caption that states the finding */
-.figure {
-  margin: 30px 0 0;
-}
-
-.figure-body {
-  padding: 18px 0 8px;
-  border-top: 1px solid var(--iv-10);
-}
-
-.figure svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.figure svg text {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-}
-
-.figure .chart {
-  margin-top: 8px;
-}
-
-.figure .stat {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-  margin: 12px 0 0;
-}
-
-.figure .stat div {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.figure .stat dt {
-  font: 400 10px/1 var(--mono);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--iv-45);
-}
-
-.figure .stat dd {
-  margin: 0;
-  font: 500 13px/1.3 var(--mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--ivory);
-}
-
-.figure .stat dd small {
-  display: block;
-  font-weight: 400;
-  color: var(--iv-60);
-  font-size: 11px;
-}
-
-.figure figcaption {
-  margin: 12px 0 0;
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: var(--iv-80);
-  max-width: 92ch;
-}
-
-.figure figcaption b {
-  color: var(--ivory);
-  font-weight: 600;
-}
-
-.figure .source {
-  display: block;
-  margin-top: 6px;
-  font: 400 11px/1.5 var(--mono);
-  color: var(--iv-45);
-}
-
-/* a callout: one line in the mono voice with a rule at its left, pointing at another tab or a note */
-.callout {
-  margin: 26px 0 0;
-  padding: 10px 0 10px 16px;
-  border-left: 2px solid var(--ox-lit);
-  font: 400 12.5px/1.6 var(--mono);
-  color: var(--iv-60);
-  max-width: 84ch;
-}
-
-.callout a {
-  color: var(--ivory);
-}
-
-/* what is and is not settled: hairline rows, never cards */
-.settled {
-  margin-top: 18px;
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--iv-80);
-}
-
-.settled td {
-  padding: 10px 0;
-  border-top: 1px solid var(--iv-10);
-  vertical-align: top;
-}
-
-.settled td:first-child {
-  width: 150px;
-  padding-right: 18px;
-  font: 400 11px/1.6 var(--mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--iv-45);
-}
-
-.methods {
-  margin-top: 56px;
-  padding-top: 24px;
-  border-top: 1px solid var(--iv-10);
-}
-
-.methods p {
-  font-size: 14px;
-  color: var(--iv-60);
-}
-
-.methods ol {
-  margin: 12px 0 0;
-  padding-left: 22px;
-  font: 400 12px/1.65 var(--mono);
-  color: var(--iv-60);
-  max-width: 100ch;
-}
-
-.methods li + li {
-  margin-top: 6px;
-}
-
-.methods code,
-.authors code {
-  color: var(--iv-80);
-}
-
-.authors {
-  margin-top: 36px;
-  font-size: 14px;
-  color: var(--iv-60);
-}
+/* ---------- narrow ---------------------------------------------------------- */
 
 @media (max-width: 1080px) {
   .article {
@@ -1055,70 +1038,50 @@
     gap: 0;
   }
 
-  .contents {
+  .rail.contents {
     position: static;
-    padding-top: 28px;
+    margin-bottom: 40px;
   }
 
-  .contents ol {
-    columns: 2;
-    column-gap: 24px;
-  }
-
-  .keynums {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 640px) {
-  .keynums {
+  .trainer-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .lane {
-    grid-template-columns: 64px auto minmax(0, 1fr) auto;
-    gap: 10px;
-    padding: 12px 10px;
-    min-height: 78px;
-  }
-
-  .playhead .who {
-    font-size: 18px;
-  }
-
-  .contents ol {
-    columns: 1;
-  }
-
-  .settled td:first-child {
-    width: 96px;
-  }
-}
-
-/* ---------- narrow -------------------------------------------------------- */
-
-@media (max-width: 1080px) {
-  .playwrap {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .playhead {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .playhead .cue {
-    align-items: flex-start;
-    text-align: left;
-  }
-
-  .lane {
-    grid-template-columns: 92px auto minmax(0, 1fr) auto;
-    gap: 12px;
-    padding: 14px;
+    gap: 40px;
   }
 
   .spots {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .results > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-left: 0;
+  }
+
+  .pull p {
+    font-size: 23px;
+  }
+
+  .lane {
+    grid-template-columns: 72px auto minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .pcard {
+    width: 40px;
+    height: 56px;
+    font-size: 16px;
+  }
+
+  table.settled td.k {
+    width: auto;
+    white-space: normal;
   }
 }
 

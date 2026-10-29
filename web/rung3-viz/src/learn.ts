@@ -1,7 +1,9 @@
 /**
  * The page's address: which tab, and for the Learn tab which view of the
- * range interface and which strategy — `#research`, `#play`,
- * `#learn/versus/deep-pi`.
+ * range interface and which strategy. The tab is the path (`/research`,
+ * `/learn`, `/play`, which Vercel rewrites to this app) or the hash
+ * (`#research`, `#play`, `#learn/versus/deep-pi`, the form `/rung3` uses);
+ * the hash wins when it names a tab.
  *
  * Parsed leniently, written strictly: a segment that names nothing falls
  * back to the default rather than throwing, so an old `#play` link and a
@@ -44,6 +46,34 @@ export function parseHash(hash: string): PageView {
     view: learn && isLearnView(v) ? v : 'range',
     strategy: learn && isStrategyId(s) ? s : DEFAULT_STRATEGY,
   }
+}
+
+/**
+ * The view a whole address names. Vercel serves this app at `/rung3` and
+ * rewrites `/research`, `/learn` and `/play` to the same page, so the path's
+ * first segment picks the tab when the hash names none; a hash that does
+ * name a tab wins, so an old `/rung3#play` link still opens Play. A hash
+ * that names no tab, such as the contents rail's `#ch-03`, leaves the path's
+ * tab in place. Any other path is the research tab.
+ */
+export function parseLocation(pathname: string, hash: string): PageView {
+  const fromHash = hash.replace(/^#/, '').split('/')[0]
+  if (isTabId(fromHash)) return parseHash(hash)
+  const first = pathname.replace(/^\/+/, '').split('/')[0]
+  return parseHash(isTabId(first) ? first : '')
+}
+
+/**
+ * The address to write when the page switches to `page`, given the path it
+ * was opened at. Opened at one of the product paths, it moves between them
+ * (`/research`, `/play`, `/learn` with Learn's view and strategy in the hash),
+ * so the address bar names the tab the nav calls it by; opened at `/rung3`,
+ * it writes only the hash, as the old links do.
+ */
+export function addressOf(pathname: string, page: PageView): string {
+  const first = pathname.replace(/^\/+/, '').split('/')[0]
+  if (!isTabId(first)) return formatHash(page)
+  return page.tab === 'learn' ? `/learn${formatHash(page)}` : `/${page.tab}`
 }
 
 /** The hash for a view: the tab alone, plus `/view/strategy` for the Learn tab, which has both. */
