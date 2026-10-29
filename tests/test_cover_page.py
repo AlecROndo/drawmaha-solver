@@ -228,7 +228,7 @@ def test_the_favicon_every_page_links_is_one_the_build_serves(pages: dict[str, s
         "vercel_build.sh does not copy web/cover/favicon.svg to public/favicon.svg"
     )
     svg = (COVER / "favicon.svg").read_text()
-    assert svg.lstrip().startswith("<svg") and "#8e2038" in svg, "favicon.svg is not the oxblood chip"
+    assert svg.lstrip().startswith("<svg") and "#c8102e" in svg and "#141414" in svg, "favicon.svg is not the red chip with black indents"
 
 
 @pytest.mark.parametrize("name", PAGES)

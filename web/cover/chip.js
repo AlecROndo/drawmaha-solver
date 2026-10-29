@@ -1,9 +1,9 @@
 /* chip.js — the Drawmaha chip: a dithered, tilted poker chip turning on its axis, drawn as ASCII on a canvas.
    The plain-JS twin of the apps' src/ui/mark.ts, served at /chip.js and loaded by every static page. The mark on
-   paper: the face in the chip's oxblood (#8e2038), the edge sectors and the inner ring in ink (#16140f). Transparent
+   paper: a poker-red face (#c8102e) with the edge sectors and the inner ring as black indents (#141414). Transparent
    field. On paper how dark a cell reads is how much of it the glyph covers, so — as in mark.ts — the grid is set in
    Plex Mono 600, every glyph is emboldened by a stroke of its own colour (EMBOLDEN of the cell size), the face's ramp
-   starts at ':' and the pattern is always '@'. Every glyph is drawn at full opacity.
+   starts at '+' and the pattern is a solid block, so the indents read black. Every glyph is drawn at full opacity.
    One way in: mountChip(canvas, { mark, ink, font, speed, tilt }), the same options as mark.ts; returns a teardown. */
 (function () {
 const FONT = "600 {px}px 'IBM Plex Mono', ui-monospace, Menlo, monospace";
@@ -11,10 +11,10 @@ const font = (px) => FONT.replace('{px}', String(px));
 /* the stroke laid over each glyph, as a fraction of the cell size: the coverage that makes 1.5 px cells read */
 const EMBOLDEN = 0.16;
 /* the face's glyphs from shadow to light; the pattern is always the last */
-const FACE = ':+%#@@';
+const FACE = '+#@@@@';
 let CHARSET = '';
 for (let c = 32; c < 127; c++) CHARSET += String.fromCharCode(c);
-CHARSET += '♠♥♦♣·';
+CHARSET += '♠♥♦♣·█';
 const CIDX = {}; for (let i = 0; i < CHARSET.length; i++) CIDX[CHARSET[i]] = i;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 class Grid {
@@ -158,7 +158,7 @@ function rayChip(g, o) {
       const bay = (BAYER[cyy % 4][cxx % 4] + 0.5) / 16 - 0.5;
       /* the pattern is always the densest glyph: the sectors are what make the disc read as a chip, even in shadow */
       const lv = mat === 2 ? 5 : clamp(Math.floor(I * 5 + bay * 1.15), 0, 5);
-      g.chb[i] = chars[lv]; g.cob[i] = mat === 1 ? o.colBase : o.colPattern;
+      g.chb[i] = mat === 2 ? CIDX['█'] : chars[lv]; g.cob[i] = mat === 1 ? o.colBase : o.colPattern;
     }
   }
 }
@@ -167,7 +167,7 @@ function rayChip(g, o) {
    the chip is drawn once and still answers a resize. */
 function mountChip(canvas, opts) {
   opts = opts || {};
-  const mark = opts.mark || '#8e2038', ink = opts.ink || '#16140f';
+  const mark = opts.mark || '#c8102e', ink = opts.ink || '#141414';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const g = new Grid(canvas, ['transparent', mark, ink], opts.font || 1.5);
   const s = { yaw: 0.6, t: 0, speed: opts.speed == null ? 0.3 : opts.speed, tilt: opts.tilt == null ? 0.8 : opts.tilt, drawn: false };

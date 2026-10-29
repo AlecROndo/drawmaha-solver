@@ -1,17 +1,19 @@
 /**
  * The Drawmaha chip: a dithered, tilted poker chip turning on its axis, drawn
- * as ASCII on a canvas. The mark on paper: the face in the chip's oxblood
- * (#8e2038), the edge sectors and the inner ring in ink (#16140f), so the
- * chip reads as an oxblood chip and the logo and "this is the finding" are
- * one colour. The twin of the static pages'
+ * as ASCII on a canvas. The mark on paper: a poker-red face (#c8102e) with
+ * the edge sectors and the inner ring as black indents (#141414), the way a
+ * red casino chip looks; the site's oxblood accent is its deeper shade. The
+ * twin of the static pages'
  * chip.js — same ramp, same tilt, same wobble, same speed-up under the mouse.
  *
  * On paper a glyph is ink over a light ground, so how dark a cell reads is how
  * much of it the glyph covers. A 1.5 px cell of 400-weight mono covers a
  * quarter of it at best, and the chip read as a pale cloud. So the grid is set
  * in Plex Mono 600 and every glyph is emboldened by a stroke of its own colour
- * (EMBOLDEN of the cell size); the face's ramp starts at ':' rather than
- * blank, and the pattern is always '@'. Every glyph is drawn at full opacity.
+ * (EMBOLDEN of the cell size); the face's ramp starts at '+' rather than
+ * blank, and the pattern is a solid block, so the indents are black rather
+ * than dark glyphs with paper showing through. Every glyph is drawn at full
+ * opacity.
  *
  * The canvas is sized by CSS (square); the glyph grid follows its box. The
  * field is transparent, so the chip sits on whatever the page is.
@@ -22,10 +24,10 @@ const font = (px: number) => FONT.replace('{px}', String(px))
 /** the stroke laid over each glyph, as a fraction of the cell size: the coverage that makes 1.5 px cells read */
 const EMBOLDEN = 0.16
 /** the face's glyphs from shadow to light; the pattern is always the last */
-const FACE = ':+%#@@'
+const FACE = '+#@@@@'
 let CHARSET = ''
 for (let c = 32; c < 127; c++) CHARSET += String.fromCharCode(c)
-CHARSET += '♠♥♦♣·'
+CHARSET += '♠♥♦♣·█'
 const CIDX: Record<string, number> = {}
 for (let i = 0; i < CHARSET.length; i++) CIDX[CHARSET[i]] = i
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v)
@@ -274,7 +276,8 @@ function rayChip(g: Grid, o: ChipParams) {
       const bay = (BAYER[cyy % 4][cxx % 4] + 0.5) / 16 - 0.5
       /* the pattern is always the densest glyph: the sectors are what make the disc read as a chip, even in shadow */
       const lv = mat === 2 ? 5 : clamp(Math.floor(I * 5 + bay * 1.15), 0, 5)
-      g.chb[i] = chars[lv]
+      /* the pattern is a solid block, so the sectors and the ring read as black indents, not as dark glyphs over paper */
+      g.chb[i] = mat === 2 ? CIDX['█'] : chars[lv]
       g.cob[i] = mat === 1 ? o.colBase : o.colPattern
     }
   }
@@ -297,8 +300,8 @@ export interface ChipOptions {
  * reduced motion the chip is drawn once and still answers a resize.
  */
 export function mountChip(canvas: HTMLCanvasElement, opts: ChipOptions = {}): () => void {
-  const mark = opts.mark ?? '#8e2038'
-  const ink = opts.ink ?? '#16140f'
+  const mark = opts.mark ?? '#c8102e'
+  const ink = opts.ink ?? '#141414'
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
   const g = new Grid(canvas, ['transparent', mark, ink], opts.font ?? 1.5)
   const s = { yaw: 0.6, t: 0, speed: opts.speed ?? 0.3, tilt: opts.tilt ?? 0.8, drawn: false }

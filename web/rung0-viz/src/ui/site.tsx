@@ -38,7 +38,7 @@ export function Mark({ font, speed }: { font: number; speed?: number }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     if (!ref.current) return
-    return mountChip(ref.current, { font, speed, mark: '#8e2038', ink: '#16140f' })
+    return mountChip(ref.current, { font, speed, mark: '#c8102e', ink: '#141414' })
   }, [font, speed])
   return <canvas ref={ref} aria-hidden />
 }
