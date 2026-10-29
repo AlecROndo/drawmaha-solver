@@ -8,7 +8,7 @@ import { PlayWindow } from './PlayPanel'
  * reaches that the validator did not demand — a bug in this app, not a bad
  * deal. React unmounts the whole tree on an uncaught render error; with this
  * boundary the table alone is replaced by the message, in the trainer's own
- * window, and the rest of the page stays readable.
+ * frame, and the rest of the page stays readable.
  */
 export class PackBoundary extends Component<{ children: ReactNode }, { message: string | null }> {
   state: { message: string | null } = { message: null }
@@ -25,7 +25,7 @@ export class PackBoundary extends Component<{ children: ReactNode }, { message: 
   render() {
     if (this.state.message === null) return this.props.children
     return (
-      <PlayWindow k="01 · the table">
+      <PlayWindow>
         <p className="playnote">
           The trainer stopped: {this.state.message}. The pack passed its checks as it loaded, so this is a spot the
           grammar reaches that the validator did not ask for — a bug worth reporting, not a bad deal. Reload to sit

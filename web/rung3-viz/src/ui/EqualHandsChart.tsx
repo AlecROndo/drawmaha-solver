@@ -25,7 +25,7 @@ import { EQUAL_DOMAIN, fmtHands, hoursAt, logScale } from './scales'
  * region, states that column in words.
  */
 
-const W = 760
+const W = 860
 const H = 252
 const M = { l: 248, r: 64 }
 const ROW = { deep: 36, hours: 52, ruler: 108, hands: 128, table: 166, gradeTop: 196, gradeBottom: 240 }
@@ -46,11 +46,11 @@ export function EqualHandsChart() {
 
   const rowLabel = (y: number, text: string, sub?: string) => (
     <>
-      <text x={M.l - 36} y={y} textAnchor="end" fontSize="10" letterSpacing="0.1em" fill="var(--panel-dim)">
+      <text x={M.l - 36} y={y} textAnchor="end" fontSize="10" letterSpacing="0.1em" fill="var(--ink-3)">
         {text.toUpperCase()}
       </text>
       {sub && (
-        <text x={M.l - 36} y={y + 13} textAnchor="end" fontSize="10" fill="var(--iv-45)">
+        <text x={M.l - 36} y={y + 13} textAnchor="end" fontSize="10" fill="var(--ink-3)">
           {sub}
         </text>
       )}
@@ -73,23 +73,23 @@ export function EqualHandsChart() {
         {rowLabel(ROW.gradeTop + 14, 'LCFR grades', 'chips per 100 hands')}
 
         {/* the ruler */}
-        <line x1={M.l} x2={W - M.r} y1={ROW.ruler} y2={ROW.ruler} stroke="var(--panel-dim)" />
+        <line x1={M.l} x2={W - M.r} y1={ROW.ruler} y2={ROW.ruler} stroke="var(--ink-3)" />
 
         {marks.map((m, i) => {
           const cx = x(m.hands)
           const on = i === at
-          const ink = on ? 'var(--panel-mark)' : 'var(--iv-80)'
+          const ink = on ? 'var(--ink)' : 'var(--ink-2)'
           const lcfr = lcfrMarkAt(m.hands)
           const grade = perHundred(lcfr.exploitability)
           return (
             <g key={m.t}>
               {/* the column: one hairline through every row, because the notch is the same notch */}
-              <line x1={cx} x2={cx} y1={ROW.deep - 14} y2={ROW.gradeBottom} stroke={on ? 'var(--iv-30)' : 'var(--panel-hair)'} />
+              <line x1={cx} x2={cx} y1={ROW.deep - 14} y2={ROW.gradeBottom} stroke={on ? 'var(--rule-2)' : 'var(--grid)'} />
               {/* Deep CFR's clock */}
               <text x={cx} y={ROW.deep + 4} textAnchor="middle" fontSize="13" fontWeight={on ? 600 : 500} fill={ink}>
                 {m.t}
               </text>
-              <text x={cx} y={ROW.hours + 4} textAnchor="middle" fontSize="10" fill="var(--iv-45)">
+              <text x={cx} y={ROW.hours + 4} textAnchor="middle" fontSize="10" fill="var(--ink-3)">
                 {hoursAt(m.wallClockS)}
               </text>
               {/* the notch and its hands */}
@@ -103,14 +103,14 @@ export function EqualHandsChart() {
               </text>
               {/* the table's grade: a stem from the row's floor to a dot at the grade */}
               <line x1={cx} x2={cx} y1={ROW.gradeBottom} y2={yGrade(grade)} stroke="var(--table-ink)" strokeWidth={2} />
-              <circle cx={cx} cy={yGrade(grade)} r={on ? 5 : 4} fill="var(--table-ink)" stroke="var(--field)" strokeWidth={2} />
+              <circle cx={cx} cy={yGrade(grade)} r={on ? 5 : 4} fill="var(--table-ink)" stroke="var(--paper)" strokeWidth={2} />
               <text x={cx + 9} y={yGrade(grade) + 4} fontSize="11" fill={ink}>
                 {grade.toFixed(1)}
               </text>
             </g>
           )
         })}
-        <line x1={M.l} x2={W - M.r} y1={ROW.gradeBottom} y2={ROW.gradeBottom} stroke="var(--panel-hair)" />
+        <line x1={M.l} x2={W - M.r} y1={ROW.gradeBottom} y2={ROW.gradeBottom} stroke="var(--grid)" />
 
         {marks.map((m, i) => {
           const cx = x(m.hands)
@@ -119,7 +119,7 @@ export function EqualHandsChart() {
           return <rect key={m.t} x={left} y={0} width={right - left} height={H} fill="transparent" onMouseEnter={() => setAt(i)} onPointerDown={() => setAt(i)} />
         })}
       </svg>
-      <dl className="stat" aria-live="polite" aria-atomic="true">
+      <dl className="readout" aria-live="polite" aria-atomic="true">
         <div>
           <dt>hands per seat</dt>
           <dd>{mark.hands.toLocaleString()}</dd>

@@ -10,7 +10,7 @@ import { fmtHands, linScale, logScale } from './scales'
  * fit. Chips per hundred hands.
  */
 
-const W = 760
+const W = 860
 const H = 320
 const PANEL = { l: 54, r: 24, t: 24, b: 40 }
 const HALF = W / 2
@@ -48,30 +48,34 @@ export function PiLossChart() {
           </span>
         ))}
         <span className="item">
-          <span className="swatch" style={{ background: 'var(--obj-current)' }} />
+          <span className="swatch" style={{ background: 'var(--ink-3)' }} />
           the run's Π (squared error, 16k)
+        </span>
+        <span className="item">
+          <span className="swatch" style={{ background: 'repeating-linear-gradient(90deg, var(--ink) 0 4px, transparent 4px 7px)' }} />
+          the exact average
         </span>
       </div>
       <svg className="chart piloss" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Policy-net refits by loss and step count, and across marks">
         {/* left panel */}
-        <text x={PANEL.l} y={PANEL.t - 8} fontSize="10.5" fill="var(--panel-dim)">
+        <text x={PANEL.l} y={PANEL.t - 8} fontSize="10.5" fill="var(--ink-3)">
           Π refit on the 5M-hand memory, by Adam steps
         </text>
         {[11, 12, 13, 14].map((v) => (
           <g key={v}>
-            <line x1={PANEL.l} x2={HALF - PANEL.r} y1={ys(v)} y2={ys(v)} stroke="var(--panel-hair)" />
-            <text x={PANEL.l - 8} y={ys(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={PANEL.l} x2={HALF - PANEL.r} y1={ys(v)} y2={ys(v)} stroke="var(--grid)" />
+            <text x={PANEL.l - 8} y={ys(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {v}
             </text>
           </g>
         ))}
         {[16_000, 64_000, 128_000, 256_000].map((s) => (
-          <text key={s} x={xs(s)} y={H - 16} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+          <text key={s} x={xs(s)} y={H - 16} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
             {s / 1000}k
           </text>
         ))}
-        <line x1={PANEL.l} x2={HALF - PANEL.r} y1={ys(exactRef)} y2={ys(exactRef)} stroke="var(--obj-exact)" strokeDasharray="4 4" strokeOpacity={0.7} />
-        <text x={PANEL.l + 4} y={ys(exactRef) - 5} fontSize="10.5" fill="var(--obj-exact)">
+        <line x1={PANEL.l} x2={HALF - PANEL.r} y1={ys(exactRef)} y2={ys(exactRef)} stroke="var(--ink)" strokeDasharray="4 4" strokeOpacity={0.7} />
+        <text x={PANEL.l + 4} y={ys(exactRef) - 5} fontSize="10.5" fill="var(--ink)">
           exact average {exactRef.toFixed(1)}
         </text>
         {losses.map((l) => {
@@ -93,31 +97,31 @@ export function PiLossChart() {
           )
         })}
         {/* right panel */}
-        <text x={HALF + PANEL.l} y={PANEL.t - 8} fontSize="10.5" fill="var(--panel-dim)">
+        <text x={HALF + PANEL.l} y={PANEL.t - 8} fontSize="10.5" fill="var(--ink-3)">
           each mark's memory: exact, the run's Π, refits
         </text>
         {[11, 12, 13, 14, 15, 16].map((v) => (
           <g key={v}>
-            <line x1={HALF + PANEL.l} x2={W - PANEL.r} y1={ym(v)} y2={ym(v)} stroke="var(--panel-hair)" />
-            <text x={HALF + PANEL.l - 8} y={ym(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={HALF + PANEL.l} x2={W - PANEL.r} y1={ym(v)} y2={ym(v)} stroke="var(--grid)" />
+            <text x={HALF + PANEL.l - 8} y={ym(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {v}
             </text>
           </g>
         ))}
         {marks.map((t) => (
-          <text key={t} x={xm(hands(t))} y={H - 16} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+          <text key={t} x={xm(hands(t))} y={H - 16} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
             {fmtHands(hands(t))}
           </text>
         ))}
-        <path d={line(exactAt)} fill="none" stroke="var(--obj-exact)" strokeWidth={1.6} strokeDasharray="4 4" />
-        <path d={line(runPiAt)} fill="none" stroke="var(--obj-current)" strokeWidth={1.6} />
+        <path d={line(exactAt)} fill="none" stroke="var(--ink)" strokeWidth={1.6} strokeDasharray="4 4" />
+        <path d={line(runPiAt)} fill="none" stroke="var(--ink-3)" strokeWidth={1.6} />
         <path d={line(ceAt)} fill="none" stroke="var(--loss-ce)" strokeWidth={2.2} />
         <path d={line(mseAt)} fill="none" stroke="var(--loss-mse)" strokeWidth={1.4} strokeDasharray="2 4" />
         {[
-          { pts: exactAt, ink: 'var(--obj-exact)', word: 'exact', dy: 26 },
-          { pts: runPiAt, ink: 'var(--obj-current)', word: "the run's Π", dy: -6 },
+          { pts: exactAt, ink: 'var(--ink)', word: 'exact', dy: 26 },
+          { pts: runPiAt, ink: 'var(--ink-3)', word: "the run's Π", dy: -6 },
           { pts: ceAt, ink: 'var(--loss-ce)', word: 'CE refit', dy: 14 },
-          { pts: mseAt, ink: 'var(--loss-mse)', word: 'MSE refit', dy: -8 },
+          { pts: mseAt, ink: 'var(--loss-mse)', word: 'MSE refit', dy: -10 },
         ].map(({ pts, ink, word, dy }) => (
           <g key={word}>
             {pts.map((p) => (

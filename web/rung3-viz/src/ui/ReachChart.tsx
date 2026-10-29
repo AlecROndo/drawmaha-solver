@@ -15,15 +15,15 @@ import { linScale, logScale, stackLabels } from './scales'
  * net's flatter curve lies beside the table's. Hover or arrow a band to read
  * every number in it under the plot.
  *
- * Inks: with no net on the figure (Figure 7, in rung 3's part) the table
- * wears the race's LCFR yellow; with a net beside it (Figure 10) the three
- * strategies wear the inks of the race at equal hands — the table dim, the
- * exact average yellow, Π ivory. The svg is focusable and the readout is a
+ * Inks: with no net on the figure (Figure 7) the table wears the race's
+ * LCFR accent; with a net beside it (Figure 10) the three strategies wear
+ * the inks of the race at equal hands: the table ink, the exact average the
+ * accent, Π the muted ink. The svg is focusable and the readout is a
  * live region, as on the race chart; a band is picked by hover, touch or the
  * arrow keys.
  */
 
-const W = 760
+const W = 860
 const M = { l: 54, r: 112 }
 const TOP = { t: 26, b: 150 }
 const BOTTOM = { t: 196, b: 330 }
@@ -94,22 +94,22 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
           </span>
         ))}
         <span className="item">
-          <span className="swatch" style={{ background: 'transparent', boxShadow: 'inset 0 0 0 1px var(--iv-45)', height: 6 }} />
+          <span className="swatch" style={{ background: 'transparent', boxShadow: 'inset 0 0 0 1px var(--ink-3)', height: 6 }} />
           share of the infosets
         </span>
       </div>
       <svg className="chart reach" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Share of exploitability per reach band, and the leak per visit" tabIndex={0} onKeyDown={onKey}>
         {/* the picked band */}
-        <rect x={M.l + at * bw} y={TOP.t} width={bw} height={BOTTOM.b - TOP.t} fill="var(--panel-mark)" fillOpacity={0.05} />
+        <rect x={M.l + at * bw} y={TOP.t} width={bw} height={BOTTOM.b - TOP.t} fill="var(--ink)" fillOpacity={0.05} />
 
         {/* top: shares */}
-        <text x={4} y={TOP.t - 12} fontSize="10" fill="var(--panel-dim)">
+        <text x={4} y={TOP.t - 12} fontSize="10" fill="var(--ink-3)">
           share of the exploitability · share of the infosets, %
         </text>
         {Array.from({ length: yMax / 10 + 1 }, (_, k) => k * 10).map((v) => (
           <g key={v}>
-            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--panel-hair)" />
-            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--grid)" />
+            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {v}
             </text>
           </g>
@@ -129,9 +129,9 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
                 </g>
               )
             })}
-            <rect x={barX(k, profiles.length)} y={y(countShare(base, i))} width={barW - 2} height={Math.max(0, y(0) - y(countShare(base, i)))} fill="none" stroke="var(--iv-45)" />
+            <rect x={barX(k, profiles.length)} y={y(countShare(base, i))} width={barW - 2} height={Math.max(0, y(0) - y(countShare(base, i)))} fill="none" stroke="var(--ink-3)" />
             {profiles.length === 1 && countShare(base, i) >= 1 && (
-              <text x={barX(k, profiles.length) + (barW - 2) / 2} y={y(countShare(base, i)) - 4} textAnchor="middle" fontSize="9.5" fill="var(--iv-45)">
+              <text x={barX(k, profiles.length) + (barW - 2) / 2} y={y(countShare(base, i)) - 4} textAnchor="middle" fontSize="9.5" fill="var(--ink-3)">
                 {countShare(base, i).toFixed(1)}
               </text>
             )}
@@ -139,13 +139,13 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
         ))}
 
         {/* bottom: leak per visit */}
-        <text x={4} y={BOTTOM.t - 12} fontSize="10" fill="var(--panel-dim)">
+        <text x={4} y={BOTTOM.t - 12} fontSize="10" fill="var(--ink-3)">
           leak per 100 visits: chips a best responder wins each time play reaches an average spot of the band, log
         </text>
         {lticks.map((v) => (
           <g key={v}>
-            <line x1={M.l} x2={W - M.r} y1={ly(v)} y2={ly(v)} stroke="var(--panel-hair)" />
-            <text x={M.l - 8} y={ly(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={M.l} x2={W - M.r} y1={ly(v)} y2={ly(v)} stroke="var(--grid)" />
+            <text x={M.l - 8} y={ly(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {v.toLocaleString(undefined, { maximumFractionDigits: 12 })}
             </text>
           </g>
@@ -175,17 +175,17 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
         {/* the shared axis: band edges, how often a spot comes up */}
         {bands.map(({ bin }, k) => (
           <g key={bin.floor}>
-            <line x1={M.l + k * bw} x2={M.l + k * bw} y1={TOP.t} y2={BOTTOM.b} stroke="var(--panel-hair)" />
-            <text x={M.l + k * bw} y={BOTTOM.b + 18} textAnchor="middle" fontSize="10" fill="var(--panel-dim)">
+            <line x1={M.l + k * bw} x2={M.l + k * bw} y1={TOP.t} y2={BOTTOM.b} stroke="var(--grid)" />
+            <text x={M.l + k * bw} y={BOTTOM.b + 18} textAnchor="middle" fontSize="10" fill="var(--ink-3)">
               {bin.ceiling === null ? '' : edgeWord(bin.ceiling)}
             </text>
           </g>
         ))}
-        <line x1={W - M.r} x2={W - M.r} y1={TOP.t} y2={BOTTOM.b} stroke="var(--panel-hair)" />
-        <text x={W - M.r} y={BOTTOM.b + 18} textAnchor="middle" fontSize="10" fill="var(--panel-dim)">
+        <line x1={W - M.r} x2={W - M.r} y1={TOP.t} y2={BOTTOM.b} stroke="var(--grid)" />
+        <text x={W - M.r} y={BOTTOM.b + 18} textAnchor="middle" fontSize="10" fill="var(--ink-3)">
           {edgeWord(bands[n - 1].bin.floor)}
         </text>
-        <text x={M.l} y={BOTTOM.b + 38} fontSize="10" fill="var(--panel-dim)">
+        <text x={M.l} y={BOTTOM.b + 38} fontSize="10" fill="var(--ink-3)">
           how often play reaches the spot, once in N hands: commonest bands at the left, rarest at the right
         </text>
 
@@ -193,7 +193,7 @@ export function ReachChart({ profiles }: { profiles: Key[] }) {
           <rect key={k} x={M.l + k * bw} y={TOP.t} width={bw} height={BOTTOM.b - TOP.t} fill="transparent" onMouseEnter={() => setAt(k)} onPointerDown={() => setAt(k)} />
         ))}
       </svg>
-      <dl className="stat" aria-live="polite" aria-atomic="true">
+      <dl className="readout" aria-live="polite" aria-atomic="true">
         <div>
           <dt>band</dt>
           <dd>{binLabel(picked.bin)}</dd>

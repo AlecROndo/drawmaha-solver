@@ -10,7 +10,7 @@ import { linScale, logScale } from './scales'
  * mark. Regret matching plays every positive cell.
  */
 
-const W = 760
+const W = 860
 const H = 300
 const PANEL = { l: 54, r: 24, t: 26, b: 40 }
 const HALF = W / 2
@@ -32,30 +32,30 @@ export function RuleScreenChart() {
       <div className="legend">
         {rules.map((r) => (
           <span key={r} className="item">
-            <span className="swatch" style={{ background: RULE_INK[r] }} />
+            <span className="swatch" style={{ background: r === 'dcfr' ? `repeating-linear-gradient(90deg, ${RULE_INK[r]} 0 4px, transparent 4px 7px)` : RULE_INK[r] }} />
             {RULE_WORD[r]}
           </span>
         ))}
       </div>
       <svg className="chart rulescreen" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Per-sample regret rules under a net: exploitability by iteration, and the share of bad cells turned positive">
-        <text x={PANEL.l} y={PANEL.t - 10} fontSize="10.5" fill="var(--panel-dim)">
+        <text x={PANEL.l} y={PANEL.t - 10} fontSize="10.5" fill="var(--ink-3)">
           exact average, 4 × 256 · chips / 100 hands, log
         </text>
         {[10, 100].map((v) => (
           <g key={v}>
-            <line x1={PANEL.l} x2={HALF - PANEL.r} y1={y(v)} y2={y(v)} stroke="var(--panel-hair)" />
-            <text x={PANEL.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={PANEL.l} x2={HALF - PANEL.r} y1={y(v)} y2={y(v)} stroke="var(--grid)" />
+            <text x={PANEL.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {v}
             </text>
           </g>
         ))}
         {[10, 20, 50, 100].map((t) => (
-          <text key={t} x={x(t)} y={H - 16} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+          <text key={t} x={x(t)} y={H - 16} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
             t = {t}
           </text>
         ))}
-        <line x1={PANEL.l} x2={HALF - PANEL.r} y1={y(perHundred(UNIFORM_RANDOM.exploitability))} y2={y(perHundred(UNIFORM_RANDOM.exploitability))} stroke="var(--panel-dim)" strokeDasharray="4 4" />
-        <text x={HALF - PANEL.r} y={y(perHundred(UNIFORM_RANDOM.exploitability)) - 5} textAnchor="end" fontSize="10.5" fill="var(--panel-dim)">
+        <line x1={PANEL.l} x2={HALF - PANEL.r} y1={y(perHundred(UNIFORM_RANDOM.exploitability))} y2={y(perHundred(UNIFORM_RANDOM.exploitability))} stroke="var(--ink-3)" strokeDasharray="4 4" />
+        <text x={HALF - PANEL.r} y={y(perHundred(UNIFORM_RANDOM.exploitability)) - 5} textAnchor="end" fontSize="10.5" fill="var(--ink-3)">
           random {perHundred(UNIFORM_RANDOM.exploitability).toFixed(0)}
         </text>
         {rules.map((r) => {
@@ -73,20 +73,20 @@ export function RuleScreenChart() {
           )
         })}
         {/* right: flipped share */}
-        <text x={HALF + PANEL.l} y={PANEL.t - 10} fontSize="10.5" fill="var(--panel-dim)">
+        <text x={HALF + PANEL.l} y={PANEL.t - 10} fontSize="10.5" fill="var(--ink-3)">
           seat 0: bad cells turned positive, by mark
         </text>
         {[0.1, 0.2, 0.3, 0.4].map((v) => (
           <g key={v}>
-            <line x1={HALF + PANEL.l} x2={W - PANEL.r} y1={yb(v)} y2={yb(v)} stroke="var(--panel-hair)" />
-            <text x={HALF + PANEL.l - 8} y={yb(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={HALF + PANEL.l} x2={W - PANEL.r} y1={yb(v)} y2={yb(v)} stroke="var(--grid)" />
+            <text x={HALF + PANEL.l - 8} y={yb(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {Math.round(v * 100)}%
             </text>
           </g>
         ))}
         {ts.map((t, i) => (
           <g key={t}>
-            <text x={xb(i) + band / 2} y={H - 16} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+            <text x={xb(i) + band / 2} y={H - 16} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
               t = {t}
             </text>
             {(['dcfr', 'cfrplus'] as const).map((r, j) => {
@@ -94,10 +94,10 @@ export function RuleScreenChart() {
               const bx = xb(i) + band / 2 + (j - 1) * barW + barW * 0.1
               return (
                 <g key={r}>
-                  <rect x={bx} y={yb(f.flipped)} width={barW * 0.8} height={yb(0) - yb(f.flipped)} fill={RULE_INK[r]} fillOpacity={r === 'dcfr' ? 0.7 : 1}>
+                  <rect x={bx} y={yb(f.flipped)} width={barW * 0.8} height={yb(0) - yb(f.flipped)} fill={r === 'dcfr' ? 'var(--paper-3)' : RULE_INK[r]} stroke={r === 'dcfr' ? RULE_INK[r] : 'none'} strokeDasharray={r === 'dcfr' ? '3 2' : undefined}>
                     <title>{`${RULE_WORD[r]}, t = ${t}: ${(f.flipped * 100).toFixed(1)}% of bad cells flipped; ${(f.negativeKept * 100).toFixed(1)}% of negative regret mass kept`}</title>
                   </rect>
-                  <text x={bx + barW * 0.4} y={yb(f.flipped) - 5} textAnchor="middle" fontSize="10.5" fill="var(--panel-mark)">
+                  <text x={bx + barW * 0.4} y={yb(f.flipped) - 5} textAnchor="middle" fontSize="10.5" fill="var(--ink)">
                     {Math.round(f.flipped * 100)}%
                   </text>
                 </g>

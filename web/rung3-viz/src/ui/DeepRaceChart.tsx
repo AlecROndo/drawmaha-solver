@@ -12,7 +12,7 @@ import { fmtHands, logScale } from './scales'
  * question is the lower strip.
  */
 
-const W = 760
+const W = 860
 const H = 440
 const M = { l: 58, r: 120, t: 24, b: 30 }
 const PLOT_BOTTOM = 300
@@ -48,16 +48,16 @@ export function DeepRaceChart() {
       <div className="legend">
         <span className="item">
           <span className="swatch" style={{ background: 'var(--table-ink)' }} />
-          LCFR, the table (rung 3)
+          LCFR, the table
         </span>
         {OBJECTIVES.map((o) => (
           <span key={o} className="item">
-            <span className="swatch" style={{ background: OBJ_INK[o] }} />
+            <span className="swatch" style={{ background: o === 'current' ? `repeating-linear-gradient(90deg, ${OBJ_INK[o]} 0 4px, transparent 4px 7px)` : OBJ_INK[o] }} />
             Deep CFR {BEST.net}: {OBJECTIVE_NAME[o]}
           </span>
         ))}
         <span className="item">
-          <span className="swatch" style={{ background: 'var(--iv-30)' }} />
+          <span className="swatch" style={{ background: 'repeating-linear-gradient(90deg, var(--ink-3) 0 2px, transparent 2px 5px)' }} />
           Deep CFR {SMALL.net}, the spec's default: exact average
         </span>
       </div>
@@ -71,25 +71,25 @@ export function DeepRaceChart() {
       >
         {[10, 100].map((v) => (
           <g key={v}>
-            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--panel-hair)" />
-            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--grid)" />
+            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {v}
             </text>
           </g>
         ))}
         {[1e5, 1e6, 1e7].map((h) => (
           <g key={h}>
-            <line x1={x(h)} x2={x(h)} y1={M.t} y2={PLOT_BOTTOM} stroke="var(--panel-hair)" />
-            <line x1={x(h)} x2={x(h)} y1={STRIP_TOP} y2={STRIP_BOTTOM} stroke="var(--panel-hair)" />
-            <text x={x(h)} y={STRIP_BOTTOM + 16} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+            <line x1={x(h)} x2={x(h)} y1={M.t} y2={PLOT_BOTTOM} stroke="var(--grid)" />
+            <line x1={x(h)} x2={x(h)} y1={STRIP_TOP} y2={STRIP_BOTTOM} stroke="var(--grid)" />
+            <text x={x(h)} y={STRIP_BOTTOM + 16} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
               {fmtHands(h)}
             </text>
           </g>
         ))}
-        <text x={4} y={M.t - 10} fontSize="10" fill="var(--panel-dim)">
+        <text x={4} y={M.t - 10} fontSize="10" fill="var(--ink-3)">
           chips / 100 hands
         </text>
-        <text x={W - M.r + 8} y={STRIP_BOTTOM + 16} fontSize="10" fill="var(--panel-dim)">
+        <text x={W - M.r + 8} y={STRIP_BOTTOM + 16} fontSize="10" fill="var(--ink-3)">
           hands / seat
         </text>
 
@@ -99,15 +99,15 @@ export function DeepRaceChart() {
           x2={W - M.r}
           y1={y(perHundred(UNIFORM_RANDOM.exploitability))}
           y2={y(perHundred(UNIFORM_RANDOM.exploitability))}
-          stroke="var(--panel-dim)"
+          stroke="var(--ink-3)"
           strokeDasharray="4 4"
         />
-        <text x={W - M.r + 8} y={y(perHundred(UNIFORM_RANDOM.exploitability)) + 4} fontSize="10.5" fill="var(--panel-dim)">
+        <text x={W - M.r + 8} y={y(perHundred(UNIFORM_RANDOM.exploitability)) + 4} fontSize="10.5" fill="var(--ink-3)">
           random {perHundred(UNIFORM_RANDOM.exploitability).toFixed(0)}
         </text>
 
         <path d={path(lcfr)} fill="none" stroke="var(--table-ink)" strokeWidth={1.6} />
-        <path d={path(small)} fill="none" stroke="var(--iv-30)" strokeWidth={1.4} strokeDasharray="2 4" />
+        <path d={path(small)} fill="none" stroke="var(--ink-3)" strokeWidth={1.2} strokeDasharray="2 4" />
         {objects.map(({ o, points }) => (
           <path
             key={o}
@@ -136,13 +136,13 @@ export function DeepRaceChart() {
         {/* the price strip */}
         {[0.1, 0.5, 1].map((v) => (
           <g key={v}>
-            <line x1={M.l} x2={W - M.r} y1={yPrice(v)} y2={yPrice(v)} stroke="var(--panel-hair)" strokeDasharray={v === 1 ? '4 4' : undefined} />
-            <text x={M.l - 8} y={yPrice(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={M.l} x2={W - M.r} y1={yPrice(v)} y2={yPrice(v)} stroke="var(--grid)" strokeDasharray={v === 1 ? '4 4' : undefined} />
+            <text x={M.l - 8} y={yPrice(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {v}
             </text>
           </g>
         ))}
-        <text x={4} y={STRIP_TOP - 10} fontSize="10" fill="var(--panel-dim)">
+        <text x={4} y={STRIP_TOP - 10} fontSize="10" fill="var(--ink-3)">
           price: net ÷ table, exact average
         </text>
         <path
@@ -156,7 +156,7 @@ export function DeepRaceChart() {
         ))}
 
         {/* the selected mark */}
-        <line x1={xAt} x2={xAt} y1={M.t} y2={STRIP_BOTTOM} stroke="var(--panel-mark)" strokeWidth={1} strokeOpacity={0.6} />
+        <line x1={xAt} x2={xAt} y1={M.t} y2={STRIP_BOTTOM} stroke="var(--ink)" strokeWidth={1} strokeOpacity={0.6} />
         {OBJECTIVES.map((o) => (
           <circle key={o} cx={xAt} cy={y(perHundred(mark[o].exploitability))} r={o === 'exact' ? 4 : 3} fill={OBJ_INK[o]} />
         ))}
@@ -170,7 +170,7 @@ export function DeepRaceChart() {
           )
         })}
       </svg>
-      <dl className="stat">
+      <dl className="readout">
         <div>
           <dt>hands per seat</dt>
           <dd>{mark.hands.toLocaleString()}</dd>

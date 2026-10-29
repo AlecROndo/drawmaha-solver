@@ -10,7 +10,7 @@ import { fmtHands, logScale } from './scales'
  * a mark to read each object's grade and both seats' best responses.
  */
 
-const W = 760
+const W = 860
 const H = 300
 const M = { l: 58, r: 110, t: 22, b: 34 }
 const x = logScale(10, 500, M.l, W - M.r)
@@ -32,24 +32,24 @@ export function AveragesChart() {
       <svg className="chart averages" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Three graded objects of one Deep CFR arm against iteration" tabIndex={0} onKeyDown={onKey}>
         {[10, 20, 50].map((v) => (
           <g key={v}>
-            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--panel-hair)" />
-            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--grid)" />
+            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {v}
             </text>
           </g>
         ))}
         {BEST.marks.map((m) => (
           <g key={m.t}>
-            <line x1={x(m.t)} x2={x(m.t)} y1={M.t} y2={H - M.b} stroke="var(--panel-hair)" />
-            <text x={x(m.t)} y={H - 12} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+            <line x1={x(m.t)} x2={x(m.t)} y1={M.t} y2={H - M.b} stroke="var(--grid)" />
+            <text x={x(m.t)} y={H - 12} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
               {fmtHands(m.hands)}
             </text>
           </g>
         ))}
-        <text x={4} y={M.t - 8} fontSize="10" fill="var(--panel-dim)">
+        <text x={4} y={M.t - 8} fontSize="10" fill="var(--ink-3)">
           chips / 100 hands
         </text>
-        <text x={W - M.r + 8} y={H - 12} fontSize="10" fill="var(--panel-dim)">
+        <text x={W - M.r + 30} y={H - 12} fontSize="10" fill="var(--ink-3)">
           hands / seat
         </text>
         {OBJECTIVES.map((o) => (
@@ -60,7 +60,7 @@ export function AveragesChart() {
             {o === 'exact' ? 'exact' : o === 'pi' ? 'Π' : 'current'} {perHundred(BEST.marks.at(-1)![o].exploitability).toFixed(1)}
           </text>
         ))}
-        <line x1={x(mark.t)} x2={x(mark.t)} y1={M.t} y2={H - M.b} stroke="var(--panel-mark)" strokeOpacity={0.6} />
+        <line x1={x(mark.t)} x2={x(mark.t)} y1={M.t} y2={H - M.b} stroke="var(--ink)" strokeOpacity={0.6} />
         {OBJECTIVES.map((o) => (
           <circle key={o} cx={x(mark.t)} cy={y(perHundred(mark[o].exploitability))} r={o === 'exact' ? 4 : 3} fill={INK[o]} />
         ))}
@@ -71,7 +71,7 @@ export function AveragesChart() {
           return <rect key={m.t} x={left} y={M.t} width={right - left} height={H - M.t - M.b} fill="transparent" onMouseEnter={() => setAt(i)} onFocus={() => setAt(i)} />
         })}
       </svg>
-      <dl className="stat">
+      <dl className="readout">
         <div>
           <dt>iteration · hands per seat</dt>
           <dd>

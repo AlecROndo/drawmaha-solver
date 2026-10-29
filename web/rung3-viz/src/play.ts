@@ -463,7 +463,12 @@ export interface Session {
   pending: Deal[]
   /** deals already played, reshuffled back in when the pending run out */
   used: Deal[]
+  /** the settled hands of this sitting, newest first, at most `LEDGER_MAX`: the trainer's ledger */
+  settled: Hand[]
 }
+
+/** How many settled hands the ledger keeps. */
+export const LEDGER_MAX = 50
 
 /** A uniformly shuffled copy. */
 export function shuffled<T>(items: T[], uniform: () => number = Math.random): T[] {
@@ -485,6 +490,7 @@ export function freshSession(deals: Deal[], uniform: () => number = Math.random)
     seatHands: [0, 0],
     pending: shuffled(deals, uniform),
     used: [],
+    settled: [],
   }
   return s.pending.length ? nextHand(s, uniform) : s
 }
@@ -514,7 +520,8 @@ export function playAct(s: Session, act: Act, uniform: () => number = Math.rando
   const seatHands: [number, number] = [...s.seatHands]
   seatChips[seat] += done.result
   seatHands[seat] += 1
-  return { ...s, hand: done, chips: s.chips + done.result, hands: s.hands + 1, seatChips, seatHands }
+  const settled = [done, ...s.settled].slice(0, LEDGER_MAX)
+  return { ...s, hand: done, chips: s.chips + done.result, hands: s.hands + 1, seatChips, seatHands, settled }
 }
 
 /** Deal the next hand, seats swapped; the bankroll carries. */

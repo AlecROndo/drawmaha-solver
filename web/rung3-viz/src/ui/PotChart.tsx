@@ -9,15 +9,15 @@ import { POT_DOMAIN, fmtHands, logScale } from './scales'
  * arm's exact average against hands per seat on the page's log axes, the
  * same 4 × 256 net and 16,000-step refit throughout. The raw arm at 5e-4 is
  * drawn out to its five-million-hand floor so the pot arms, stopped at two
- * million, can be read against it. Raw arms wear ivory, pot arms the ink
- * the page points with; within each pair the line style tells the arms
+ * million, can be read against it. Raw arms wear the ink and the muted
+ * ink, pot arms the accent; within each pair the line style tells the arms
  * apart, every line is named at its end (the raw pair by rate), and hovering
  * or arrowing a mark reads every arm's grade at that column in the readout
  * under the plot, which is the one hover surface: the columns cover the
  * marks, so the marks carry no tooltips of their own.
  */
 
-const W = 760
+const W = 860
 const H = 400
 const M = { l: 58, r: 132, t: 24, b: 44 }
 const PLOT_BOTTOM = H - M.b
@@ -29,7 +29,7 @@ const y = logScale(POT_DOMAIN.per100[0], POT_DOMAIN.per100[1], PLOT_BOTTOM, M.t)
 
 const kWord = (k: number) => (k === 0 ? 'raw chips' : k === 0.5 ? '÷ √pot' : k === 1 ? '÷ pot' : `÷ pot^${k}`)
 const lrWord = (lr: number) => (lr === 0.001 ? '1e-3' : lr === 0.0005 ? '5e-4' : String(lr))
-const ink = (k: number, lr: number) => (k > 0 ? 'var(--yellow)' : lr === 0.0005 ? 'var(--iv-80)' : 'var(--iv-45)')
+const ink = (k: number, lr: number) => (k > 0 ? 'var(--series-2)' : lr === 0.0005 ? 'var(--ink-2)' : 'var(--ink-3)')
 const dash = (k: number, lr: number) => (k === 1 || (k === 0 && lr !== 0.0005) ? '6 4' : undefined)
 const name = (k: number, lr: number) => `${kWord(k)} · lr ${lrWord(lr)}`
 /** the end label: the two raw arms are told apart by their rate, the two pot arms by k */
@@ -67,24 +67,24 @@ export function PotChart() {
       <svg className="chart pot" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Exact average of the regret targets over pot^k against hands per seat" tabIndex={0} onKeyDown={onKey}>
         {[10, 100].map((v) => (
           <g key={v}>
-            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--panel-hair)" />
-            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--grid)" />
+            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {v}
             </text>
           </g>
         ))}
         {[1e5, 1e6, 2e6, 5e6].map((h) => (
           <g key={h}>
-            <line x1={x(h)} x2={x(h)} y1={M.t} y2={PLOT_BOTTOM} stroke="var(--panel-hair)" />
-            <text x={x(h)} y={PLOT_BOTTOM + 16} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+            <line x1={x(h)} x2={x(h)} y1={M.t} y2={PLOT_BOTTOM} stroke="var(--grid)" />
+            <text x={x(h)} y={PLOT_BOTTOM + 16} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
               {fmtHands(h)}
             </text>
           </g>
         ))}
-        <text x={4} y={M.t - 10} fontSize="10" fill="var(--panel-dim)">
+        <text x={4} y={M.t - 10} fontSize="10" fill="var(--ink-3)">
           chips / 100 hands, the exact average, log
         </text>
-        <text x={W - M.r} y={PLOT_BOTTOM + 32} textAnchor="end" fontSize="10" fill="var(--panel-dim)">
+        <text x={W - M.r} y={PLOT_BOTTOM + 32} textAnchor="end" fontSize="10" fill="var(--ink-3)">
           hands / seat, log
         </text>
         {POT_SERIES.map((s) => (
@@ -107,7 +107,7 @@ export function PotChart() {
           </text>
         ))}
         {/* the selected mark */}
-        <line x1={xAt} x2={xAt} y1={M.t} y2={PLOT_BOTTOM} stroke="var(--panel-mark)" strokeWidth={1} strokeOpacity={0.6} />
+        <line x1={xAt} x2={xAt} y1={M.t} y2={PLOT_BOTTOM} stroke="var(--ink)" strokeWidth={1} strokeOpacity={0.6} />
         {POT_SERIES.map((s) => {
           const v = gradeAt(s, t)
           return v === undefined ? null : <circle key={s.arm.id} cx={xAt} cy={y(perHundred(v))} r={s.potPower === 0.5 ? 4.5 : 4} fill={ink(s.potPower, s.lr)} />
@@ -119,7 +119,7 @@ export function PotChart() {
           return <rect key={mark} x={left} y={M.t} width={right - left} height={PLOT_BOTTOM - M.t} fill="transparent" onMouseEnter={() => setAt(i)} />
         })}
       </svg>
-      <dl className="stat">
+      <dl className="readout">
         <div>
           <dt>hands per seat</dt>
           <dd>{(t * 10_000).toLocaleString()}</dd>

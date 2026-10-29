@@ -1,13 +1,15 @@
 /**
- * `/rung3`: a research publication over mini-drawmaha, with two tools
- * beside it. One masthead for the page (the finding, the date, the author,
- * a summary), then three views: the research (the race, the clock, and the
- * net, as chapters with captioned figures); Learn — the range interface over
- * the strategy at every spot, the same view `/solver` shows, imported from
- * that app rather than copied (`ui/LearnTab.tsx`); and the trainer (play
- * the frozen strategy with a coach). The tab, and the Learn tab's view and
- * strategy, live in the URL hash (`learn.ts`) so any of them can be linked
- * to, and the Rungs ladder in the top bar links all three.
+ * `/research`, `/learn` and `/play` (and `/rung3`, where the app is built): a
+ * research publication over mini-drawmaha with two tools beside it. Each tab
+ * opens on its own head — the publication's title block and results strip,
+ * or a page head for Learn and Play — with the three views under it: the
+ * research (nine chapters, seventeen figures); Learn, the range interface
+ * over the strategy at every spot, the same view `/solver` shows, imported
+ * from that app rather than copied (`ui/LearnTab.tsx`); and Play, the
+ * trainer against the frozen strategy with a coach. Vercel rewrites the
+ * three product paths to this page, so the tab is read from the path as well
+ * as the hash (`learn.ts`), and the Learn tab's view and strategy live in the
+ * hash so any of them can be linked to.
  */
 
 import { useEffect, useLayoutEffect, useState } from 'react'
@@ -17,42 +19,49 @@ import { useEffect, useLayoutEffect, useState } from 'react'
 import '../../solver-viz/src/index.css'
 
 import { useSession } from './deals'
-import { BEST, KEY_NUMBERS, lcfrAt, markOf } from './deep'
-import { type PageView, type TabId, formatHash, parseHash } from './learn'
+import { BEST, POT_ARMS, lcfrAt, markOf } from './deep'
+import { type PageView, type TabId, addressOf, parseLocation } from './learn'
 import { FINAL_ITERATION, SIZES, WORKERS, perHundred, series } from './research'
 import { LearnTab } from './ui/LearnTab'
-import { Masthead } from './ui/Masthead'
+import { Masthead, type Result } from './ui/Masthead'
 import { PackBoundary } from './ui/PackBoundary'
-import { PlayPanel } from './ui/PlayPanel'
+import { PlayPanel, packWords } from './ui/PlayPanel'
 import { ResearchTab } from './ui/ResearchTab'
-import { fraction } from './ui/scales'
-import { Footer, TopBar } from './ui/site'
+import { Footer, PageHead, TopBar } from './ui/site'
 
-const TABS: readonly { id: TabId; label: string; blurb: string }[] = [
-  { id: 'research', label: 'The research', blurb: 'the race, the answer, and the net, in nine chapters' },
-  { id: 'learn', label: 'Learn', blurb: 'every spot, every hand it could hold — tabular or Deep CFR' },
-  { id: 'play', label: 'Play the solver', blurb: 'heads-up against the frozen strategy, with a coach' },
+const TABS: readonly { id: TabId; label: string; blurb: string; title: string }[] = [
+  { id: 'research', label: 'Research', blurb: 'Nine chapters, seventeen figures', title: 'Mini-drawmaha, solved' },
+  { id: 'learn', label: 'Learn', blurb: 'Every spot, every hand it could hold', title: 'Learn' },
+  { id: 'play', label: 'Play', blurb: 'Heads-up against the solver, with a coach', title: 'Play the solver' },
 ]
 
+const REPO = 'https://github.com/AlecROndo/drawmaha-solver'
+
+const here = () => parseLocation(location.pathname, location.hash)
+
 export default function App() {
-  const [page, setPage] = useState<PageView>(() => parseHash(location.hash))
+  const [page, setPage] = useState<PageView>(here)
   const { tab } = page
   // The session lives here so flipping tabs loses nothing: a hand in
   // progress and the bankroll survive a look at the research.
   const [session, setSession, pack] = useSession()
 
-  // The top bar's "Play the solver" button points at #play, and the contents
-  // rail points at chapters. On this page those are hash changes with no
-  // reload, so listen; an unknown segment keeps the research tab.
+  // The research tab's callouts link to #play and #learn/..., and the
+  // contents rail to chapters. On this page those are hash changes with no
+  // reload, so listen; a hash that names no tab keeps the path's.
   useEffect(() => {
-    const onHash = () => setPage(parseHash(location.hash))
-    addEventListener('hashchange', onHash)
-    return () => removeEventListener('hashchange', onHash)
+    const onMove = () => setPage(here())
+    addEventListener('hashchange', onMove)
+    addEventListener('popstate', onMove)
+    return () => {
+      removeEventListener('hashchange', onMove)
+      removeEventListener('popstate', onMove)
+    }
   }, [])
 
   // Only the Learn tab wants the whole browser (solver-viz's index.css,
   // `body.wide`). A layout effect, so the page is wide before it paints:
-  // opening `#learn/...` directly lays the grid out once, not at 1312 px and
+  // opening `/learn` directly lays the grid out once, not at 1160 px and
   // then again. The cleanup narrows it when the tab changes or the page goes.
   useLayoutEffect(() => {
     if (tab !== 'learn') return
@@ -60,61 +69,117 @@ export default function App() {
     return () => document.body.classList.remove('wide')
   }, [tab])
 
+  useEffect(() => {
+    document.title = `${TABS.find((t) => t.id === tab)!.title} · Drawmaha Solver`
+  }, [tab])
+
   const show = (next: PageView) => {
     setPage(next)
     // Replace rather than push: the tabs are views of one page.
-    history.replaceState(null, '', formatHash(next))
+    history.replaceState(null, '', addressOf(location.pathname, next))
   }
 
+  const hands = FINAL_ITERATION * WORKERS
   const lcfr = perHundred(series('lcfr').at(-1)!.exploitability)
   const cfrplus = perHundred(series('cfrplus').at(-1)!.exploitability)
-  const hands = (FINAL_ITERATION * WORKERS) / 1e6
+  const sqrtPot = POT_ARMS.find((a) => a.potPower === 0.5 && a.lr === 0.0005)!
+  const sqrtPotAt2M = perHundred(sqrtPot.exact[200])
+  const best1M = perHundred(markOf(BEST, 100).exact.exploitability)
+  const table1M = perHundred(lcfrAt(1_000_000))
+
+  const results: Result[] = [
+    {
+      value: lcfr.toFixed(1),
+      label: <>chips per hundred hands: tabular LCFR at {hands / 1e6} million hands per seat, graded by the exact best response</>,
+      href: '#ch-03',
+      chapter: '03',
+    },
+    {
+      value: `${Math.round(cfrplus / lcfr)}×`,
+      label: <>LCFR's margin over CFR+ ({cfrplus.toFixed(1)}) at the same mark, both raced on one seed</>,
+      href: '#ch-03',
+      chapter: '03',
+    },
+    {
+      value: sqrtPotAt2M.toFixed(1),
+      label: (
+        <>
+          chips per hundred hands: Deep CFR's exact average with ÷ √pot targets at 2 million hands per seat, where LCFR
+          grades {perHundred(lcfrAt(2_000_000)).toFixed(1)}
+        </>
+      ),
+      href: '#ch-06',
+      chapter: '06',
+    },
+  ]
+
+  const views = (
+    <div className="views" role="tablist" aria-label="Views">
+      {TABS.map((entry) => (
+        <button
+          key={entry.id}
+          role="tab"
+          aria-selected={tab === entry.id}
+          className={tab === entry.id ? 'view current' : 'view'}
+          onClick={() => show({ ...page, tab: entry.id })}
+        >
+          <b>{entry.label}</b>
+          <span>{entry.blurb}</span>
+        </button>
+      ))}
+    </div>
+  )
 
   return (
     <>
-      <TopBar here="research" />
+      <TopBar here={tab === 'play' ? 'play' : 'research'} />
 
-      <main className="wrap publication">
-        <Masthead
-          eyebrow="Research · rungs 3 and 4 · mini-drawmaha"
-          title={
-            <>
-              Keeping negative regret wins by four times, <em>and a network is an eighth of the table at a million hands.</em>
-            </>
-          }
-          date="October 27, 2026"
-          byline="Alec Ondo"
-          tags={['CFR', 'MCCFR', 'Deep CFR', 'exploitability']}
-        >
-          <p className="summary">
-            Mini-drawmaha is the first game on this ladder with no referee and no whole-tree walk:{' '}
-            {SIZES[2].infosets.toLocaleString()} information sets, a draw whose chance node depends on the action taken,
-            and a pot that pays twice. Four regret rules raced to {hands.toFixed(0)} million sampled hands per seat under
-            lockstep MCCFR, each graded by the exact best-response walk, and{' '}
-            <b>the two that keep negative regret won by three to four times</b> ({lcfr.toFixed(1)} against{' '}
-            {cfrplus.toFixed(1)} chips per hundred hands). Deep CFR then trained on the same game, the same walk and the
-            same hands: at one million hands per seat the best network is exploitable for{' '}
-            {perHundred(markOf(BEST, 100).exact.exploitability).toFixed(1)} against the table's{' '}
-            {perHundred(lcfrAt(1_000_000)).toFixed(1)}, <b>about {fraction(KEY_NUMBERS.priceAt1M)}</b> ({KEY_NUMBERS.priceAt1M.toFixed(2)} of the table's), and its
-            curve has flattened by five million hands where the table's keeps falling. One seed throughout: a gap under
-            about ten percent is suggestive, not settled.
-          </p>
-        </Masthead>
+      <main className={`wrap rung3 on-${tab}`}>
+        {tab === 'research' ? (
+          <Masthead
+            eyebrow="Research · Mini-drawmaha · 27 October 2026"
+            title="Mini-drawmaha, solved: keeping negative regret wins by four times, and a network beats the table at equal hands"
+            dek={
+              <>
+                A draw game of {(SIZES[2].infosets / 1e6).toFixed(1)} million information sets, with a pot that pays twice,
+                is solved by sampled CFR and graded by an exact best response. The two regret rules that keep negative
+                regret beat CFR+ and DCFR by three to four times. Deep CFR on the same game and the same hands is
+                exploitable for {best1M.toFixed(1)} chips per hundred hands at one million hands per seat, where the table
+                is at {table1M.toFixed(1)}.
+              </>
+            }
+            meta={[
+              <b key="a">Alec Ondo</b>,
+              <span key="c">9 chapters · 17 figures · one seed throughout</span>,
+              <a key="d" href={`${REPO}/tree/main/figures`}>
+                Figure data
+              </a>,
+              <a key="g" href={REPO}>
+                Code
+              </a>,
+              <a key="s" href={`${REPO}/blob/main/paper/drawmaha-ml-survey.pdf`}>
+                ML survey (PDF)
+              </a>,
+            ]}
+            results={results}
+          />
+        ) : tab === 'learn' ? (
+          <PageHead
+            eyebrow="Learn · Mini-drawmaha"
+            title="Every spot, every hand it could hold"
+            lede="Pick a spot and read the strategy's mix for every hand in range. Three strategies sit behind one switch: the tabular LCFR answer, Deep CFR's policy net Π and Deep CFR's exact average."
+          />
+        ) : (
+          <PageHead
+            eyebrow="Play · Mini-drawmaha"
+            title="Play the solver"
+            lede={`Hands are dealt from a ${pack.manifest?.deals ?? 600}-deal pack. The solver plays its frozen strategy exactly and shows you its mix after every choice you make.`}
+          >
+            <p className="note">{packWords(pack.manifest)}</p>
+          </PageHead>
+        )}
 
-        <div className="views" role="tablist" aria-label="Views">
-          {TABS.map((entry) => (
-            <button
-              key={entry.id}
-              role="tab"
-              aria-selected={tab === entry.id}
-              className={tab === entry.id ? 'view current' : 'view'}
-              onClick={() => show({ ...page, tab: entry.id })}
-            >
-              <b>{entry.label}</b>
-              <span>{entry.blurb}</span>
-            </button>
-          ))}
-        </div>
+        {views}
 
         {tab === 'research' ? (
           <ResearchTab />
@@ -127,18 +192,16 @@ export default function App() {
           />
         ) : (
           <>
-            <div className="block">
-              <PackBoundary>
-                <PlayPanel session={session} setSession={setSession} pack={pack} />
-              </PackBoundary>
-            </div>
+            <PackBoundary>
+              <PlayPanel session={session} setSession={setSession} pack={pack} />
+            </PackBoundary>
             <p className="foot">
               The bot never looks a strategy up in the browser. Python dealt {pack.manifest?.deals ?? 600} hands as fixed
-              deck orders and recorded the frozen strategy’s mix at every decision either player can reach in each —
-              about 480 nodes a deal — plus the showdown of every post-draw world (uv run minidraw-deals). The page
-              follows the path it is on and reads the vector. The pot-limit betting grammar is the one thing transcribed
-              to TypeScript, and minidraw.test.ts pins it against the same thirteen round-1 lines the Python suite pins.
-              Your rolls grade you against that mix; the solver’s cards and mix stay face down until the hand ends.
+              deck orders and recorded the frozen strategy’s mix at every decision either player can reach in each, about
+              480 nodes a deal, plus the showdown of every post-draw world (uv run minidraw-deals). The page follows the
+              path it is on and reads the vector. The pot-limit betting grammar is the one thing transcribed to
+              TypeScript, and minidraw.test.ts pins it against the same thirteen round-1 lines the Python suite pins. Your
+              rolls grade you against that mix; the solver’s cards and mix stay face down until the hand ends.
             </p>
           </>
         )}
