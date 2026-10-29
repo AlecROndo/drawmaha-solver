@@ -1,17 +1,12 @@
-import type { Action } from './sim/game'
-import { ACTIONS } from './sim/game'
-import { ACTION_COLORS } from './ui/format'
-import { Controls } from './ui/Controls'
+import { Controls, ModeSwitch } from './ui/Controls'
 import { ConvergenceChart } from './ui/ConvergenceChart'
 import { ExploitChart } from './ui/ExploitChart'
 import { LedgerPanel } from './ui/LedgerPanel'
 import { Scoreboard } from './ui/Scoreboard'
 import { SimplexPlot } from './ui/SimplexPlot'
 import { TracePanel } from './ui/TracePanel'
-import { Footer, Hero, TopBar } from './ui/site'
+import { Footer, PageHead, TopBar } from './ui/site'
 import { useSimulation } from './ui/useSimulation'
-
-const ACTION_GLYPHS = ['✊', '✋', '✌️']
 
 export default function App() {
   const sim = useSimulation()
@@ -22,39 +17,24 @@ export default function App() {
       <TopBar here="benchmarks" />
 
       <main className="wrap">
-        <Hero
-          eyebrow="Rung 0 of 4 · complete · regret matching"
-          done
-          title={
+        <PageHead
+          eyebrow="Benchmarks · rock-paper-scissors"
+          title="Regret matching, graded against the uniform Nash."
+          lede={
             <>
-              Regret matching learns <em>rock-paper-scissors.</em>
+              Two regret matchers play each other in your browser. The current strategy chases last round's regret and
+              never settles; its running average converges to (⅓, ⅓, ⅓) and is exploitable for{' '}
+              <b>0.0009 chips per round after 100,000 rounds</b>.
             </>
           }
-          icon="chip"
-          iconLabel="A poker chip lying on the felt with a second leaning on it, drawn in ASCII"
+          controls={<ModeSwitch sim={sim} />}
         >
-          <p className="lede">
-            One algorithm, running live. The current strategy chases yesterday's regrets and cycles
-            forever; <b>its running average is the thing that converges to Nash.</b> Both happen
-            below, and you can stop it mid-round to read the arithmetic.
+          <p className="note">
+            The first of four games graded against a known answer. <a href="/benchmarks">All four benchmarks</a>
           </p>
-        </Hero>
+        </PageHead>
 
         <Controls sim={sim} />
-
-        {sim.mode === 'vs-you' && (
-          <div className="play-buttons" aria-label="Play a hand">
-            {ACTIONS.map((name, i) => (
-              <button className="btn" key={name} onClick={() => sim.playUserAction(i as Action)}>
-                <span aria-hidden>{ACTION_GLYPHS[i]}</span>
-                <span className="chip">
-                  <span className="dot" style={{ background: ACTION_COLORS[i] }} />
-                  {name}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
 
         <div className="panels">
           <LedgerPanel engine={sim.engine} />
@@ -66,41 +46,46 @@ export default function App() {
         </div>
 
         {!scored && (
-          <section className="stop" aria-label="Reading guide">
+          <section className="stop" aria-label="What the figures show">
             <div className="stop-head">
               <div>
-                <p className="kicker">What to look for</p>
-                <h2>Three behaviours, one algorithm.</h2>
+                <p className="kicker">What the figures show</p>
+                <h2>The current strategy cycles; the average converges.</h2>
               </div>
               <p>
-                The figures above are one run of one update rule. Each row here names a thing the
-                rule does that a table of its numbers could not show, and the figure it shows in.
+                Every figure above is one run of one update rule. Each row names a behaviour of the rule and the figure
+                that shows it.
               </p>
             </div>
             <table className="rows">
               <tbody>
                 <tr>
                   <td className="g">The current strategy never settles</td>
-                  <td className="p">Regret chases the last winner, in a permanent orbit.</td>
-                  <td className="s">Fig. 2</td>
-                </tr>
-                <tr>
-                  <td className="g">The average is the product</td>
-                  <td className="p">
-                    S/n spirals into (⅓, ⅓, ⅓) and its exploitability falls like 1/√T.
+                  <td className="p">Regret chases the last winner, so σ orbits the centre of the triangle.</td>
+                  <td className="s">
+                    <a href="#fig-2">Figure 2</a>
                   </td>
-                  <td className="s">Fig. 3</td>
                 </tr>
                 <tr>
-                  <td className="g">Step mode shows the arithmetic</td>
-                  <td className="p">Pause, then press → and follow a single update, line by line.</td>
-                  <td className="s">Fig. 4</td>
+                  <td className="g">The average is the answer</td>
+                  <td className="p">S/n spirals into (⅓, ⅓, ⅓), and its exploitability falls like 1/√T.</td>
+                  <td className="s">
+                    <a href="#fig-3">Figure 3</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td className="g">Step mode writes out the arithmetic</td>
+                  <td className="p">Pause and press → to follow one update, line by line.</td>
+                  <td className="s">
+                    <a href="#fig-4">Figure 4</a>
+                  </td>
                 </tr>
               </tbody>
             </table>
 
             <p className="kbd-hint">
-              <kbd>space</kbd> run / pause · <kbd>→</kbd> step ×1 · same seed, bit-identical run
+              <kbd>Space</kbd> runs and pauses · <kbd>→</kbd> plays one round · the same seed replays the same run, bit
+              for bit
             </p>
           </section>
         )}

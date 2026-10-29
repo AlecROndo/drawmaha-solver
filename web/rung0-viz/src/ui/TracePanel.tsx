@@ -2,7 +2,7 @@ import type { Engine } from '../sim/engine'
 import { averageStrategy } from '../sim/ledger'
 import { Chip } from './Chip'
 import { fmt, fmtIter, fmtSigned, fmtVec } from './format'
-import { Panel } from './site'
+import { Figure } from './site'
 
 /**
  * The most recent round's arithmetic, line by line. Full trace in step mode; a
@@ -16,23 +16,21 @@ export function TracePanel({ engine, running }: { engine: Engine; running: boole
   const selfLabel = mode === 'vs-you' ? 'bot sampled' : 'sampled'
 
   return (
-    <Panel
-      n="04"
+    <Figure
+      n="Figure 4"
+      id="fig-4"
       wide
-      k="Fig. 4 · one update"
-      title="The arithmetic of a single round"
-      say={
+      title="One round moves each regret by u − ⟨σ, u⟩"
+      sub={
         <>
-          R += u − ⟨σ, u⟩ against the revealed action. The baseline is the strategy's expected
-          utility, not the sampled action's. Pause and press <kbd>→</kbd> to walk one round.
+          The baseline is the strategy's expected utility against the revealed throw, not the sampled
+          throw's payoff. Pause, then press <kbd>→</kbd> to walk one round.
         </>
       }
       label="Update trace"
     >
       {round === null ? (
-        <p className="trace-empty">
-          No rounds yet — press <kbd>Step ×1</kbd> to watch a single update happen.
-        </p>
+        <p className="trace-empty">No rounds played yet. Step ×1 plays one and writes out its arithmetic here.</p>
       ) : running ? (
         <p className="trace-compact">
           round {fmtIter(round.t)} · <Chip a={round.playerAction} /> vs <Chip a={round.oppAction} />{' '}
@@ -91,6 +89,6 @@ export function TracePanel({ engine, running }: { engine: Engine; running: boole
           </tbody>
         </table>
       )}
-    </Panel>
+    </Figure>
   )
 }

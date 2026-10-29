@@ -1,6 +1,17 @@
 import { ACTIONS, type Action } from '../sim/game'
 
-export const ACTION_COLORS = ['var(--rock)', 'var(--paper)', 'var(--scissors)'] as const
+/**
+ * Colour on this page says which estimate a mark is, never which action: the
+ * average S/n is the accent (the thing the page points at), the current σ is
+ * grey, cumulative regret is ink. Where the three actions share a chart they
+ * are told apart by dash and by a direct label, so the accent keeps meaning
+ * "the average" in every figure.
+ */
+export const AVG = 'var(--series-2)'
+export const CUR = 'var(--series-3)'
+export const INK = 'var(--series-1)'
+/** rock solid, paper dashed, scissors dotted */
+export const ACTION_DASH = [undefined, '7 4', '1.5 3.5'] as const
 
 export function actionName(a: Action): string {
   return ACTIONS[a]
