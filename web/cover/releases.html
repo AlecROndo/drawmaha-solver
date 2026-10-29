@@ -1,22 +1,85 @@
 <!doctype html>
+<!-- Written by scripts/site/make_static_pages.py from src/drawmaha_solver/minidrawmaha/answer/releases.py and the grade files it names.
+     Do not edit by hand: change the generator and run `uv run python scripts/site/make_static_pages.py`. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Releases · Drawmaha Solver</title>
-<meta name="description" content="A release is a frozen strategy the site deals from: the tabular answer, the Deep CFR policy and its exact average, each graded by the same best-response walk.">
+<meta name="description" content="The frozen strategies drawmaha.app ships, each with its release tag, its grade and the command that exports it.">
 <link rel="stylesheet" href="/fonts.css">
 <link rel="stylesheet" href="/theme.css">
 <style>
 /* Page layout only; the chrome, the tokens and the type come from /theme.css. */
-.pending { padding: 40px 0 0; max-width: 640px; font-family: var(--serif); font-size: 18px; line-height: 1.6; color: var(--ink-2); }
-.pending a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+main { padding-bottom: 0; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-3); }
+.more { color: var(--ink); font-weight: 500; text-decoration: none; border-bottom: 1px solid var(--rule-2); transition: color 0.15s, border-color 0.15s; }
+.more:hover { color: var(--accent); border-color: var(--accent); }
+.prose a, .fig-cap a, td a.in { color: var(--accent); text-decoration: underline; text-decoration-color: var(--accent-tint); text-underline-offset: 3px; transition: text-decoration-color 0.15s; }
+.prose a:hover, .fig-cap a:hover, td a.in:hover { text-decoration-color: var(--accent); }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--paper-2); padding: 1px 5px; border-radius: 3px; color: var(--ink); }
+.band { margin-top: 112px; }
+.split-aside h2 { margin-top: 0; }
+.split-aside p.more-row { margin-top: 20px; }
+/* charts: ink, the accent for the finding, muted ink; a dash for a fourth series */
+.ch-grid { stroke: var(--rule); stroke-width: 1; }
+.ch-base { stroke: var(--rule-2); stroke-width: 1; }
+.ch-ax { fill: var(--ink-3); font-size: 11px; }
+.ch-row { fill: var(--ink); font-size: 13px; }
+.ch-val { fill: var(--ink); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ch-line { fill: none; stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round; }
+.ch-line.ch-heavy { stroke-width: 2.5; }
+.ch-pt { stroke: var(--paper); stroke-width: 1.5; }
+.ch-lbl { font-size: 12px; font-weight: 600; }
+.ch-end { fill: var(--ink-3); font-weight: 400; font-variant-numeric: tabular-nums; }
+.ch-guide { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 4; }
+.t-acc { stroke: var(--accent); } .t-ink { stroke: var(--ink); } .t-mut { stroke: var(--ink-3); }
+.f-acc { fill: var(--accent); } .f-ink { fill: var(--ink); } .f-mut { fill: var(--ink-3); } .f-chk { fill: var(--act-check); } .f-rule { fill: var(--rule-2); }
+/* a grade in a table: the number in the serif, what it is in beneath */
+.grade b { display: block; font-family: var(--serif); font-weight: 400; font-size: 22px; line-height: 1.1; color: var(--ink); }
+.grade span { display: block; margin-top: 5px; font-size: 13px; line-height: 1.4; color: var(--ink-3); }
+table.hair tr.dim .grade b { color: var(--ink-3); }
+table.hair td.k a { text-decoration: none; }
+table.hair td.k a:hover { color: var(--accent); }
+/* cards */
+.cards { display: flex; gap: 8px; align-items: center; }
+.pc { width: 44px; height: 62px; border: 1px solid var(--rule-2); border-radius: 4px; background: #fffdf8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+.pc.red { color: var(--accent); }
+.pc.out { opacity: 0.4; text-decoration: line-through; }
+.pc.blank { background: var(--paper-2); border-style: dashed; color: var(--ink-3); }
+/* a mix bar: check / fold in blue, bet in the accent */
+.mix { display: flex; height: 8px; gap: 2px; }
+.mix i { display: block; height: 100%; }
+.mix .c { background: var(--act-check); }
+.mix .b { background: var(--accent); }
+.key { display: inline-flex; align-items: center; gap: 6px; margin-right: 14px; }
+.key::before { content: ''; width: 10px; height: 10px; border-radius: 2px; background: currentColor; }
+.key.c { color: var(--act-check); } .key.b { color: var(--accent); }
+.key span { color: var(--ink-2); }
+@media (max-width: 1024px) {
+  .band { margin-top: 72px; }
+}
+
+.rel { margin-top: 40px; }
+table.releases td { font-size: 14px; }
+table.releases td .sub { display: block; margin-top: 4px; font-size: 13px; color: var(--ink-3); max-width: 34ch; }
+table.releases td.k .sub { font-weight: 400; }
+table.releases td .asset { display: block; margin-top: 4px; font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--ink-3); }
+table.releases code { white-space: nowrap; }
+table.releases td.tag, table.releases td.date { white-space: nowrap; }
+table.releases .ship { display: block; width: max-content; margin-bottom: 4px; }
+table.releases th:nth-child(1) { width: 30%; } table.releases th:nth-child(4) { width: 15%; }
+.rel .note { margin-top: 24px; max-width: 760px; }
+@media (max-width: 1024px) {
+  table.releases { display: block; overflow-x: auto; }
+}
 </style>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="chip-home" href="/" aria-label="Drawmaha home"><canvas data-chip aria-hidden="true"></canvas><span class="word">Drawmaha <small>Solver</small></span></a>
+    <a class="chip-home" href="/" aria-label="Drawmaha home"><canvas aria-hidden="true"></canvas><span class="word">Drawmaha <small>Solver</small></span></a>
     <nav class="nav" aria-label="Site">
       <a class="navbtn" href="/research">Research</a>
       <a class="navbtn" href="/solver">Solver</a>
@@ -28,21 +91,27 @@
   </div>
 </header>
 <main class="wrap">
-  <header class="page-head">
-    <div class="page-head-copy">
-      <p class="eyebrow">Releases</p>
-      <h1>Every strategy release, with its grade and the command that produced it.</h1>
-      <p class="lede">A release is a frozen strategy the site deals from: the tabular answer, the Deep CFR policy and its exact average, each graded by the same best-response walk.</p>
-    </div>
-  </header>
-  <p class="pending">The release table is being laid out on this page. Until then the strategy packs are published on <a href="https://github.com/AlecROndo/drawmaha-solver/releases">GitHub</a>.</p>
+
+<header class="page-head">
+  <div class="page-head-copy">
+    <p class="eyebrow">Releases</p>
+    <h1>Every strategy the site ships, with its grade.</h1>
+    <p class="lede">Each release is a frozen strategy published as a GitHub release asset and fetched by its SHA-256. Its grade is the exact best response's verdict, read from the committed file the catalogue names.</p>
+  </div>
+</header>
+<section class="rel">
+  <table class="hair releases"><thead><tr><th>Release</th><th>Published</th><th>Tag</th><th>Exploitability</th><th>Shipped to</th><th>Exported by</th></tr></thead>
+  <tbody><tr><td class="k"><code>deep-pot-pi</code><span class="sub">Deep CFR, 4 × 256 net, the policy net Π at iteration 200, regret targets ÷ √pot</span><span class="asset">deep-pot0.5-256x4-s16000-lr5e-4-t200-pi.npz</span></td><td class="date num">2026-10-28</td><td class="tag"><a class="in" href="https://github.com/AlecROndo/drawmaha-solver/releases/tag/rung4-deep-pot0.5-t200">rung4-deep-pot0.5-t200</a></td><td class="grade num"><b>0.116</b><span>chips per hand at 2 million hands per seat</span></td><td><span class="muted">no page; published only</span></td><td><span class="muted">—</span></td></tr><tr><td class="k"><code>deep-pot-exact</code><span class="sub">Deep CFR, 4 × 256 net, the exact average at iteration 200, regret targets ÷ √pot</span><span class="asset">deep-pot0.5-256x4-s16000-lr5e-4-t200-exact.npz</span></td><td class="date num">2026-10-28</td><td class="tag"><a class="in" href="https://github.com/AlecROndo/drawmaha-solver/releases/tag/rung4-deep-pot0.5-t200">rung4-deep-pot0.5-t200</a></td><td class="grade num"><b>0.086</b><span>chips per hand at 2 million hands per seat</span></td><td><a class="in ship" href="/play">Play</a></td><td><code>uv run minidraw-deals</code></td></tr><tr><td class="k"><code>deep-pi</code><span class="sub">Deep CFR, 4 × 256 net, the policy net Π at iteration 500</span><span class="asset">deep-256x4-s16000-lr5e-4-t500-pi.npz</span></td><td class="date num">2026-10-26</td><td class="tag"><a class="in" href="https://github.com/AlecROndo/drawmaha-solver/releases/tag/rung4-deep-t500">rung4-deep-t500</a></td><td class="grade num"><b>0.136</b><span>chips per hand at 5 million hands per seat</span></td><td><a class="in ship" href="/solver">Range explorer</a><a class="in ship" href="/learn">Learn</a></td><td><code>uv run minidraw-ranges --release deep-pi</code></td></tr><tr><td class="k"><code>deep-exact</code><span class="sub">Deep CFR, 4 × 256 net, the exact average at iteration 500</span><span class="asset">deep-256x4-s16000-lr5e-4-t500-exact.npz</span></td><td class="date num">2026-10-26</td><td class="tag"><a class="in" href="https://github.com/AlecROndo/drawmaha-solver/releases/tag/rung4-deep-t500">rung4-deep-t500</a></td><td class="grade num"><b>0.108</b><span>chips per hand at 5 million hands per seat</span></td><td><a class="in ship" href="/solver">Range explorer</a><a class="in ship" href="/learn">Learn</a></td><td><code>uv run minidraw-ranges --release deep-exact</code></td></tr><tr><td class="k"><code>tabular</code><span class="sub">Tabular LCFR, the linear average at 2,000,000 iterations</span><span class="asset">strategy-lcfr-2m.npz</span></td><td class="date num">2026-10-02</td><td class="tag"><a class="in" href="https://github.com/AlecROndo/drawmaha-solver/releases/tag/rung3-lcfr-2m">rung3-lcfr-2m</a></td><td class="grade num"><b>0.061</b><span>chips per hand at 20 million hands per seat</span></td><td><a class="in ship" href="/solver">Range explorer</a><a class="in ship" href="/learn">Learn</a></td><td><code>uv run minidraw-ranges --release tabular</code></td></tr></tbody></table>
+  <p class="note">The catalogue is <code>RELEASES</code> in <code>src/drawmaha_solver/minidrawmaha/answer/releases.py</code>; each grade is read from the file and key it names (<code>figures/rung3/answer_sheet.json</code>, <code>figures/rung4/</code>). An export copies the grade into its manifest, and the tests hold the copy to the file.</p>
+</section>
+
 </main>
 <footer>
   <div class="wrap">
     <div class="foot-cols">
       <div class="foot-about">
-        <a class="chip-end" href="/" aria-label="Drawmaha home"><canvas data-chip data-speed="0.32" aria-hidden="true"></canvas></a>
-        <p>A research project by Alec Ondo. A heads-up pot-limit Drawmaha solver, built one solved game at a time, each graded against a known answer. Python, NumPy and torch; training on Modal; the site on Vercel. The code, the graders and the data behind every figure are public.</p>
+        <a class="chip-end" href="/" aria-label="Drawmaha home"><canvas aria-hidden="true"></canvas></a>
+        <p>A research project by Alec Ondo. A heads-up pot-limit Drawmaha solver, built one game at a time, each graded against a known answer. Python, NumPy and torch; training on Modal; the site on Vercel. The code, the graders and the data behind every figure are public.</p>
       </div>
       <div>
         <h4>Product</h4>
@@ -79,6 +148,12 @@
   </div>
 </footer>
 <script src="/chip.js"></script>
-<script>if (window.mountChips) mountChips();</script>
+<script>
+(function () {
+  var colours = { mark: '#16140f', ink: '#8e2038' };
+  mountChip(document.querySelector('.chip-home canvas'), { font: 1.5, mark: colours.mark, ink: colours.ink });
+  mountChip(document.querySelector('.chip-end canvas'), { font: 1.5, speed: 0.32, mark: colours.mark, ink: colours.ink });
+})();
+</script>
 </body>
 </html>
