@@ -86,7 +86,7 @@ PRESSABLES = {
     # the range interface: the score's chips, the header's controls, the filter
     # chips, the grid's cells, the ledger's rows, the ribbon's keys, the deck,
     # and the hand so far's steps, options, board cards and picker cards
-    "solver-viz": (".score .act", ".hbtn", ".seg button", ".cell", ".lrow", ".key", ".dcard", ".sofar .tok", ".sofar .opt", ".sofar .bp", ".sofar .pk"),
+    "solver-viz": (".score .act", ".hbtn", ".cell", ".lrow", ".key", ".dcard", ".sofar .tok", ".sofar .opt", ".sofar .bp", ".sofar .pk"),
     # the pages read their chrome from the linked theme; the Cover, kept as an
     # archive, still inlines the old chrome and its Rungs menu
     "index.html": (".btn", ".navbtn"),
@@ -551,10 +551,6 @@ GUEST = "solver-viz"
 LOADED_BY_RUNG3 = ("rung3-viz", "theme")
 SHARED_SELECTORS = {":root", ".block"}
 WIDE = "body.wide "
-# The theme now owns the segmented control (`.seg`); solver-viz still styles
-# its own under the same name until its restyle drops those rules for the
-# theme's. A real, temporary override on /rung3's Learn tab, allowed by name.
-OVERRIDDEN_UNTIL_RESTYLED = (".seg",)
 
 
 def _by_selector(name: str) -> dict[str, list[Rule]]:
@@ -578,13 +574,12 @@ def _bodies(rules: list[Rule]) -> list[list[str]]:
 def test_the_solver_sheet_shares_only_root_and_block_with_what_rung3_loads(host: str) -> None:
     guest, other = _by_selector(GUEST), _by_selector(host)
     collisions = (set(guest) & set(other)) - SHARED_SELECTORS
-    collisions = {s for s in collisions if not s.startswith(OVERRIDDEN_UNTIL_RESTYLED)}
     assert not collisions, (
         f"{GUEST}/src/index.css and {host} both style {sorted(collisions)}: on /rung3 "
         "the later sheet wins on every tab, not only Learn"
     )
     assert not _tokens(guest[":root"]) & _tokens(other[":root"]), "the two :root blocks redefine a token"
-    if ".block" in other:
+    if ".block" in other and ".block" in guest:
         assert _bodies(guest[".block"]) == _bodies(other[".block"]), ".block is declared differently by the two sheets"
 
 

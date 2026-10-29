@@ -432,11 +432,6 @@ h2 em {
   font-weight: 500;
 }
 
-/* the old hero's copy block: solver-viz still widens it under body.wide; its restyle retires both */
-.hero-copy {
-  min-width: 0;
-}
-
 /* ---------- the split: eyebrow and sentences at left, the thing at right -- */
 
 .split {
