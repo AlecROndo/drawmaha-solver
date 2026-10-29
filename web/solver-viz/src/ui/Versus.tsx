@@ -29,9 +29,7 @@ export interface Equity {
   scooped: number
 }
 
-const INK: Record<'f' | 'c' | 'p', string> = { f: '245,240,230', c: '233,184,98', p: '216,86,111' }
-
-/** A thumbnail of the two-half grid: ink = `weight(cell)`, colour = the cell's dominant action (or ivory when `plain`). */
+/** A thumbnail of the two-half grid: depth = `weight(cell)`, colour = the cell's dominant action (or ink when `plain`). */
 export function Thumb({ game, view, weight, plain, hover, onHover }: { game: GameUI; view: GridView; weight: (c: Cell) => number; plain?: boolean; hover?: { row: number; col: number } | null; onHover?: (p: { row: number; col: number } | null) => void }) {
   const INNER_ROWS = game.rows
   const OUTER_COLS = game.cols
@@ -44,13 +42,13 @@ export function Thumb({ game, view, weight, plain, hover, onHover }: { game: Gam
           const c = view.cells[i][j]
           if (c.n === 0) return <i key={`${i}-${j}`} className="void" />
           const a = Math.pow(weight(c) / max, 0.5)
-          const ink = plain ? INK.f : INK[dominant(c)]
+          const ink = plain ? 'var(--ink)' : `var(--rx-${dominant(c)})`
           const hov = hover && hover.row === i && hover.col === j
           return (
             <i
               key={`${i}-${j}`}
               className={hov ? 'hov' : ''}
-              style={{ background: `rgba(${ink},${(0.05 + 0.9 * Math.min(1, a)).toFixed(2)})` }}
+              style={{ background: `color-mix(in srgb, ${ink} ${(5 + 85 * Math.min(1, a)).toFixed(0)}%, var(--paper-2))` }}
               onMouseEnter={() => onHover?.({ row: i, col: j })}
               title={`${INNER_ROWS[i].label} × ${OUTER_COLS[j].label} · ${pct(c.share)}`}
             />
@@ -99,7 +97,7 @@ export function Versus({
             <span className="dimmer">{pct0(theirKept)} kept</span>
           </div>
           <Thumb game={game} view={theirs} weight={theirWeight} />
-          <p className="legend-line">ink = how much of their range is here after they {villainAct === 'pot' ? 'bet' : 'checked'} · colour = what the region mostly did</p>
+          <p className="legend-line">depth = how much of their range is here after they {villainAct === 'pot' ? 'bet' : 'checked'} · colour = what the region mostly did</p>
         </div>
         <div className="mid">
           <div className="vsn">vs</div>
@@ -132,7 +130,7 @@ export function Versus({
             <span className="dimmer">colour = your mix</span>
           </div>
           <Thumb game={game} view={mine} weight={(c) => c.share} hover={hover} onHover={setHover} />
-          <p className="legend-line">ink = share of your range · colour = what the region mostly does now</p>
+          <p className="legend-line">depth = share of your range · colour = what the region mostly does now</p>
         </div>
       </div>
 
@@ -155,7 +153,7 @@ export function Versus({
         <Frame who="you · draw" what="throw" kept="" keptLabel="throw-count mix">
           <ThrowBars t={throwsMine} />
         </Frame>
-        <Frame who="turn" what="needs rung 4" kept="—">
+        <Frame who="turn" what="needs the network" kept="—">
           <div className="heat" style={{ gridTemplateColumns: `repeat(${OUTER_COLS.length}, 1fr)` }}>
             {Array.from({ length: INNER_ROWS.length * OUTER_COLS.length }, (_, k) => (
               <i key={k} className="void" />
@@ -187,7 +185,7 @@ function ThrowBars({ t }: { t: number[] }) {
   return (
     <div className="throwbars" aria-label="how many cards the range throws, stand pat through five">
       {t.map((v, k) => (
-        <i key={k} style={{ height: `${Math.max(4, v * 100)}%`, background: `rgba(233,184,98,${(0.3 + k * 0.13).toFixed(2)})` }} title={`${k === 0 ? 'stand pat' : `throw ${k}`} ${pct0(v)}`} />
+        <i key={k} style={{ height: `${Math.max(4, v * 100)}%`, background: `color-mix(in srgb, var(--ink) ${(30 + k * 13).toFixed(0)}%, var(--paper-2))` }} title={`${k === 0 ? 'stand pat' : `throw ${k}`} ${pct0(v)}`} />
       ))}
     </div>
   )

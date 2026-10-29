@@ -4,11 +4,11 @@
  * was played: the board card, each action tagged with its seat, each draw,
  * board card 2. The pot ticks along under every token, the street names sit
  * above the group they begin, and the decision on screen is the strip's live
- * head: a yellow-edged token holding the actor's options. There is no grid,
+ * head: an ink-edged token holding the actor's options. There is no grid,
  * so there is no cell with nothing in it.
  */
 
-import { type Step, byStreet, endWords, headLabel, headOf, rewindLabel, stepsOf, streetOf } from './steps'
+import { type Step, byStreet, endWords, headLabel, headOf, hueOf, rewindLabel, stepsOf, streetOf } from './steps'
 import { BoardPick, Hint, Opts, Picker, type ScoreProps } from './parts'
 
 export function StripScore(props: ScoreProps) {
@@ -45,7 +45,7 @@ export function StripScore(props: ScoreProps) {
     return (
       <div key={i} className="tok-wrap">
         <small className="who">seat {s.seat}</small>
-        <button type="button" className={`tok ${s.tone}`} onClick={() => onLine(s.back)} aria-label={rewindLabel(s)}>
+        <button type="button" className={`tok ${hueOf(s.tone, s.word)}`} onClick={() => onLine(s.back)} aria-label={rewindLabel(s)}>
           {s.word}
         </button>
         <small className="potline">pot {s.pot}</small>

@@ -1,19 +1,23 @@
 /**
- * Mini-drawmaha's range window, over a frozen strategy: the hand so far as
- * a path with the next decision forking off its tip (`sofar/`), then the window — the spot
- * header whose controls open the secondary views, the two-half grid beside
- * the ribbon and the plane, the ledger under the grid, the draw board in
- * the grid's place at a draw decision — and, on the second tab, the other
- * seat's range beside yours with exact showdown equities.
+ * Mini-drawmaha's range explorer, over a frozen strategy, as a tool in three
+ * columns. At left, the hand so far as a path with the next decision
+ * branching off its foot (`sofar/`), the grid's two filters and the deck
+ * that builds a hand. In the centre, the spot's head — who acts, the whole
+ * range's mix, the keys that open the panes and sort the ledger — over the
+ * two-half grid, or the draw board at a draw. At right, the selected region,
+ * this spot's figures, the strength ribbon, the equity plane, the ledger and
+ * the strategy switch. The second tab puts the other seat's range beside the
+ * actor's with exact showdown equities, across the centre and right.
  *
- * Which strategy is a switch above the score (`mini/strategies.ts`): rung
- * 3's tabular LCFR average, or rung 4's Deep CFR at iteration 500 as Π, the
- * policy net, or as the exact average. The switch changes one thing, the
- * export the ranges are read from; the line, the held cards, the filters,
- * the pin and the sort are view state and stay put, which is honest because
- * the three exports enumerate the same states at every spot and differ only
- * in each state's mix. The status line names the strategy showing and
- * quotes its graded exploitability, both read from the loaded manifest.
+ * Which strategy is the switch at the foot of the right column (and the
+ * select in the page head, the same state; `mini/strategies.ts`): the
+ * tabular LCFR average, or Deep CFR at iteration 500 as Π, the policy net,
+ * or as the exact average. The switch changes one thing, the export the
+ * ranges are read from; the line, the held cards, the filters, the pin and
+ * the sort are view state and stay put, which is honest because the three
+ * exports enumerate the same states at every spot and differ only in each
+ * state's mix. "This spot" names the strategy showing and quotes its graded
+ * exploitability, both read from the loaded manifest.
  *
  * Every number is the solver's, read from its export and exact to that
  * export's 1/250 rounding (`mini/range.ts`). The actor's range at a decision
@@ -37,7 +41,7 @@ import type { MiniSpot } from '../mini/points'
 import { type MiniRange as Range, equities, reachRange } from '../mini/range'
 import { MINI_INNER_ROWS, MINI_R1_COLS, MINI_R2_COLS } from '../mini/regions'
 import { STRATEGIES, Strategies, type StrategyId, describeStrategy, strategyChoice } from '../mini/strategies'
-import { CardFace, MixBar, actionWord, count, pct, pct0 } from './bars'
+import { MixBar, actionWord, count, pct, pct0 } from './bars'
 import { Deck } from './Deck'
 import { DrawBoard } from './DrawBoard'
 import type { GameUI } from './game'
@@ -46,11 +50,14 @@ import { Ledger } from './Ledger'
 import { type MiniLine, decisionOf, linesOf, nextOptions } from './MiniScore'
 import { Panes } from './Panes'
 import { Plane } from './Plane'
-import { Ribbon } from './Ribbon'
+import { Ribbon, type RibbonView } from './Ribbon'
 import type { TabId } from './hash'
 import { Sheet } from './Sheet'
+import { SpotHead } from './SpotHead'
+import { Filters } from './Filters'
+import { HeldSlots, Section, Selected, Stats } from './Tool'
+import { headOf } from './sofar/steps'
 import { HandScore } from './sofar'
-import { Panel } from './site'
 import { Thumb } from './Versus'
 import type { Opened, SortKey } from './SpotHead'
 
@@ -194,7 +201,9 @@ export function MiniRange({
   const [pin, setPin] = useState<Pin | null>(null)
   const [opened, setOpened] = useState<Opened>(null)
   const [sort, setSort] = useState<SortKey>(null)
-  const [rkey, setRkey] = useState<RibbonKey>('total')
+  const [rview, setRview] = useState<RibbonView>('class')
+  // The key the sorted ribbon and the held hand's percentile read; the class stack reads none.
+  const rkey: RibbonKey = rview === 'class' ? 'total' : rview
   const [hover, setHover] = useState<Pin | null>(null)
 
   const decision = decisionOf(line)
@@ -351,217 +360,207 @@ export function MiniRange({
   )
 
   const words = data ? describeStrategy(data.index) : null
+  const pot = headOf(line).pot
   const title =
-    decision.kind === 'bet' ? `Seat ${decision.player} to act, round ${decision.round}` : decision.kind === 'draw' ? `Seat ${decision.player} to draw` : decision.kind === 'board2' ? 'Board card 2 is owed' : decision.why === 'fold' ? 'The hand ended on a fold' : 'Showdown'
-  const sub = current ? `${count(current.mine.n)} private states · ${current.spot.board.length === 1 ? 'one board card: the inner half can be scored now, the outer half cannot' : 'both board cards out: both halves scored exactly'}` : loadError ? '' : computing ? 'computing the exact range…' : data ? 'click a chip to rewind' : 'loading the strategy’s export…'
+    decision.kind === 'bet'
+      ? `Seat ${decision.player} to act, ${node === 'facing' ? 'facing a bet' : 'first to bet'}`
+      : decision.kind === 'draw'
+        ? `Seat ${decision.player} to draw`
+        : decision.kind === 'board2'
+          ? 'Board card 2 is owed'
+          : decision.why === 'fold'
+            ? 'The hand ended on a fold'
+            : 'Showdown'
+  const sub = decision.kind === 'bet' ? `round ${decision.round}, pot ${pot}` : decision.kind === 'draw' ? `stand pat or throw one, pot ${pot}` : decision.kind === 'board2' ? 'pick it in the hand so far' : `pot ${pot}`
+  const status = loadError ? null : !data ? 'Loading the strategy’s export…' : spot === null ? null : computing && !current ? 'Computing the exact range…' : switching ? `Loading ${strategyChoice(strategy).label}…` : null
+  const waiting = spot === null ? 'No decision stands here. Rewind with a step, or pick board card 2.' : (status ?? loadError ?? 'Loading…')
+
+  const handSoFar = (
+    <Section title="Hand so far">
+      <HandScore game={game} line={line} onLine={onLine} picking={picking} onPick={setPicking} shares={shares} />
+    </Section>
+  )
+  const deckSection = (
+    <Section title="Deck · build a hand">
+      <div className="rx-held">
+        <HeldSlots game={game} held={held} onUnhold={toggleHeld} />
+        <span className="rx-held-n">
+          {view && current ? (
+            mask ? (
+              <>
+                <b>{pct(view.all.share)}</b> of the range · {count(view.all.n)} of {count(current.mine.n)} states
+              </>
+            ) : (
+              <>
+                <b>100%</b> of the range · {count(current.mine.n)} states
+              </>
+            )
+          ) : (
+            '—'
+          )}
+        </span>
+      </div>
+      {deck ? <Deck game={game} board={line.board2 === null ? [line.board1] : [line.board1, line.board2]} held={held} potLift={deck.potLift} onToggle={toggleHeld} /> : null}
+    </Section>
+  )
+  const strategySection = (
+    <Section title="Strategy">
+      <div className="radios rx-strats" role="radiogroup" aria-label="the strategy showing">
+        {STRATEGIES.map((s) => {
+          const m = manifests[s.id]
+          const g = m ? describeStrategy(m).grade : null
+          return (
+            <label key={s.id}>
+              <input type="radio" name="rx-strategy" checked={strategy === s.id} onChange={() => onStrategy(s.id)} />
+              <span className="nm">{s.label}</span>
+              <span className="v">{g ?? '—'}</span>
+            </label>
+          )
+        })}
+      </div>
+      <p className="legend-line">The number is each strategy’s exploitability in chips per hand. The spot, your cards and the filters stay; only the strategy under them changes.</p>
+    </Section>
+  )
 
   return (
     <>
-      <div className="block strat" role="radiogroup" aria-label="the strategy showing">
-        <span className="lbl">strategy</span>
-        <div className="seg">
-          {STRATEGIES.map((s) => {
-            const m = manifests[s.id]
-            const g = m ? describeStrategy(m).grade : null
-            return (
-              <button key={s.id} type="button" role="radio" aria-checked={strategy === s.id} className={strategy === s.id ? 'on' : ''} onClick={() => onStrategy(s.id)}>
-                <b>{s.label}</b>
-                <span>
-                  {s.blurb}
-                  {g ? ` · exploitability ${g}` : ''}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-        <span className="hint">the spot, your cards and the filters stay; the strategy under them changes</span>
-      </div>
+      <div className={`rx ${tab === 'versus' ? 'rx-vs' : ''}`} data-node={isDraw ? 'open' : node}>
+        <aside className="rx-left">
+          {handSoFar}
+          {tab === 'range' && current && whole && !isDraw && <Filters game={game} whole={whole} rows={rows} cols={cols} onRows={setRows} onCols={setCols} />}
+          {deckSection}
+        </aside>
 
-      <div className="block">
-        <Panel n="01" k="the hand so far — click a chip to rewind, a board card to change it" wide>
-          <HandScore game={game} line={line} onLine={onLine} picking={picking} onPick={setPicking} shares={shares} />
-        </Panel>
-      </div>
-
-      {tab === 'range' ? (
-        <div className="block">
-          <section className="panel wide rangewin" aria-label="the actor's range at this spot">
-            <div className="titlebar">
-              <span className="dots">
-                <i />
-                <i />
-                <i />
-              </span>
-              <span className="k">02 · the range to act</span>
-              <span className="no">02</span>
-            </div>
-            <div className="pane">
-              <div className="spothead mini">
-                <div className="who">
-                  {title}
-                  <small>{sub}</small>
-                  {loadError && <em className="err">{loadError}</em>}
-                </div>
-                <div className="mixblock">
-                  {current && whole && !isDraw && (
-                    <>
-                      <button type="button" className={`hbtn mixbtn ${opened === 'panes' ? 'on' : ''}`} onClick={() => setOpened(opened === 'panes' ? null : 'panes')} aria-expanded={opened === 'panes'} aria-label="the whole range's mix; opens one map per action">
-                        <MixBar mix={whole.all} h={10} />
-                      </button>
-                      <div className="acts">
-                        {(node === 'facing' ? (['f', 'c', 'p'] as const) : (['c', 'p'] as const)).map((k) => (
-                          <button key={k} type="button" className={`hbtn act-${k} ${sort === k ? 'on' : ''}`} onClick={() => setSort(sort === k ? null : k)} aria-pressed={sort === k}>
-                            <i />
-                            {actionWord(k, node)} <b>{pct(whole.all[k])}</b>
-                          </button>
-                        ))}
-                        <span className="hint">{sort ? `ledger sorted by ${actionWord(sort, node)}` : 'click an action to open the ledger'}</span>
-                      </div>
-                    </>
-                  )}
-                  {current && isDraw && shares && (
-                    <span className="mixkey">
-                      <span className="c">
-                        <i />
-                        stand pat <b>{pct0(shares['0'] ?? 0)}</b>
-                      </span>
-                      <span className="p">
-                        <i />
-                        throw one <b>{pct0(shares['1'] ?? 0)}</b>
-                      </span>
-                      <span className="dimmer">which card: the board below, by the hand's canonical order</span>
+        {tab === 'range' ? (
+          <>
+            <div className="rx-centre">
+              <SpotHead title={title} sub={sub} error={loadError} node={node} all={current && whole && !isDraw ? whole.all : null} opened={opened} onOpen={setOpened} sort={sort} onSort={setSort}>
+                {current && isDraw && shares && (
+                  <span className="mixkey">
+                    <span className="c">
+                      <i />
+                      stand pat <b>{pct0(shares['0'] ?? 0)}</b>
                     </span>
-                  )}
-                </div>
-                <div className="holdblock">
-                  <button type="button" className={`hbtn cardsbtn ${opened === 'deck' ? 'on' : ''}`} onClick={() => setOpened(opened === 'deck' ? null : 'deck')} aria-expanded={opened === 'deck'}>
-                    cards
-                  </button>
-                  <span className="holding" aria-label="the cards you have placed">
-                    {Array.from({ length: 3 }, (_, i) =>
-                      held[i] !== undefined ? (
-                        <button key={held[i]} type="button" className="hbtn heldcard" onClick={() => toggleHeld(held[i])} aria-label="remove the card">
-                          <CardFace game={game} card={held[i]} />
-                        </button>
-                      ) : (
-                        <CardFace key={`g${i}`} game={game} ghost />
-                      ),
-                    )}
+                    <span className="p">
+                      <i />
+                      throw one <b>{pct0(shares['1'] ?? 0)}</b>
+                    </span>
+                    <span>which card: the board below, by the hand’s canonical order</span>
                   </span>
-                  <span className="count">
-                    {view && current ? (
-                      <>
-                        <b>{pct(view.all.share)}</b> of the range
-                        <br />
-                        {mask ? `${count(view.all.n)} of ${count(current.mine.n)} states in the filter` : `${count(current.mine.n)} states · exact`}
-                      </>
-                    ) : (
-                      <>
-                        <b>—</b>
-                      </>
-                    )}
-                  </span>
-                </div>
-              </div>
+                )}
+              </SpotHead>
+              {status && <p className="rx-status">{status}</p>}
 
               {opened === 'panes' && view && (
-                <Sheet title="one pane per action" onClose={() => setOpened(null)}>
+                <Sheet title="One map per action" onClose={() => setOpened(null)}>
                   <Panes game={game} view={view} node={node} />
-                </Sheet>
-              )}
-              {opened === 'deck' && deck && (
-                <Sheet title="the deck · tap cards to hold them" onClose={() => setOpened(null)}>
-                  <Deck game={game} board={line.board2 === null ? [line.board1] : [line.board1, line.board2]} held={held} potLift={deck.potLift} onToggle={toggleHeld} />
                 </Sheet>
               )}
               {full && view && current && view.all.n > 0 && view.all.share === 0 && (
                 <div className="handanswer">
-                  <span className="lbl">your hand</span>
-                  <span className="nums">
-                    the strategy never brings this hand here: at an earlier decision it took another action with probability one, so its reach is zero
-                  </span>
+                  <span className="lbl">Your hand</span>
+                  <span className="nums">The strategy never brings this hand here: at an earlier decision it took another action with probability one, so its reach is zero.</span>
                 </div>
               )}
               {full && view && current && !isDraw && view.all.n > 0 && view.all.share > 0 && (
                 <div className="handanswer">
-                  <span className="lbl">your hand · {node === 'facing' ? 'fold / call / pot' : 'check / pot'}</span>
-                  <MixBar mix={view.all} h={10} />
+                  <span className="lbl">Your hand</span>
+                  <MixBar mix={view.all} h={8} />
                   <span className="nums">
-                    {node === 'facing' && <>fold <b>{pct0(view.all.f)}</b> · </>}
+                    {node === 'facing' && (
+                      <>
+                        fold <b>{pct0(view.all.f)}</b> ·{' '}
+                      </>
+                    )}
                     {actionWord('c', node)} <b>{pct0(view.all.c)}</b> · pot <b>{pct0(view.all.p)}</b>
-                    {handRow >= 0 && table && <> · inner equity <b>{pct0(table.eqI[handRow])}</b>{table.eqO && <> · outer <b>{pct0(table.eqO[handRow])}</b></>}</>}
+                    {handRow >= 0 && table && (
+                      <>
+                        {' '}
+                        · inner equity <b>{pct0(table.eqI[handRow])}</b>
+                        {table.eqO && (
+                          <>
+                            {' '}
+                            · outer <b>{pct0(table.eqO[handRow])}</b>
+                          </>
+                        )}
+                      </>
+                    )}
                   </span>
                 </div>
               )}
 
               {view && table && current ? (
-                <div className="body">
-                  <div className="main">
-                    {isDraw ? (
-                      <DrawBoard game={game} options={THROW_OPTIONS} table={draws ?? []} hand={handThrow} fullHint="place three cards (the cards button) to see which of them is thrown" />
-                    ) : (
-                      <>
-                        <Grid game={game} view={view} node={node} rows={rows} cols={cols} pin={pin && pin.row >= 0 ? pin : null} onRows={setRows} onCols={setCols} onPin={setPin} />
-                        {(pin || sort) && <Ledger game={game} view={view} node={node} sort={sort} pin={pin && pin.row >= 0 ? pin : null} onPin={setPin} examplesFor={examplesFor} />}
-                      </>
-                    )}
-                  </div>
-                  {!isDraw && (
-                    <aside className="side">
-                      <Ribbon bins={ribbonBins} rkey={table.eqO ? rkey : rkey === 'outer' || rkey === 'scoop' ? 'inner' : rkey} onKey={setRkey} percentile={handPct} all={view.all} />
-                      {plane ? <Plane cells={plane} bins={PLANE_BINS} hand={handPoint} /> : <p className="legend-line">the equity plane needs both board cards: with one out, only the inner half can be scored</p>}
-                    </aside>
-                  )}
-                </div>
+                isDraw ? (
+                  <DrawBoard game={game} options={THROW_OPTIONS} table={draws ?? []} hand={handThrow} fullHint="Place three cards from the deck to see which of them is thrown." />
+                ) : (
+                  <Grid game={game} view={view} node={node} rows={rows} cols={cols} pin={pin && pin.row >= 0 ? pin : null} onPin={setPin} />
+                )
               ) : (
-                <p className="legend-line" style={{ marginTop: 18 }}>
-                  {spot === null ? 'no decision stands here — rewind with a chip, or pick board card 2' : computing ? 'computing…' : loadError ?? 'loading…'}
-                </p>
+                <p className="legend-line">{waiting}</p>
               )}
             </div>
-            <div className="statusbar">
-              <span>
-                {words ? (
-                  <>
-                    <b>{words.name}</b> · {words.detail}
-                    {words.grade ? (
-                      <>
-                        {' '}
-                        · exploitability <b>{words.grade}</b> chips/hand
-                      </>
-                    ) : (
-                      ' · ungraded'
-                    )}
-                    {switching ? ` · loading ${strategyChoice(strategy).label}…` : ' · every number is this strategy’s'}
-                  </>
-                ) : loadError ? (
-                  'the strategy’s export did not load'
-                ) : (
-                  'loading the strategy’s export…'
-                )}
-              </span>
-              <span>{current ? `${count(current.mine.n)} states enumerated exactly · reach-weighted` : ''}</span>
-            </div>
-          </section>
-        </div>
-      ) : (
-        <div className="block">
-          <Panel n="02" k="range vs range — the other seat's range beside the actor's, with exact showdown equities" wide>
+
+            <aside className="rx-right">
+              {view && current && pin && pin.row >= 0 && pin.col >= 0 && !isDraw && (
+                <Selected
+                  name={
+                    <>
+                      {game.rows[pin.row].label} <span>×</span> {game.cols[pin.col].label}
+                    </>
+                  }
+                  cell={view.cells[pin.row][pin.col]}
+                  node={node}
+                  noun="Private states"
+                  onClear={() => setPin(null)}
+                />
+              )}
+              <Section title="This spot">
+                <Stats
+                  rows={[
+                    ['Private states', current ? count(current.mine.n) : '—'],
+                    ['Of the range in view', view && current ? pct(view.all.share) : '—'],
+                    ['Pot', String(pot)],
+                    ['Halves scored now', current ? (current.spot.board.length === 1 ? 'inner only' : 'inner and outer') : '—'],
+                    ['Strategy', shown ? strategyChoice(shown).label : '—'],
+                    ['Exploitability', words?.grade ? `${words.grade} chips/hand` : words ? 'ungraded' : '—'],
+                  ]}
+                />
+                {words && <p className="legend-line">{words.detail}. Every number here is this strategy’s, enumerated exactly and weighted by reach.</p>}
+              </Section>
+              {view && table && current && !isDraw && (
+                <>
+                  <Section title="Strength ribbon">
+                    <Ribbon bins={ribbonBins} classes={game.rows.map((r, i) => ({ label: r.label, cell: view.rows[i] }))} rview={rview} onView={setRview} percentile={rview === 'class' ? null : handPct} />
+                  </Section>
+                  <Section title="The two equities">
+                    {plane ? <Plane cells={plane} bins={PLANE_BINS} hand={handPoint} /> : <p className="legend-line">The plane needs both board cards: with one out, only the inner half can be scored.</p>}
+                  </Section>
+                  <Section title="Ledger · by class" aside={sort ? `sorted by ${actionWord(sort, node)}` : undefined}>
+                    <Ledger game={game} view={view} node={node} sort={sort} pin={pin && pin.row >= 0 ? pin : null} onPin={setPin} examplesFor={examplesFor} />
+                  </Section>
+                </>
+              )}
+              {strategySection}
+            </aside>
+          </>
+        ) : (
+          <div className="rx-wide">
+            <SpotHead title={title} sub={sub} error={loadError} node={node} all={null} opened={null} onOpen={() => undefined} sort={null} onSort={() => undefined} />
             {whole && theirsView && current ? (
               <div className="versus">
                 <div className="vs">
                   <div className="side">
                     <div className="lbl">
-                      <span>seat {1 - current.spot.player} · their range here</span>
+                      <span>Seat {1 - current.spot.player} · their range here</span>
                       <span className="dimmer">{count(current.theirs.n)} states</span>
                     </div>
                     <Thumb game={game} view={theirsView} weight={(c) => c.share} plain />
-                    <p className="legend-line">ink = how much of their range is here, given what they have done so far{held.length ? ' and the cards you hold' : ''}</p>
+                    <p className="legend-line">Depth is how much of their range is here, given what they have done so far{held.length ? ' and the cards you hold' : ''}.</p>
                   </div>
                   <div className="mid">
                     <div className="vsn">vs</div>
                     <div className="eq">
-                      <span className="dimmer">{hover ? `${game.rows[hover.row].label} × ${game.cols[hover.col].label}` : 'hover a cell on the actor’s side'}</span>
+                      <span className="dimmer">{hover ? `${game.rows[hover.row].label} × ${game.cols[hover.col].label}` : 'Hover a cell on the side to act'}</span>
                       {(() => {
                         const e = hover ? equityOf(hover.row, hover.col) : null
                         return (
@@ -586,36 +585,35 @@ export function MiniRange({
                         )
                       })()}
                     </div>
-                    <span className="dimmer small">{current.spot.board.length === 2 ? 'exact: both halves scored, pairs with a shared card skipped' : 'one board card out: the outer half is not yet scorable'}</span>
+                    <span className="dimmer small">{current.spot.board.length === 2 ? 'Exact: both halves scored, pairs with a shared card skipped.' : 'One board card out: the outer half is not yet scorable.'}</span>
                   </div>
                   <div className="side">
                     <div className="lbl">
-                      <span>seat {current.spot.player} · to act · whole range</span>
+                      <span>Seat {current.spot.player} · to act · whole range</span>
                       <span className="dimmer">colour = its mix</span>
                     </div>
                     <Thumb game={game} view={whole} weight={(c) => c.share} hover={hover} onHover={setHover} />
-                    <p className="legend-line">ink = share of the range · colour = what the region mostly does now</p>
+                    <p className="legend-line">Depth is the share of the range; colour is what the region mostly does now.</p>
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="legend-line">{spot === null ? 'no decision stands here — rewind with a chip, or pick board card 2' : 'computing…'}</p>
+              <p className="legend-line">{waiting}</p>
             )}
-          </Panel>
-        </div>
-      )}
+            {strategySection}
+          </div>
+        )}
+      </div>
 
-      <p className="foot">
-        Three strategies of one game sit behind the switch: rung 3’s tabular LCFR average (2M lockstep iterations, 20M
-        hands per seat), and rung 4’s Deep CFR at iteration 500 (5M hands per seat) as Π, the policy net — the average a
-        game too big for tables can keep — and as the exact average of its iterates. Each is exported once per public
-        decision point (141 of them) as the mix of every private key — 6.2 million rows — and the browser rebuilds the
-        ranges exactly: it enumerates every hole (and discard) the actor could hold given the board, relabels suits
-        jointly the way the solver’s key does, reads each state’s mix, and weights the state by the product of the actor’s
-        own action probabilities along the line. The states a spot holds are the same under all three; only their weights
-        and mixes change. Nothing here is sampled or illustrative; the one rounding is the export’s, where each
-        probability is a byte in 1/250ths, so an action the strategy takes under 0.2% of the time reads as never. The
-        exploitability quoted is the exact best response’s, from the committed grades file the manifest names.
+      <p className="foot rx-foot">
+        Three strategies of one game sit behind the switch: the tabular LCFR average (2M lockstep iterations, 20M hands per seat) and Deep CFR
+        at iteration 500 (5M hands per seat), as Π, its policy net — the average a game too big for tables can keep — and as the exact average
+        of its iterates. Each is exported once per public decision point (141 of them) as the mix of every private key, 6.2 million rows, and the
+        browser rebuilds the ranges exactly: it enumerates every hole (and discard) the actor could hold given the board, relabels suits jointly
+        the way the solver’s key does, and weights each state by the product of the actor’s own action probabilities along the line. The states a
+        spot holds are the same under all three; only their weights and mixes change. Nothing here is sampled or illustrative; the one rounding
+        is the export’s, a byte per probability in 1/250ths, so an action taken under 0.2% of the time reads as never. The exploitability quoted
+        is the exact best response’s, from the committed grades file the manifest names.
       </p>
     </>
   )
