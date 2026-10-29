@@ -1,6 +1,6 @@
 /**
  * One pane per action: the two-half map drawn once per action, each shaded
- * by that action's frequency alone, with the regions that take it most
+ * in that action's colour by its frequency alone, with the regions that take it most
  * listed beneath. You compare panes instead of decoding bands; "which hands
  * raise here?" is one pane, read directly. Opened from the header's mix bar.
  */
@@ -9,8 +9,6 @@ import type { GridView } from '../engine/aggregate'
 import type { Node } from '../engine/policy'
 import { actionWord, pct0 } from './bars'
 import type { GameUI } from './game'
-
-const INK: Record<'f' | 'c' | 'p', string> = { f: '245,240,230', c: '233,184,98', p: '216,86,111' }
 
 export function Panes({ game, view, node }: { game: GameUI; view: GridView; node: Node }) {
   const INNER_ROWS = game.rows
@@ -37,8 +35,8 @@ export function Panes({ game, view, node }: { game: GameUI; view: GridView; node
                 return OUTER_COLS.map((_, j) => {
                   const cell = view.cells[i][j]
                   const v = cell.n === 0 ? 0 : cell[k]
-                  const alpha = cell.n === 0 ? 0 : 0.06 + v * (k === 'f' ? 0.5 : 0.94)
-                  return <i key={`${i}-${j}`} style={{ background: `rgba(${INK[k]},${alpha.toFixed(2)})` }} />
+                  const depth = cell.n === 0 ? 0 : 6 + v * 88
+                  return <i key={`${i}-${j}`} style={{ background: `color-mix(in srgb, var(--rx-${k}) ${depth.toFixed(0)}%, var(--paper-2))` }} />
                 })
               })}
             </div>

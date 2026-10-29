@@ -1,10 +1,10 @@
 /**
- * The deck as the filter: the 49 live cards laid out by rank and suit, the
- * board cards face up and inert. Tap a card to hold it; the range narrows
- * to the holdings that contain every held card, five cards is a hand, none
- * is the range. Each card wears a small bar for how over-represented it is
- * in the raising range right now, so the deck is also a map of what the
- * policy likes. Opened from the header's cards button.
+ * The deck as the filter, in the tool's left column: the live cards laid
+ * out by rank and suit, the board cards shown and inert. Press a card to
+ * hold it; the range narrows to the holdings that contain every held card,
+ * a full hand is one hand, none is the range. Each card wears a small bar
+ * for how over-represented it is among the holdings that bet the pot right
+ * now, so the deck is also a map of what the strategy likes.
  */
 
 import type { GameUI } from './game'
@@ -35,7 +35,7 @@ export function Deck({
   const hi = Math.max(...lifts)
   return (
     <div className="deckwrap">
-      <div className={`deck ${ranks.length <= 5 ? 'compact' : ''}`} style={{ gridTemplateColumns: `28px repeat(${ranks.length}, 1fr)` }}>
+      <div className={`deck ${ranks.length <= 5 ? 'compact' : ''}`} style={{ gridTemplateColumns: `16px repeat(${ranks.length}, minmax(0, 1fr))` }}>
         <div />
         {ranks.map((r) => (
           <div key={r} className="rh">
@@ -47,7 +47,7 @@ export function Deck({
         ))}
       </div>
       <p className="legend-line">
-        bar under a card: how over-represented it is among the holdings that raise, relative to the other live cards (full bar = the most) · tap to hold · {held.length} of {game.handSize} placed
+        The bar under a card is how over-represented it is among the holdings that bet the pot; a full bar is the most. {held.length} of {game.handSize} placed.
       </p>
     </div>
   )

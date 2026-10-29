@@ -1,32 +1,58 @@
 /**
- * The solver's range interface: one page, two games. Full Drawmaha runs on
- * a sampled range and an illustrative policy (`ui/FullRange.tsx`, built
- * ahead of the rung-4 network); mini-drawmaha runs on a solved strategy,
- * every number the solver's (`ui/MiniRange.tsx`) — rung 3's tabular LCFR
- * average or either of rung 4's Deep CFR answers, behind a switch on that
- * view. The game switch sits under the hero; each game has the same two
- * tabs, your range and range vs range; and the game, the tab and the
- * strategy live in the URL hash (`ui/hash.ts`) so a view can be linked to.
+ * The range explorer: one page, two games. Full Drawmaha runs on a sampled
+ * range and an illustrative policy (`ui/FullRange.tsx`, built ahead of the
+ * network that will replace the policy); mini-drawmaha runs on a solved
+ * strategy, every number the solver's (`ui/MiniRange.tsx`) — the tabular
+ * LCFR average or either of the Deep CFR answers. The page head carries the
+ * two page-wide choices, the game (a segmented control) and the strategy (a
+ * select, the same state as the radio list in the tool's right column);
+ * under it the two views, your range and range vs range. The game, the view
+ * and the strategy live in the URL hash (`ui/hash.ts`) so a view can be
+ * linked to.
  */
 
 import { useEffect, useLayoutEffect, useState } from 'react'
 
+import { STRATEGIES, Strategies, describeStrategy } from './mini/strategies'
 import { FullRange } from './ui/FullRange'
-import { type View, formatHash, parseHash } from './ui/hash'
+import { type GameId, type View, formatHash, parseHash } from './ui/hash'
 import { MiniRange } from './ui/MiniRange'
-import { Footer, Hero, TopBar } from './ui/site'
+import { Footer, PageHead, TopBar } from './ui/site'
 
 export type { TabId } from './ui/hash'
 
-const GAMES = [
-  { id: 'mini', label: 'Mini-drawmaha · solved', blurb: 'rung 3’s tabular LCFR or rung 4’s Deep CFR, every number the solver’s' },
-  { id: 'full', label: 'Full Drawmaha · illustrative', blurb: 'the interface ahead of rung 4’s network, over a sampled range' },
-] as const
+const GAMES: readonly { id: GameId; label: string }[] = [
+  { id: 'mini', label: 'Mini-drawmaha · solved' },
+  { id: 'full', label: 'Full Drawmaha · illustrative' },
+]
 
 const TABS = [
-  { id: 'range', label: 'Your range', blurb: 'the grid, the ribbon, the ledger, the deck, the draw' },
-  { id: 'versus', label: 'Range vs range', blurb: 'their range beside yours, and the hand as ranges' },
+  { id: 'range', label: 'Your range' },
+  { id: 'versus', label: 'Range vs range' },
 ] as const
+
+/** The strategy select's grades, read from each export's manifest: one small fetch per strategy, kept. */
+function useGrades(): Partial<Record<string, string>> {
+  const [grades, setGrades] = useState<Partial<Record<string, string>>>({})
+  useEffect(() => {
+    const set = new Strategies(import.meta.env.BASE_URL)
+    let live = true
+    for (const s of STRATEGIES) {
+      set
+        .manifest(s.id)
+        .then((m) => {
+          const g = describeStrategy(m).grade
+          if (live && g) setGrades((have) => ({ ...have, [s.id]: g }))
+        })
+        // A manifest that fails only costs its option the grade; choosing it reports the error in the tool.
+        .catch(() => undefined)
+    }
+    return () => {
+      live = false
+    }
+  }, [])
+  return grades
+}
 
 export default function App() {
   const [view, setView] = useState<View>(() => parseHash(location.hash))
@@ -35,63 +61,71 @@ export default function App() {
     addEventListener('hashchange', onHash)
     return () => removeEventListener('hashchange', onHash)
   }, [])
-  // Every view on this page is the wide one (index.css, `body.wide`). A
-  // layout effect, so the page is wide before its first paint rather than
-  // laid out at 1312 px and then again.
+  // The tool wants more than the site's 1160 px column (index.css, `body.wide`).
+  // A layout effect, so the page is wide before its first paint rather than
+  // laid out narrow and then again.
   useLayoutEffect(() => {
     document.body.classList.add('wide')
     return () => document.body.classList.remove('wide')
   }, [])
   const show = (next: View) => {
     setView(next)
-    // Replace rather than push: the tabs and the switch are views of one page.
+    // Replace rather than push: the tabs and the switches are views of one page.
     history.replaceState(null, '', formatHash(next))
   }
   const { game, tab, strategy } = view
+  const grades = useGrades()
+
+  const controls = (
+    <>
+      <div className="rx-ctl">
+        <span className="rx-ctl-k">Game</span>
+        <div className="seg" role="group" aria-label="Game">
+          {GAMES.map((g) => (
+            <button key={g.id} type="button" aria-pressed={game === g.id} onClick={() => show({ ...view, game: g.id })}>
+              {g.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="rx-ctl">
+        <span className="rx-ctl-k">Strategy</span>
+        {game === 'mini' ? (
+          <select className="rx-select" value={strategy} onChange={(e) => show({ ...view, strategy: e.target.value as View['strategy'] })}>
+            {STRATEGIES.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+                {grades[s.id] ? ` · exploitability ${grades[s.id]}` : ''}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <select className="rx-select" value="illustrative" disabled>
+            <option value="illustrative">Illustrative policy · not a solver’s</option>
+          </select>
+        )}
+      </label>
+    </>
+  )
 
   return (
     <>
       <TopBar here="solver" />
       <main className="wrap">
-        <Hero
-          eyebrow="Rung 4 of 4 · in progress · the interface"
-          title={
-            <>
-              Everything you could have here, <em>and what to do with it.</em>
-            </>
+        <PageHead
+          title="Range explorer"
+          lede={
+            game === 'mini'
+              ? 'The solver’s range at any spot of mini-drawmaha, as the frozen strategy plays it.'
+              : 'Every holding at a flop of Full Drawmaha, sampled exactly; the action mix is illustrative.'
           }
-          icon="cards"
-          iconLabel="Five playing cards fanned, drawn in ASCII"
-        >
-          <p className="lede">
-            Pick a spot. The page lays out every hand you could be holding there, sorted by the two halves of the pot:
-            what your cards make on their own (the <b>inner</b> hand) and what two of them make with the board (the{' '}
-            <b>outer</b> hand). The grid is that map; the ribbon beside it sorts the same hands by strength; the ledger
-            opens any region down to a single hand; the deck lets you build yours card by card; the draw board takes over
-            when the decision is what to throw.
-          </p>
-          <p className="note">
-            <b>Mini-drawmaha is solved</b>: its range at every spot is the reach-weighted set under a frozen strategy —
-            rung 3’s tabular LCFR, or rung 4’s Deep CFR as the policy net Π or as its exact average, chosen by a switch on
-            the view — every percentage is that strategy’s, and the only rounding is the export’s 1/250 step.{' '}
-            <b>Full Drawmaha is not yet</b>: its composition is real (sampled and classified exactly) but its action mix
-            is an illustrative stand-in for the rung-4 network, and the page says so wherever it is drawn.
-          </p>
-        </Hero>
+          controls={controls}
+        />
 
-        <div className="views games" role="tablist" aria-label="Games">
-          {GAMES.map((g) => (
-            <button key={g.id} role="tab" aria-selected={game === g.id} className={game === g.id ? 'view current' : 'view'} onClick={() => show({ ...view, game: g.id })}>
-              <b>{g.label}</b>
-              <span>{g.blurb}</span>
-            </button>
-          ))}
-        </div>
-        <div className="views" role="tablist" aria-label="Views">
+        <div className="views rx-views" role="tablist" aria-label="Views">
           {TABS.map((entry) => (
-            <button key={entry.id} role="tab" aria-selected={tab === entry.id} className={tab === entry.id ? 'view current' : 'view'} onClick={() => show({ ...view, tab: entry.id })}>
+            <button key={entry.id} type="button" role="tab" aria-selected={tab === entry.id} className={tab === entry.id ? 'view current' : 'view'} onClick={() => show({ ...view, tab: entry.id })}>
               <b>{entry.label}</b>
-              <span>{entry.blurb}</span>
             </button>
           ))}
         </div>
