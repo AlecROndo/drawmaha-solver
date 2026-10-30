@@ -625,37 +625,10 @@
   gap: 8px;
 }
 
-/* The cards, as the trainer draws them: a face is white card stock on a
-   hairline with the rank in ink, a back is an oxblood pinstripe, the board's
-   empty seat a dashed outline. */
+/* The cards are the theme's .cardface as a letter card: Leduc has ranks and
+   no suits, so the rank bleeds in the serif in ink. This sheet sets the size. */
 .pcard {
-  width: 50px;
-  height: 70px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font: 500 28px/1 var(--serif);
-  background: #fff;
-  border: 1px solid var(--rule-2);
-  flex: none;
-}
-
-/* the rank's shade yields to the card's own ink on a face */
-.pcard.rank {
-  color: var(--ink);
-}
-
-/* face down: unknowable is unknowable */
-.pcard.back {
-  background: repeating-linear-gradient(45deg, var(--accent) 0 1px, transparent 1px 5px) #fff;
-  border-color: var(--accent);
-}
-
-/* the board's empty seat, before round 1 closes */
-.pcard.empty {
-  border: 1px dashed var(--rule-2);
-  background: transparent;
+  --w: 50px;
 }
 
 .play-buttons {

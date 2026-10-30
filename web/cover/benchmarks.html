@@ -46,10 +46,8 @@ table.hair td.k a { text-decoration: none; }
 table.hair td.k a:hover { color: var(--accent); }
 /* cards */
 .cards { display: flex; gap: 8px; align-items: center; }
-.pc { width: 46px; height: 62px; border: 1px solid var(--rule-2); border-radius: 6px; background: #fffdf8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
-.pc.red { color: var(--accent); }
-.pc.out { opacity: 0.4; text-decoration: line-through; }
-.pc.blank { background: var(--paper-2); border-style: dashed; color: var(--ink-3); }
+.pc { --w: 46px; } /* the theme's .cardface, the bleed pip, at the page's size */
+.pc.out { opacity: 0.4; }
 /* a mix bar: check / fold in blue, bet in the accent */
 .mix { display: flex; height: 8px; gap: 2px; }
 .mix i { display: block; height: 100%; }

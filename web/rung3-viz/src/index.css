@@ -43,8 +43,6 @@
   --seat-p0: var(--series-1);
   --seat-p1: var(--series-2);
 
-  /* the trainer's card face, a shade lighter than the paper it lies on */
-  --card-face: #fffdf8;
 }
 
 /* ---------- the head of every tab ------------------------------------------ */
@@ -650,73 +648,10 @@ table.settled td.k {
   align-self: center;
 }
 
-/* a playing card, the bleed pip: the rank small and sharp in the top-left,
-   one suit glyph too big for the card cropped by its own lower-right edge, in
-   the suit's ink at full strength. Four inks, the action triplet lent to the
-   minor suits: clubs call-green, diamonds check-blue, hearts oxblood. The
-   loan is deliberate: a suit's name carries no rank or meaning, only which
-   cards share a suit does (`canonical()` in minidrawmaha/rules/cards.py
-   renames the suits by one joint permutation and keeps every flush), so a
-   green club beside green call text shares an ink, not a meaning. The ink
-   follows the card's own suit, not the canonical relabelling, so two deals
-   that canonicalise alike can show different inks. Every measure is a
-   fraction of --w so the three sizes are one drawing. A card not yet dealt
-   is a dashed recess; face down is the chip's oxblood pinstripe */
+/* the playing card is the theme's .cardface, the bleed pip; this sheet only
+   sets its sizes: the felt's card, and the coach's small one */
 .pcard {
   --w: 52px;
-  position: relative;
-  flex: none;
-  display: inline-block;
-  overflow: hidden;
-  width: var(--w);
-  height: calc(var(--w) * 1.385);
-  border-radius: 6px;
-  border: 1px solid var(--rule-2);
-  background: var(--card-face);
-  color: var(--ink);
-  line-height: 1;
-}
-
-.pcard b {
-  position: absolute;
-  left: calc(var(--w) * 0.1);
-  top: calc(var(--w) * 0.09);
-  font: 600 calc(var(--w) * 0.36) / 1 var(--sans);
-  letter-spacing: -0.04em;
-  font-variant-numeric: tabular-nums;
-}
-
-.pcard i {
-  position: absolute;
-  right: calc(var(--w) * -0.22);
-  bottom: calc(var(--w) * -0.36);
-  font-style: normal;
-  font-size: calc(var(--w) * 1.25);
-  line-height: 1;
-}
-
-.pcard.s0 i {
-  color: var(--act-call);
-}
-
-.pcard.s1 i {
-  color: var(--act-check);
-}
-
-.pcard.s2 i {
-  color: var(--accent);
-}
-
-.pcard.back {
-  background:
-    repeating-linear-gradient(45deg, color-mix(in srgb, var(--accent) 55%, transparent) 0 1px, transparent 1px 6px),
-    var(--paper-2);
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--rule-2));
-}
-
-.pcard.empty {
-  border-style: dashed;
-  background: var(--paper-2);
 }
 
 .pcard.small {
@@ -848,12 +783,13 @@ table.settled td.k {
   color: var(--ink-2);
 }
 
-.side-main b {
+/* the row's own bold word, not the rank of a coach card it holds */
+.side-main > b {
   font-weight: 500;
   color: var(--ink);
 }
 
-.side-main b small {
+.side-main > b small {
   font-size: 13px;
   font-weight: 400;
   color: var(--ink-3);
@@ -976,16 +912,16 @@ table.settled td.k {
   margin-right: 4px;
 }
 
-/* a card named in a line of type wears its suit's ink, the same three suit inks as the faces */
-.ctext.s0 {
+/* a card named in a line of type wears its suit's ink, the same three the faces wear */
+.ctext.su-c {
   color: var(--act-call);
 }
 
-.ctext.s1 {
+.ctext.su-d {
   color: var(--act-check);
 }
 
-.ctext.s2 {
+.ctext.su-h {
   color: var(--accent);
 }
 

@@ -77,6 +77,21 @@ function settle(hand: Hand): Hand {
   }
 }
 
+/**
+ * A card: the theme's bleed pip as a letter card, the rank small in the
+ * top-left and again too big for the card, cropped by its lower-right edge,
+ * in the card's own ink (the jack's accent, the queen's muted ink, the
+ * king's ink). Kuhn's cards have ranks and no suits.
+ */
+function LetterCard({ rank }: { rank: string }) {
+  return (
+    <span className={`cardglyph cardface letter c-${rank.toLowerCase()}`} role="img" aria-label={rank}>
+      <b>{rank}</b>
+      <i aria-hidden="true">{rank}</i>
+    </span>
+  )
+}
+
 export function PlayPanel() {
   const [hand, setHand] = useState<Hand>(() => runBot(dealHand(0)))
   const [chips, setChips] = useState(0)
@@ -128,15 +143,12 @@ export function PlayPanel() {
             {/* Your card face up, the bot's face down until the hand is over,
                 then turned so you can see whether you were bluffed. */}
             <div className="cards" aria-label="The cards">
-              <div className={`cardglyph c-${CARD_SYMBOL[yourCard].toLowerCase()}`}>
-                {CARD_SYMBOL[yourCard]}
+              <div className="cardslot">
+                <LetterCard rank={CARD_SYMBOL[yourCard]} />
                 <span className="who">you</span>
               </div>
-              <div
-                className={over ? `cardglyph c-${CARD_SYMBOL[botCard].toLowerCase()}` : 'cardglyph back'}
-                aria-label={over ? undefined : 'Bot’s card, face down'}
-              >
-                {over ? CARD_SYMBOL[botCard] : '?'}
+              <div className="cardslot">
+                {over ? <LetterCard rank={CARD_SYMBOL[botCard]} /> : <span className="cardglyph cardface back" role="img" aria-label="Bot’s card, face down" />}
                 <span className="who">bot</span>
               </div>
             </div>
