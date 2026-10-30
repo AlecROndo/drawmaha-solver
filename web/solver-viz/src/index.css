@@ -221,34 +221,16 @@ body.wide footer .wrap {
   vertical-align: middle;
 }
 
+/* a card face is the theme's .cardface, the bleed pip; this sheet sets its two
+   sizes: sm for a hand in a row of text, lg for the holding strip */
 .cf {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 24px;
-  height: 32px;
-  border: 1px solid var(--rule-2);
-  border-radius: 6px;
-  background: #fff;
-  color: var(--ink);
-  font: 500 12px/1 var(--sans);
-}
-
-.cf.red {
-  color: var(--accent);
+  --w: 24px;
 }
 
 .cf.lg {
-  width: 36px;
-  height: 50px;
-  font-size: 15px;
+  --w: 36px;
 }
 
-.cf.ghost {
-  background: var(--paper-2);
-  border-style: dashed;
-}
 
 .mixbar {
   display: flex;
@@ -342,12 +324,13 @@ body.wide footer .wrap {
   color: var(--ink);
 }
 
-.hbtn b {
+/* the button's own number and swatch, not the rank and pip of a card face it holds */
+.hbtn > b {
   color: var(--ink);
   font-weight: 500;
 }
 
-.hbtn i {
+.hbtn > i {
   display: inline-block;
   width: 10px;
   height: 10px;
@@ -1068,39 +1051,58 @@ body.wide footer .wrap {
   color: var(--ink-2);
 }
 
-.deck .sh.red {
+.deck .sh.su-h {
   color: var(--accent);
 }
 
+.deck .sh.su-d {
+  color: var(--act-check);
+}
+
+.deck .sh.su-c {
+  color: var(--act-call);
+}
+
+/* a deck tile is a card face (the theme's .cardface) in a short wide box:
+   the rank top-left, the pip cropped at the lower right, a bar of its pot
+   lift along the foot; held is ink on paper. `.dcard` and `.cardface` weigh
+   the same, so the width and height here beat the theme's only because
+   main.tsx imports theme.css before this sheet; that order is the contract
+   every per-app sheet is built on (web/AGENTS.md) */
 .dcard {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 28px;
+  /* the tile's own width is the card's measure, read by its children in
+     container units; the tile is a short box, so its pip is drawn smaller
+     than a dealt card's and tucked further into the corner. `cqw` resolves
+     against the nearest container *ancestor* of the element that reads it,
+     so --w is for the <b> and the <i>, whose ancestor is this tile. On
+     .dcard itself it would measure the deck's enclosing container instead,
+     which is why the theme's width and height (which read it) are both
+     overridden here and no other rule on the tile reads it */
+  container-type: inline-size;
+  --w: 100cqw;
+  width: auto;
+  height: 30px;
   min-width: 0;
-  border-radius: 6px;
-  background: var(--paper-2);
-  font: 500 11.5px/1 var(--sans);
-  color: var(--ink);
+  padding: 0;
+  cursor: pointer;
   transition:
     background 0.15s,
     color 0.15s,
     transform var(--t-press) var(--ease-out);
 }
 
-.deck.compact .dcard {
-  height: 32px;
-  font-size: 13px;
-  letter-spacing: 0;
+.dcard > i {
+  font-size: calc(var(--w) * 1);
+  right: calc(var(--w) * -0.3);
+  bottom: calc(var(--w) * -0.34);
 }
 
-.dcard.red {
-  color: var(--accent);
+.deck.compact .dcard {
+  height: 40px;
 }
 
 .dcard:hover:not(:disabled) {
-  background: var(--paper-3);
+  background: var(--paper-2);
 }
 
 .dcard:active:not(:disabled) {
@@ -1114,15 +1116,22 @@ body.wide footer .wrap {
 
 .dcard.held {
   background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.dcard.held > i {
   color: var(--paper);
 }
 
 .dcard.board {
-  font-size: 9.5px;
-  letter-spacing: -0.02em;
   background: transparent;
-  border: 1px dashed var(--rule-2);
+  border-style: dashed;
   color: var(--ink-3);
+}
+
+.dcard.board > i {
+  opacity: 0.45;
 }
 
 .dcard .bar {
@@ -1285,9 +1294,7 @@ body.wide footer .wrap {
 }
 
 .rx-ledger tr.l3 .cf {
-  width: 18px;
-  height: 24px;
-  font-size: 10.5px;
+  --w: 18px;
 }
 
 .rx-ledger tr.l3 small {

@@ -254,6 +254,38 @@ def test_retired_tokens_are_gone() -> None:
     assert not offenders, f"retired tokens still named: {offenders}"
 
 
+# -------------------------------------------------------------- the card
+
+
+# The theme's `.cardface` and every surface class that wears it. A card's
+# rank is its own `<b>` and its pip its own `<i>`, both direct children.
+CARD_CLASSES = (".cardface", ".cf", ".dcard", ".pcard", ".cardglyph", ".pc")
+_CARD = "|".join(re.escape(c) for c in CARD_CLASSES)
+# a card class (whole, so `.cf` is not `.cfx`), any further classes or
+# pseudo-classes on the same element, then a *descendant* `b` or `i`
+DESCENDANT_PIP = re.compile(rf"(?:{_CARD})(?![\w-])[\w.:()-]*\s+[bi](?![\w-])")
+
+
+@pytest.mark.parametrize("name", sorted(SHEETS))
+def test_a_card_reaches_only_its_own_rank_and_pip(name: str) -> None:
+    """Every rank or pip rule on a card is `card > b` / `card > i`, never `card b`.
+
+    A descendant selector would reach every `<b>` and `<i>` a surface nests
+    inside a card for its own purpose, and draw it as a pip: absolutely
+    positioned past the card's lower-right edge, at pip size, under the card's
+    `overflow: hidden`. The solver's deck tile carries its pot-lift bar that
+    way, `<span class="bar"><i></i></span>`, and that fill was pushed out of
+    the card and clipped until the rules were scoped to direct children.
+    """
+    offenders = [
+        rule.selector
+        for rule in RULES[name]
+        for part in rule.selector.split(",")
+        if DESCENDANT_PIP.search(part.strip())
+    ]
+    assert not offenders, f"{name}: a card rule reaches a descendant, not a child: {offenders}"
+
+
 # ------------------------------------------------------------ the curves
 
 

@@ -73,12 +73,11 @@ function miniGame(boardCards: 1 | 2): GameUI {
     handSize: 3,
     deck: {
       ranks: ['6', '5', '4', '3', '2'],
-      suits: MINI_SUIT_GLYPH.map((glyph, s) => ({ glyph, red: s > 0 })),
+      suits: MINI_SUIT_GLYPH.map((glyph) => ({ glyph })),
       // rank index 0 is the six = engine rank 4; suits c d h = 0..2
       cardAt: (rankIndex, suitIndex) => (4 - rankIndex) * 3 + suitIndex,
     },
     label: (c) => miniGlyph(c),
-    isRed: (c) => c % 3 > 0,
   }
 }
 

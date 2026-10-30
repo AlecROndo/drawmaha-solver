@@ -24,9 +24,8 @@ const game: GameUI = {
   rows: MINI_INNER_ROWS,
   cols: MINI_R1_COLS,
   handSize: 3,
-  deck: { ranks: ['6', '5', '4', '3', '2'], suits: MINI_SUIT_GLYPH.map((glyph, s) => ({ glyph, red: s > 0 })), cardAt: (r, s) => (4 - r) * 3 + s },
+  deck: { ranks: ['6', '5', '4', '3', '2'], suits: MINI_SUIT_GLYPH.map((glyph) => ({ glyph })), cardAt: (r, s) => (4 - r) * 3 + s },
   label: (c) => miniGlyph(c),
-  isRed: (c) => c % 3 > 0,
 }
 
 const b1 = parseMini('4h')

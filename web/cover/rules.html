@@ -46,10 +46,8 @@ table.hair td.k a { text-decoration: none; }
 table.hair td.k a:hover { color: var(--accent); }
 /* cards */
 .cards { display: flex; gap: 8px; align-items: center; }
-.pc { width: 46px; height: 62px; border: 1px solid var(--rule-2); border-radius: 6px; background: #fffdf8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
-.pc.red { color: var(--accent); }
-.pc.out { opacity: 0.4; text-decoration: line-through; }
-.pc.blank { background: var(--paper-2); border-style: dashed; color: var(--ink-3); }
+.pc { --w: 46px; } /* the theme's .cardface, the bleed pip, at the page's size */
+.pc.out { opacity: 0.4; }
 /* a mix bar: check / fold in blue, bet in the accent */
 .mix { display: flex; height: 8px; gap: 2px; }
 .mix i { display: block; height: 100%; }
@@ -143,7 +141,7 @@ table.hair td.k a:hover { color: var(--accent); }
       <div class="fig-head"><span class="fig-n">Figure 2</span><div class="fig-title">One holding takes the Omaha half and loses the draw half</div>
       <div class="fig-sub">The hand after the draw and the full board, scored by both rules</div></div>
       <div class="fig-body">
-        <div class="hand-row"><div><p class="eyebrow">Hand after the draw</p><span class="cards"><span class="pc">A♠</span><span class="pc">K♠</span><span class="pc">10♠</span><span class="pc red">7♥</span><span class="pc red">7♦</span></span></div><div><p class="eyebrow">Board</p><span class="cards"><span class="pc">Q♠</span><span class="pc">J♠</span><span class="pc">7♣</span><span class="pc red">4♦</span><span class="pc">9♠</span></span></div></div>
+        <div class="hand-row"><div><p class="eyebrow">Hand after the draw</p><span class="cards"><span class="pc cardface su-s" role="img" aria-label="A♠"><b>A</b><i aria-hidden="true">♠</i></span><span class="pc cardface su-s" role="img" aria-label="K♠"><b>K</b><i aria-hidden="true">♠</i></span><span class="pc cardface su-s" role="img" aria-label="10♠"><b>10</b><i aria-hidden="true">♠</i></span><span class="pc cardface su-h" role="img" aria-label="7♥"><b>7</b><i aria-hidden="true">♥</i></span><span class="pc cardface su-d" role="img" aria-label="7♦"><b>7</b><i aria-hidden="true">♦</i></span></span></div><div><p class="eyebrow">Board</p><span class="cards"><span class="pc cardface su-s" role="img" aria-label="Q♠"><b>Q</b><i aria-hidden="true">♠</i></span><span class="pc cardface su-s" role="img" aria-label="J♠"><b>J</b><i aria-hidden="true">♠</i></span><span class="pc cardface su-c" role="img" aria-label="7♣"><b>7</b><i aria-hidden="true">♣</i></span><span class="pc cardface su-d" role="img" aria-label="4♦"><b>4</b><i aria-hidden="true">♦</i></span><span class="pc cardface su-s" role="img" aria-label="9♠"><b>9</b><i aria-hidden="true">♠</i></span></span></div></div>
         <div class="reads">
           <table class="hair"><thead><tr><th>Omaha half</th><th class="r">Result</th></tr></thead><tbody>
             <tr><td class="k">K♠ 10♠ + Q♠ J♠ 9♠</td><td class="r n">King-high straight flush</td></tr>

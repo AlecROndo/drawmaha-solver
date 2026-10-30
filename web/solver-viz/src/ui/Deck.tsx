@@ -7,6 +7,7 @@
  * now, so the deck is also a map of what the strategy likes.
  */
 
+import { suitKey } from './bars'
 import type { GameUI } from './game'
 
 export function Deck({
@@ -55,13 +56,14 @@ export function Deck({
   function DeckRow({ si }: { si: number }) {
     return (
       <>
-        <div className={`sh ${suits[si].red ? 'red' : ''}`}>{suits[si].glyph}</div>
+        <div className={`sh su-${suitKey(suits[si].glyph)}`}>{suits[si].glyph}</div>
         {ranks.map((r, ri) => {
           const c = cardAt(ri, si)
           if (onBoard.has(c)) {
             return (
-              <div key={c} className={`dcard board ${game.isRed(c) ? 'red' : ''}`} aria-label={`${game.label(c)}, on the board`}>
-                {game.label(c)}
+              <div key={c} className={`dcard cardface board su-${suitKey(suits[si].glyph)}`} role="img" aria-label={`${game.label(c)}, on the board`}>
+                <b>{r}</b>
+                <i aria-hidden="true">{suits[si].glyph}</i>
               </div>
             )
           }
@@ -72,13 +74,14 @@ export function Deck({
             <button
               key={c}
               type="button"
-              className={`dcard ${held ? 'held' : ''} ${game.isRed(c) ? 'red' : ''}`}
+              className={`dcard cardface ${held ? 'held' : ''} su-${suitKey(suits[si].glyph)}`}
               disabled={full && !held}
               onClick={() => onToggle(c)}
               aria-pressed={held}
               aria-label={`${game.label(c)}${held ? ', held' : ''}`}
             >
-              {r}
+              <b>{r}</b>
+              <i aria-hidden="true">{suits[si].glyph}</i>
               <span className="bar" aria-hidden>
                 <i style={{ width: `${(w * 100).toFixed(0)}%` }} />
               </span>

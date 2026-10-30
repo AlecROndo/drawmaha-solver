@@ -46,10 +46,8 @@ table.hair td.k a { text-decoration: none; }
 table.hair td.k a:hover { color: var(--accent); }
 /* cards */
 .cards { display: flex; gap: 8px; align-items: center; }
-.pc { width: 46px; height: 62px; border: 1px solid var(--rule-2); border-radius: 6px; background: #fffdf8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
-.pc.red { color: var(--accent); }
-.pc.out { opacity: 0.4; text-decoration: line-through; }
-.pc.blank { background: var(--paper-2); border-style: dashed; color: var(--ink-3); }
+.pc { --w: 46px; } /* the theme's .cardface, the bleed pip, at the page's size */
+.pc.out { opacity: 0.4; }
 /* a mix bar: check / fold in blue, bet in the accent */
 .mix { display: flex; height: 8px; gap: 2px; }
 .mix i { display: block; height: 100%; }
@@ -206,7 +204,7 @@ table.index td span { display: block; margin-top: 6px; max-width: 56ch; color: v
       <div class="fig-sub">Seat 0 to act, pot 2 · Deep CFR exact average, release <code>rung4-deep-pot0.5-t200</code>, exploitability 0.086</div></div>
       <div class="fig-body deal-body">
         <div>
-          <div class="deal-row"><div><p class="eyebrow">Your hand</p><span class="cards"><span class="pc red">2♦</span><span class="pc red">5♥</span><span class="pc">6♣</span></span></div><div><p class="eyebrow">Board</p><span class="cards"><span class="pc red">5♦</span><span class="pc blank" aria-label="not yet dealt">?</span></span></div></div>
+          <div class="deal-row"><div><p class="eyebrow">Your hand</p><span class="cards"><span class="pc cardface su-d" role="img" aria-label="2♦"><b>2</b><i aria-hidden="true">♦</i></span><span class="pc cardface su-h" role="img" aria-label="5♥"><b>5</b><i aria-hidden="true">♥</i></span><span class="pc cardface su-c" role="img" aria-label="6♣"><b>6</b><i aria-hidden="true">♣</i></span></span></div><div><p class="eyebrow">Board</p><span class="cards"><span class="pc cardface su-d" role="img" aria-label="5♦"><b>5</b><i aria-hidden="true">♦</i></span><span class="pc cardface empty" role="img" aria-label="not yet dealt"></span></span></div></div>
           <p class="deal-read">High card in hand; with the board card it pairs the board.</p>
           <div class="deal-acts"><a class="btn" href="/play">Check</a><a class="btn" href="/play">Bet the pot</a></div>
         </div>
