@@ -1,25 +1,21 @@
 /*
- * Rung 1's own figures, on top of the shared theme (theme.css): the identity
- * inks the three cards carry, the transport under a figure, the game tree
- * with its twelve bars, the lock list on the exploit view, and the hand you
- * play against the equilibrium. Everything here reads the theme's tokens;
- * the old duotone names (--panel-mark, --panel-dim, --panel-hair) are the
- * theme's aliases for ink on a window.
+ * The Kuhn page's own figures, on top of the shared paper theme (theme.css):
+ * the three cards' inks, the transport under a figure, the game tree with its
+ * twelve bars, the answer sheet, the convergence chart, the lock list on the
+ * exploit view, and the hand you play against the equilibrium. Everything here
+ * reads the theme's tokens: ink, the one accent, the muted ink, hairlines.
  */
 
 :root {
-  /* Identity colour, inside a figure only. Three cards, three inks: the
-     queen is plain ivory, the king the yellow, the jack — the card that
-     bluffs — the pink. The average is the product and gets the pointing
-     colour; the current iterate is the restless one and gets the action
-     colour. */
-  --jack: var(--pink);
-  --queen: var(--ivory);
-  --king: var(--yellow);
-  --avg-obj: var(--yellow);
-  --cur-obj: var(--pink);
-  --win: var(--yellow);
-  --loss: var(--pink);
+  /* Identity inks, inside a figure only, and the chart system's three series.
+     The jack is the card that bluffs, the finding of the page, so it wears
+     the accent; the king is ink; the queen, which never bets, is the muted
+     ink. In a convergence chart the average is the thing pointed at
+     (--series-2, the accent) and the current iterate is the restless one
+     (--series-3, the muted ink); the chart reads the series tokens directly. */
+  --jack: var(--series-2);
+  --queen: var(--series-3);
+  --king: var(--series-1);
 }
 
 /* ---------- transport ---------------------------------------------------- */
@@ -29,31 +25,33 @@
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  margin-top: 18px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--iv-10);
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
 }
 
 .transport .btn {
-  padding: 7px 11px;
-  font-size: 12px;
+  min-width: 76px;
+  padding: 7px 12px;
+  font-size: 13px;
 }
 
 .transport input[type='range'] {
   flex: 1;
   min-width: 170px;
-  accent-color: var(--yellow);
+  accent-color: var(--ink);
 }
 
 .transport .readout {
-  font: 400 12px/1.3 var(--mono);
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
-  color: var(--iv-60);
+  color: var(--ink-3);
   white-space: nowrap;
+  min-width: 15ch;
+  text-align: right;
 }
 
 .transport .readout b {
-  color: var(--yellow);
+  color: var(--ink);
   font-weight: 500;
 }
 
@@ -61,67 +59,81 @@
 
 .tree-wrap {
   overflow-x: auto;
-  margin-top: 20px;
+  margin-top: 8px;
 }
 
 .tree {
   min-width: 860px;
 }
 
-/* An edge is drawn with the window's hairline ink; at up to five pixels wide
-   the hairline alone reads too faint on the dark pane, so it is lifted a step
-   here rather than in the figure's code. */
-.tree svg > g > path {
-  stroke: var(--iv-16);
+/* An edge's width is how often the action is taken; its ink is the control
+   border, a step darker than a hairline so a thin edge still reads. */
+.tree .edge {
+  stroke: var(--rule-2);
 }
 
-/* A decision node is a cell inside the window: the well, one step darker
-   than the pane, with a hairline round it. */
+/* A decision node sits on the paper with a hairline round it; its fill is
+   the paper so the edges pass behind it rather than through. */
 .node-card {
-  fill: var(--well);
-  stroke: var(--iv-16);
+  fill: var(--paper);
+  stroke: var(--rule-2);
 }
 
 .node-caption {
-  font-family: var(--mono);
   font-size: 10px;
-  fill: var(--iv-45);
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  fill: var(--ink-3);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .node-letter {
-  font-family: var(--mono);
   font-size: 12px;
   font-weight: 600;
 }
 
+.node-track {
+  fill: var(--paper-3);
+}
+
 .node-value {
-  font-family: var(--mono);
   font-size: 11px;
-  fill: var(--iv-60);
+  fill: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 
+/* the known answer: an ink tick, ringed in paper so it reads on an ink bar */
+.node-tick {
+  stroke: var(--ink);
+}
+
+.node-tick-ring {
+  stroke: var(--paper);
+}
+
+/* an action's name sits on its edge, haloed in paper so the curve under it
+   does not strike it through */
 .edge-label {
-  font-family: var(--mono);
   font-size: 11px;
-  fill: var(--iv-60);
+  fill: var(--ink-3);
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 .terminal {
   fill: none;
-  stroke: var(--iv-16);
+  stroke: var(--rule-2);
   stroke-dasharray: 3 3;
 }
 
 .terminal-text {
-  font-family: var(--mono);
   font-size: 11px;
-  fill: var(--iv-60);
+  fill: var(--ink-3);
 }
 
-/* A row the visitor can pin. Cursor is the whole affordance — a hover fill
+/* A row the visitor can pin. Cursor is the whole affordance: a hover fill
    would fight the bars, which are the thing being read. */
 .row-lockable {
   cursor: pointer;
@@ -129,21 +141,175 @@
 
 .row-lockable:hover .node-letter,
 .row-lockable:focus-visible .node-letter {
-  font-weight: 700;
+  text-decoration: underline;
+}
+
+.row-lockable:focus-visible {
+  outline: none;
+}
+
+.row-lockable:focus-visible .node-hit {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.tree-key {
+  margin: 14px 0 0;
+}
+
+.tree-key .note-r {
+  margin-left: auto;
+  color: var(--ink-3);
+}
+
+/* ---------- the convergence charts -------------------------------------- */
+
+.chart {
+  overflow: visible;
+  touch-action: none;
+}
+
+.chart.scrubbable {
+  cursor: ew-resize;
+}
+
+.chart .grid {
+  stroke: var(--grid);
+}
+
+.chart .axis-line {
+  stroke: var(--rule-2);
+}
+
+.chart .axis {
+  font-size: 11px;
+  fill: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart .guide {
+  stroke: var(--rule-2);
+  stroke-dasharray: 3 4;
+}
+
+.chart .playhead {
+  stroke: var(--ink-2);
+  stroke-width: 1;
+}
+
+/* a series label at the line's end: the name in the series' ink, the value
+   beside it in muted text ink */
+.chart .halo {
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.chart .lbl {
+  font-size: 12px;
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.chart .lbl tspan {
+  fill: var(--ink-3);
+  font-weight: 400;
+}
+
+.fig .stats {
+  margin-top: 18px;
+}
+
+.fig .stat dd {
+  font-size: 22px;
+}
+
+/* ---------- the answer sheet --------------------------------------------- */
+
+table.hair.sheet td,
+table.hair.sheet th {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+table.hair.sheet th {
+  padding-top: 0;
+  padding-bottom: 10px;
+}
+
+table.hair.sheet td {
+  vertical-align: middle;
+}
+
+table.hair.sheet .spot {
+  color: var(--ink-3);
+}
+
+table.hair.sheet .card {
+  font-weight: 600;
+}
+
+/* a cell: CFR's number in ink, the closed form under it in muted ink */
+table.hair.sheet td.cell span {
+  display: block;
+  line-height: 1.35;
+}
+
+table.hair.sheet td.cell .cfr {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+table.hair.sheet td.cell .exact {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+table.hair.sheet .card.c-j {
+  color: var(--jack);
+}
+
+table.hair.sheet .card.c-q {
+  color: var(--queen);
+}
+
+table.hair.sheet .card.c-k {
+  color: var(--king);
+}
+
+/* the path the footnote names, in the site's code voice */
+.foot code {
+  font-family: var(--mono);
+  color: var(--ink-2);
 }
 
 /* ---------- locking a strategy ------------------------------------------- */
 
-.lock-head {
+.lock {
   margin-top: 40px;
+}
+
+.lock h2 {
+  max-width: 24ch;
+}
+
+.lock .note {
+  font-size: 15px;
+  color: var(--ink-2);
 }
 
 .lock-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
 }
 
 .lock-controls .grow {
@@ -154,16 +320,17 @@
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid var(--iv-30);
-  border-radius: 4px;
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
   padding: 8px 12px;
-  font: 400 12px/1 var(--mono);
-  color: var(--iv-60);
+  font-size: 13px;
+  color: var(--ink-3);
 }
 
 .select select {
-  font: 500 12px/1 var(--mono);
-  color: var(--ivory);
+  font: 500 13px/1 var(--sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -177,123 +344,148 @@
 
 .locks li {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 200px 52px 24px;
+  grid-template-columns: 52px minmax(0, 1fr) 220px 52px 32px;
   gap: 16px;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--iv-10);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
 }
 
 .locks li:first-child {
-  border-top: 1px solid var(--iv-16);
+  border-top: 1px solid var(--ink);
 }
 
 .locks .k {
-  font: 500 13px/1.2 var(--mono);
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .locks .w {
-  font: 400 13px/1.3 var(--mono);
-  color: var(--iv-60);
+  color: var(--ink-3);
 }
 
 .locks input[type='range'] {
   width: 100%;
-  accent-color: var(--yellow);
+  accent-color: var(--ink);
 }
 
 .locks .v {
-  font: 400 13px/1.2 var(--mono);
   font-variant-numeric: tabular-nums;
   text-align: right;
+  color: var(--ink);
 }
 
+/* The unlock is a quiet theme button (.btn.quiet), squared to its glyph; its
+   press is the theme's. */
 .locks button.unlock {
-  font: 400 16px/1 var(--mono);
-  color: var(--iv-60);
-  transition:
-    color 0.15s,
-    transform var(--t-press) var(--ease-out);
+  padding: 4px 0;
+  width: 32px;
+  font-size: 16px;
+  line-height: 1;
 }
 
-.locks button.unlock:active {
-  transform: scale(0.97);
-}
-
-.locks button.unlock:hover {
-  color: var(--ivory);
-}
-
-/* A solver error. It sits on the field; the pink is the one chromatic ink
-   the theme lets stand on black, and it is the loss colour. */
+/* A solver error: the one red the theme has. */
 .note.bad {
-  color: var(--pink);
+  color: var(--accent);
   font-weight: 500;
+}
+
+/* prose inside a figure */
+.fig-body p.say {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 60ch;
+}
+
+.fig-body p.say + table {
+  margin-top: 22px;
 }
 
 /* ---------- play against it ---------------------------------------------- */
 
+/* two columns on the figure grid above, so the tally starts where Figure 3 does */
+.play {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
 .hand {
   display: flex;
-  align-items: center;
-  gap: 22px;
-  margin-top: 18px;
+  align-items: flex-start;
+  gap: 28px;
 }
 
 .hand .cards {
   display: flex;
-  gap: 10px;
-  align-items: flex-end;
+  gap: 12px;
   flex: none;
-  padding-bottom: 18px;
+  padding-bottom: 22px;
 }
 
-/* The cards are the homepage's: an ivory face with the rank in oxblood, and
-   a back of oxblood stripes. Rank and suit are the only ink that is ever
-   oxblood on this site, because they sit on ivory, not on the field. */
+/* A card is paper on paper with a control's border: the rank in the serif,
+   in the card's own ink. The bot's card lies face down as a recess until the
+   hand is over. */
 .cardglyph {
   position: relative;
-  width: 54px;
-  height: 76px;
-  border-radius: 5px;
-  background: var(--ivory);
-  color: var(--ox);
+  width: 58px;
+  height: 82px;
+  border-radius: 6px;
+  background: var(--paper);
+  border: 1px solid var(--rule-2);
+  color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 600 34px/1 var(--display);
+  font: 400 36px/1 var(--serif);
   flex: none;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.6);
+}
+
+.cardglyph.c-j {
+  color: var(--jack);
+}
+
+.cardglyph.c-q {
+  color: var(--queen);
 }
 
 .cardglyph.back {
-  background: repeating-linear-gradient(45deg, var(--ox) 0 2px, transparent 2px 6px);
-  color: transparent;
-  border: 1px solid var(--ox-lit);
+  background: var(--paper-3);
+  border-color: var(--rule);
+  color: var(--ink-3);
+  font-size: 22px;
 }
 
 .cardglyph .who {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -18px;
+  bottom: -20px;
   text-align: center;
-  font: 400 10px/1 var(--mono);
+  font: 500 11px/1 var(--sans);
   letter-spacing: 0.06em;
-  color: var(--iv-45);
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 .hand .k {
   display: block;
-  font: 400 10px/1 var(--mono);
-  letter-spacing: 0.12em;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--iv-45);
+  color: var(--ink-3);
 }
 
 .play-log {
-  font: 400 12px/1.6 var(--mono);
-  color: var(--iv-60);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
   margin: 8px 0 0;
   white-space: pre-line;
   min-height: calc(3 * 1.6em);
@@ -301,16 +493,25 @@
 
 .play-buttons {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   margin-top: 18px;
+}
+
+.play-buttons .btn {
+  min-width: 88px;
+  text-transform: capitalize;
+}
+
+.play .stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 /* ---------- narrow -------------------------------------------------------- */
 
 @media (max-width: 1080px) {
   .locks li {
-    grid-template-columns: 40px minmax(0, 1fr) 46px 24px;
+    grid-template-columns: 44px minmax(0, 1fr) 46px 32px;
   }
 
   .locks .w {
@@ -319,10 +520,8 @@
   }
 }
 
-/* The press is one of the things reduced motion turns off (web/DESIGN.md);
-   the theme only knows its own pressables, so this figure's are named here. */
-@media (prefers-reduced-motion: reduce) {
-  .locks button.unlock:active {
-    transform: none;
+@media (max-width: 1024px) {
+  .play {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

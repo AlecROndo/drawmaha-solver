@@ -25,14 +25,15 @@ import {
  * often they bet there. The twelve bars are the twelve information sets: this
  * is the strategy table, laid out as the tree it belongs to.
  *
- * The hairline on each bar is whatever answer the caller is grading against —
+ * The tick on each bar is whatever answer the caller is grading against —
  * the closed-form equilibrium on the solve tab, the exact best response on the
- * exploit tab. Watching the fills walk onto their hairlines is the point of
- * both, which is why this component takes its numbers as props instead of
- * reaching for one particular solve.
+ * exploit tab. Watching the fills walk onto their ticks is the point of both,
+ * which is why this component takes its numbers as props instead of reaching
+ * for one particular solve.
  */
 
-const CARD_VAR = ['var(--jack)', 'var(--queen)', 'var(--king)']
+/** The cards' inks, the chart system's three series: jack accent, queen muted, king ink. */
+export const CARD_VAR = ['var(--jack)', 'var(--queen)', 'var(--king)']
 
 const BAR_X = 40
 const BAR_W = 110
@@ -62,7 +63,7 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
   const top = node.cy - NODE_H / 2
   return (
     <g>
-      <rect className="node-card" x={left} y={top} width={NODE_W} height={NODE_H} rx={8} />
+      <rect className="node-card" x={left} y={top} width={NODE_W} height={NODE_H} rx={6} />
       <text className="node-caption" x={left + 14} y={top + 18}>
         {node.caption.toUpperCase()}
       </text>
@@ -72,6 +73,7 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
         const exact = hairline?.[key]
         const pinned = locked?.[key]
         const y = top + ROW_TOP + row * ROW_H
+        const tickX = exact === undefined ? 0 : left + BAR_X + exact * BAR_W
         return (
           <g
             key={key}
@@ -99,12 +101,20 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
           >
             {/* Hit area: the bar alone is 6px tall, too small to click at. */}
             {onToggleLock && (
-              <rect x={left + 8} y={y - 6} width={NODE_W - 16} height={ROW_H} fill="transparent" />
+              <rect
+                className="node-hit"
+                x={left + 8}
+                y={y - 6}
+                width={NODE_W - 16}
+                height={ROW_H}
+                rx={3}
+                fill="transparent"
+              />
             )}
             <text className="node-letter" x={left + 14} y={y + 6} fill={CARD_VAR[card]}>
               {CARD_SYMBOL[card]}
             </text>
-            <rect x={left + BAR_X} y={y} width={BAR_W} height={BAR_H} rx={1.5} fill="var(--panel-hair)" />
+            <rect className="node-track" x={left + BAR_X} y={y} width={BAR_W} height={BAR_H} rx={1.5} />
             <rect
               x={left + BAR_X}
               y={y}
@@ -115,19 +125,17 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
               // A locked bar is held, not learned. Hollowing it keeps the two
               // populations legible at a glance: solid bars are what CFR
               // decided, outlined bars are what you dictated.
-              fillOpacity={pinned === undefined ? 1 : 0.28}
+              fillOpacity={pinned === undefined ? 1 : 0.18}
               stroke={pinned === undefined ? undefined : CARD_VAR[card]}
               strokeWidth={pinned === undefined ? undefined : 1}
             />
+            {/* The tick is ink, and ink on the king's ink bar would vanish, so
+                a paper ring is drawn under it first. */}
             {exact !== undefined && (
-              <line
-                x1={left + BAR_X + exact * BAR_W}
-                x2={left + BAR_X + exact * BAR_W}
-                y1={y - 3}
-                y2={y + BAR_H + 3}
-                stroke="var(--panel-mark)"
-                strokeWidth={1.5}
-              />
+              <>
+                <line className="node-tick-ring" x1={tickX} x2={tickX} y1={y - 3} y2={y + BAR_H + 3} strokeWidth={3.5} />
+                <line className="node-tick" x1={tickX} x2={tickX} y1={y - 3} y2={y + BAR_H + 3} strokeWidth={1.5} />
+              </>
             )}
             {/* Locked rows keep showing their number — it is the thing being
                 set — and say "locked" by going muted next to the hollow bar,
@@ -136,7 +144,7 @@ function NodeCard({ node, index, bet, hairline, locked, onToggleLock }: NodeCard
               className="node-value"
               x={left + BAR_X + BAR_W + 10}
               y={y + 6}
-              fill={pinned === undefined ? undefined : 'var(--panel-dim)'}
+              fill={pinned === undefined ? undefined : 'var(--ink-3)'}
             >
               {(pinned ?? p).toFixed(2)}
             </text>
@@ -169,9 +177,9 @@ export function GameTree(props: GameTreeProps) {
             return (
               <g key={`${edge.from}-${edge.act}`}>
                 <path
+                  className="edge"
                   d={`M ${x1} ${from.cy} C ${x1 + 40} ${from.cy}, ${x2 - 40} ${to.cy}, ${x2} ${to.cy}`}
                   fill="none"
-                  stroke="var(--panel-hair)"
                   strokeWidth={1 + 4 * p}
                   strokeLinecap="round"
                 />
@@ -194,7 +202,7 @@ export function GameTree(props: GameTreeProps) {
                 y={node.cy - TERMINAL_H / 2}
                 width={TERMINAL_W}
                 height={TERMINAL_H}
-                rx={8}
+                rx={6}
               />
               <text className="terminal-text" x={node.cx - TERMINAL_W / 2 + 12} y={node.cy + 4}>
                 {node.key} · {node.text}
@@ -210,19 +218,19 @@ export function GameTree(props: GameTreeProps) {
   )
 }
 
-/** What the bars and ticks mean, sitting under the tree inside the plate. */
+/** What the bars and ticks mean, under the tree. */
 export function TreeLegend({ hairlineIs }: { hairlineIs: string | null }) {
   return (
-    <div className="legend" style={{ margin: '18px 0 0' }}>
+    <div className="legend tree-key">
       {CARDS.map((card) => (
         <span className="item" key={card}>
-          <span className="dot" style={{ background: CARD_VAR[card] }} />
-          {['jack', 'queen', 'king'][card]}
+          <span className="swatch" style={{ background: CARD_VAR[card], height: 6 }} />
+          {['Jack', 'Queen', 'King'][card]}
         </span>
       ))}
-      <span className="item" style={{ marginLeft: 'auto' }}>
-        bar = P(bet), reads as P(call) when facing a bet
-        {hairlineIs === null ? '' : ` · tick = ${hairlineIs}`}
+      <span className="item note-r">
+        Bar: P(bet), or P(call) facing a bet
+        {hairlineIs === null ? '' : ` · tick: ${hairlineIs}`}
       </span>
     </div>
   )

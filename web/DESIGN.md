@@ -1,28 +1,67 @@
 # The UI standard for drawmaha.app
 
-Every page of the site — the homepage, the Rules tab, the Cover and the
-four rung visualizers — is held to this document. It is the design
-engineering stance in Emil Kowalski's sense: taste is a set of decisions
-made the same way every time, most of which nobody consciously notices, and
-which compound into software that feels right. The visual theme (field,
-inks, three voices, the chip, windows, hairline rows) is written at the top
-of `web/rung0-viz/src/theme.css` and is not repeated here. This document is
-about how things move, how they answer a press, and how that is kept true.
+Every page of the site is held to this document: the five static pages
+(the homepage, Rules, Benchmarks, Releases and the archived Cover) and the
+five apps (the three benchmark apps, the research app and the range
+explorer). It is the design engineering stance in Emil Kowalski's sense:
+taste is a set of decisions made the same way every time, most of which
+nobody consciously notices, and which compound into software that feels
+right. The visual system is summarised below and argued in
+`docs/superpowers/specs/2026-10-29-paper-lab-site-design.md`; the rest of
+this document is about how things move, how they answer a press, and how
+that is kept true.
 
 `tests/test_ui_standard.py` enforces the mechanical half of it on every
 stylesheet in `web/`; the judgement half is the review table at the end.
 
-## Where the CSS lives, and why there are three copies of the chrome
+## The visual system
+
+The spec holds the reasoning; this is what the theme
+(`web/rung0-viz/src/theme.css`, whose header states the same five points)
+declares.
+
+- **Paper, ink and one accent.** `--paper` `#f7f5f0` is the page;
+  `--paper-2` / `--paper-3` are recessed cells, bar tracks and code;
+  `--rule` / `--rule-2` are hairlines and control borders. `--ink`
+  `#16140f` is text and the primary series, `--ink-2` / `--ink-3` secondary
+  text and muted series. `--accent` `#8e2038` is oxblood, the deeper shade of
+  the chip's red (`#c8102e`), and the only accent: the winning series in a
+  chart, bet and raise, links, the focus ring; `--accent-tint` is a link's underline and the text selection,
+  and on the homepage's opening matrix alone it fills the bet-dominant cells.
+- **Charts and actions read semantic tokens.** `--series-1/2/3` are ink,
+  accent and muted ink, with a dash pattern for a fourth series and a direct
+  label at the end of every line; `--grid` is the rule. The action triplet
+  is `--act-bet` (the accent), `--act-call` `#2f7d4a` and `--act-check`
+  `#2f66a3` (check and fold).
+- **Two voices and the chip's mono.** Newsreader (`--serif`) for display,
+  headings and the research body; Geist (`--sans`) for the UI, tables,
+  charts and captions, with tabular numerals. IBM Plex Mono (`--mono`)
+  draws the chip's glyph grid (600) and sets inline code and commands (400);
+  it is never a prose or UI voice.
+- **The scale.** Display 64 (the home hero), `h1` 52, `h2` 32 (30 inside
+  the publication), `h3` 22, lede 21, research body 18 serif, UI 15,
+  captions 13 / 12 / 11, the eyebrow 12 uppercase at 0.08 em.
+- **The grid.** 1160 px of content (`--max`) inside 40 px of page padding
+  (`--gutter`), 12 columns on a 24 px gap; a home section is a 4 + 8
+  `.split`.
+- **The hairline rule.** Every container is a top or bottom hairline, never
+  a box with a shadow: a figure (`figure.fig`) sits on a top rule, anything
+  tabular is `table.hair` or `.rows`. The only radii are 6 px on buttons
+  and controls.
+
+## Where the CSS lives
 
 | Surface | File | Notes |
 | --- | --- | --- |
-| Shared chrome (top bar, Rungs menu, buttons, hero, windows, views, footer) | `web/rung{0,1,2,3}-viz/src/theme.css` | Byte-identical in all four apps; edit rung 0's and `cp` across (`tests/test_shared_chrome.py`) |
-| Each rung's own figures | `web/rung{0,1,2,3}-viz/src/index.css` | On top of the theme; reads its tokens |
-| Homepage, Rules, Cover | `web/cover/{index,rules,cover}.html` | Each inlines its own copy of the chrome CSS, minified, one rule per line |
+| The theme: tokens, top bar, page head, buttons, figures, hairline tables, `.views`, `.seg`, `.radios`, `.stats`, `.rail`, footer | `web/rung0-viz/src/theme.css` and its four copies in the other apps | Byte-identical in all five apps; edit rung 0's and `cp` across (`tests/test_shared_chrome.py`) |
+| Each app's own figures and layout | `web/<app>/src/index.css` | On top of the theme; reads its tokens |
+| The four product pages | `web/cover/{index,rules,benchmarks,releases}.html` | Link `/theme.css` (the build copies the theme there) and `/fonts.css`; each carries one inline `<style>` of its own layout and chart classes. Written by `scripts/site/make_static_pages.py`; `web/cover/README.md` describes them |
+| The archived Cover | `web/cover/cover.html` | Inlines the old chrome, minified, one rule per line; edited by hand if at all |
 
-A rule that belongs to the chrome therefore lands in **four** places: the
-theme (then copied three times) and each of the three pages. The tokens below are
-declared in all four `:root` blocks and the test checks they agree.
+A chrome rule therefore lands in one place, the theme, and is copied four
+times; the pages pick it up through the link. The motion tokens below are
+declared in the theme's `:root` and in the Cover's, and the test checks they
+agree.
 
 ## The motion tokens
 
@@ -37,63 +76,68 @@ keyword) is kept for exactly one job: a colour, background or border
 changing under the pointer, at 150 ms. `ease-in` is never used: it delays
 the first frame of movement, which is the frame the user is watching, so the
 same 300 ms feels slower than 300 ms of `ease-out`. `linear` is for constant
-motion only (a progress bar filling, the live dot's pulse).
+motion only.
 
-Figures may own a curve. The ladder's line draws with
-`cubic-bezier(.12,.8,.2,1)` because "draws on fast, then decelerates over
-the last two thirds" is what that figure is saying; a figure's curve is an
-explanatory choice and is allowlisted by name in the test. Chrome never
-hard-codes a curve.
+A figure may own a curve when the curve is what the figure says; it is then
+allowlisted by name in the test. No sheet on the site hard-codes one today.
+Chrome never does.
 
 ## Decide in this order before animating anything
 
 1. **How often will the user see it?** A keyboard action (rung 0's Space to
    run, → to step) or a bar that updates a thousand times a second never
    animates; the number printed beside it would disagree with the bar. A
-   hover sees 150 ms of colour. Opening a menu is occasional and gets the
+   hover sees 150 ms of colour. Opening a sheet is occasional and gets the
    full treatment. A figure drawing itself once per visit may take seconds.
 2. **What is it for?** Press feedback, state indication, spatial consistency
-   (the rung actions drop from their rung, the chips slide toward the pot),
-   or preventing a jarring swap. "It looks cool" is not a purpose for
-   anything seen more than once.
+   (the solver's panes open from under the mix bar, the chips slide toward
+   the pot), or preventing a jarring swap. "It looks cool" is not a purpose
+   for anything seen more than once.
 3. **Which curve?** Entering or settling → `--ease-out`. Moving while on
    screen → `--ease-in-out`. Colour under the pointer → `ease`. Constant →
    `linear`.
-4. **How long?** Press 160 ms. Hover colour 150 ms. Popover and menu
-   150–250 ms, with the whole menu settled by 400 ms. Nothing in the chrome
-   over 300 ms per declaration — and the test reads every time in the
-   declaration, delays included, because a 300 ms delay is a wait the user
-   feels just as a 300 ms slide is. Exits faster than entrances.
+4. **How long?** Press 160 ms. Hover colour 150 ms. Popover and sheet
+   150–250 ms. Nothing in the chrome over 300 ms per declaration — and the
+   test reads every time in the declaration, delays included, because a
+   300 ms delay is a wait the user feels just as a 300 ms slide is. Exits
+   faster than entrances.
 
 ## The rules, each with the site's own before and after
 
 | Rule | Before (on this site) | After | Why |
 | --- | --- | --- | --- |
-| Everything pressable shrinks to `scale(0.97)` for 160 ms on `:active` | `.btn`, `.navbtn`, `.view`, the rungs in the menu, the mode tabs, the timeline stations, the lock buttons, the console and seat buttons had hover colour and nothing on press | one `:active` rule per pressable, `transform var(--t-press) var(--ease-out)` added to its transition | the page confirms it heard the press before anything else happens; one value everywhere so the whole site presses alike |
-| A disabled control does not answer a press | — | `.btn:active:not(:disabled)`, `.seg button:active:not([disabled])` | feedback on a dead button is a lie |
-| Entrances use `--ease-out`, never `ease-in` | rung 2's chips (and rung 3's) swept to the pot with `0.55s ease-in` | `0.4s var(--ease-out)` | a chip pushed across felt leaves fast and settles; ease-in made it hesitate then lurch |
-| Chrome motion stays under 300 ms per declaration | Rungs menu: width 500 ms, rope 550 ms, cells 340 ms with a 75 ms stagger (last cell lands at 640 ms) | width 300 ms, rope 300 ms, cells 240 ms with a 40 ms stagger (settled by 400 ms) | a 180 ms dropdown feels more responsive than a 400 ms one, at the same frame rate |
-| Exits are faster than entrances | cells closed in 140 ms | 120 ms, menu's visibility delay matched to it | the user has decided; the page just answers |
-| Stagger 30–80 ms between siblings, never blocking | 75 ms (wide) / 55 ms (narrow) | 40 ms / 35 ms | a cascade reads as one gesture, not a queue |
-| Scroll reveals are entrances too | `.reveal`: 700 ms `ease` on opacity and travel | opacity 450 ms `ease`, travel 550 ms `--ease-out` | `ease` starts slow; a section arriving should start fast and settle |
-| Hover transforms only where a pointer can hover | the ladder's arrow nudged 4 px on `:hover`, which a tap leaves stuck out | wrapped in `@media (hover: hover) and (pointer: fine)` | touch fires hover on tap and never un-fires it |
-| Reduced motion means fewer and gentler, not none | `* { animation: none !important; transition: none !important }` in the theme | the travel, scale and pulse are removed by name; colour and opacity transitions stay | a state change still has to be legible to someone who turned motion off |
-| Reduced motion names the state's own selector, not just the base one | — | `.rungs-menu, .rungs.open .rungs-menu { transition: none }` | `.rungs.open .rungs-menu` outranks `.rungs-menu`, so quieting only the base rule leaves the open slide in place |
-| A one-shot that the code waits on still ends under reduced motion | — | rung 2's chips switch to a fade-only keyframe of the same length | the token unmounts on `animationend`; `animation: none` would strand it on the felt |
-| Popovers come from their trigger; modals stay centred | the rung's action strip translates down 4 px from under its rung | kept, with `--ease-out` | spatial consistency: the thing came from where you were pointing |
-| Nothing appears from `scale(0)` | — | the one `scaleX(0)` on the site is the menu's rope **drawing** across, a line reveal, not an element popping | things in the world have a shape before they arrive |
-| Transitions for interruptible UI, keyframes only for one-shot tokens and the live pulse | — | the menu is all transitions (hover in, hover out mid-open retargets); the swept chips and the blink are keyframes | keyframes restart from zero when interrupted |
-| Only `transform` and `opacity` animate in the chrome | the Rungs menu animates `width` | kept, documented | the menu is *meant* to push "Rules" aside; the reflow is one flex row in the top bar |
+| Everything pressable shrinks to `scale(0.97)` for 160 ms on `:active` | `.btn`, `.navbtn`, `.view`, the mode tabs, the timeline stations and the lock buttons had hover colour and nothing on press | one `:active` rule per pressable, `transform var(--t-press) var(--ease-out)` in its transition: the theme's six (`.btn`, `.navbtn`, `.view`, `.seg button`, `.radios label`, `.rail a`), rung 2's timeline stations (`.tl button.stn`), the solver's cells, ledger rows, keys, deck cards and hand-so-far steps (`.cell`, `.lrow`, `.key`, `.dcard`, `.sofar .tok` and the rest of `PRESSABLES`) | the page confirms it heard the press before anything else happens; one value everywhere so the whole site presses alike |
+| A disabled control does not answer a press | — | `.btn:active:not(:disabled)`, `.seg button:active:not(:disabled)`, the solver's `.dcard:active:not(:disabled)` | feedback on a dead button is a lie |
+| Entrances use `--ease-out`, never `ease-in` | rung 2's chips (and rung 3's) swept to the pot with `0.55s ease-in` | `.sweep`: `0.4s var(--ease-out)` | a chip pushed across felt leaves fast and settles; ease-in made it hesitate then lurch |
+| Chrome motion stays under 300 ms per declaration | — | the presses at 160 ms, hover colour at 150 ms, the solver's panes sheet (`.sheet`) arriving over 200 ms | a 180 ms dropdown feels more responsive than a 400 ms one, at the same frame rate |
+| Exits are faster than entrances; a cascade staggers 30–80 ms and never blocks | — | nothing on the site exits or staggers today; the first one added follows this | the user has decided; the page just answers |
+| Nothing moves on load | the homepage's sections rose in on scroll (`.reveal`, 700 ms) | the static pages render still; the chip turning is the one thing that moves without being asked | a page that performs on arrival reads as a demo |
+| Hover transforms only where a pointer can hover | an arrow on the old front page nudged 4 px on `:hover`, which a tap leaves stuck out | no hover on the site moves anything; one that does goes inside `@media (hover: hover) and (pointer: fine)` | touch fires hover on tap and never un-fires it |
+| Reduced motion means fewer and gentler, not none | `* { animation: none !important; transition: none !important }` in the theme | the presses, the sweep and the sheet are quieted by name; colour transitions stay; the chip is drawn once (`mark.ts` and `chip.js` read the same query) | a state change still has to be legible to someone who turned motion off |
+| Reduced motion names the state's own selector, not just the base one | — | the theme quiets `.btn:active:not(:disabled)`, not `.btn:active` | `:not(:disabled)` adds specificity, so quieting the bare `:active` would leave the press in place |
+| A one-shot that the code waits on still ends under reduced motion | — | rung 2's and rung 3's chips switch to `sweep-fade`, a fade-only keyframe of the same length | the token unmounts on `animationend`; `animation: none` would strand it on the felt |
+| Popovers come from their trigger; modals stay centred | — | the solver's panes sheet (`sheet-in`) drops 4 px into place under the mix bar that opens it, with `--ease-out` | spatial consistency: the thing came from where you were pointing |
+| Nothing appears from `scale(0)` | — | no element on the site scales from zero | things in the world have a shape before they arrive |
+| Transitions for interruptible UI, keyframes only for one-shot tokens | — | the presses and the colour changes on `.views`, `.seg` and `.rail` are transitions; the swept chips and the panes sheet are keyframes, each played once | keyframes restart from zero when interrupted |
+| Only `transform` and `opacity` animate in the chrome | the old top bar's menu animated `width` | nothing on the live site animates a layout property; the archived Cover's menu still does, allowlisted | a layout animation repaints the page around it every frame |
 
-### The width bars, the one tolerated exception
+### The allowlist, as it stands
 
-The homepage's action bars, the Leduc meter, the Rules tab's size bars and
-the ladder's bar figures animate `width`. Two of them are gradient fills
-that `scaleX` would squash, and all of them are figures a visitor sees once
-as they scroll in. They are allowlisted by name in the test with that
-reason. New UI does not get this exception: a bar that updates while the
-user acts is drawn with `transform: scaleX()` from `transform-origin: left`,
-or not animated at all (rung 0's `.bar-fill`).
+`EXPLANATORY` in the test names the selectors whose motion is explanatory
+rather than chrome, each with its reason, and every entry matches a rule
+that moves today (`test_every_allowlisted_selector_names_a_rule_that_moves`
+fails on an entry that exempts nothing):
+
+- `.sweep`: rungs 2 and 3's chips crossing 58 px of felt to the pot,
+  one-shot, 400 ms;
+- `.rungs-menu`, `.live i`, `.st::before`: the archived Cover's menu
+  width, live dot and in-progress pulse, kept as they were.
+
+Only `.rungs-menu` is a width exception, and only on the archived Cover. No
+sheet on the live site animates `width`: a bar that updates while the user
+acts is drawn with `transform: scaleX()` from `transform-origin: left`, or
+not animated at all (rung 0's `.bar-fill`).
+New UI does not get the width exception.
 
 ## Adding motion to the site
 
@@ -112,8 +156,10 @@ or not animated at all (rung 0's `.bar-fill`).
 - A new entrance over 300 ms, a figure with its own curve, or a width
   animation is an exception: add the selector to `EXPLANATORY` in the test
   with a one-line reason, the way the existing ones are.
-- A chrome change goes into the theme, is copied to the other three apps, and
-  is made again in each of the three pages' inline `<style>`.
+- A chrome change goes into rung 0's theme and is copied to the other four
+  apps; the static pages read it through `/theme.css`. A page's own motion
+  goes in that page's inline `<style>` in the generator, and the pages are
+  regenerated.
 - Review it the next day, at 4× slow motion in DevTools (Animations panel),
   and on a phone over the LAN for anything touched.
 

@@ -123,6 +123,17 @@ export function headLabel(d: Decision): string {
   return d.why === 'fold' ? 'folded' : 'showdown'
 }
 
+/**
+ * The colour a played step or an option wears, GTO Wizard's convention on
+ * the chip's palette: the pushing tone (a pot bet or raise, a throw) in the
+ * bet colour, a call in the call colour, and everything passive — a check,
+ * a fold, standing pat — in the check colour. The tone says push or not; the
+ * word separates a call from a check, which share a tone.
+ */
+export type Hue = 'bet' | 'call' | 'check'
+
+export const hueOf = (tone: Tone, word: string): Hue => (tone === 'p' ? 'bet' : word === 'call' ? 'call' : 'check')
+
 export const pct = (shares: Record<string, number> | null, key: string): string | null =>
   shares && shares[key] !== undefined ? `${Math.round(shares[key] * 100)}%` : null
 

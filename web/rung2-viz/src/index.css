@@ -1,63 +1,79 @@
 /*
- * Rung 2's own figures, on top of the shared theme (theme.css): the identity
- * inks the figures use, the action timeline drawn as stations on a line, the
- * next-action strip, the two seat panels with their rank rows and locks, the
- * response panel, the oval table with its cards, and the decision sidebar.
- * Everything here reads the theme's tokens; the old duotone names
- * (--panel-mark, --panel-dim, --panel-hair) are the theme's aliases for ink
- * on a window.
+ * The Leduc page's own figures, on top of the shared theme (theme.css): the
+ * action timeline drawn as stations on a line, the next-action strip, the two
+ * seat figures with their rank rows and locks, the response figure, the table
+ * on its felt with the cards and chips, and the hand's transcript beside it.
+ * Everything reads the theme's tokens. Actions take the theme's triplet (bet
+ * and raise --act-bet, call --act-call, check and fold --act-check); the three
+ * ranks are an ordinal ramp of ink, light to dark, so they never compete with
+ * an action's colour.
  */
 
 :root {
-  /* Identity colour, inside a figure only. Three ranks, three inks: the jack
-     is the pink, the queen plain ivory, the king the yellow — held across
-     every figure on the page. */
-  --jack: var(--pink);
-  --queen: var(--ivory);
-  --king: var(--yellow);
-
-  /* Action identity: the bet is the aggressive act and takes the pink, the
-     check is the thing you are pointing at and takes the yellow, the fold is
-     the quiet one. The "-was" shades are the Nash baseline once an edit moves
-     a bar — before, spoken quietly. */
-  --act-check: var(--yellow);
-  --act-bet: var(--pink);
-  --act-fold: var(--iv-45);
-  --act-check-was: rgba(233, 184, 98, 0.4);
-  --act-bet-was: rgba(216, 86, 111, 0.4);
-  --act-fold-was: var(--iv-16);
-
-  /* your hand on a row: the lock, and only the lock, is this colour */
-  --lock: var(--ivory);
-
-  --win: var(--yellow);
-  --loss: var(--pink);
+  /* the ranks, weakest to strongest: a ramp of one ink */
+  --rank-j: var(--rule-2);
+  --rank-q: var(--ink-3);
+  --rank-k: var(--ink);
+  /* the ranks as text, where the lightest step would not read on paper */
+  --rank-j-text: var(--ink-3);
+  --rank-q-text: var(--ink-2);
+  --rank-k-text: var(--ink);
 }
 
-/* The same rhythm for a tab's inner blocks as the theme's .panels grid. */
-.block {
-  margin-top: 26px;
+/* the title states the grade in two lines, not three */
+.page-head h1 {
+  max-width: 22ch;
 }
 
-/* the small mono label above a figure's part, inside the pane */
+/* the head's two numbers sit at the right of the title, bottom-aligned */
+.head-stats {
+  border-top: 0;
+  padding-top: 0;
+  grid-template-columns: repeat(2, auto);
+  gap: 40px;
+}
+
+.head-stats .stat dd {
+  white-space: nowrap;
+}
+
+/* the label above a figure's part */
 .holding .k,
 .playside .k {
-  font: 400 10px/1 var(--mono);
-  letter-spacing: 0.12em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--iv-45);
+  color: var(--ink-3);
 }
 
-/* ---------- fig. 1: the timeline ----------------------------------------- */
-
-/* The pane's own padding comes off so the strip can bleed to the window's
-   edge and scroll; the figure label lives in the title bar. */
-.panel.timeline .pane {
-  padding: 0;
+/* an action's swatch, beside its word on a button or in a mix caption */
+.sw {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: none;
 }
+
+.sw.bet,
+.sw.raise {
+  background: var(--act-bet);
+}
+
+.sw.call {
+  background: var(--act-call);
+}
+
+.sw.check,
+.sw.fold {
+  background: var(--act-check);
+}
+
+/* ---------- figure 1: the timeline ----------------------------------------- */
 
 .tl {
-  padding: 30px 34px 30px;
+  padding: 4px 0 20px;
 }
 
 .tl .scroller {
@@ -66,22 +82,25 @@
   padding-bottom: 6px;
 }
 
-.tl .track {
+/* The positioned box the track and the stations are laid out in. */
+.tl .stations {
   position: relative;
 }
 
-.tl .rail {
+/* The track runs through the middle of the station boxes: 10 px of button
+   padding, 16 px of seat label, 14 px of margin, then half the 16 px box. */
+.tl .track {
   position: absolute;
-  top: 47px;
-  height: 2px;
+  top: 47.5px;
+  height: 1px;
   z-index: 0;
-  background: var(--iv-16);
+  background: var(--rule-2);
 }
 
-.tl .rail.done {
-  background: var(--ivory);
-  height: 3px;
-  top: 46.5px;
+.tl .track.done {
+  background: var(--ink);
+  height: 2px;
+  top: 47px;
 }
 
 .tl ol {
@@ -96,7 +115,7 @@
 }
 
 /* Fixed-width stations: the strip scrolls rather than compressing, so adding
-   a node never squeezes the ones already drawn. The rail math in Timeline.tsx
+   a node never squeezes the ones already drawn. The track math in Timeline.tsx
    hardcodes the same 150. */
 .tl li {
   flex: 0 0 150px;
@@ -113,7 +132,7 @@
   width: 100%;
   color: inherit;
   font: inherit;
-  border-radius: 3px;
+  border-radius: 6px;
 }
 
 .tl button.stn {
@@ -128,63 +147,59 @@
 }
 
 .tl button.stn:hover {
-  background: var(--iv-06);
+  background: var(--paper-2);
 }
 
-/* An inline span ignores height, and the rail's 47px is measured through this
-   16px — leave it block or the boxes sag below the line. */
+/* An inline span ignores height, and the track's offset is measured through
+   this 16 px — leave it block or the boxes sag below the line. */
 .tl .who {
   display: block;
-  font: 500 10px/1 var(--mono);
-  letter-spacing: 0.15em;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--iv-45);
+  color: var(--ink-3);
   height: 16px;
   white-space: nowrap;
 }
 
-/* Stations are boxes, not dots — squarer company for the window's title bar.
-   The current one is framed by crop marks, a surveyor's "you are here". */
+/* A station is a small square on the track: hollow ahead, filled behind, and
+   the one being looked at ringed in the accent. */
 .tl .stn-box {
   display: block;
   width: 16px;
   height: 16px;
   margin: 14px auto 0;
-  border-radius: 2px;
-  border: 2px solid var(--ivory);
-  background: var(--panel);
+  border-radius: 3px;
+  border: 1.5px solid var(--ink);
+  background: var(--paper);
   position: relative;
 }
 
 .tl li.done .stn-box {
-  background: var(--ivory);
+  background: var(--ink);
 }
 
 .tl li.future .stn-box {
-  border-color: var(--iv-30);
+  border-color: var(--rule-2);
   border-style: dashed;
 }
 
-.tl li.here .stn-box::after {
-  content: '';
-  position: absolute;
-  inset: -9px;
-  background:
-    linear-gradient(var(--ivory), var(--ivory)) left top / 8px 2px,
-    linear-gradient(var(--ivory), var(--ivory)) left top / 2px 8px,
-    linear-gradient(var(--ivory), var(--ivory)) right top / 8px 2px,
-    linear-gradient(var(--ivory), var(--ivory)) right top / 2px 8px,
-    linear-gradient(var(--ivory), var(--ivory)) left bottom / 8px 2px,
-    linear-gradient(var(--ivory), var(--ivory)) left bottom / 2px 8px,
-    linear-gradient(var(--ivory), var(--ivory)) right bottom / 8px 2px,
-    linear-gradient(var(--ivory), var(--ivory)) right bottom / 2px 8px;
-  background-repeat: no-repeat;
+.tl li.here .stn-box {
+  background: var(--accent);
+  border-color: var(--accent);
+  outline: 1.5px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .tl .act {
-  margin-top: 20px;
-  font: 500 14px/1.2 var(--mono);
-  min-height: 26px;
+  margin-top: 18px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--ink);
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -192,74 +207,82 @@
 
 .tl .pot {
   display: block;
-  margin-top: 8px;
-  font: 400 11px/1.4 var(--mono);
-  color: var(--iv-60);
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
 
-/* The board card is the one display-face mark on the strip — a card, not a word. */
+/* The board card is the one serif mark on the strip: a card, not a word. */
 .tl li.board-stn .act {
-  font-family: var(--display);
-  font-size: 22px;
-  font-weight: 400;
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 500;
 }
 
 /* Explored but past where we are looking: still there, visibly not live. */
-.tl li.ahead .act {
-  color: var(--iv-60);
-  opacity: 0.55;
-}
-
+.tl li.ahead .act,
 .tl li.ahead .who,
 .tl li.ahead .pot {
-  opacity: 0.55;
+  opacity: 0.45;
 }
 
 .tl li.future .act {
-  color: var(--iv-60);
-  opacity: 0.7;
+  color: var(--ink-3);
+  font-weight: 400;
 }
 
-/* the rank identity, on stations and rows alike */
+/* the ranks, on stations and rows alike */
 .rank {
   font-weight: 600;
 }
 
-.rank.J { color: var(--jack); }
-.rank.Q { color: var(--queen); }
-.rank.K { color: var(--king); }
+.rank.J {
+  color: var(--rank-j-text);
+}
+
+.rank.Q {
+  color: var(--rank-q-text);
+}
+
+.rank.K {
+  color: var(--rank-k-text);
+}
 
 /* ---------- the next-action strip ----------------------------------------- */
 
 .next {
-  padding: 22px 34px 24px;
+  padding: 16px 0 0;
   display: flex;
-  gap: 14px;
+  gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-  border-top: 1px solid var(--iv-10);
-  background: var(--iv-03);
+  border-top: 1px solid var(--rule);
 }
 
 .next .lab {
-  font: 500 10.5px/1 var(--mono);
-  letter-spacing: 0.15em;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--iv-45);
+  color: var(--ink-3);
   margin-right: 8px;
 }
 
+/* styled as the theme's .btn, with the share of play it carries beside it */
 .next button {
-  font: 500 13.5px/1 var(--mono);
-  padding: 15px 22px;
-  border-radius: 4px;
-  border: 1px solid var(--iv-30);
-  background: transparent;
-  color: var(--ivory);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  padding: 9px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--rule-2);
+  background: var(--paper);
+  color: var(--ink);
   cursor: pointer;
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   transition:
     border-color 0.15s,
@@ -272,101 +295,42 @@
 }
 
 .next button:hover {
-  border-color: var(--ivory);
-  background: var(--iv-06);
+  border-color: var(--ink);
 }
 
 /* The action the explored line already takes here. */
 .next button.onpath {
-  border-color: var(--ivory);
-  box-shadow: inset 0 0 0 1px var(--ivory);
+  border-color: var(--ink);
+  background: var(--paper-2);
 }
 
 .next button .w {
-  font-size: 11px;
-  color: var(--iv-60);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
 
-.next .fork-note {
-  font: 400 11.5px/1.5 var(--mono);
-  color: var(--iv-60);
-  margin-left: 4px;
-}
-
+.next .fork-note,
 .next .done-msg {
-  font: 400 13px/1.5 var(--mono);
-  color: var(--iv-60);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  margin-left: 4px;
 }
 
 /* ---------- the two seats -------------------------------------------------- */
 
-.seat-head {
-  font: 500 10.5px/1 var(--mono);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--iv-60);
-  margin: 0 0 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
+/* The seat whose decision it is wears the accent on its top rule. */
+.fig.seat.acting {
+  border-top: 2px solid var(--accent);
+  padding-top: 19px;
 }
 
-.seat-sub {
-  font: 400 12px/1.6 var(--mono);
-  color: var(--iv-60);
-  margin: 0 0 18px;
-  min-height: 38px;
-}
-
-.badge {
-  display: inline-block;
-  padding: 5px 11px;
-  border-radius: 3px;
-  font: 500 9.5px/1 var(--mono);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border: 1px solid var(--iv-16);
-}
-
-.badge.act {
-  background: var(--ivory);
-  color: var(--field);
-  border-color: transparent;
-}
-
-/* The acting seat wears the timeline's crop-mark frame, scaled up — one "you
-   are here" vocabulary at two scales. The marks sit on the field outside the
-   window, so the window lets them show (the theme clips a window's overflow;
-   nothing in a seat panel spills, so the clip is not needed here). */
-.panel.seat.acting {
-  overflow: visible;
-  border-color: var(--iv-30);
-}
-
-.panel.seat.acting::after {
-  content: '';
-  position: absolute;
-  inset: -9px;
-  pointer-events: none;
-  background:
-    linear-gradient(var(--ivory), var(--ivory)) left top / 18px 2.5px,
-    linear-gradient(var(--ivory), var(--ivory)) left top / 2.5px 18px,
-    linear-gradient(var(--ivory), var(--ivory)) right top / 18px 2.5px,
-    linear-gradient(var(--ivory), var(--ivory)) right top / 2.5px 18px,
-    linear-gradient(var(--ivory), var(--ivory)) left bottom / 18px 2.5px,
-    linear-gradient(var(--ivory), var(--ivory)) left bottom / 2.5px 18px,
-    linear-gradient(var(--ivory), var(--ivory)) right bottom / 18px 2.5px,
-    linear-gradient(var(--ivory), var(--ivory)) right bottom / 2.5px 18px;
-  background-repeat: no-repeat;
-}
-
-/* What the seat likely holds — identity colours, read before the action
-   bars. Slim on purpose: it is a fact about the deal and the line, not a
-   decision, so it must not compete with the strategy rows below it. */
+/* What the seat likely holds, read before the action bars. Slim on purpose:
+   it is a fact about the deal and the line, not a decision. */
 .holding {
-  margin: 16px 0 4px;
+  margin: 0 0 10px;
 }
 
 .holding .k {
@@ -376,10 +340,9 @@
 
 .range-bar {
   display: flex;
-  height: 14px;
-  border-radius: 2px;
-  overflow: hidden;
-  background: var(--iv-06);
+  gap: 2px;
+  height: 10px;
+  background: var(--paper-2);
 }
 
 .range-bar i {
@@ -387,48 +350,54 @@
   height: 100%;
 }
 
-.range-bar i.J { background: var(--jack); }
-.range-bar i.Q { background: var(--queen); }
-.range-bar i.K { background: var(--king); }
+.range-bar i.J {
+  background: var(--rank-j);
+}
+
+.range-bar i.Q {
+  background: var(--rank-q);
+}
+
+.range-bar i.K {
+  background: var(--rank-k);
+}
 
 .range-nums {
   display: flex;
   gap: 16px;
   margin-top: 7px;
-  font: 400 11.5px/1.4 var(--mono);
+  font-size: 12px;
+  line-height: 1.4;
   font-variant-numeric: tabular-nums;
 }
 
-/* Rows stay hairline — the house rule is "anything tabular is hairline rows,
-   never cards" — with the numbers in their own right column so the bars stop
-   sprawling the panel's full height. */
+/* Rows stay hairline, with the numbers in their own right column. */
 .rankrow {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) 108px 24px;
+  grid-template-columns: 22px minmax(0, 1fr) 112px 28px;
   gap: 14px;
   align-items: center;
-  padding: 15px 0;
-  border-bottom: 1px solid var(--iv-10);
+  padding: 14px 0;
+  border-top: 1px solid var(--rule);
 }
 
 /* a row you have taken hold of */
 .rankrow.locked {
-  background: var(--yellow-20);
+  background: var(--paper-2);
   margin: 0 -12px;
   padding-left: 12px;
   padding-right: 12px;
-  border-radius: 3px;
 }
 
 .lockbtn {
   border: 0;
   background: none;
   cursor: pointer;
-  color: var(--iv-45);
+  color: var(--ink-3);
   font-size: 15px;
   padding: 5px;
   line-height: 1;
-  border-radius: 3px;
+  border-radius: 6px;
   transition:
     color 0.15s,
     background 0.15s,
@@ -440,12 +409,12 @@
 }
 
 .lockbtn:hover {
-  color: var(--ivory);
-  background: var(--iv-06);
+  color: var(--ink);
+  background: var(--paper-2);
 }
 
 .rankrow.locked .lockbtn {
-  color: var(--lock);
+  color: var(--accent);
 }
 
 .editor {
@@ -458,19 +427,16 @@
   grid-template-columns: 62px 1fr 46px;
   gap: 14px;
   align-items: center;
-  font: 400 11.5px/1.4 var(--mono);
-  color: var(--iv-60);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-2);
   margin-top: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .editor input[type='range'] {
-  accent-color: var(--yellow);
+  accent-color: var(--accent);
   width: 100%;
-}
-
-.rankrow:last-of-type {
-  border-bottom: 0;
-  padding-bottom: 6px;
 }
 
 .rankrow > .rank {
@@ -484,15 +450,13 @@
   min-width: 0;
 }
 
-/* The whole mixed strategy at one infoset, one bar: aggression reads left to
-   right — bet leads in the pink, check trails in the yellow, fold's hatch
-   takes the tail. */
+/* The whole mixed strategy at one infoset, one bar, aggression first: the
+   bet or raise, then the check or call, then the fold. */
 .mix {
   display: flex;
-  height: 26px;
-  border-radius: 2px;
+  height: 22px;
   overflow: hidden;
-  background: var(--iv-06);
+  background: var(--paper-2);
 }
 
 .mix i {
@@ -500,51 +464,34 @@
   height: 100%;
 }
 
-.mix i.r {
+.mix i.bet,
+.mix i.raise {
   background: var(--act-bet);
 }
 
-.mix i.c {
+.mix i.call {
+  background: var(--act-call);
+}
+
+.mix i.check,
+.mix i.fold {
   background: var(--act-check);
 }
 
-.mix i.f {
-  background: repeating-linear-gradient(
-    45deg,
-    var(--act-fold),
-    var(--act-fold) 3px,
-    transparent 3px,
-    transparent 6px
-  );
-}
-
-/* The baseline lane: the same bar Nash drew, slimmer and a shade quieter,
-   directly beneath the moved one — before and after in a single glance. */
+/* The baseline lane: the same bar Nash drew, slimmer and paler, directly
+   beneath the moved one — before and after in a single glance. */
 .mix.was {
-  height: 9px;
+  height: 7px;
 }
 
-.mix.was i.r {
-  background: var(--act-bet-was);
-}
-
-.mix.was i.c {
-  background: var(--act-check-was);
-}
-
-.mix.was i.f {
-  background: repeating-linear-gradient(
-    45deg,
-    var(--act-fold-was),
-    var(--act-fold-was) 3px,
-    transparent 3px,
-    transparent 6px
-  );
+.mix.was i {
+  opacity: 0.35;
 }
 
 .nums {
-  font: 400 11.5px/1.4 var(--mono);
-  color: var(--iv-60);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
   font-variant-numeric: tabular-nums;
   display: flex;
   flex-direction: column;
@@ -556,13 +503,13 @@
 
 .nums b {
   font-weight: 600;
-  color: var(--ivory);
+  color: var(--ink);
 }
 
-/* ---------- the response panel ------------------------------------------ */
+/* ---------- figure 2: the response ------------------------------------------ */
 
-.panel.response .stat {
-  margin-top: 20px;
+.fig.response .stats {
+  margin-top: 24px;
 }
 
 .response-controls {
@@ -570,58 +517,69 @@
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-  margin-top: 18px;
+  margin-top: 4px;
 }
 
 .response-controls .iters {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  border: 1px solid var(--iv-16);
-  border-radius: 4px;
-  padding: 9px 12px;
-  font: 400 12px/1 var(--mono);
-  color: var(--iv-60);
+  gap: 8px;
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
+  padding: 8px 10px 8px 12px;
+  font-size: 13px;
+  color: var(--ink-3);
 }
 
 .response-controls select {
-  font: 500 12px/1 var(--mono);
-  color: var(--ivory);
+  font: 500 14px/1.2 var(--sans);
+  color: var(--ink);
   background: transparent;
   border: none;
   cursor: pointer;
 }
 
-/* a solver error wears the loss ink */
+/* a solver error wears the accent */
 .errnote {
-  color: var(--loss);
-  font: 500 13px/1.6 var(--mono);
+  color: var(--accent);
+  font-size: 14px;
+  line-height: 1.5;
   margin: 16px 0 0;
 }
 
 .stale-note,
 .response-note {
-  font: 400 12px/1.65 var(--mono);
-  color: var(--iv-60);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-3);
   margin: 16px 0 0;
   max-width: 70ch;
 }
 
-/* ---------- fig. 2: the table ------------------------------------------- */
+/* ---------- figure 3: the table ------------------------------------------- */
 
-/* The oval IS the table: one monoline ellipse, cards laid where the seats
-   sit, the board landing in the middle. */
+/* One oval of recessed paper, cards laid where the seats sit, the board
+   landing in the middle. */
 .table {
   position: relative;
   max-width: 560px;
-  margin: 22px auto 0;
+  margin: 8px auto 0;
 }
 
 .table .felt {
   display: block;
   width: 100%;
   height: auto;
-  color: var(--iv-60);
+}
+
+.felt-edge {
+  fill: var(--paper-2);
+  stroke: var(--rule-2);
+}
+
+.felt-line {
+  fill: none;
+  stroke: var(--rule);
 }
 
 .seat-spot {
@@ -635,7 +593,7 @@
 }
 
 .seat-spot.villain {
-  top: 4%;
+  top: 8%;
 }
 
 .seat-spot.centre {
@@ -644,63 +602,60 @@
 }
 
 .seat-spot.you {
-  bottom: 4%;
+  bottom: 8%;
 }
 
 .seat-spot .who {
-  font: 500 10px/1 var(--mono);
-  letter-spacing: 0.15em;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--iv-60);
+  color: var(--ink-3);
   white-space: nowrap;
 }
 
 .seat-spot .pot {
-  font: 400 11.5px/1.4 var(--mono);
-  color: var(--iv-60);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* The playing cards, as the homepage draws them: a face is ivory paper with
-   the rank in oxblood, a back is oxblood pinstripe, the board card is a
-   transparent frame with the rank in ivory. */
+/* The cards, as the trainer draws them: a face is white card stock on a
+   hairline with the rank in ink, a back is an oxblood pinstripe, the board's
+   empty seat a dashed outline. */
 .pcard {
-  width: 52px;
-  height: 72px;
-  border-radius: 5px;
+  width: 50px;
+  height: 70px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 600 32px/1 var(--display);
-  background: var(--ivory);
+  font: 500 28px/1 var(--serif);
+  background: #fff;
+  border: 1px solid var(--rule-2);
   flex: none;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.6);
 }
 
-/* the rank's identity colour yields to the card's own ink on a face */
+/* the rank's shade yields to the card's own ink on a face */
 .pcard.rank {
-  color: var(--ox);
+  color: var(--ink);
 }
 
 /* face down: unknowable is unknowable */
 .pcard.back {
-  background: repeating-linear-gradient(45deg, var(--ox) 0 2px, transparent 2px 6px) var(--well);
-  border: 1px solid var(--ox-lit);
-}
-
-/* the board card: a frame on the felt, not paper */
-.seat-spot.centre .pcard {
-  background: transparent;
-  border: 1px solid var(--iv-30);
-  color: var(--ivory);
-  box-shadow: none;
+  background: repeating-linear-gradient(45deg, var(--accent) 0 1px, transparent 1px 5px) #fff;
+  border-color: var(--accent);
 }
 
 /* the board's empty seat, before round 1 closes */
 .pcard.empty {
-  border: 1px dashed var(--iv-16);
+  border: 1px dashed var(--rule-2);
   background: transparent;
-  box-shadow: none;
 }
 
 .play-buttons {
@@ -708,28 +663,34 @@
   gap: 10px;
   flex-wrap: wrap;
   justify-content: center;
-  margin-top: 22px;
+  margin-top: 20px;
 }
 
-.playpanel .stat {
-  justify-content: center;
+.play-buttons .btn {
+  min-width: 96px;
 }
 
-/* ---------- the decision sidebar ----------------------------------------- */
+.play-stats {
+  margin-top: 32px;
+  max-width: 640px;
+}
+
+/* ---------- the hand's transcript ------------------------------------------ */
 
 /* Table on the left, the hand's transcript on the right: one node per row,
    newest at the bottom, the live roll waiting at the tail. */
 .playwrap {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 296px;
-  gap: 30px;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 40px;
   align-items: start;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .playside .k {
   display: block;
-  margin-bottom: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ink);
 }
 
 .playside ol {
@@ -744,43 +705,52 @@
   gap: 10px;
   align-items: baseline;
   padding: 11px 0;
-  border-bottom: 1px solid var(--iv-10);
+  border-bottom: 1px solid var(--rule);
 }
 
 .side-who {
-  font: 500 9.5px/1.6 var(--mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--iv-45);
-}
-
-.side-main b {
-  font: 600 13px/1.4 var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-3);
 }
 
 .side-main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font: 400 12px/1.5 var(--mono);
+  gap: 3px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.side-main b {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
 }
 
 .side-mix {
   display: flex;
-  gap: 10px;
-  font-size: 10.5px;
-  color: var(--iv-60);
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ink-3);
   font-variant-numeric: tabular-nums;
   flex-wrap: wrap;
 }
 
+.side-mix > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .side-mix .chosen {
-  color: var(--ivory);
+  color: var(--ink);
   font-weight: 600;
 }
 
 .side-row.board .side-act {
-  font: 600 19px/1 var(--display);
+  font: 500 20px/1 var(--serif);
 }
 
 .side-grade {
@@ -789,65 +759,83 @@
   gap: 10px;
   align-items: baseline;
   margin-top: 4px;
-  font: 400 11px/1.4 var(--mono);
+  font-size: 12px;
+  line-height: 1.4;
   font-variant-numeric: tabular-nums;
 }
 
-/* The roll is an instruction, so it wears the lock's ink: your hand on the
-   hand. */
+/* The roll is an instruction: a small outlined tag in ink. */
 .side-grade .roll {
-  border: 1px solid var(--lock);
-  color: var(--lock);
-  border-radius: 3px;
+  border: 1px solid var(--rule-2);
+  color: var(--ink);
+  border-radius: 6px;
   padding: 2px 7px;
-  font-weight: 600;
+  font-weight: 500;
+}
+
+.side-grade .roll.live {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .side-grade .ok {
-  color: var(--win);
+  color: var(--act-call);
   font-weight: 600;
 }
 
 .side-grade .bad {
-  color: var(--loss);
+  color: var(--accent);
   font-weight: 500;
 }
 
+/* the decision waiting on you */
 .side-row.live {
-  border-left: 2px solid var(--lock);
+  border-left: 2px solid var(--accent);
   padding-left: 10px;
   margin-left: -12px;
 }
 
 .side-row.verdict .side-main {
-  color: var(--iv-60);
-  font-size: 11.5px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.4;
 }
 
 .side-total {
   margin: 12px 0 0;
-  font: 400 11.5px/1.5 var(--mono);
-  color: var(--iv-60);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
 
 .side-total b {
-  color: var(--ivory);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* what a seat has in front of it this round: its last action, then its chips */
+.seat-spot .in-front {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 20px;
 }
 
 /* what a seat just did, spoken at the seat */
 .seat-spot .did {
-  font: 400 11px/1 var(--mono);
-  color: var(--iv-60);
-  min-height: 11px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--ink-2);
+  min-height: 12px;
 }
 
-/* chips: monoline plates, the amount beside them */
+/* chips: plates of paper on a hairline, the amount beside them */
 .chipstack {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: var(--iv-80);
 }
 
 .chipstack svg {
@@ -856,16 +844,17 @@
   display: block;
 }
 
-.chipstack b {
-  font: 600 11.5px/1 var(--mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--ivory);
+.chipstack .plates {
+  fill: var(--paper);
+  stroke: var(--ink-2);
 }
 
-.seat-spot .pot {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.chipstack b {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
 }
 
 /* A closed round's chips slide to the pile. The tokens are transient: they
@@ -919,7 +908,7 @@
   }
 }
 
-/* Reduced motion (web/DESIGN.md): the presses this figure owns go quiet, and
+/* Reduced motion (web/DESIGN.md): the presses this page owns go quiet, and
    the swept chips fade where they are instead of crossing the felt. */
 @media (prefers-reduced-motion: reduce) {
   .tl button.stn:active,

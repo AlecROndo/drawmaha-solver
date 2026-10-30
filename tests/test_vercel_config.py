@@ -48,6 +48,19 @@ def test_the_cover_page_is_served_from_the_filesystem():
     # The Cover — the site's original front page, kept — is the third file.
     assert rewrites.get("/cover") == "/cover.html"
 
+def test_the_product_paths_reach_their_pages():
+    # The nav speaks the product's names (Research, Solver, Benchmarks, Play,
+    # Rules) over apps that kept their build paths. Benchmarks and Releases are
+    # static pages like Rules; Research, Learn and Play are the three tabs of
+    # the rung-3 app, which reads location.pathname to open the right one. A
+    # missing rewrite here is a nav item that 404s while every app still builds.
+    rewrites = {r["source"]: r["destination"] for r in _vercel_config()["rewrites"]}
+    assert rewrites.get("/benchmarks") == "/benchmarks.html"
+    assert rewrites.get("/releases") == "/releases.html"
+    for path in ("/research", "/learn", "/play"):
+        assert rewrites.get(path) == "/rung3/index.html", f"{path} must open the rung-3 app"
+
+
 def test_static_output_is_served_from_public():
     # The other half of the same contract: the catch-all only mattered because
     # scripts/site/vercel_build.sh writes the visualizers into public/, which Vercel

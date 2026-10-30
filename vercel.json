@@ -34,6 +34,26 @@
     {
       "source": "/hero",
       "destination": "/hero/index.html"
+    },
+    {
+      "source": "/benchmarks",
+      "destination": "/benchmarks.html"
+    },
+    {
+      "source": "/releases",
+      "destination": "/releases.html"
+    },
+    {
+      "source": "/research",
+      "destination": "/rung3/index.html"
+    },
+    {
+      "source": "/learn",
+      "destination": "/rung3/index.html"
+    },
+    {
+      "source": "/play",
+      "destination": "/rung3/index.html"
     }
   ]
 }

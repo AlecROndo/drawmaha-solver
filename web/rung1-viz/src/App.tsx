@@ -1,19 +1,25 @@
 import { useEffect, useState } from 'react'
+import { AnswerSheet } from './ui/AnswerSheet'
 import { ExploitChart } from './ui/ExploitChart'
 import { ExploitTab } from './ui/ExploitTab'
 import { GameTree, TreeLegend } from './ui/GameTree'
 import { PlayPanel } from './ui/PlayPanel'
-import { Footer, Hero, Panel, TopBar } from './ui/site'
+import { Figure, Footer, PageHead, TopBar } from './ui/site'
 import { SOLVE, useSolve } from './ui/useSolve'
 
 const TABS = [
-  { id: 'solve', label: 'Solve', blurb: 'watch CFR find the equilibrium' },
-  { id: 'exploit', label: 'Exploit', blurb: 'lock a strategy, watch CFR beat it' },
+  { id: 'solve', label: 'Solve', blurb: 'CFR finds the equilibrium' },
+  { id: 'exploit', label: 'Exploit', blurb: 'CFR beats a strategy you lock' },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
 
 const isTabId = (value: string): value is TabId => TABS.some((t) => t.id === value)
+
+const LAST = SOLVE.iterations.length - 1
+
+/** A chip count with a true minus sign. */
+const num = (v: number, digits: number) => (v < 0 ? `−${Math.abs(v).toFixed(digits)}` : v.toFixed(digits))
 
 /**
  * The tab named in the URL hash, so a view can be linked to and reloaded into.
@@ -34,14 +40,13 @@ function SolveTab() {
   return (
     <>
       <div className="panels">
-        <Panel
-          n="01"
+        <Figure
+          n="Figure 1"
           wide
-          k="Fig. 1 · the game"
-          title="The game, with the strategy drawn on it"
-          say="Four decision nodes × three possible cards = the twelve information sets. Each bar is what CFR's average strategy does there; each tick is the closed form."
+          title="Twelve bars walk onto the closed-form equilibrium"
+          sub="Four decision nodes × three cards: the twelve information sets, each bar CFR's average strategy at the playhead."
+          caption={`Each tick is the closed form at the α = ${SOLVE.alpha.toFixed(3)} this run found. Edge widths are how often each action is taken.`}
           label="Game tree and strategy"
-          live={playing}
         >
           <div className="transport" role="group" aria-label="Playback">
             <button className="btn" onClick={toggle} aria-label={playing ? 'Pause' : 'Play'}>
@@ -61,21 +66,22 @@ function SolveTab() {
           </div>
           <GameTree index={index} bet={SOLVE.bet} hairline={SOLVE.closedForm} />
           <TreeLegend hairlineIs="closed-form equilibrium" />
-        </Panel>
+        </Figure>
 
-        <ExploitChart index={index} />
+        <ExploitChart index={index} onScrub={scrub} />
+        <AnswerSheet index={index} />
         <PlayPanel />
       </div>
 
       <section className="stop" aria-label="Reading guide">
         <div className="stop-head">
           <div>
-            <p className="kicker">What to look for</p>
-            <h2>Three things a table cannot show.</h2>
+            <p className="eyebrow">What to look for</p>
+            <h2>The run shows three things its strategy table cannot.</h2>
           </div>
           <p>
-            The figures above are one solve of one small game. Each row here names a thing the
-            run does that its strategy table could not show, and the figure it shows in.
+            The figures above are one solve of one small game. Each row names a thing the run does that a table of its
+            final strategy would hide, and the figure it shows in.
           </p>
         </div>
         <table className="rows">
@@ -84,31 +90,28 @@ function SolveTab() {
               <td className="g">The bluff is discovered, not supplied</td>
               <td className="p">
                 The jack's opening bar and the king's move together: now {alphaNow.toFixed(3)} and{' '}
-                {kingNow.toFixed(3)}, a ratio of{' '}
-                {alphaNow > 0.005 ? (kingNow / alphaNow).toFixed(2) : '—'}. It settles at 3, and α
-                itself is free anywhere in [0, ⅓].
+                {kingNow.toFixed(3)}, a ratio of {alphaNow > 0.005 ? (kingNow / alphaNow).toFixed(2) : '—'}. It settles
+                at 3, and α itself is free anywhere in [0, ⅓].
               </td>
-              <td className="s">Fig. 1</td>
+              <td className="s">Figure 1</td>
             </tr>
             <tr>
               <td className="g">Two answers, one run</td>
               <td className="p">
-                The average marches down the diagonal; the current strategy — the thing the
-                algorithm is actually playing — stays near 0.2 and is briefly worse late than
-                early. Only the average has a guarantee, which is why the rung-4 dashboard must
-                query the average policy and never the final iterate.
+                The average falls down the log axes; the current strategy, the thing the algorithm is actually playing,
+                stays between 0.1 and 0.4 and ends worse than it was at ten iterations. Only the average carries a guarantee, so the
+                average is what CFR reports.
               </td>
-              <td className="s">Fig. 2</td>
+              <td className="s">Figure 2</td>
             </tr>
             <tr>
               <td className="g">The ticks are the known answer</td>
               <td className="p">
-                Kuhn is solved in closed form, so each bar has a tick where it belongs. This solve
-                landed at α = {SOLVE.alpha.toFixed(3)} with a game value of{' '}
-                {SOLVE.gameValue.toFixed(5)} against the exact −1/18 ={' '}
-                {SOLVE.gameValueExact.toFixed(5)}.
+                Kuhn is solved in closed form, so each bar has a tick where it belongs. This solve landed at α ={' '}
+                {SOLVE.alpha.toFixed(3)} with a game value of {num(SOLVE.gameValue, 5)} against the exact −1/18 ={' '}
+                {num(SOLVE.gameValueExact, 5)}.
               </td>
-              <td className="s">Fig. 1</td>
+              <td className="s">Figures 1, 3</td>
             </tr>
           </tbody>
         </table>
@@ -138,26 +141,26 @@ export default function App() {
 
   return (
     <>
-      <TopBar here={1} />
+      <TopBar here="benchmarks" />
 
       <main className="wrap">
-        <Hero
-          eyebrow="Rung 1 of 4 · complete · vanilla CFR"
-          done
-          title={
+        <PageHead
+          eyebrow="Benchmarks · Kuhn poker"
+          title={`Vanilla CFR solves Kuhn poker to ${SOLVE.exploitabilityAverage[LAST].toFixed(5)} chips a hand.`}
+          lede={
             <>
-              CFR solves Kuhn poker, and discovers <em>how often to bluff.</em>
+              Three cards, one bet, twelve information sets, and an equilibrium known in closed form. After 100,000
+              iterations the average strategy is exploitable for{' '}
+              <b>{SOLVE.exploitabilityAverage[LAST].toFixed(5)} chips a hand</b>, and the game value is{' '}
+              <b>{num(SOLVE.gameValue, 5)}</b> against the exact −1/18. Nobody tells the solver to bluff; it finds that a
+              jack bluffs a third as often as a king bets.
             </>
           }
-          icon="cards"
-          iconLabel="Three cards fanned on the felt, drawn in ASCII"
         >
-          <p className="lede">
-            Three cards, one bet, twelve information sets: the smallest poker with hidden
-            information, and one of the few with a known exact answer. Nobody tells the solver to
-            bluff. <b>It works out that a jack should bluff one third as often as a king value-bets.</b>
-          </p>
-        </Hero>
+          <a className="back" href="https://drawmaha.app/benchmarks">
+            All benchmarks →
+          </a>
+        </PageHead>
 
         <div className="views" role="tablist" aria-label="Views">
           {TABS.map((entry) => (
@@ -179,11 +182,11 @@ export default function App() {
         <p className="foot">
           {tab === 'solve'
             ? '100,000 vanilla CFR iterations, solved by '
-            : 'Exploit runs are live: the locked spots are POSTed to a local Python process running '}
-          src/drawmaha_solver/kuhn/
+            : 'Exploit runs are live: the locked spots are posted to a local Python process running '}
+          <code>src/drawmaha_solver/kuhn/</code>
           {tab === 'solve'
-            ? ' and exported to JSON — this page renders the solver’s own numbers rather than re-implementing it. Vanilla CFR enumerates the whole tree and never samples, so the run is deterministic: no seed, same figures every time.'
-            : ' — the same walk, with your spots held still. No CFR is re-implemented in TypeScript; the browser only draws numbers Python computed, and the ceiling it is graded against comes from a module that has never imported the solver.'}
+            ? ' and exported to JSON. The page renders the solver’s own numbers rather than re-implementing it. Vanilla CFR enumerates the whole tree and never samples, so the run is deterministic: no seed, the same figures every time.'
+            : ', the same walk with your spots held still. No CFR is re-implemented in TypeScript; the browser draws numbers Python computed, and the ceiling they are graded against comes from a module that has never imported the solver.'}
         </p>
       </main>
 

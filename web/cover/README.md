@@ -1,122 +1,99 @@
-# The cover pages
+# The static pages
 
-Three self-contained HTML files, served as the site's front door. Two are
-exports of a design workflow that lives beside the repo and are never edited
-here; the third is authored in this directory by hand:
+Five plain HTML files served at the root of the site, beside the five Vite
+apps. Four are the product's pages, written by a generator in this repo; the
+fifth is the old front page, kept as an archive:
 
-- `index.html` — the homepage at `/`. A product fold (the ASCII-rendered chip
-  stack beside rung 0's live regret-matching console), the rung-2 Leduc
-  strategy explorer, the three verbs of the product (Solve, Verify, Play, each
-  with a running widget), and the validation ladder as a walk through the five
-  rungs with their real numbers and graphs.
-- `rules.html` — the Rules tab at `/rules`. What Drawmaha is and how a hand is
-  played, in the same chrome: a scroll-driven raymarched table that deals,
-  flops, draws, turns, rivers and splits the pot, the worked hand read two
-  ways, and why nobody has solved the game.
-- `cover.html` — the Cover at `/cover`: the site's original front page, kept
-  and rebuilt in the same theme. The homepage's nav and `chip.js` verbatim,
-  the two ASCII windows from `web/hero-studies` (the hand from the sidelines,
-  five giants at the bar) on an oxblood field, one window of numbers per
-  solved rung, and the ladder as hairline rows. Hand-authored here, not
-  exported.
+| File | Route | What it is |
+|---|---|---|
+| `index.html` | `/` | the homepage: the current result as a chart, the results table, the opening spot's range matrix, the research index, a dealt hand, the method |
+| `rules.html` | `/rules` | the rules of Drawmaha: the streets as a ruler, one hand read two ways, why the game is unsolved |
+| `benchmarks.html` | `/benchmarks` | the four graded games on one page: the results table, then each game's chart, grade and link to its live demo |
+| `releases.html` | `/releases` | every released strategy with its tag, grade, the pages that ship it and the command that exports it |
+| `cover.html` | `/cover` | the original front page, archived with its own inlined chrome; unlinked from the nav and not regenerated |
 
-Each page inlines its own CSS, its data (the committed rung-1 and rung-2
-solves) and its scripts. Nothing here is built; there is no bundler and no
-third-party CDN. The only outside requests any page makes are for the fonts
-under `/fonts/`.
+## Written by a generator, never by hand
 
-## Two exported, one authored
+`index.html`, `rules.html`, `benchmarks.html` and `releases.html` are the
+output of `scripts/site/make_static_pages.py`, and each names it in a comment
+above its `<head>`. To change a page, change the generator and run
 
-The homepage and the Rules tab are not authored in this directory. They come
-out of a studies workflow that lives beside the repo: rounds of competing
-homepage studies, one chosen, then tightened with the Rules tab and built
-from a source file plus shared parts (the raymarching kernel, `chip.js`, the
-inlined solves). That workflow exports the finished pages with their font
-URLs rewritten to `/fonts/<file>`, and the export is what gets checked in
-here, byte for byte.
+```bash
+uv run python scripts/site/make_static_pages.py
+```
 
-So: do not hand-edit `index.html` or `rules.html`. A fix goes into the
-studies source, gets re-exported, and replaces both files. `cover.html` is
-the exception: it is written here, so a fix to it is an ordinary edit. The
-tests in `tests/test_cover_page.py` check all three for what a static page
-can get wrong silently — a link to a route that does not exist, a font the
-build never copies, a script that does not parse — not the wording.
+The generator needs only the standard library. Every number on the pages is
+read from a committed file: the README's results and Kuhn tables, the grades
+under `figures/rung3/` and `figures/rung4/`, the Kuhn and Leduc solves the
+live demos draw, the frozen table's export under
+`web/solver-viz/public/mini/` (the homepage matrix is rebuilt from it and
+checked against the answer sheet), the first chunk of the Play tab's deal
+pack, and the release catalogue in
+`src/drawmaha_solver/minidrawmaha/answer/releases.py`, read with `ast`. The
+release tags' publication dates and the research index's dates have no
+committed home and are set, with their source, in the generator. Rerun it
+whenever any of those files changes; `tests/test_cover_page.py` renders the
+pages in memory and fails if a committed page differs.
 
-One standing exception. The studies source predates #42, so the bowl
-settling in the Solve widget (#42), the rung-0 triangle drawing that same
-bowl and the Rules tab's beat anchor (#43) were made here, in the exported
-files, because the source has no bowl code to fix. Until those edits are
-ported into the source, a re-export would silently put the old code back;
-`test_the_hand_edits_survived_the_last_export` pins each one by a line only
-the new code has, so the revert fails the suite instead. Port the edits and
-re-export to retire that test.
+`cover.html` is the exception: it is an archive, edited by hand if at all.
+It is served as-is and loads the fonts of the old front page, which the
+build no longer ships, so `/cover` renders in fallback faces by design; the
+font check in `tests/test_cover_page.py` reads `fonts.css` alone and does not
+hold the archive to it.
 
-The UI standard (`web/DESIGN.md`) was likewise applied to the exported pages
-by hand: the motion tokens in `:root`, the `:active` press on every
-pressable, the tightened Rungs menu, the `--ease-out` scroll reveal and the
-hover gate on the ladder's arrow. `tests/test_ui_standard.py` checks all of
-that on the inline `<style>` blocks, so a re-export from the stale source
-fails there too.
+## What a page loads
 
-## The font rule
+- `/fonts.css` — `fonts.css` in this directory: the `@font-face` rules for the
+  eight woff2 files `scripts/site/vercel_build.sh` copies to `/fonts/` out of
+  rung 0's `@fontsource` packages (Newsreader 400, 500 and 400 italic; Geist
+  Sans 400, 500, 600; IBM Plex Mono 600 for the chip and 400 for code). A page never names a
+  font file itself.
+- `/theme.css` — the apps' theme, `web/rung0-viz/src/theme.css`, copied by the
+  build. The top bar, the footer, buttons, figures, hairline tables and the
+  contents rail are styled there; each page adds one inline `<style>` of page
+  layout and chart classes on top.
+- `/chip.js` — `chip.js` in this directory, the plain-JS twin of the apps'
+  `src/ui/mark.ts`. Each page mounts the turning chip twice with
+  `mountChip(canvas, { font, speed, mark, ink })`: in the top bar and where the
+  footer closes the page.
 
-The pages load eight woff2 files from `/fonts/`, all named the @fontsource
-way (`<family>-latin-<weight>-<style>.woff2`), and they reach `public/fonts/`
-by two routes:
+The top bar and the footer are the markup `site.tsx` renders in the apps,
+written out as HTML with the same classes, with `aria-current="page"` on the
+current nav item. Nothing is fetched from another host; the only outside
+links are to the repository on GitHub.
 
-- `scripts/site/vercel_build.sh` copies IBM Plex Mono 400/500/600 and Plus
-  Jakarta Sans 600 regular (the display voice) out of rung 0's `@fontsource`
-  packages with `copy_font`. Those are **not** duplicated here.
-- The other four — Instrument Sans 400/500/600 (the prose voice) and Plus
-  Jakarta Sans 600 italic — live in `fonts/` in this directory, and the
-  build copies them beside the rest. (The visualizers bundle their own copies
-  of all eight into their `assets/`; `/fonts/` serves only these pages.)
+## What the tests hold
 
-A page may only reference a font that one of those two routes produces; the
-test enforces it. Adding a fifth voice means adding its file here (or a
-`copy_font` line in the build script) in the same change.
-
-## Routes
-
-`vercel.json` serves `public/` filesystem-first, so:
-
-| URL            | Served                             |
-|----------------|------------------------------------|
-| `/`            | `public/index.html` (no rewrite)   |
-| `/rules`       | rewritten to `/rules.html`         |
-| `/rules.html`  | the file itself                    |
-| `/cover`       | rewritten to `/cover.html`         |
-| `/cover.html`  | the file itself                    |
-| `/index.html`  | the file itself                    |
-| `/fonts/*`     | the woff2 files                    |
-
-The pages link to each other relatively (`rules.html`, `cover.html`,
-`index.html#rung3`), which resolves at the root either way, and to the
-visualizers absolutely (`https://drawmaha.app/rung0` and so on); every such
-link must match a rewrite source in `vercel.json` or the test fails.
+`tests/test_cover_page.py`: every link reaches a route `vercel.json` serves
+(or the repository), every anchor into a page lands on an id it has, nothing
+loads from another host, `fonts.css` declares exactly what the build copies,
+each page loads the theme, the fonts and the chip and mounts it twice, every
+inline script parses, no page says "rung", "ladder" or "climb" in its copy
+(the method's words stay in the README), and the four pages are byte for byte
+what the generator writes. `tests/test_ui_standard.py` reads each page's
+inline style together with the linked theme and holds it to `web/DESIGN.md`.
 
 ## Checking them locally
 
-The build script is the real thing (`bash scripts/site/vercel_build.sh`, then
-`uv run python scripts/site/serve_site.py`), but it runs three `npm ci` builds
-first. To look at just these three pages, mimic `public/` in a temp dir and
-serve it:
+The real thing is the build (`bash scripts/site/vercel_build.sh`, then
+`uv run python scripts/site/serve_site.py`, at `http://localhost:4321`), but
+it runs five `npm ci` builds first. To look at just these pages, mimic
+`public/` in a temp dir and serve it:
 
 ```bash
-tmp=$(mktemp -d)
-cp web/cover/index.html web/cover/rules.html web/cover/cover.html "$tmp/"
-mkdir "$tmp/fonts"
-cp web/cover/fonts/*.woff2 "$tmp/fonts/"
-# the four the build copies from @fontsource (after an npm ci in web/rung0-viz):
-f=web/rung0-viz/node_modules/@fontsource
-cp $f/plus-jakarta-sans/files/plus-jakarta-sans-latin-600-normal.woff2 "$tmp/fonts/"
-for w in 400 500 600; do cp $f/ibm-plex-mono/files/ibm-plex-mono-latin-$w-normal.woff2 "$tmp/fonts/"; done
+tmp=$(mktemp -d); mkdir "$tmp/fonts"
+cp web/cover/{index,rules,benchmarks,releases,cover}.html web/cover/fonts.css web/cover/chip.js web/cover/favicon.svg "$tmp/"
+cp web/rung0-viz/src/theme.css "$tmp/theme.css"
+f=web/rung0-viz/node_modules/@fontsource   # after `npm install` in web/rung0-viz
+for w in 400 500; do cp $f/newsreader/files/newsreader-latin-$w-normal.woff2 "$tmp/fonts/"; done
+cp $f/newsreader/files/newsreader-latin-400-italic.woff2 "$tmp/fonts/"
+for w in 400 500 600; do cp $f/geist-sans/files/geist-sans-latin-$w-normal.woff2 "$tmp/fonts/"; done
+for w in 400 600; do cp $f/ibm-plex-mono/files/ibm-plex-mono-latin-$w-normal.woff2 "$tmp/fonts/"; done
 (cd "$tmp" && python3 -m http.server 8790)
 ```
 
-Then open `http://127.0.0.1:8790/`, `http://127.0.0.1:8790/rules.html` and
-`http://127.0.0.1:8790/cover.html`. The `/rules` and `/cover` rewrites are
-Vercel's and will not resolve under `http.server`; the in-page links use the
-file names, so the tabs and their back links work.
-What to look for: an empty devtools console, every `/fonts/` request a 200,
-and no request leaving the host.
+Then open `http://127.0.0.1:8790/index.html` and the other three by file
+name. The extensionless routes (`/rules`, `/benchmarks`, `/releases`) and the
+apps they link to are Vercel's rewrites and will not resolve under
+`http.server`. What to look for: an empty console, every `/fonts/` request a
+200, and no request leaving the host.

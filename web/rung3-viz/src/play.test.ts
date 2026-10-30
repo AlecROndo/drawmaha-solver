@@ -193,6 +193,9 @@ describe('one hand against the pack', () => {
     expect(s.hands).toBe(1)
     expect(s.seatChips).toEqual([-0.5, 0])
     expect(s.seatHands).toEqual([1, 0])
+    // the ledger banks the settled hand in the same update, newest first
+    expect(s.settled).toEqual([h])
+    expect(nextHand(s, always(0.5)).settled).toEqual([h])
     expect(verdictOf(h)).toContain('inner: the solver (pair v pair)')
     expect(verdictOf(h)).toContain('outer: chop')
     expect(verdictOf(h)).toContain('the solver wins 0.5')

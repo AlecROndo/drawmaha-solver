@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { Mode } from '../sim/engine'
-import type { Vec3 } from '../sim/game'
+import type { Action, Vec3 } from '../sim/game'
 import { ACTIONS } from '../sim/game'
 import { fmtSpeed } from './format'
 import type { Simulation } from './useSimulation'
 
 const MODES: { key: Mode; label: string }[] = [
   { key: 'self-play', label: 'Self-play' },
-  { key: 'vs-fixed', label: 'Vs fixed' },
+  { key: 'vs-fixed', label: 'Vs a fixed mix' },
   { key: 'vs-you', label: 'Vs you' },
 ]
 
@@ -67,75 +67,79 @@ export function Controls({ sim }: { sim: Simulation }) {
   }
 
   return (
-    <div className="controls">
-      {/* Three readings of one page, so the choice is text with the live one
-          underlined — not a segmented control competing with the figures. */}
-      <div className="mode-tabs" role="tablist" aria-label="Opponent mode">
-        {MODES.map((m) => (
-          <button
-            key={m.key}
-            role="tab"
-            aria-selected={sim.mode === m.key}
-            onClick={() => sim.setMode(m.key)}
-          >
-            {m.label}
-          </button>
-        ))}
+    <div className="console" role="group" aria-label="Run controls">
+      <div className="console-row">
+        {auto ? (
+          <>
+            <button
+              type="button"
+              className="btn primary run"
+              onClick={() => sim.setRunning(!sim.running)}
+            >
+              {sim.running ? 'Pause' : 'Run'}
+            </button>
+            <button type="button" className="btn" onClick={() => sim.stepN(1)}>
+              Step ×1
+            </button>
+            <button type="button" className="btn" onClick={() => sim.stepN(100)}>
+              ×100
+            </button>
+            <button type="button" className="btn" onClick={() => sim.stepN(10_000)}>
+              ×10k
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="field-k">Throw</span>
+            {ACTIONS.map((name, i) => (
+              <button type="button" className="btn" key={name} onClick={() => sim.playUserAction(i as Action)}>
+                {name[0].toUpperCase() + name.slice(1)}
+              </button>
+            ))}
+          </>
+        )}
+
+        <span className="grow" />
+
+        {auto && (
+          <label className="field">
+            <span className="field-k">Speed</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={speedToSlider(sim.speed)}
+              onChange={(e) => sim.setSpeed(sliderToSpeed(Number(e.target.value)))}
+            />
+            <span className="readout">{fmtSpeed(sim.speed)} rounds / s</span>
+          </label>
+        )}
+
+        <label className="field">
+          <span className="field-k">Seed</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={seedText}
+            onChange={(e) => setSeedText(e.target.value)}
+            onBlur={commitSeed}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            aria-label="RNG seed"
+          />
+        </label>
+
+        <button type="button" className="btn quiet" onClick={sim.reset}>
+          Reset
+        </button>
       </div>
 
-      <span className="grow" />
-
-      <button className="btn ghost" disabled={!auto} onClick={() => sim.stepN(1)}>
-        Step ×1
-      </button>
-      <button className="btn ghost" disabled={!auto} onClick={() => sim.stepN(100)}>
-        ×100
-      </button>
-      <button className="btn ghost" disabled={!auto} onClick={() => sim.stepN(10_000)}>
-        ×10k
-      </button>
-      <button className="btn" disabled={!auto} onClick={() => sim.setRunning(!sim.running)}>
-        {sim.running ? 'Pause' : 'Run'}
-      </button>
-
-      <label className="inline">
-        speed
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={speedToSlider(sim.speed)}
-          onChange={(e) => sim.setSpeed(sliderToSpeed(Number(e.target.value)))}
-          disabled={!auto}
-        />
-      </label>
-      <span className="readout">{fmtSpeed(sim.speed)} / s</span>
-
-      <label className="inline">
-        seed
-        <input
-          type="text"
-          inputMode="numeric"
-          value={seedText}
-          onChange={(e) => setSeedText(e.target.value)}
-          onBlur={commitSeed}
-          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-          aria-label="RNG seed"
-        />
-      </label>
-
-      <button className="btn ghost" onClick={sim.reset}>
-        Reset
-      </button>
-
-      {/* No round counter here: Fig. 1's own title states the round, and
-          repeating it in the toolbar pushed the row onto a second line. */}
+      {/* No round counter here: Figure 1's sub-title states the round. */}
 
       {sim.mode === 'vs-fixed' && (
-        <div className="dist-sliders" aria-label="Opponent distribution">
-          <span className="label">Opponent plays</span>
+        <div className="console-row dist" aria-label="Opponent distribution">
+          <span className="field-k">The opponent throws</span>
           {ACTIONS.map((name, i) => (
-            <label key={name}>
+            <label className="field" key={name}>
               {name}
               <input
                 type="range"
@@ -149,6 +153,22 @@ export function Controls({ sim }: { sim: Simulation }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * Three readings of one page — self-play, a fixed opponent, you — as the
+ * theme's segmented control in the page head. Changing it rebuilds the run.
+ */
+export function ModeSwitch({ sim }: { sim: Simulation }) {
+  return (
+    <div className="seg mode-tabs" role="group" aria-label="Opponent">
+      {MODES.map((m) => (
+        <button key={m.key} type="button" aria-pressed={sim.mode === m.key} onClick={() => sim.setMode(m.key)}>
+          {m.label}
+        </button>
+      ))}
     </div>
   )
 }

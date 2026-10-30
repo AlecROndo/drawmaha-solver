@@ -28,35 +28,42 @@ done
 # The hero studies: a static page and its clips, served at /hero.
 cp -r web/hero-studies public/hero
 
-# Both visualizers bundle the same @fontsource files, so either copy serves the
-# site; rung 0's is the one that has always been here.
+# Every app bundles the same @fontsource files, so any copy serves the site;
+# rung 0's is the one that has always been here.
 #
-# Two of the site's three voices come from here: the display face (Plus
-# Jakarta Sans) ships at one upright weight, mono is the UI and every number so
-# it needs three. (The visualizers bundle their own copies of these plus
-# Instrument Sans, so /fonts/ serves only the static pages.) Instrument Serif
-# is no longer a voice of the site; it is copied for the hero studies at /hero,
-# which are kept as they were, and rung 0 keeps the package for that reason.
+# The site's voices: Newsreader (serif; 400, 500 and the 400 italic) for display
+# and the research body, Geist (sans; 400, 500, 600) for the UI and every
+# number, and IBM Plex Mono 600 for one job, the chip's glyph grid (400 is the
+# code voice of the Releases page). The static pages read them through
+# /fonts.css, so what is copied here and what that file declares are the same
+# eight files. Instrument Serif is not a voice of the
+# site; it is copied for the hero studies at /hero, which are kept as they were,
+# and rung 0 keeps the package for that reason.
 fontsource=web/rung0-viz/node_modules/@fontsource
 copy_font() {
   cp "$fontsource/$1/files/$1-latin-$2-normal.woff2" public/fonts/
 }
-copy_font plus-jakarta-sans 600
+copy_font_italic() {
+  cp "$fontsource/$1/files/$1-latin-$2-italic.woff2" public/fonts/
+}
+for weight in 400 500; do copy_font newsreader "$weight"; done
+copy_font_italic newsreader 400
+for weight in 400 500 600; do copy_font geist-sans "$weight"; done
+for weight in 400 600; do copy_font ibm-plex-mono "$weight"; done
 copy_font instrument-serif 400
-for weight in 400 500 600; do copy_font ibm-plex-mono "$weight"; done
 
-# The homepage, its Rules tab and the Cover are three self-contained HTML
-# files (see web/cover/README.md: the first two are exported from the studies
-# workflow, the cover is authored here), so there is nothing to build: they
-# are copied as-is to the root of public/, where Vercel serves index.html at /
-# with no rewrite and /rules and /cover are rewritten to their files.
-#
-# They add a fourth voice, Instrument Sans for prose, and the display face's italic.
-# copy_font above cannot reach those (the visualizers bundle them into their
-# own assets rather than /fonts/), so the four files are checked in beside the
-# pages and land next to the rest. Their names follow the @fontsource pattern
-# so one /fonts/ directory stays uniform.
-cp web/cover/index.html public/index.html
-cp web/cover/rules.html public/rules.html
-cp web/cover/cover.html public/cover.html
-cp web/cover/fonts/*.woff2 public/fonts/
+# The static pages are plain HTML written in the repo (web/cover/README.md):
+# the homepage, Rules, Benchmarks, Releases and the Cover. There is nothing to
+# build; they are copied as-is to the root of public/, where Vercel serves
+# index.html at / with no rewrite and the others are rewritten to their files.
+# They share the apps' theme rather than inlining a copy: the same theme.css
+# the five apps carry is served at /theme.css, the @font-face rules for the
+# files above at /fonts.css, and the chip's script at /chip.js.
+cp web/rung0-viz/src/theme.css public/theme.css
+cp web/cover/fonts.css public/fonts.css
+cp web/cover/chip.js public/chip.js
+# The tab icon every page and app links as /favicon.svg: the chip, flat.
+cp web/cover/favicon.svg public/favicon.svg
+for page in index rules benchmarks releases cover; do
+  cp "web/cover/$page.html" "public/$page.html"
+done
