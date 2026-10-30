@@ -14,7 +14,7 @@ import { CardGlyph } from './PlayPanel'
 /** A card is rank × 3 + suit, so 4h is 2 × 3 + 2 = 8. */
 const index = (rank: string, suit: string) => '23456'.indexOf(rank) * SUITS.length + SUITS.indexOf(suit)
 
-test("a face is the theme's cardface: a small rank and a hidden glyph in the suit's class, labelled with its name", () => {
+test("a face is the theme's cardface: a rank and a hidden glyph in the suit's class, labelled with its name", () => {
   const html = renderToStaticMarkup(<CardGlyph card={index('4', 'h')} />)
   expect(html).toMatch(/^<span class="pcard cardface su-h" role="img" aria-label="4h">/)
   expect(html).toContain('<b>4</b>')

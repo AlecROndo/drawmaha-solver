@@ -49,8 +49,9 @@ declares.
   tabular is `table.hair` or `.rows`. The only radii are 6 px on buttons
   and controls.
 - **One card, the bleed pip.** Every playing card on the site is the theme's
-  `.cardface`: the rank small in the top-left in Geist 600, one suit glyph
-  too big for the card cropped by its own lower-right edge, in the suit's
+  `.cardface`: the rank in the top-left in Geist 600, sized to read beside
+  the pip, one suit glyph too big for the card cropped by its own
+  lower-right edge, in the suit's
   ink at full strength, on `--card-face` card stock. Spades wear ink, hearts
   the oxblood, and the minor suits borrow the action triplet, diamonds the
   check-blue and clubs the call-green. A surface sets only `--w` (the felt's

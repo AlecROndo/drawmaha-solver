@@ -78,7 +78,7 @@ function settle(hand: Hand): Hand {
 }
 
 /**
- * A card: the theme's bleed pip as a letter card, the rank small in the
+ * A card: the theme's bleed pip as a letter card, the rank in the
  * top-left and again too big for the card, cropped by its lower-right edge,
  * in the card's own ink (the jack's accent, the queen's muted ink, the
  * king's ink). Kuhn's cards have ranks and no suits.

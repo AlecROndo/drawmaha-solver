@@ -1013,8 +1013,9 @@ footer a:hover {
 /* ---------- a playing card: the bleed pip --------------------------------- */
 
 /* Every card on the site is one drawing at whatever size its surface sets in
-   --w: the rank small and sharp in the top-left in Geist 600, and one suit
-   glyph too big for the card, cropped by its own lower-right edge, in the
+   --w: the rank in the top-left in Geist 600, sized to read beside the pip,
+   and one suit glyph too big for the card, cropped by its own lower-right
+   edge, in the
    suit's ink at full strength. The card is mostly colour, which is what makes
    a hand legible across a table. The suits wear the site's inks: spades ink,
    hearts the oxblood, and the two minor suits borrow the action triplet,
