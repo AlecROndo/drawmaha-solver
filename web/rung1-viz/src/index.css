@@ -428,22 +428,17 @@ table.hair.sheet .card.c-k {
   padding-bottom: 22px;
 }
 
-/* A card is paper on paper with a control's border: the rank in the serif,
-   in the card's own ink. The bot's card lies face down as a recess until the
-   hand is over. */
-.cardglyph {
+/* A card is the theme's .cardface as a letter card, Kuhn having ranks and no
+   suits: the rank small in the top-left and again too big for the card, in
+   the card's own ink. The bot's card lies face down as the chip's pinstripe
+   until the hand is over. Each card sits in a slot with its seat beneath. */
+.cardslot {
   position: relative;
-  width: 58px;
-  height: 82px;
-  border-radius: 6px;
-  background: var(--paper);
-  border: 1px solid var(--rule-2);
-  color: var(--ink);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font: 400 36px/1 var(--serif);
   flex: none;
+}
+
+.cardglyph {
+  --w: 58px;
 }
 
 .cardglyph.c-j {
@@ -454,14 +449,7 @@ table.hair.sheet .card.c-k {
   color: var(--queen);
 }
 
-.cardglyph.back {
-  background: var(--paper-3);
-  border-color: var(--rule);
-  color: var(--ink-3);
-  font-size: 22px;
-}
-
-.cardglyph .who {
+.cardslot .who {
   position: absolute;
   left: 0;
   right: 0;

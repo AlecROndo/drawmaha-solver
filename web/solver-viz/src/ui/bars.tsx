@@ -23,10 +23,27 @@ export const count = (n: number): string => n.toLocaleString('en-US')
 /** Cards sorted high to low so a hand reads the way a player fans it. */
 export const byRankDesc = (cards: readonly number[]): number[] => [...cards].sort((a, b) => b - a)
 
-/** One card face, spelled by the game. `size` is `sm` for a hand in a row of text, `lg` for the holding strip. */
+/** The suit's letter from its glyph, the class the theme's `.cardface` colours by. */
+export const suitKey = (glyph: string): string => ({ '♠': 's', '♥': 'h', '♦': 'd', '♣': 'c' })[glyph] ?? 's'
+
+/**
+ * One card face, spelled by the game: the theme's bleed pip (`.cardface`),
+ * the rank small in the top-left and the suit glyph too big for the card,
+ * cropped by its lower-right edge, in the suit's ink. `size` is `sm` for a
+ * hand in a row of text, `lg` for the holding strip. A ghost is an empty
+ * slot. The span is one labelled image to a screen reader; the glyph is
+ * hidden so the name is not read twice.
+ */
 export function CardFace({ game, card, size = 'sm', ghost }: { game: GameUI; card?: number; size?: 'sm' | 'lg'; ghost?: boolean }) {
-  if (card === undefined || ghost) return <span className={`cf ${size} ghost`} aria-hidden />
-  return <span className={`cf ${size}${game.isRed(card) ? ' red' : ''}`}>{game.label(card)}</span>
+  if (card === undefined || ghost) return <span className={`cf ${size} cardface empty`} aria-hidden />
+  const label = game.label(card)
+  const glyph = label.slice(-1)
+  return (
+    <span className={`cf ${size} cardface su-${suitKey(glyph)}`} role="img" aria-label={label}>
+      <b>{label.slice(0, -1)}</b>
+      <i aria-hidden="true">{glyph}</i>
+    </span>
+  )
 }
 
 /** A fanned hand, high card first. */

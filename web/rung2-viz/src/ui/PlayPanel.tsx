@@ -150,10 +150,21 @@ const lastActionOf = (rows: PlayRow[], seat: 0 | 1): string | null => {
   return null
 }
 
+/**
+ * A card: the theme's bleed pip as a letter card, the rank small in the
+ * top-left and again too big for the card, cropped by its lower-right edge,
+ * since Leduc's cards have ranks and no suits. Face down is the chip's
+ * pinstripe; the board's seat before round 1 closes is a dashed recess.
+ */
 function CardGlyph({ rank, hidden }: { rank?: Rank; hidden?: boolean }) {
-  if (hidden) return <span className="pcard back" aria-label="a card, face down" />
-  if (!rank) return <span className="pcard empty" aria-label="no card yet" />
-  return <span className={`pcard rank ${rank}`}>{rank}</span>
+  if (hidden) return <span className="pcard cardface back" role="img" aria-label="a card, face down" />
+  if (!rank) return <span className="pcard cardface empty" role="img" aria-label="no card yet" />
+  return (
+    <span className="pcard cardface letter" role="img" aria-label={rank}>
+      <b>{rank}</b>
+      <i aria-hidden="true">{rank}</i>
+    </span>
+  )
 }
 
 export function PlayPanel({

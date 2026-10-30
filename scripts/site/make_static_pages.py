@@ -316,9 +316,22 @@ SPOT = opening_spot()
 
 # ------------------------------------------------------------ a dealt hand
 
-def card_face(card: int) -> tuple[str, bool]:
-    """A mini-drawmaha card as rank and suit symbol, and whether the suit is red."""
-    return "23456"[_rank(card)] + "♣♦♥"[_suit(card)], _suit(card) != 0
+def card_face(card: int) -> str:
+    """A mini-drawmaha card as rank and suit symbol, `4♥`."""
+    return "23456"[_rank(card)] + "♣♦♥"[_suit(card)]
+
+
+SUIT_KEY = {"♠": "s", "♥": "h", "♦": "d", "♣": "c"}
+
+
+def card_span(face: str, *, out: bool = False) -> str:
+    """One card as the theme's `.cardface`, the bleed pip: the rank in a `<b>`, the suit glyph in an `<i>` the theme crops at the card's lower-right edge, the suit's ink picked by `su-<letter>`."""
+    rank, glyph = face[:-1], face[-1]
+    cls = f"pc cardface su-{SUIT_KEY[glyph]}" + (" out" if out else "")
+    return (
+        f'<span class="{cls}" role="img" aria-label="{face}">'
+        f'<b>{rank}</b><i aria-hidden="true">{glyph}</i></span>'
+    )
 
 
 def dealt_hand() -> dict[str, object]:
@@ -682,10 +695,8 @@ table.hair td.k a { text-decoration: none; }
 table.hair td.k a:hover { color: var(--accent); }
 /* cards */
 .cards { display: flex; gap: 8px; align-items: center; }
-.pc { width: 46px; height: 62px; border: 1px solid var(--rule-2); border-radius: 6px; background: #fffdf8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
-.pc.red { color: var(--accent); }
-.pc.out { opacity: 0.4; text-decoration: line-through; }
-.pc.blank { background: var(--paper-2); border-style: dashed; color: var(--ink-3); }
+.pc { --w: 46px; } /* the theme's .cardface, the bleed pip, at the page's size */
+.pc.out { opacity: 0.4; }
 /* a mix bar: check / fold in blue, bet in the accent */
 .mix { display: flex; height: 8px; gap: 2px; }
 .mix i { display: block; height: 100%; }
@@ -733,11 +744,9 @@ def cards(labels: list[int | None], *, out: set[int] = frozenset()) -> str:
     o = []
     for card in labels:
         if card is None:
-            o.append('<span class="pc blank" aria-label="not yet dealt">?</span>')
+            o.append('<span class="pc cardface empty" role="img" aria-label="not yet dealt"></span>')
             continue
-        face, red = card_face(card)
-        cls = "pc" + (" red" if red else "") + (" out" if card in out else "")
-        o.append(f'<span class="{cls}">{face}</span>')
+        o.append(card_span(card_face(card), out=card in out))
     return f'<span class="cards">{"".join(o)}</span>'
 
 
@@ -829,7 +838,7 @@ def home() -> str:
         f"tabular LCFR grades {g3(lcfr_at_deep)} and needs {hands(LCFR[-1][0])} to reach {g3(LCFR[-1][1])}. "
         "One exact best-response walk grades both.",
     )
-    hole_face = " ".join(card_face(c)[0] for c in DEALT["hole"])
+    hole_face = " ".join(card_face(c) for c in DEALT["hole"])
     body = f"""
 <section class="hero">
   <div class="hero-copy">
@@ -1002,8 +1011,7 @@ def rules() -> str:
     def big(faces: str, out: str = "") -> str:
         o = []
         for face in faces.split():
-            red = face[-1] in "♥♦"
-            o.append(f'<span class="pc{" red" if red else ""}{" out" if face == out else ""}">{face}</span>')
+            o.append(card_span(face, out=face == out))
         return f'<span class="cards">{"".join(o)}</span>'
 
     streets = [
