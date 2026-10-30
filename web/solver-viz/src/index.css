@@ -1065,11 +1065,19 @@ body.wide footer .wrap {
 
 /* a deck tile is a card face (the theme's .cardface) in a short wide box:
    the rank top-left, the pip cropped at the lower right, a bar of its pot
-   lift along the foot; held is ink on paper */
+   lift along the foot; held is ink on paper. `.dcard` and `.cardface` weigh
+   the same, so the width and height here beat the theme's only because
+   main.tsx imports theme.css before this sheet; that order is the contract
+   every per-app sheet is built on (web/AGENTS.md) */
 .dcard {
   /* the tile's own width is the card's measure, read by its children in
      container units; the tile is a short box, so its pip is drawn smaller
-     than a dealt card's and tucked further into the corner */
+     than a dealt card's and tucked further into the corner. `cqw` resolves
+     against the nearest container *ancestor* of the element that reads it,
+     so --w is for the <b> and the <i>, whose ancestor is this tile. On
+     .dcard itself it would measure the deck's enclosing container instead,
+     which is why the theme's width and height (which read it) are both
+     overridden here and no other rule on the tile reads it */
   container-type: inline-size;
   --w: 100cqw;
   width: auto;
@@ -1083,7 +1091,7 @@ body.wide footer .wrap {
     transform var(--t-press) var(--ease-out);
 }
 
-.dcard i {
+.dcard > i {
   font-size: calc(var(--w) * 1);
   right: calc(var(--w) * -0.3);
   bottom: calc(var(--w) * -0.34);
@@ -1112,7 +1120,7 @@ body.wide footer .wrap {
   color: var(--paper);
 }
 
-.dcard.held i {
+.dcard.held > i {
   color: var(--paper);
 }
 
@@ -1122,7 +1130,7 @@ body.wide footer .wrap {
   color: var(--ink-3);
 }
 
-.dcard.board i {
+.dcard.board > i {
   opacity: 0.45;
 }
 

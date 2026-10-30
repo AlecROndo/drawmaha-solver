@@ -49,7 +49,8 @@ test('the theme and the sheet give each suit the same ink on the face and in tex
     const m = css.match(new RegExp(`${selector.replace(/[.$]/g, '\\$&')} \\{\\s*color: var\\((--[a-z0-9-]+)\\);`))
     return m ? m[1] : `no rule for ${selector}`
   }
-  const faces = ['c', 'd', 'h'].map((k) => ink(theme, `.cardface.su-${k} i`))
+  // the pip is the card's direct child: `> i`, never ` i` (tests/test_ui_standard.py holds that side)
+  const faces = ['c', 'd', 'h'].map((k) => ink(theme, `.cardface.su-${k} > i`))
   const names = ['c', 'd', 'h'].map((k) => ink(sheet, `.ctext.su-${k}`))
   expect(faces).toEqual(['--act-call', '--act-check', '--accent'])
   expect(names).toEqual(faces)

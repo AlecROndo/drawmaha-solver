@@ -57,6 +57,11 @@ declares.
   52 px, the coach's 28 px, a hand in a line of text 24 px); Kuhn and Leduc,
   games of ranks without suits, set `.letter` and bleed the rank in the
   serif. Face down is the chip's pinstripe, not yet dealt a dashed recess.
+  The rank is the card's own `<b>` and the pip its own `<i>`, direct
+  children: every rank or pip rule is `card > b` / `card > i`, so an element
+  a surface nests inside a card for its own purpose (the solver's deck tile
+  and its pot-lift bar) is never drawn as a pip;
+  `test_a_card_reaches_only_its_own_rank_and_pip` holds it.
 
 ## Where the CSS lives
 

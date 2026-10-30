@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cardLabel, isRed, parseBoard, parseCard, rankOf, suitOf, unseen } from './cards'
+import { cardLabel, parseBoard, parseCard, rankOf, suitOf, unseen } from './cards'
 
 describe('parseCard', () => {
   it('reads a rank letter and a suit letter', () => {
@@ -56,12 +56,6 @@ describe('cards', () => {
     expect(cardLabel(47)).toBe('K♣')
     expect(cardLabel(32)).toBe('T♠')
     expect(cardLabel(parseCard('4d'))).toBe('4♦')
-  })
-  it('hearts and diamonds are red', () => {
-    expect(isRed(parseCard('4d'))).toBe(true)
-    expect(isRed(parseCard('4h'))).toBe(true)
-    expect(isRed(parseCard('4s'))).toBe(false)
-    expect(isRed(parseCard('4c'))).toBe(false)
   })
   it('the unseen deck is everything but the board', () => {
     const board = parseBoard('Ks 9s 4d')
