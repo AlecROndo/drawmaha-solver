@@ -151,7 +151,7 @@ const lastActionOf = (rows: PlayRow[], seat: 0 | 1): string | null => {
 }
 
 /**
- * A card: the theme's bleed pip as a letter card, the rank small in the
+ * A card: the theme's bleed pip as a letter card, the rank in the
  * top-left and again too big for the card, cropped by its lower-right edge,
  * since Leduc's cards have ranks and no suits. Face down is the chip's
  * pinstripe; the board's seat before round 1 closes is a dashed recess.

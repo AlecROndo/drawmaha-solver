@@ -49,19 +49,20 @@ declares.
   tabular is `table.hair` or `.rows`. The only radii are 6 px on buttons
   and controls.
 - **One card, the bleed pip.** Every playing card on the site is the theme's
-  `.cardface`: the rank small in the top-left in Geist 600, one suit glyph
-  too big for the card cropped by its own lower-right edge, in the suit's
-  ink at full strength, on `--card-face` card stock. Spades wear ink, hearts
-  the oxblood, and the minor suits borrow the action triplet, diamonds the
-  check-blue and clubs the call-green. A surface sets only `--w` (the felt's
-  52 px, the coach's 28 px, a hand in a line of text 24 px); Kuhn and Leduc,
-  games of ranks without suits, set `.letter` and bleed the rank in the
-  serif. Face down is the chip's pinstripe, not yet dealt a dashed recess.
-  The rank is the card's own `<b>` and the pip its own `<i>`, direct
-  children: every rank or pip rule is `card > b` / `card > i`, so an element
-  a surface nests inside a card for its own purpose (the solver's deck tile
-  and its pot-lift bar) is never drawn as a pip;
-  `test_a_card_reaches_only_its_own_rank_and_pip` holds it.
+  `.cardface`: the rank in the top-left in Geist 600, sized to read beside
+  the pip, one suit glyph too big for the card cropped by its own
+  lower-right edge, in the suit's ink at full strength, on `--card-face`
+  card stock. Spades wear ink, hearts the oxblood, and the minor suits
+  borrow the action triplet, diamonds the check-blue and clubs the
+  call-green. A surface sets only `--w` (the felt's 52 px, the coach's
+  28 px, a hand in a line of text 24 px); Kuhn and Leduc, games of ranks
+  without suits, set `.letter` and bleed the rank in the serif. Face down is
+  the chip's pinstripe, not yet dealt a dashed recess. The rank is the
+  card's own `<b>` and the pip its own `<i>`, direct children: every rank or
+  pip rule is `card > b` / `card > i`, so an element a surface nests inside
+  a card for its own purpose (the solver's deck tile and its pot-lift bar)
+  is never drawn as a pip; `test_a_card_reaches_only_its_own_rank_and_pip`
+  holds it.
 
 ## Where the CSS lives
 

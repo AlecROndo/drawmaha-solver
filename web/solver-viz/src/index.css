@@ -1293,8 +1293,10 @@ body.wide footer .wrap {
   padding-bottom: 5px;
 }
 
+/* the expanded row's cards are 24 px, pinned here rather than inherited from
+   .cf: below 24 px the floored 12 px rank touches the pip */
 .rx-ledger tr.l3 .cf {
-  --w: 18px;
+  --w: 24px;
 }
 
 .rx-ledger tr.l3 small {

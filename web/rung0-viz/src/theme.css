@@ -1013,21 +1013,21 @@ footer a:hover {
 /* ---------- a playing card: the bleed pip --------------------------------- */
 
 /* Every card on the site is one drawing at whatever size its surface sets in
-   --w: the rank small and sharp in the top-left in Geist 600, and one suit
-   glyph too big for the card, cropped by its own lower-right edge, in the
-   suit's ink at full strength. The card is mostly colour, which is what makes
-   a hand legible across a table. The suits wear the site's inks: spades ink,
-   hearts the oxblood, and the two minor suits borrow the action triplet,
-   diamonds the check-blue and clubs the call-green; a suit's name carries no
-   meaning in any of the games, so an ink shared with call text is a shared
-   ink, not a shared meaning. A game of ranks and no suits (Kuhn, Leduc) sets
-   .letter and bleeds its rank in the serif instead. A surface's own class
-   sets --w and, where its box is not a card's 2.5 : 3.5, its own height. The
-   rank has a floor so the smallest face still reads. The rank and the pip are
-   the card's own <b> and <i>, its direct children: every rule below reaches
-   them through the child combinator, so an element a surface nests inside a
-   card for its own purpose (the solver's deck tile carries a pot-lift bar
-   whose fill is an <i>) is never drawn as a pip. */
+   --w: the rank in the top-left in Geist 600, sized to read beside the pip,
+   and one suit glyph too big for the card, cropped by its own lower-right
+   edge, in the suit's ink at full strength. The card is mostly colour, which
+   is what makes a hand legible across a table. The suits wear the site's
+   inks: spades ink, hearts the oxblood, and the two minor suits borrow the
+   action triplet, diamonds the check-blue and clubs the call-green; a suit's
+   name carries no meaning in any of the games, so an ink shared with call
+   text is a shared ink, not a shared meaning. A game of ranks and no suits
+   (Kuhn, Leduc) sets .letter and bleeds its rank in the serif instead. A
+   surface's own class sets --w and, where its box is not a card's 2.5 : 3.5,
+   its own height. The rank has a floor so the smallest face still reads. The
+   rank and the pip are the card's own <b> and <i>, its direct children: every
+   rule below reaches them through the child combinator, so an element a
+   surface nests inside a card for its own purpose (the solver's deck tile
+   carries a pot-lift bar whose fill is an <i>) is never drawn as a pip. */
 .cardface {
   --w: 52px;
   position: relative;
@@ -1048,7 +1048,7 @@ footer a:hover {
   position: absolute;
   left: calc(var(--w) * 0.1);
   top: calc(var(--w) * 0.09);
-  font: 600 max(10.5px, calc(var(--w) * 0.36)) / 1 var(--sans);
+  font: 600 max(12px, calc(var(--w) * 0.44)) / 1 var(--sans);
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }

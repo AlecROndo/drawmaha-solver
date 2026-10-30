@@ -230,7 +230,7 @@ const lastActionOf = (rows: PlayRow[], seat: 0 | 1): string | null => {
 const suitKey = (card: CardIndex): string => 'cdh'[suitOf(card)]
 
 /**
- * A card face: the theme's bleed pip (`.cardface`), the rank small in the
+ * A card face: the theme's bleed pip (`.cardface`), the rank in the
  * top-left and one suit glyph too big for the card cropped by its lower-right
  * edge, in the suit's ink. A card not yet dealt is a dashed frame; face down
  * is the chip's oxblood pinstripe. Each span is one image to a screen reader

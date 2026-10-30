@@ -28,7 +28,7 @@ export const suitKey = (glyph: string): string => ({ '♠': 's', '♥': 'h', '�
 
 /**
  * One card face, spelled by the game: the theme's bleed pip (`.cardface`),
- * the rank small in the top-left and the suit glyph too big for the card,
+ * the rank in the top-left and the suit glyph too big for the card,
  * cropped by its lower-right edge, in the suit's ink. `size` is `sm` for a
  * hand in a row of text, `lg` for the holding strip. A ghost is an empty
  * slot. The span is one labelled image to a screen reader; the glyph is
