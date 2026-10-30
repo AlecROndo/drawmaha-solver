@@ -5,6 +5,7 @@
  * Rendered to static markup (no DOM), so this pins structure, not pixels.
  */
 
+import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, test } from 'vitest'
 import { SUITS, sym } from '../minidraw'
@@ -38,4 +39,17 @@ test('face down and not-yet-dealt are empty labelled images; small only adds a c
   )
   expect(renderToStaticMarkup(<CardGlyph />)).toBe('<span class="pcard empty" role="img" aria-label="no card yet"></span>')
   expect(renderToStaticMarkup(<CardGlyph card={index('2', 'c')} small />)).toMatch(/^<span class="pcard small face s0"/)
+})
+
+/** The one mapping the markup tests cannot see: which ink each suit class wears, on the face and in a line of type. */
+test('the stylesheet gives each suit the same ink on the face and in text: call-green, check-blue, oxblood', () => {
+  const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8')
+  const ink = (selector: string) => {
+    const m = css.match(new RegExp(`${selector.replace(/[.$]/g, '\\$&')} \\{\\s*color: var\\((--[a-z0-9-]+)\\);`))
+    return m ? m[1] : `no rule for ${selector}`
+  }
+  const faces = [0, 1, 2].map((n) => ink(`.pcard.s${n} i`))
+  const names = [0, 1, 2].map((n) => ink(`.ctext.s${n}`))
+  expect(faces).toEqual(['--act-call', '--act-check', '--accent'])
+  expect(names).toEqual(faces)
 })

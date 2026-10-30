@@ -654,7 +654,8 @@ table.settled td.k {
    one suit glyph too big for the card cropped by its own lower-right edge, in
    the suit's ink at full strength. Four inks, the action triplet lent to the
    minor suits: clubs call-green, diamonds check-blue, hearts oxblood. The
-   loan is deliberate: no suit outranks another in mini-drawmaha, so a green
+   loan is deliberate: the rules relabel the three suits freely (`canonical()`
+   in minidrawmaha/rules/cards.py), so suits are interchangeable and a green
    club beside green call text shares an ink, not a meaning. Every measure is
    a fraction of --w so the three sizes are one drawing. A card not yet dealt
    is a dashed recess; face down is the chip's oxblood pinstripe */
@@ -972,7 +973,7 @@ table.settled td.k {
   margin-right: 4px;
 }
 
-/* a card named in a line of type wears its suit's ink, the same four as the faces */
+/* a card named in a line of type wears its suit's ink, the same three suit inks as the faces */
 .ctext.s0 {
   color: var(--act-call);
 }
