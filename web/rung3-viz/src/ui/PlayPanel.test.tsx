@@ -25,7 +25,8 @@ test('the three suits map to s0 clubs, s1 diamonds, s2 hearts, in that order', (
     const c = index('6', suit)
     const html = renderToStaticMarkup(<CardGlyph card={c} />)
     expect(html).toContain(`aria-label="${sym(c)}"`)
-    const m = html.match(/class="pcard face s(\d)".*<i aria-hidden="true">(.)<\/i>/)
+    // the glyph is everything inside the <i>, not one code unit, so a glyph that grew a variation selector would still match
+    const m = html.match(/class="pcard face s(\d)".*<i aria-hidden="true">([^<]+)<\/i>/)
     return m ? `${m[1]}${m[2]}` : html
   })
   expect(seen).toEqual(['0♣', '1♦', '2♥'])
