@@ -227,18 +227,22 @@ const lastActionOf = (rows: PlayRow[], seat: 0 | 1): string | null => {
 }
 
 /**
- * A card face: the rank and the suit glyph on paper, the red suits in the
- * accent. A card not yet dealt is a dashed frame; face down is the chip's
- * oxblood pinstripe.
+ * A card face, the bleed pip: the rank small in the top-left, one suit glyph
+ * too big for the card cropped by its lower-right edge, in the suit's ink
+ * (clubs green, diamonds blue, hearts oxblood). A card not yet dealt is a
+ * dashed frame; face down is the chip's oxblood pinstripe. Each span is one
+ * image to a screen reader (`role="img"`, so its label is announced; a bare
+ * span's label is not): the face reads as its name, `4h`, and the cropped
+ * glyph is hidden so the name is not read twice.
  */
 export function CardGlyph({ card, hidden, small }: { card?: CardIndex; hidden?: boolean; small?: boolean }) {
   const size = small ? 'pcard small' : 'pcard'
-  if (hidden) return <span className={`${size} back`} aria-label="a card, face down" />
-  if (card === undefined) return <span className={`${size} empty`} aria-label="no card yet" />
+  if (hidden) return <span className={`${size} back`} role="img" aria-label="a card, face down" />
+  if (card === undefined) return <span className={`${size} empty`} role="img" aria-label="no card yet" />
   return (
-    <span className={`${size} face s${suitOf(card)}`} aria-label={sym(card)}>
-      {'23456'[rankOf(card)]}
-      {SUIT_GLYPH[suitOf(card)]}
+    <span className={`${size} face s${suitOf(card)}`} role="img" aria-label={sym(card)}>
+      <b>{'23456'[rankOf(card)]}</b>
+      <i aria-hidden="true">{SUIT_GLYPH[suitOf(card)]}</i>
     </span>
   )
 }
