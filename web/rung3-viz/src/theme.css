@@ -1078,11 +1078,11 @@ footer a:hover {
   color: var(--act-call);
 }
 
-/* a rank-only game: the rank itself bleeds, in the serif, in the card's own ink */
+/* a rank-only game: the rank itself, large in the serif in the card's own ink, set low and right and barely cropped; letters differ too much in shape to survive the pip's crop (a cropped Q is an O) */
 .cardface.letter > i {
-  right: calc(var(--w) * -0.14);
-  bottom: calc(var(--w) * -0.24);
-  font: 500 calc(var(--w) * 1.15) / 1 var(--serif);
+  right: calc(var(--w) * 0.05);
+  bottom: calc(var(--w) * -0.16);
+  font: 500 calc(var(--w) * 0.9) / 1 var(--serif);
 }
 
 /* face down is the chip's oxblood pinstripe; a card not yet dealt is a dashed recess */
