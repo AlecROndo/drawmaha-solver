@@ -626,7 +626,8 @@
 }
 
 /* The cards are the theme's .cardface as a letter card: Leduc has ranks and
-   no suits, so the rank bleeds in the serif in ink. This sheet sets the size. */
+   no suits, so the rank is drawn again, large in the serif in ink, set low
+   and right and barely cropped. This sheet sets the size. */
 .pcard {
   --w: 50px;
 }

@@ -429,8 +429,9 @@ table.hair.sheet .card.c-k {
 }
 
 /* A card is the theme's .cardface as a letter card, Kuhn having ranks and no
-   suits: the rank in the top-left and again too big for the card, in
-   the card's own ink. The bot's card lies face down as the chip's pinstripe
+   suits: the rank in the top-left and again, large in the serif, set low
+   and right and barely cropped, in the card's own ink. The bot's card lies
+   face down as the chip's pinstripe
    until the hand is over. Each card sits in a slot with its seat beneath. */
 .cardslot {
   position: relative;

@@ -1021,9 +1021,11 @@ footer a:hover {
    action triplet, diamonds the check-blue and clubs the call-green; a suit's
    name carries no meaning in any of the games, so an ink shared with call
    text is a shared ink, not a shared meaning. A game of ranks and no suits
-   (Kuhn, Leduc) sets .letter and bleeds its rank in the serif instead. A
-   surface's own class sets --w and, where its box is not a card's 2.5 : 3.5,
-   its own height. The rank has a floor so the smallest face still reads. The
+   (Kuhn, Leduc) sets .letter and draws its rank again instead, large in the
+   serif, set low and right and barely cropped. A surface's own class sets
+   --w and, where its box is not a card's 2.5 : 3.5, its own height. The rank
+   has a floor so the smallest face still reads: 13 px is 0.52 of a 25 px
+   card, so only the 24 px hand in a line of text reaches it. The
    rank and the pip are the card's own <b> and <i>, its direct children: every
    rule below reaches them through the child combinator, so an element a
    surface nests inside a card for its own purpose (the solver's deck tile

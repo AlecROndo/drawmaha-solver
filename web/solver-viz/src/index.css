@@ -1072,7 +1072,7 @@ body.wide footer .wrap {
 .dcard {
   /* the tile's own width is the card's measure, read by its children in
      container units; the tile is a short box, so its pip is drawn smaller
-     than a dealt card's and tucked further into the corner. `cqw` resolves
+     than a dealt card's, with less of it hidden below the edge. `cqw` resolves
      against the nearest container *ancestor* of the element that reads it,
      so --w is for the <b> and the <i>, whose ancestor is this tile. On
      .dcard itself it would measure the deck's enclosing container instead,
@@ -1294,7 +1294,7 @@ body.wide footer .wrap {
 }
 
 /* the expanded row's cards are 24 px, pinned here rather than inherited from
-   .cf: below 24 px the floored 12 px rank touches the pip */
+   .cf: below 24 px the floored 13 px rank touches the pip */
 .rx-ledger tr.l3 .cf {
   --w: 24px;
 }
