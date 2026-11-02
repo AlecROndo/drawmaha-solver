@@ -1,4 +1,4 @@
-import { BEST, PI_REFERENCE, PI_SWEEP, markOf, piArm, type Loss } from '../deep'
+import { RAW, PI_REFERENCE, PI_SWEEP, markOf, piArm, type Loss } from '../deep'
 import { perHundred } from '../research'
 import { fmtHands, linScale, logScale } from './scales'
 
@@ -31,11 +31,11 @@ export function PiLossChart() {
   const marks = [100, 200, 500]
   const xm = logScale(1e6, 5e6, HALF + PANEL.l, W - PANEL.r)
   const ym = linScale(Y_LO, 16.5, H - PANEL.b, PANEL.t)
-  const exactAt = marks.map((t) => ({ t, v: perHundred(markOf(BEST, t).exact.exploitability) }))
-  const runPiAt = marks.map((t) => ({ t, v: perHundred(markOf(BEST, t).pi.exploitability) }))
+  const exactAt = marks.map((t) => ({ t, v: perHundred(markOf(RAW, t).exact.exploitability) }))
+  const runPiAt = marks.map((t) => ({ t, v: perHundred(markOf(RAW, t).pi.exploitability) }))
   const ceAt = marks.map((t) => ({ t, v: perHundred(piArm(t === 500 ? 'ce-softmax-64k-cos' : `ce-softmax-64k-cos@t${t}`).exploitability) }))
   const mseAt = [200, 500].map((t) => ({ t, v: perHundred(piArm(t === 500 ? 'mse-linear-64k-cos' : `mse-linear-64k-cos@t${t}`).exploitability) }))
-  const hands = (t: number) => markOf(BEST, t).hands
+  const hands = (t: number) => markOf(RAW, t).hands
   const line = (pts: { t: number; v: number }[]) => pts.map((p, i) => `${i ? 'L' : 'M'} ${xm(hands(p.t)).toFixed(1)} ${ym(p.v).toFixed(1)}`).join(' ')
 
   return (

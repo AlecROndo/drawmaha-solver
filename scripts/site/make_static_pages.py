@@ -180,8 +180,18 @@ def at(points: list[tuple[float, float]], hands: float) -> float:
 
 RACE = race()
 LCFR = RACE["LCFR"]
-DEEP = deep_marks(POT_HALF, "exact")  # the ÷ √pot arm's exact average: the best graded Deep CFR object
+# The ÷ pot arm's exact average: the one Deep CFR run taken to the race's own endpoint, 20M hands per
+# seat, and the best graded Deep CFR object (0.068 at 10M). Its last mark is where the table has passed it.
+DEEP = deep_marks(POT_ONE, "exact")
 DEEP_HANDS = DEEP[-1][0]
+# The ÷ √pot arm, stopped at 2M hands: the pot-weighting comparison is read at its last mark.
+SQRT = deep_marks(POT_HALF, "exact")
+POT_HANDS = SQRT[-1][0]
+# The last mark at which the net is under the table, and the first at which it is not.
+LEAD_HANDS = max(x for x, v in DEEP if v < at(LCFR, x))
+PASS_HANDS = min(x for x, v in DEEP if v >= at(LCFR, x))
+assert PASS_HANDS == DEEP_HANDS, "the hero copy says the table passes the net at the last mark only"
+assert LEAD_HANDS == 10_000_000
 UNIFORM = RUNG3["uniform_random"]["exploitability"]
 
 
@@ -555,7 +565,7 @@ def equal_hands_chart(w: int, h: int) -> str:
     return line_chart(
         [
             {"name": "Tabular LCFR", "pts": LCFR, "tone": "ink", "end": lcfr_end},
-            {"name": "Deep CFR", "pts": DEEP, "tone": "acc", "end": deep_end, "below": True},
+            {"name": "Deep CFR", "pts": DEEP, "tone": "acc", "end": deep_end},
         ],
         w=w,
         h=h,
@@ -815,8 +825,9 @@ def matrix() -> str:
     return "".join(o)
 
 
-RESEARCH_DATES = {  # merge dates from `git log`: #67 and #68 on 2026-10-28; the survey added 2026-08-29
+RESEARCH_DATES = {  # merge dates from `git log`: #67 and #68 on 2026-10-28; the survey added 2026-08-29; the ÷ pot arm graded to 20M hands 2026-11-02
     "write-up": "Oct 2026",
+    "endpoint": "Nov 2026",
     "pot": "Oct 2026",
     "survey": "Aug 2026",
     "benchmarks": "Oct 2026",
@@ -824,19 +835,19 @@ RESEARCH_DATES = {  # merge dates from `git log`: #67 and #68 on 2026-10-28; the
 
 
 def home() -> str:
-    lcfr_at_deep = at(LCFR, DEEP_HANDS)
-    raw_at_deep = at(deep_marks(RAW, "exact"), DEEP_HANDS)
-    pot_one_at_deep = at(deep_marks(POT_ONE, "exact"), DEEP_HANDS)
+    net_lead, lcfr_lead = at(DEEP, LEAD_HANDS), at(LCFR, LEAD_HANDS)
+    raw_at_pot = at(deep_marks(RAW, "exact"), POT_HANDS)
+    pot_one_at_pot = at(DEEP, POT_HANDS)
     cfrplus, dcfr = RACE["CFR+"][-1][1], RACE["DCFR"][-1][1]
     best_col = max(range(5), key=lambda j: SPOT["cols"][j][1])
     hero_fig = figure(
         None,
-        "Deep CFR is below the table at every hand count tried",
+        f"Deep CFR leads the table to {hands(LEAD_HANDS)} hands, then flattens where the table keeps falling",
         "Exploitability of the average strategy on mini-drawmaha, log scales",
         equal_hands_chart(568, 330),
-        f"At {hands(DEEP_HANDS)} hands per seat the Deep CFR exact average grades {g3(DEEP[-1][1])} chips per hand; "
-        f"tabular LCFR grades {g3(lcfr_at_deep)} and needs {hands(LCFR[-1][0])} to reach {g3(LCFR[-1][1])}. "
-        "One exact best-response walk grades both.",
+        f"At {hands(LEAD_HANDS)} hands per seat the Deep CFR exact average grades {g3(net_lead)} chips per hand against "
+        f"tabular LCFR's {g3(lcfr_lead)}; at {hands(DEEP_HANDS)} the net is still at {g3(DEEP[-1][1])} and the table has "
+        f"reached {g3(LCFR[-1][1])}. One exact best-response walk grades both.",
     )
     hole_face = " ".join(card_face(c) for c in DEALT["hole"])
     body = f"""
@@ -883,13 +894,14 @@ def home() -> str:
 <section class="band split" id="research">
   <div class="split-aside">
     <p class="eyebrow">Research</p>
-    <h2>Keeping negative regret wins the race, and a network passes the table at equal hands</h2>
+    <h2>Keeping negative regret wins the race, and a network leads the table to {hands(LEAD_HANDS)} hands</h2>
     <p>One long write-up with its data and figures, a survey of the machine learning behind it, and the benchmarks every method was checked on first.</p>
   </div>
   <div class="split-main">
     <table class="hair index"><tbody>
-      <tr><td class="when num">{RESEARCH_DATES["write-up"]}</td><td><a class="title" href="/research">Mini-drawmaha, solved</a><span>Linear CFR grades {g3(LCFR[-1][1])} at {hands(LCFR[-1][0])} hands per seat, against {g3(cfrplus)} and {g3(dcfr)} for the two rules that drop negative regret; a Deep CFR run passes the table at every hand count tried.</span></td><td class="kind">Write-up</td></tr>
-      <tr><td class="when num">{RESEARCH_DATES["pot"]}</td><td><a class="title" href="/research#ch-06">Regret targets divided by √pot train a better network</a><span>{g3(DEEP[-1][1])} against {g3(raw_at_deep)} undivided at {hands(DEEP_HANDS)} hands per seat, same network, same steps; dividing by the whole pot gives {g3(pot_one_at_deep)}.</span></td><td class="kind">Chapter</td></tr>
+      <tr><td class="when num">{RESEARCH_DATES["write-up"]}</td><td><a class="title" href="/research">Mini-drawmaha, solved</a><span>Linear CFR grades {g3(LCFR[-1][1])} at {hands(LCFR[-1][0])} hands per seat, against {g3(cfrplus)} and {g3(dcfr)} for the two rules that drop negative regret; a Deep CFR run leads the table to {hands(LEAD_HANDS)} hands per seat.</span></td><td class="kind">Write-up</td></tr>
+      <tr><td class="when num">{RESEARCH_DATES["endpoint"]}</td><td><a class="title" href="/research#ch-05">Run to the table's endpoint, the network flattens at {g3(net_lead)} and the table passes it</a><span>The ÷ pot network grades {g3(net_lead)} at {hands(LEAD_HANDS)} hands per seat and {g3(DEEP[-1][1])} at {hands(DEEP_HANDS)}; the table, at {g3(lcfr_lead)} and then {g3(LCFR[-1][1])}, passes it between the two marks. One seed.</span></td><td class="kind">Chapter</td></tr>
+      <tr><td class="when num">{RESEARCH_DATES["pot"]}</td><td><a class="title" href="/research#ch-06">Regret targets divided by √pot train a better network</a><span>{g3(SQRT[-1][1])} against {g3(raw_at_pot)} undivided at {hands(POT_HANDS)} hands per seat, same network, same steps; dividing by the whole pot gives {g3(pot_one_at_pot)}.</span></td><td class="kind">Chapter</td></tr>
       <tr><td class="when num">{RESEARCH_DATES["survey"]}</td><td><a class="title" href="{REPO}/blob/main/paper/drawmaha-ml-survey.pdf">The machine learning behind the solver</a><span>A survey: regret matching, CFR and its sampled and discounted variants, Deep CFR, and how each is graded.</span></td><td class="kind">PDF</td></tr>
       <tr><td class="when num">{RESEARCH_DATES["benchmarks"]}</td><td><a class="title" href="/benchmarks">Rock-paper-scissors, Kuhn and Leduc, graded</a><span>The three small games against a closed form and an OpenSpiel solve, each with a live demo.</span></td><td class="kind">Benchmarks</td></tr>
     </tbody></table>
@@ -1181,8 +1193,9 @@ def benchmarks() -> str:
     ratio = l_cur / l_avg
 
     lcfr_at_deep = at(LCFR, DEEP_HANDS)
+    net_lead, lcfr_lead = at(DEEP, LEAD_HANDS), at(LCFR, LEAD_HANDS)
     cfrplus, dcfr, vanilla = RACE["CFR+"][-1][1], RACE["DCFR"][-1][1], RACE["Vanilla"][-1][1]
-    pi_deep = at(deep_marks(POT_HALF, "pi"), DEEP_HANDS)
+    pi_deep = at(deep_marks(POT_ONE, "pi"), DEEP_HANDS)
 
     rail = "".join(
         f'<li><a href="#{a}"{" aria-current=\"true\"" if i == 0 else ""}>{esc(t)}</a></li>'
@@ -1261,9 +1274,9 @@ def benchmarks() -> str:
 
   <section class="b" id="deep">
     <p class="eyebrow">Benchmark 5 · Deep CFR</p>
-    <h2>Deep CFR on mini-drawmaha grades {g3(DEEP[-1][1])} at {hands(DEEP_HANDS)} hands per seat</h2>
-    <p class="sub">The same sampler and the same grader, with the regret table replaced by a 4 × 256 network per seat and its regret targets divided by √pot. Graded at equal hands per seat against the table.</p>
-    {figure(None, "Deep CFR is below the table at every hand count tried", "Exploitability at equal hands per seat, exact average against tabular LCFR, log scales", equal_hands_chart(896, 340), f"At {hands(DEEP_HANDS)} hands per seat the table grades {g3(lcfr_at_deep)}. The run's policy network Π grades {g3(pi_deep)} at the same mark; the chapter on the network is <a href=\"/research#ch-06\">on the research page</a>.")}
+    <h2>Deep CFR on mini-drawmaha grades {g3(net_lead)} at {hands(LEAD_HANDS)} hands per seat, and {g3(DEEP[-1][1])} at {hands(DEEP_HANDS)}</h2>
+    <p class="sub">The same sampler and the same grader, with the regret table replaced by a 4 × 256 network per seat and its regret targets divided by the pot, run to the table's own endpoint. Graded at equal hands per seat against the table.</p>
+    {figure(None, f"Deep CFR leads the table to {hands(LEAD_HANDS)} hands, then flattens where the table keeps falling", "Exploitability at equal hands per seat, exact average against tabular LCFR, log scales", equal_hands_chart(896, 340), f"At {hands(LEAD_HANDS)} hands per seat the table grades {g3(lcfr_lead)} against the net's {g3(net_lead)}; at {hands(DEEP_HANDS)} it grades {g3(lcfr_at_deep)}, under the net for the first time, while the net's last ten million hands moved it from {g3(net_lead)} to {g3(DEEP[-1][1])}. The run's policy network Π grades {g3(pi_deep)} at the end; the chapter on the network is <a href=\"/research#ch-05\">on the research page</a>.")}
   </section>
 
   <section class="b" id="full">

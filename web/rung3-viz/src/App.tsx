@@ -19,7 +19,7 @@ import { useEffect, useLayoutEffect, useState } from 'react'
 import '../../solver-viz/src/index.css'
 
 import { useSession } from './deals'
-import { BEST, POT_ARMS, lcfrAt, markOf } from './deep'
+import { FINAL, lcfrAt, markOf } from './deep'
 import { type PageView, type TabId, addressOf, parseLocation } from './learn'
 import { FINAL_ITERATION, SIZES, WORKERS, perHundred, series } from './research'
 import { LearnTab } from './ui/LearnTab'
@@ -82,10 +82,10 @@ export default function App() {
   const hands = FINAL_ITERATION * WORKERS
   const lcfr = perHundred(series('lcfr').at(-1)!.exploitability)
   const cfrplus = perHundred(series('cfrplus').at(-1)!.exploitability)
-  const sqrtPot = POT_ARMS.find((a) => a.potPower === 0.5 && a.lr === 0.0005)!
-  const sqrtPotAt2M = perHundred(sqrtPot.exact[200])
-  const best1M = perHundred(markOf(BEST, 100).exact.exploitability)
+  const final1M = perHundred(markOf(FINAL, 100).exact.exploitability)
   const table1M = perHundred(lcfrAt(1_000_000))
+  const final10M = perHundred(markOf(FINAL, 1000).exact.exploitability)
+  const final20M = perHundred(markOf(FINAL, 2000).exact.exploitability)
 
   const results: Result[] = [
     {
@@ -101,15 +101,16 @@ export default function App() {
       chapter: '03',
     },
     {
-      value: sqrtPotAt2M.toFixed(1),
+      value: final20M.toFixed(1),
       label: (
         <>
-          chips per hundred hands: Deep CFR's exact average with ÷ √pot targets at 2 million hands per seat, where LCFR
-          grades {perHundred(lcfrAt(2_000_000)).toFixed(1)}
+          chips per hundred hands: Deep CFR's exact average with ÷ pot targets at {hands / 1e6} million hands per seat,
+          the race's endpoint, where it has been flat since {final10M.toFixed(1)} at ten million and the table reached{' '}
+          {lcfr.toFixed(1)}
         </>
       ),
-      href: '#ch-06',
-      chapter: '06',
+      href: '#ch-05',
+      chapter: '05',
     },
   ]
 
@@ -137,15 +138,16 @@ export default function App() {
       <main className={`wrap rung3 on-${tab}`}>
         {tab === 'research' ? (
           <Masthead
-            eyebrow="Research · Mini-drawmaha · 27 October 2026"
-            title="Mini-drawmaha, solved: keeping negative regret wins by four times, and a network beats the table at equal hands"
+            eyebrow="Research · Mini-drawmaha · 2 November 2026"
+            title="Mini-drawmaha, solved: keeping negative regret wins by four times, and a network leads the table to ten million hands, then flattens where the table keeps falling"
             dek={
               <>
                 A draw game of {(SIZES[2].infosets / 1e6).toFixed(1)} million information sets, with a pot that pays twice,
                 is solved by sampled CFR and graded by an exact best response. The two regret rules that keep negative
                 regret beat CFR+ and DCFR by three to four times. Deep CFR on the same game and the same hands is
-                exploitable for {best1M.toFixed(1)} chips per hundred hands at one million hands per seat, where the table
-                is at {table1M.toFixed(1)}.
+                exploitable for {final1M.toFixed(1)} chips per hundred hands at one million hands per seat, where the table
+                is at {table1M.toFixed(1)}. Run to the table's twenty million hands it flattens at {final20M.toFixed(1)},
+                and the table, still falling, ends at {lcfr.toFixed(1)}.
               </>
             }
             meta={[

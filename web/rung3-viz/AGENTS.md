@@ -60,7 +60,9 @@
   strategy's release, digest and grade. The strategy is the release
   `deal_pack.PACK_RELEASE` names in the catalogue
   (`src/drawmaha_solver/minidrawmaha/answer/releases.py`): rung 4's Deep CFR
-  exact average from the ÷ √pot arm at iteration 200, the best graded one.
+  exact average from the ÷ √pot arm at iteration 200, the best graded one
+  when it was packed (the ÷ pot arm has since graded lower at 10M hands and
+  is not released).
   The manifest's `strategy` and `grade` blocks are the ones `/solver`'s
   `index.json` opens with, and `PlayPanel` names the bot and quotes its grade
   through `solver-viz`'s `describeStrategy`, never from a number typed here;

@@ -8,8 +8,9 @@ import { POT_DOMAIN, fmtHands, logScale } from './scales'
  * The regret targets divided by pot^k before the refit, as curves: each
  * arm's exact average against hands per seat on the page's log axes, the
  * same 4 × 256 net and 16,000-step refit throughout. The raw arm at 5e-4 is
- * drawn out to its five-million-hand floor so the pot arms, stopped at two
- * million, can be read against it. Raw arms wear the ink and the muted
+ * drawn out to its five-million-hand floor, and the ÷ pot arm, the one run
+ * on, out to the race's endpoint at twenty million, so the √pot arm, stopped
+ * at two million, can be read against both. Raw arms wear the ink and the muted
  * ink, pot arms the accent; within each pair the line style tells the arms
  * apart, every line is named at its end (the raw pair by rate), and hovering
  * or arrowing a mark reads every arm's grade at that column in the readout
@@ -73,7 +74,7 @@ export function PotChart() {
             </text>
           </g>
         ))}
-        {[1e5, 1e6, 2e6, 5e6].map((h) => (
+        {[1e5, 1e6, 2e6, 5e6, 1e7, 2e7].map((h) => (
           <g key={h}>
             <line x1={x(h)} x2={x(h)} y1={M.t} y2={PLOT_BOTTOM} stroke="var(--grid)" />
             <text x={x(h)} y={PLOT_BOTTOM + 16} textAnchor="middle" fontSize="11" fill="var(--ink-3)">

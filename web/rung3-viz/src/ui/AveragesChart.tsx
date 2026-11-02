@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { BEST, OBJECTIVES, OBJECTIVE_NAME, type Objective } from '../deep'
+import { RAW, OBJECTIVES, OBJECTIVE_NAME, type Objective } from '../deep'
 import { perHundred } from '../research'
 import { fmtHands, logScale } from './scales'
 
@@ -20,13 +20,13 @@ const INK: Record<Objective, string> = { exact: 'var(--obj-exact)', pi: 'var(--o
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(3)}`
 
 export function AveragesChart() {
-  const [at, setAt] = useState(BEST.marks.length - 1)
-  const mark = BEST.marks[at]
+  const [at, setAt] = useState(RAW.marks.length - 1)
+  const mark = RAW.marks[at]
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') setAt((i) => Math.max(0, i - 1))
-    if (e.key === 'ArrowRight') setAt((i) => Math.min(BEST.marks.length - 1, i + 1))
+    if (e.key === 'ArrowRight') setAt((i) => Math.min(RAW.marks.length - 1, i + 1))
   }
-  const path = (o: Objective) => BEST.marks.map((m, i) => `${i ? 'L' : 'M'} ${x(m.t).toFixed(1)} ${y(perHundred(m[o].exploitability)).toFixed(1)}`).join(' ')
+  const path = (o: Objective) => RAW.marks.map((m, i) => `${i ? 'L' : 'M'} ${x(m.t).toFixed(1)} ${y(perHundred(m[o].exploitability)).toFixed(1)}`).join(' ')
   return (
     <>
       <svg className="chart averages" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Three graded objects of one Deep CFR arm against iteration" tabIndex={0} onKeyDown={onKey}>
@@ -38,7 +38,7 @@ export function AveragesChart() {
             </text>
           </g>
         ))}
-        {BEST.marks.map((m) => (
+        {RAW.marks.map((m) => (
           <g key={m.t}>
             <line x1={x(m.t)} x2={x(m.t)} y1={M.t} y2={H - M.b} stroke="var(--grid)" />
             <text x={x(m.t)} y={H - 12} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
@@ -56,18 +56,18 @@ export function AveragesChart() {
           <path key={o} d={path(o)} fill="none" stroke={INK[o]} strokeWidth={o === 'exact' ? 2.2 : 1.5} strokeDasharray={o === 'current' ? '6 4' : undefined} />
         ))}
         {OBJECTIVES.map((o) => (
-          <text key={o} x={x(500) + 8} y={y(perHundred(BEST.marks.at(-1)![o].exploitability)) + (o === 'exact' ? 10 : o === 'pi' ? -3 : 4)} fontSize="11" fill={INK[o]}>
-            {o === 'exact' ? 'exact' : o === 'pi' ? 'Π' : 'current'} {perHundred(BEST.marks.at(-1)![o].exploitability).toFixed(1)}
+          <text key={o} x={x(500) + 8} y={y(perHundred(RAW.marks.at(-1)![o].exploitability)) + (o === 'exact' ? 10 : o === 'pi' ? -3 : 4)} fontSize="11" fill={INK[o]}>
+            {o === 'exact' ? 'exact' : o === 'pi' ? 'Π' : 'current'} {perHundred(RAW.marks.at(-1)![o].exploitability).toFixed(1)}
           </text>
         ))}
         <line x1={x(mark.t)} x2={x(mark.t)} y1={M.t} y2={H - M.b} stroke="var(--ink)" strokeOpacity={0.6} />
         {OBJECTIVES.map((o) => (
           <circle key={o} cx={x(mark.t)} cy={y(perHundred(mark[o].exploitability))} r={o === 'exact' ? 4 : 3} fill={INK[o]} />
         ))}
-        {BEST.marks.map((m, i) => {
+        {RAW.marks.map((m, i) => {
           const cx = x(m.t)
-          const left = i === 0 ? M.l : (x(BEST.marks[i - 1].t) + cx) / 2
-          const right = i === BEST.marks.length - 1 ? W - M.r : (x(BEST.marks[i + 1].t) + cx) / 2
+          const left = i === 0 ? M.l : (x(RAW.marks[i - 1].t) + cx) / 2
+          const right = i === RAW.marks.length - 1 ? W - M.r : (x(RAW.marks[i + 1].t) + cx) / 2
           return <rect key={m.t} x={left} y={M.t} width={right - left} height={H - M.t - M.b} fill="transparent" onMouseEnter={() => setAt(i)} onFocus={() => setAt(i)} />
         })}
       </svg>

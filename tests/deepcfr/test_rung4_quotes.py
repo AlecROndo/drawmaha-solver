@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RUNG4 = ROOT / "figures" / "rung4"
 
 # Hands per seat at mark t are 10,000·t; LCFR's lockstep iteration is 1,000·t.
-HANDS = {"100k": 10, "200k": 20, "500k": 50, "1M": 100, "2M": 200, "5M": 500}
+HANDS = {"100k": 10, "200k": 20, "500k": 50, "1M": 100, "2M": 200, "5M": 500, "10M": 1000, "20M": 2000}
 
 
 def load(name: str) -> dict:
@@ -68,6 +68,7 @@ def test_the_readme_rung4_table_quotes_the_committed_grades():
         lambda t: mark("figures/rung4/sweep_256x4-s8000.json", t),
         lambda t: mark("figures/rung4/sweep_256x4-s16000-lr5e-4.json", t),
         lambda t: mark("figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json", t),
+        lambda t: mark("figures/rung4/pot_1-256x4-s16000-lr5e-4.json", t),
     )
     checked = 0
     for hands, *cells in table:
@@ -97,12 +98,16 @@ def test_the_readme_rung4_columns_are_the_refits_the_caption_says():
     assert refit("figures/rung4/sweep_256x4-s16000-lr5e-4.json", "deep/00100/exact") == (16_000, 5e-4)
     pot = load("figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json")["deep/00100/exact"]["config"]
     assert (pot["steps"], pot["lr"], pot["pot_power"]) == (16_000, 5e-4, 0.5)
+    pot_one = load("figures/rung4/pot_1-256x4-s16000-lr5e-4.json")
+    for key in ("deep/00100/exact", "deep/02000/exact"):
+        config = pot_one[key]["config"]
+        assert (config["steps"], config["lr"], config["pot_power"]) == (16_000, 5e-4, 1.0)
 
 
 def test_the_run_log_scoreboard_quotes_the_committed_grades():
     log = (ROOT / "docs" / "notes" / "rung4-run-log.md").read_text()
     table = rows(log, "| arm | where | net |")
-    marks = (10, 20, 50, 100, 200)
+    marks = (10, 20, 50, 100, 200, 500, 1000, 2000)
     checked = 0
     for arm, _where, net, _steps, _lr, _pot_power, *cells, file in table:
         file = file.strip("`")
@@ -130,10 +135,21 @@ def test_the_readme_headline_rows_and_readings_quote_the_committed_grades():
     pot_one = "figures/rung4/pot_1-256x4-s16000-lr5e-4.json"
     quotes = {
         "| 3 | Mini-drawmaha": f"LCFR wins: {lcfr(2_000):.3f} chips/hand at 20M hands per seat",
-        "| 4 | Mini-drawmaha": f"{mark(pot_sqrt, 200):.3f} chips/hand at 2M hands per seat, where LCFR is at {lcfr(200):.3f}",
+        "| 4 | Mini-drawmaha": (
+            f"{mark(pot_one, 1_000):.3f} chips/hand at 10M hands per seat, where LCFR is at {lcfr(1_000):.3f}, "
+            f"and still {mark(pot_one, 2_000):.3f} at 20M, where LCFR has reached {lcfr(2_000):.3f}"
+        ),
     }
     for row_start, text in quotes.items():
         (row,) = [line for line in readme.splitlines() if line.startswith(row_start)]
         assert text in row, (row_start, text)
     assert f"reaches {lcfr(1_000):.3f} at 10M and {lcfr(2_000):.3f} at 20M" in readme
     assert f"grades {mark(pot_sqrt, 200):.3f} with ÷ √pot and {mark(pot_one, 200):.3f} with ÷ pot" in readme
+    # the final arm's curve and the table's, as the reading quotes them, and the two four-figure grades of its last marks
+    curve = " → ".join(f"{mark(pot_one, t):.3f}" for t in (100, 200, 500, 1_000, 2_000))
+    assert f"{curve} from 1M to 20M hands" in readme
+    assert f"from {mark(pot_one, 1_000):.4f} to {mark(pot_one, 2_000):.4f}" in readme
+    # the headline's claim: below the table at every mark to 10M, above it at 20M
+    for t in (100, 200, 500, 1_000):
+        assert mark(pot_one, t) < lcfr(t)
+    assert mark(pot_one, 2_000) > lcfr(2_000)
