@@ -1024,9 +1024,10 @@ footer a:hover {
    (Kuhn, Leduc) sets .letter and draws its rank again instead, large in the
    serif, set low and right and barely cropped. A surface's own class sets
    --w and, where its box is not a card's 2.5 : 3.5, its own height. The rank
-   has a floor so the smallest face still reads: 14 px is 0.62 of a 23 px
-   card, so no dealt card reaches it; only the solver's deck tiles, narrower
-   than any card, do. The
+   has a floor so a face smaller than any the site sets would still read:
+   14 px is 0.62 of a 23 px card, and the smallest card drawn is the 24 px
+   hand in a line of text (the solver's deck tiles, a column of their grid
+   each, are wider still), so no surface reaches it today. The
    rank and the pip are the card's own <b> and <i>, its direct children: every
    rule below reaches them through the child combinator, so an element a
    surface nests inside a card for its own purpose (the solver's deck tile
@@ -1081,7 +1082,9 @@ footer a:hover {
   color: var(--act-call);
 }
 
-/* a rank-only game: the rank itself, large in the serif in the card's own ink, set low and right and barely cropped; letters differ too much in shape to survive the pip's crop (a cropped Q is an O) */
+/* a rank-only game: the rank itself, large in the serif in the card's own ink,
+   set low and right and barely cropped; letters differ too much in shape to
+   survive the pip's crop (a cropped Q is an O) */
 .cardface.letter > i {
   right: calc(var(--w) * 0.05);
   bottom: calc(var(--w) * -0.18);
