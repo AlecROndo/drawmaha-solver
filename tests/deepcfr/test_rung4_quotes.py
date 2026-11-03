@@ -153,3 +153,18 @@ def test_the_readme_headline_rows_and_readings_quote_the_committed_grades():
     for t in (100, 200, 500, 1_000):
         assert mark(pot_one, t) < lcfr(t)
     assert mark(pot_one, 2_000) > lcfr(2_000)
+
+
+def test_the_final_arm_hours_quoted_in_prose_are_the_committed_wall_clock():
+    # The README's "49 hours" for the net's last 10M hands, and the run log's clock row and total, are
+    # `wall_clock_s` from the ÷ pot arm's file, so a re-grade cannot leave the prose quoting a stale clock.
+    pot_one = load("figures/rung4/pot_1-256x4-s16000-lr5e-4.json")
+    hours = {t: pot_one[f"deep/{t:05d}/exact"]["wall_clock_s"] / 3600 for t in (100, 200, 500, 1_000, 2_000)}
+    last_10m = round(hours[2_000] - hours[1_000])
+    readme = (ROOT / "README.md").read_text()
+    assert f"The net's last 10M hands, {last_10m} hours of training, moved its grade" in readme
+    log = (ROOT / "docs" / "notes" / "rung4-run-log.md").read_text()
+    assert f"the second 10M hands, {last_10m} hours" in log
+    assert f"{hours[2_000]:.1f} hours of training clock in all" in log
+    (clock_row,) = [row for row in rows(log, "| hands per seat | 1M |") if row[0] == "training clock, hours"]
+    assert clock_row[1:] == [f"{hours[t]:.1f}" for t in (100, 200, 500, 1_000, 2_000)]

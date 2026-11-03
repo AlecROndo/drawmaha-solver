@@ -113,7 +113,7 @@ describe('the raw arm and the final arm against the table at equal hands', () =>
       else expect(price).toBeGreaterThan(1)
     }
     expect(markOf(FINAL, 2000).exact.exploitability / lcfrAt(20_000_000)).toBeCloseTo(1.116, 2)
-    // the last ten million hands bought nothing: the move is under a hundredth of a chip per hundred hands
+    // the last ten million hands bought nothing: the move is under 0.001 chips per hand, a tenth of a chip per hundred hands
     const moved = Math.abs(markOf(FINAL, 2000).exact.exploitability - markOf(FINAL, 1000).exact.exploitability)
     expect(moved).toBeLessThan(0.001)
     // it flattened lower than the raw arm's floor

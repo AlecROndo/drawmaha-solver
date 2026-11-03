@@ -189,15 +189,20 @@ SQRT = deep_marks(POT_HALF, "exact")
 POT_HANDS = SQRT[-1][0]
 # The last mark at which the net is under the table, and the first at which it is not.
 LEAD_HANDS = max(x for x, v in DEEP if v < at(LCFR, x))
-PASS_HANDS = min(x for x, v in DEEP if v >= at(LCFR, x))
+PASS_HANDS = min((x for x, v in DEEP if v >= at(LCFR, x)), default=None)
 assert PASS_HANDS == DEEP_HANDS, "the hero copy says the table passes the net at the last mark only"
-assert LEAD_HANDS == 10_000_000
+assert LEAD_HANDS == 10_000_000, "the hero copy says the net leads to ten million hands"
 UNIFORM = RUNG3["uniform_random"]["exploitability"]
 
 
 def g3(v: float) -> str:
     """A grade as the pages print it: three decimals, or two significant figures under 0.01."""
     return f"{v:.3f}" if v >= 0.01 else f"{v:.2g}"
+
+
+def g4(v: float) -> str:
+    """A grade to four decimals, for two grades that agree to three: the net's last two marks, 0.0679 and 0.0685."""
+    return f"{v:.4f}"
 
 
 def hands(v: float) -> str:
@@ -1276,7 +1281,7 @@ def benchmarks() -> str:
     <p class="eyebrow">Benchmark 5 · Deep CFR</p>
     <h2>Deep CFR on mini-drawmaha grades {g3(net_lead)} at {hands(LEAD_HANDS)} hands per seat, and {g3(DEEP[-1][1])} at {hands(DEEP_HANDS)}</h2>
     <p class="sub">The same sampler and the same grader, with the regret table replaced by a 4 × 256 network per seat and its regret targets divided by the pot, run to the table's own endpoint. Graded at equal hands per seat against the table.</p>
-    {figure(None, f"Deep CFR leads the table to {hands(LEAD_HANDS)} hands, then flattens where the table keeps falling", "Exploitability at equal hands per seat, exact average against tabular LCFR, log scales", equal_hands_chart(896, 340), f"At {hands(LEAD_HANDS)} hands per seat the table grades {g3(lcfr_lead)} against the net's {g3(net_lead)}; at {hands(DEEP_HANDS)} it grades {g3(lcfr_at_deep)}, under the net for the first time, while the net's last ten million hands moved it from {g3(net_lead)} to {g3(DEEP[-1][1])}. The run's policy network Π grades {g3(pi_deep)} at the end; the chapter on the network is <a href=\"/research#ch-05\">on the research page</a>.")}
+    {figure(None, f"Deep CFR leads the table to {hands(LEAD_HANDS)} hands, then flattens where the table keeps falling", "Exploitability at equal hands per seat, exact average against tabular LCFR, log scales", equal_hands_chart(896, 340), f"At {hands(LEAD_HANDS)} hands per seat the table grades {g3(lcfr_lead)} against the net's {g3(net_lead)}; at {hands(DEEP_HANDS)} it grades {g3(lcfr_at_deep)}, under the net for the first time, while the net's last ten million hands moved it from {g4(net_lead)} to {g4(DEEP[-1][1])}. The run's policy network Π grades {g3(pi_deep)} at the end; the chapter on the network is <a href=\"/research#ch-05\">on the research page</a>.")}
   </section>
 
   <section class="b" id="full">
