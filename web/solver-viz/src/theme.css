@@ -1027,10 +1027,12 @@ footer a:hover {
    has a floor so a face smaller than any the site sets would still read:
    15 px is 0.8 of a 19 px card, and the smallest card drawn is the 24 px
    hand in a line of text (the solver's deck tiles, a column of their grid
-   each, are wider still), so no surface reaches it today. The
-   rank and the pip are the card's own <b> and <i>, its direct children: every
-   rule below reaches them through the child combinator, so an element a
-   surface nests inside a card for its own purpose (the solver's deck tile
+   each, are wider still), so no surface reaches it today. A two-character
+   rank, the 10, marks its <b> .two and takes 0.6 of the width so it stays
+   inside the right edge (the apps print T; only the Rules page sets a 10).
+   The rank and the pip are the card's own <b> and <i>, its direct children:
+   every rule below reaches them through the child combinator, so an element
+   a surface nests inside a card for its own purpose (the solver's deck tile
    carries a pot-lift bar whose fill is an <i>) is never drawn as a pip. */
 .cardface {
   --w: 52px;

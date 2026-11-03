@@ -54,7 +54,10 @@ declares.
   lower-right edge, in the suit's ink at full strength, on `--card-face`
   card stock. Spades wear ink, hearts the oxblood, and the minor suits
   borrow the action triplet, diamonds the check-blue and clubs the
-  call-green. A surface sets only `--w` (the felt's 52 px, the coach's
+  call-green. The rank is 0.8 of the card's width on a 15 px floor; a
+  two-character rank, the Rules page's `10`, marks its `<b>` `.two` and
+  takes 0.6 so it stays inside the right edge (the apps print `T`). A
+  surface sets only `--w` (the felt's 52 px, the coach's
   28 px, a hand in a line of text 24 px); Kuhn and Leduc, games of ranks
   without suits, set `.letter` and draw the rank again, large in the serif,
   set low and right and barely cropped (a cropped Q reads as an O). Face down is
