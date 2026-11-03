@@ -1025,7 +1025,7 @@ footer a:hover {
    serif, set low and right and barely cropped. A surface's own class sets
    --w and, where its box is not a card's 2.5 : 3.5, its own height. The rank
    has a floor so a face smaller than any the site sets would still read:
-   14 px is 0.62 of a 23 px card, and the smallest card drawn is the 24 px
+   15 px is 0.8 of a 19 px card, and the smallest card drawn is the 24 px
    hand in a line of text (the solver's deck tiles, a column of their grid
    each, are wider still), so no surface reaches it today. The
    rank and the pip are the card's own <b> and <i>, its direct children: every
@@ -1052,17 +1052,23 @@ footer a:hover {
   position: absolute;
   left: calc(var(--w) * 0.1);
   top: calc(var(--w) * 0.09);
-  font: 600 max(14px, calc(var(--w) * 0.62)) / 1 var(--sans);
+  font: 600 max(15px, calc(var(--w) * 0.8)) / 1 var(--sans);
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
 
+/* a two-character rank, the 10, would run past the right edge at 0.8; it
+   takes a narrower size (the markup marks it .two) */
+.cardface > b.two {
+  font-size: max(14px, calc(var(--w) * 0.6));
+}
+
 .cardface > i {
   position: absolute;
-  right: calc(var(--w) * -0.3);
-  bottom: calc(var(--w) * -0.4);
+  right: calc(var(--w) * -0.32);
+  bottom: calc(var(--w) * -0.48);
   font-style: normal;
-  font-size: calc(var(--w) * 1.1);
+  font-size: calc(var(--w) * 1.05);
   line-height: 1;
 }
 

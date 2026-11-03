@@ -1294,8 +1294,8 @@ body.wide footer .wrap {
 }
 
 /* the expanded row's cards are 24 px, pinned here rather than inherited from
-   .cf: below 23 px the rank sits on its 14 px floor while the pip keeps
-   shrinking, and near 19 px the two inks meet */
+   .cf: below 19 px the rank sits on its 15 px floor while the pip keeps
+   shrinking, and the two inks close on each other */
 .rx-ledger tr.l3 .cf {
   --w: 24px;
 }

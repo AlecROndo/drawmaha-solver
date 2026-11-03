@@ -328,9 +328,10 @@ def card_span(face: str, *, out: bool = False) -> str:
     """One card as the theme's `.cardface`, the bleed pip: the rank in a `<b>`, the suit glyph in an `<i>` the theme crops at the card's lower-right edge, the suit's ink picked by `su-<letter>`."""
     rank, glyph = face[:-1], face[-1]
     cls = f"pc cardface su-{SUIT_KEY[glyph]}" + (" out" if out else "")
+    two = ' class="two"' if len(rank) == 2 else ""  # the 10 takes the theme's narrower rank size
     return (
         f'<span class="{cls}" role="img" aria-label="{face}">'
-        f'<b>{rank}</b><i aria-hidden="true">{glyph}</i></span>'
+        f'<b{two}>{rank}</b><i aria-hidden="true">{glyph}</i></span>'
     )
 
 
