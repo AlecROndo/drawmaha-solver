@@ -1091,10 +1091,20 @@ body.wide footer .wrap {
     transform var(--t-press) var(--ease-out);
 }
 
+/* the tile's rank and pip have their own measures: a tile's width runs from
+   22 px (thirteen ranks at 1280) to 145 px (five ranks on a phone), and a
+   box 30 or 40 px tall cannot take the theme's 0.8 w rank at either end, so
+   the rank is clamped between the theme's floor and a size the short box
+   holds, and the pip is capped at the box's own height, tucked as the
+   theme's is */
+.dcard > b {
+  font-size: clamp(15px, calc(var(--w) * 0.5), 19px);
+}
+
 .dcard > i {
-  font-size: calc(var(--w) * 1);
-  right: calc(var(--w) * -0.3);
-  bottom: calc(var(--w) * -0.34);
+  font-size: min(calc(var(--w) * 0.9), 36px);
+  right: calc(min(var(--w), 40px) * -0.32);
+  bottom: calc(min(var(--w), 40px) * -0.44);
 }
 
 .deck.compact .dcard {
