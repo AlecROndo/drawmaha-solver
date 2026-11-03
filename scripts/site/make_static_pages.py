@@ -325,8 +325,9 @@ SUIT_KEY = {"♠": "s", "♥": "h", "♦": "d", "♣": "c"}
 
 
 def card_span(face: str, *, out: bool = False) -> str:
-    """One card as the theme's `.cardface`, the bleed pip: the rank in a `<b>`, the suit glyph in an `<i>` the theme crops at the card's lower-right edge, the suit's ink picked by `su-<letter>`."""
+    """One card as the theme's `.cardface`, the bleed pip: the rank in a `<b>` (a ten prints as `T`, one character like every other rank, as the apps print it; the `aria-label` keeps the face's own `10`, which a screen reader says as a number), the suit glyph in an `<i>` the theme crops at the card's lower-right edge, the suit's ink picked by `su-<letter>`."""
     rank, glyph = face[:-1], face[-1]
+    rank = "T" if rank == "10" else rank  # one character like every other rank, as the apps print it
     cls = f"pc cardface su-{SUIT_KEY[glyph]}" + (" out" if out else "")
     return (
         f'<span class="{cls}" role="img" aria-label="{face}">'

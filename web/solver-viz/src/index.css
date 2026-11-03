@@ -1072,7 +1072,9 @@ body.wide footer .wrap {
 .dcard {
   /* the tile's own width is the card's measure, read by its children in
      container units; the tile is a short box, so its pip is drawn smaller
-     than a dealt card's and tucked further into the corner. `cqw` resolves
+     than a dealt card's (0.9 of the width against 1.05, capped at 36 px) at
+     the theme's own tuck below the edge, so more of its glyph, not less, sits
+     below the foot. `cqw` resolves
      against the nearest container *ancestor* of the element that reads it,
      so --w is for the <b> and the <i>, whose ancestor is this tile. On
      .dcard itself it would measure the deck's enclosing container instead,
@@ -1091,10 +1093,38 @@ body.wide footer .wrap {
     transform var(--t-press) var(--ease-out);
 }
 
+/* the tile's rank and pip have their own measures: a tile's width runs from
+   14 px (the full game's thirteen ranks at a 1024 px viewport; 16 px at 1280
+   and up) to 145 px (mini-drawmaha's five ranks on a phone), and a box 30 or
+   40 px tall cannot take the theme's 0.8 w rank at either end, so the rank
+   is clamped between the theme's floor and a size the short box holds. On
+   the thirteen-rank tile the floor binds (15 px in a 14 to 16 px tile), so
+   the rank's em box is wider than its tile on purpose: a tile narrower than
+   its glyph's em is still wider than the glyph's ink (a Geist digit at 600
+   is 0.53 to 0.57 em, the widest capitals, A and Q, 0.67 em), so the rank
+   reads, and a rank the tile could hold at 0.5 w (7 px) would not. The pip
+   is capped at 36 px, under
+   the compact deck's 40 px box, and its offsets are taken from the capped
+   width, not from the capped pip size, so once both caps bind (w ≥ 40) it is
+   a fixed 36 px drawing at a fixed tuck; it is tucked as far below the edge
+   as the theme's pip (−0.44 of the capped width) and 0.04 further right
+   (−0.32 against the theme's −0.28, 1.6 px at the cap), so the short box
+   shows less of the glyph's width. The full game's deck is the 30 px box: its pip
+   reaches the cap only where the tile passes 40 px (a 720 px viewport), and
+   the box crops it as the theme's card crops its own. Measured on the two
+   decks at viewports from 360 to 1920 px, in the site's self-hosted Geist:
+   no rank's ink leaves its tile or meets its pip's; the thirteen-rank
+   tile's rank sits on the floor, its ink 0.8 px inside the right edge at
+   the 14 px tile and 2.7 px at 16 px (a fallback font with wider digits
+   would crop it there) */
+.dcard > b {
+  font-size: clamp(15px, calc(var(--w) * 0.5), 19px);
+}
+
 .dcard > i {
-  font-size: calc(var(--w) * 1);
-  right: calc(var(--w) * -0.3);
-  bottom: calc(var(--w) * -0.34);
+  font-size: min(calc(var(--w) * 0.9), 36px);
+  right: calc(min(var(--w), 40px) * -0.32);
+  bottom: calc(min(var(--w), 40px) * -0.44);
 }
 
 .deck.compact .dcard {
@@ -1294,7 +1324,11 @@ body.wide footer .wrap {
 }
 
 /* the expanded row's cards are 24 px, pinned here rather than inherited from
-   .cf: below 24 px the floored 12 px rank touches the pip */
+   .cf: the theme's floor binds below 19 px (15 / 0.8), where the rank holds
+   at 15 px while the pip keeps shrinking; measured at the theme's 1.05 pip
+   at −0.28 / −0.44, the rank's ink meets the pip's at 20 px already on K Q J
+   2 and 6, on every rank at 18 px and below, and at 24 px the tightest pair,
+   Q♣, is 0.2 px apart */
 .rx-ledger tr.l3 .cf {
   --w: 24px;
 }

@@ -1021,12 +1021,20 @@ footer a:hover {
    action triplet, diamonds the check-blue and clubs the call-green; a suit's
    name carries no meaning in any of the games, so an ink shared with call
    text is a shared ink, not a shared meaning. A game of ranks and no suits
-   (Kuhn, Leduc) sets .letter and bleeds its rank in the serif instead. A
-   surface's own class sets --w and, where its box is not a card's 2.5 : 3.5,
-   its own height. The rank has a floor so the smallest face still reads. The
-   rank and the pip are the card's own <b> and <i>, its direct children: every
-   rule below reaches them through the child combinator, so an element a
-   surface nests inside a card for its own purpose (the solver's deck tile
+   (Kuhn, Leduc) sets .letter and draws its rank again instead, large in the
+   serif, set low and right and barely cropped. A surface's own class sets
+   --w and, where its box is not a card's 2.5 : 3.5, its own height. The rank
+   has a floor so a face smaller than any the site sets would still read:
+   15 px is 0.8 of a 19 px card, and the smallest card drawn with this rule
+   is the 24 px hand in a line of text, so no card reaches it today. The one
+   face narrower than that, the solver's deck tile (a column of its grid,
+   14 px wide at the narrowest), overrides this rule with a clamp of its own
+   whose floor is the same 15 px: there the rank is wider than its tile by
+   design and the tile's sheet says why. A ten is T, so every rank is one
+   character and none runs past the right edge.
+   The rank and the pip are the card's own <b> and <i>, its direct children:
+   every rule below reaches them through the child combinator, so an element
+   a surface nests inside a card for its own purpose (the solver's deck tile
    carries a pot-lift bar whose fill is an <i>) is never drawn as a pip. */
 .cardface {
   --w: 52px;
@@ -1048,17 +1056,17 @@ footer a:hover {
   position: absolute;
   left: calc(var(--w) * 0.1);
   top: calc(var(--w) * 0.09);
-  font: 600 max(12px, calc(var(--w) * 0.44)) / 1 var(--sans);
+  font: 600 max(15px, calc(var(--w) * 0.8)) / 1 var(--sans);
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
 
 .cardface > i {
   position: absolute;
-  right: calc(var(--w) * -0.22);
-  bottom: calc(var(--w) * -0.36);
+  right: calc(var(--w) * -0.28);
+  bottom: calc(var(--w) * -0.44);
   font-style: normal;
-  font-size: calc(var(--w) * 1.25);
+  font-size: calc(var(--w) * 1.05);
   line-height: 1;
 }
 
@@ -1078,11 +1086,13 @@ footer a:hover {
   color: var(--act-call);
 }
 
-/* a rank-only game: the rank itself bleeds, in the serif, in the card's own ink */
+/* a rank-only game: the rank itself, large in the serif in the card's own ink,
+   set low and right and barely cropped; letters differ too much in shape to
+   survive the pip's crop (a cropped Q is an O) */
 .cardface.letter > i {
-  right: calc(var(--w) * -0.14);
-  bottom: calc(var(--w) * -0.24);
-  font: 500 calc(var(--w) * 1.15) / 1 var(--serif);
+  right: calc(var(--w) * 0.05);
+  bottom: calc(var(--w) * -0.18);
+  font: 500 calc(var(--w) * 0.8) / 1 var(--serif);
 }
 
 /* face down is the chip's oxblood pinstripe; a card not yet dealt is a dashed recess */

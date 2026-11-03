@@ -54,9 +54,13 @@ declares.
   lower-right edge, in the suit's ink at full strength, on `--card-face`
   card stock. Spades wear ink, hearts the oxblood, and the minor suits
   borrow the action triplet, diamonds the check-blue and clubs the
-  call-green. A surface sets only `--w` (the felt's 52 px, the coach's
+  call-green. The rank is 0.8 of the card's width on a 15 px floor (the
+  solver's deck tile, a short box, clamps its own); a ten is `T`, one
+  character like every other rank, on the pages as in the apps. A
+  surface sets only `--w` (the felt's 52 px, the coach's
   28 px, a hand in a line of text 24 px); Kuhn and Leduc, games of ranks
-  without suits, set `.letter` and bleed the rank in the serif. Face down is
+  without suits, set `.letter` and draw the rank again, large in the serif,
+  set low and right and barely cropped (a cropped Q reads as an O). Face down is
   the chip's pinstripe, not yet dealt a dashed recess. The rank is the
   card's own `<b>` and the pip its own `<i>`, direct children: every rank or
   pip rule is `card > b` / `card > i`, so an element a surface nests inside
