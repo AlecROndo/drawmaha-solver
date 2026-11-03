@@ -1025,9 +1025,10 @@ footer a:hover {
    serif, set low and right and barely cropped. A surface's own class sets
    --w and, where its box is not a card's 2.5 : 3.5, its own height. The rank
    has a floor so a face smaller than any the site sets would still read:
-   15 px is 0.8 of a 19 px card, and the smallest card drawn is the 24 px
-   hand in a line of text (the solver's deck tiles, a column of their grid
-   each, are wider still), so no surface reaches it today. A two-character
+   15 px is 0.8 of a 19 px card, and the smallest card drawn with this rule
+   is the 24 px hand in a line of text (the solver's deck tiles, a column of
+   their grid each and 14 px wide at the narrowest, size their rank in their
+   own sheet), so no surface reaches it today. A two-character
    rank, the 10, marks its <b> .two and takes 0.6 of the width so it stays
    inside the right edge (the apps print T; only the Rules page sets a 10).
    The rank and the pip are the card's own <b> and <i>, its direct children:
