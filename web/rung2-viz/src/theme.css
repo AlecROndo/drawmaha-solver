@@ -1025,7 +1025,8 @@ footer a:hover {
    serif, set low and right and barely cropped. A surface's own class sets
    --w and, where its box is not a card's 2.5 : 3.5, its own height. The rank
    has a floor so the smallest face still reads: 14 px is 0.62 of a 23 px
-   card, so only the 24 px hand in a line of text reaches it. The
+   card, so no dealt card reaches it; only the solver's deck tiles, narrower
+   than any card, do. The
    rank and the pip are the card's own <b> and <i>, its direct children: every
    rule below reaches them through the child combinator, so an element a
    surface nests inside a card for its own purpose (the solver's deck tile
