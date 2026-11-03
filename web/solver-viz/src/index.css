@@ -1095,13 +1095,25 @@ body.wide footer .wrap {
    14 px (the full game's thirteen ranks at a 1024 px viewport; 16 px at 1280
    and up) to 145 px (mini-drawmaha's five ranks on a phone), and a box 30 or
    40 px tall cannot take the theme's 0.8 w rank at either end, so the rank
-   is clamped between the theme's floor and a size the short box holds, and
-   the pip is capped at 36 px, under the taller box's 40 px, tucked nearly as
-   the theme's is (−0.32 / −0.44 of the capped width against the theme's
-   −0.32 / −0.48). Measured on the two decks at viewports from 360 to
-   1920 px: no rank's ink leaves its tile or meets its pip's; the thirteen-
-   rank tile's rank sits on the 15 px floor, 0.8 px inside the right edge at
-   its narrowest */
+   is clamped between the theme's floor and a size the short box holds. On
+   the thirteen-rank tile the floor binds (15 px in a 14 to 16 px tile), so
+   the rank's em box is wider than its tile on purpose: a tile narrower than
+   its glyph's em is still wider than the glyph's ink (a Geist digit at 600
+   is 0.53 to 0.57 em, the widest capitals, A and Q, 0.67 em), so the rank
+   reads, and a rank the tile could hold at 0.5 w (7 px) would not. The pip
+   is capped at 36 px, under
+   the compact deck's 40 px box, and its offsets are taken from the capped
+   width, not from the capped pip size, so once both caps bind (w ≥ 40) it is
+   a fixed 36 px drawing at a fixed tuck; it is tucked nearly as the theme's
+   is (−0.32 / −0.44 of the capped width against the theme's −0.32 / −0.48,
+   1.6 px less at the cap). The full game's deck is the 30 px box: its pip
+   reaches the cap only where the tile passes 40 px (a 720 px viewport), and
+   the box crops it as the theme's card crops its own. Measured on the two
+   decks at viewports from 360 to 1920 px, in the site's self-hosted Geist:
+   no rank's ink leaves its tile or meets its pip's; the thirteen-rank
+   tile's rank sits on the floor, its ink 0.8 px inside the right edge at
+   the 14 px tile and 2.7 px at 16 px (a fallback font with wider digits
+   would crop it there) */
 .dcard > b {
   font-size: clamp(15px, calc(var(--w) * 0.5), 19px);
 }
