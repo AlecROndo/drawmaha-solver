@@ -55,9 +55,8 @@ declares.
   card stock. Spades wear ink, hearts the oxblood, and the minor suits
   borrow the action triplet, diamonds the check-blue and clubs the
   call-green. The rank is 0.8 of the card's width on a 15 px floor (the
-  solver's deck tile, a short box, clamps its own); a two-character rank,
-  the Rules page's `10`, marks its `<b>` `.two` and takes 0.6 so it stays
-  inside the right edge (the apps print `T`). A
+  solver's deck tile, a short box, clamps its own); a ten is `T`, one
+  character like every other rank, on the pages as in the apps. A
   surface sets only `--w` (the felt's 52 px, the coach's
   28 px, a hand in a line of text 24 px); Kuhn and Leduc, games of ranks
   without suits, set `.letter` and draw the rank again, large in the serif,

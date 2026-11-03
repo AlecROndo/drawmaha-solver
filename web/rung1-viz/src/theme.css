@@ -1030,9 +1030,8 @@ footer a:hover {
    face narrower than that, the solver's deck tile (a column of its grid,
    14 px wide at the narrowest), overrides this rule with a clamp of its own
    whose floor is the same 15 px: there the rank is wider than its tile by
-   design and the tile's sheet says why. A two-character
-   rank, the 10, marks its <b> .two and takes 0.6 of the width so it stays
-   inside the right edge (the apps print T; only the Rules page sets a 10).
+   design and the tile's sheet says why. A ten is T, so every rank is one
+   character and none runs past the right edge.
    The rank and the pip are the card's own <b> and <i>, its direct children:
    every rule below reaches them through the child combinator, so an element
    a surface nests inside a card for its own purpose (the solver's deck tile
@@ -1062,16 +1061,10 @@ footer a:hover {
   font-variant-numeric: tabular-nums;
 }
 
-/* a two-character rank, the 10, would run past the right edge at 0.8; it
-   takes a narrower size (the markup marks it .two) */
-.cardface > b.two {
-  font-size: max(14px, calc(var(--w) * 0.6));
-}
-
 .cardface > i {
   position: absolute;
-  right: calc(var(--w) * -0.32);
-  bottom: calc(var(--w) * -0.48);
+  right: calc(var(--w) * -0.28);
+  bottom: calc(var(--w) * -0.44);
   font-style: normal;
   font-size: calc(var(--w) * 1.05);
   line-height: 1;
