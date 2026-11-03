@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { FROZEN } from './research'
-import { BEST, markOf } from './deep'
+import { RAW, markOf } from './deep'
 import { REACH, REACH_NAME, REACH_SHORT, STAGES, bandAt, binLabel, crossingBand, edgeWord, perVisit, populated, rareInfosets, rareShare } from './reach'
 
 describe('exploitability by reach', () => {
   it('each profile sums to the grade the page quotes elsewhere, and its check holds', () => {
     expect(REACH.tabular.exploitability).toBeCloseTo(FROZEN.exploitability, 5)
-    expect(REACH['deep-exact'].exploitability).toBeCloseTo(markOf(BEST, 500).exact.exploitability, 5)
-    expect(REACH['deep-pi'].exploitability).toBeCloseTo(markOf(BEST, 500).pi.exploitability, 5)
+    expect(REACH['deep-exact'].exploitability).toBeCloseTo(markOf(RAW, 500).exact.exploitability, 5)
+    expect(REACH['deep-pi'].exploitability).toBeCloseTo(markOf(RAW, 500).pi.exploitability, 5)
     for (const p of Object.values(REACH)) {
       expect(p.gain[0]).toBeCloseTo(p.check.best_response_minus_value[0], 9)
       expect(p.gain[1]).toBeCloseTo(p.check.best_response_minus_value[1], 9)

@@ -1,15 +1,17 @@
 import { useState } from 'react'
 
-import { ARMS, BEST, OBJECTIVES, OBJECTIVE_NAME, lcfrAt, type Objective } from '../deep'
+import { ARMS, FINAL, OBJECTIVES, OBJECTIVE_NAME, lcfrAt, type Objective } from '../deep'
 import { UNIFORM_RANDOM, perHundred, series } from '../research'
-import { fmtHands, logScale } from './scales'
+import { fmtHands, logScale, stackLabels } from './scales'
 
 /**
- * The race at equal hands: rung 3's LCFR line with the best Deep CFR arm's
- * three graded objects on the same axes, and under them the price — the
- * net's exact average divided by the table's at the same hands. Hover or
- * arrow a mark to read every number at that column. The spec's one
- * question is the lower strip.
+ * The race at equal hands: rung 3's LCFR line with the final Deep CFR arm's
+ * three graded objects on the same axes, out to the race's endpoint at twenty
+ * million hands, and under them the price — the net's exact average divided
+ * by the table's at the same hands, with the dashed line at 1 where the two
+ * are even; the strip runs past 1 because the last mark is above it. Hover or
+ * arrow a mark to read every number at that column. The spec's one question
+ * is the lower strip.
  */
 
 const W = 860
@@ -21,7 +23,7 @@ const STRIP_BOTTOM = H - M.b
 
 const x = logScale(1e5, 2e7, M.l, W - M.r)
 const y = logScale(5, 600, PLOT_BOTTOM, M.t)
-const yPrice = logScale(0.05, 1, STRIP_BOTTOM, STRIP_TOP)
+const yPrice = logScale(0.05, 1.5, STRIP_BOTTOM, STRIP_TOP)
 
 const OBJ_INK: Record<Objective, string> = { exact: 'var(--obj-exact)', pi: 'var(--obj-pi)', current: 'var(--obj-current)' }
 const SMALL = ARMS['mac-3x64']
@@ -31,16 +33,27 @@ const path = (points: { hands: number; v: number }[]) =>
 
 export function DeepRaceChart() {
   const lcfr = series('lcfr').map((p) => ({ hands: p.hands, v: p.exploitability }))
-  const objects = OBJECTIVES.map((o) => ({ o, points: BEST.marks.map((m) => ({ hands: m.hands, v: m[o].exploitability })) }))
+  const objects = OBJECTIVES.map((o) => ({ o, points: FINAL.marks.map((m) => ({ hands: m.hands, v: m[o].exploitability })) }))
   const small = SMALL.marks.map((m) => ({ hands: m.hands, v: m.exact.exploitability }))
-  const price = BEST.marks.map((m) => ({ hands: m.hands, v: m.exact.exploitability / lcfrAt(m.hands) }))
-  const [at, setAt] = useState(BEST.marks.length - 1)
-  const mark = BEST.marks[at]
+  const price = FINAL.marks.map((m) => ({ hands: m.hands, v: m.exact.exploitability / lcfrAt(m.hands) }))
+  const [at, setAt] = useState(FINAL.marks.length - 1)
+  const mark = FINAL.marks[at]
   const xAt = x(mark.hands)
+  // the end labels, each by its line's last value, pushed apart by a line's height where two lines end close together
+  const endValues = [
+    { name: 'LCFR', value: perHundred(lcfr.at(-1)!.v), ink: 'var(--table-ink)' },
+    ...objects.map(({ o, points }) => ({ name: o === 'exact' ? 'exact' : o === 'pi' ? 'Π' : 'current', value: perHundred(points.at(-1)!.v), ink: OBJ_INK[o] })),
+  ]
+  const endYs = stackLabels(
+    endValues.map((e) => y(e.value) + 4),
+    13,
+    PLOT_BOTTOM,
+  )
+  const ends = endValues.map((e, i) => ({ ...e, y: endYs[i] }))
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') setAt((i) => Math.max(0, i - 1))
-    if (e.key === 'ArrowRight') setAt((i) => Math.min(BEST.marks.length - 1, i + 1))
+    if (e.key === 'ArrowRight') setAt((i) => Math.min(FINAL.marks.length - 1, i + 1))
   }
 
   return (
@@ -53,7 +66,7 @@ export function DeepRaceChart() {
         {OBJECTIVES.map((o) => (
           <span key={o} className="item">
             <span className="swatch" style={{ background: o === 'current' ? `repeating-linear-gradient(90deg, ${OBJ_INK[o]} 0 4px, transparent 4px 7px)` : OBJ_INK[o] }} />
-            Deep CFR {BEST.net}: {OBJECTIVE_NAME[o]}
+            Deep CFR {FINAL.net}: {OBJECTIVE_NAME[o]}
           </span>
         ))}
         <span className="item">
@@ -118,18 +131,10 @@ export function DeepRaceChart() {
             strokeDasharray={o === 'current' ? '6 4' : undefined}
           />
         ))}
-        <text x={x(2e7) + 8} y={y(perHundred(lcfr.at(-1)!.v)) + 4} fontSize="11" fill="var(--table-ink)">
-          LCFR {perHundred(lcfr.at(-1)!.v).toFixed(1)}
-        </text>
-        {objects.map(({ o, points }) => (
-          <text
-            key={o}
-            x={x(points.at(-1)!.hands) + 8}
-            y={y(perHundred(points.at(-1)!.v)) + (o === 'exact' ? 12 : o === 'pi' ? -4 : 4)}
-            fontSize="11"
-            fill={OBJ_INK[o]}
-          >
-            {o === 'exact' ? 'exact' : o === 'pi' ? 'Π' : 'current'} {perHundred(points.at(-1)!.v).toFixed(1)}
+        {/* end labels: the four lines end at the same hands, so their labels are stacked clear of each other */}
+        {ends.map((e) => (
+          <text key={e.name} x={x(2e7) + 8} y={e.y} fontSize="11" fill={e.ink}>
+            {e.name} {e.value.toFixed(1)}
           </text>
         ))}
 
@@ -161,10 +166,10 @@ export function DeepRaceChart() {
           <circle key={o} cx={xAt} cy={y(perHundred(mark[o].exploitability))} r={o === 'exact' ? 4 : 3} fill={OBJ_INK[o]} />
         ))}
         <circle cx={xAt} cy={y(perHundred(lcfrAt(mark.hands)))} r={3.5} fill="var(--table-ink)" />
-        {BEST.marks.map((m, i) => {
+        {FINAL.marks.map((m, i) => {
           const cx = x(m.hands)
-          const left = i === 0 ? M.l : (x(BEST.marks[i - 1].hands) + cx) / 2
-          const right = i === BEST.marks.length - 1 ? x(1e7) : (x(BEST.marks[i + 1].hands) + cx) / 2
+          const left = i === 0 ? M.l : (x(FINAL.marks[i - 1].hands) + cx) / 2
+          const right = i === FINAL.marks.length - 1 ? x(2e7) : (x(FINAL.marks[i + 1].hands) + cx) / 2
           return (
             <rect key={m.t} x={left} y={M.t} width={right - left} height={STRIP_BOTTOM - M.t} fill="transparent" onMouseEnter={() => setAt(i)} onFocus={() => setAt(i)} />
           )

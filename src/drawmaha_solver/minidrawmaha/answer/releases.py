@@ -96,8 +96,10 @@ class Release:
 
 # The pot-normalised arm (PR #68): the 4 × 256 net with a 16,000-step refit at
 # lr 5e-4 and its regret targets divided by √pot at each spot, frozen at
-# iteration 200 (2,000,000 hands per seat). Its exact average is the best
-# graded Deep CFR object so far, and what `/rung3`'s Play tab deals against.
+# iteration 200 (2,000,000 hands per seat). Its exact average was the best
+# graded Deep CFR object when it was released, and is what `/rung3`'s Play tab
+# deals against; the ÷ pot arm has since graded lower (0.068 at 10M hands,
+# `figures/rung4/pot_1-256x4-s16000-lr5e-4.json`) and is not yet released.
 POT_TAG = "rung4-deep-pot0.5-t200"
 POT_GRADES = "figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json"
 

@@ -33,7 +33,11 @@ setting that differs from the spec's; each grade carries the full config.
 grade the pot-normalised arms the same way: the 16,000-step, lr 5e-4 run with
 its regret targets divided by √pot and by pot at each spot (`--pot-power`,
 the number after `pot_`; `train.pot_scaled`), the setting that became the
-default. Which arm is which, and what they showed, is `docs/notes/rung4-run-log.md`.
+default. The √pot arm stopped at mark 200; the ÷ pot arm is the one run to
+the race's own endpoint, mark 2,000 (20M hands per seat), and graded at
+100, 200, 500, 1,000 and 2,000, so its file is the curve the homepage, the
+Benchmarks page and `/research`'s Figures 8, 9 and 13 draw against LCFR.
+Which arm is which, and what they showed, is `docs/notes/rung4-run-log.md`.
 
 Three of these files are also what the site quotes. `rung3/answer_sheet.json`'s
 `frozen_strategy` object and the Π and exact objects of mark 500 in

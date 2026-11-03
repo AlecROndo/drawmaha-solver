@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
   ARMS,
-  BEST,
+  FINAL,
+  RAW,
   KEY_NUMBERS,
   PI_REFERENCE,
   PI_SWEEP,
@@ -154,9 +155,12 @@ export function ResearchTab() {
   const mini = SIZES[2].infosets
   const leduc = SIZES[1].infosets
   const hands = FINAL_ITERATION * WORKERS
-  const best100 = markOf(BEST, 100)
-  const best200 = markOf(BEST, 200)
-  const best500 = markOf(BEST, 500)
+  const raw100 = markOf(RAW, 100)
+  const raw200 = markOf(RAW, 200)
+  const raw500 = markOf(RAW, 500)
+  const final100 = markOf(FINAL, 100)
+  const final1000 = markOf(FINAL, 1000)
+  const final2000 = markOf(FINAL, 2000)
   const size = (net: string) => SIZE_SWEEP.find((s) => s.net === net)!
   const refit = (net: string, steps: number) => REFIT_ARMS.find((a) => a.net === net && a.steps === steps)!
   const screen = (rule: 'linear' | 'dcfr' | 'cfrplus', t: number) => RULE_SCREEN[rule].find((p) => p.t === t)!.exact
@@ -453,23 +457,24 @@ export function ResearchTab() {
           <p>
             Equal hands is the fair axis. Deep CFR at {(ARMS['4x256'].marks[0].hands / ARMS['4x256'].marks[0].t).toLocaleString('en-US')} walks per
             seat per iteration has seen the same hands at iteration t as LCFR had at lockstep iteration 1,000 t, so the
-            marks 10, 20, 50, 100, 200 and 500 sit on the race's checkpoints exactly. Equal hands is not equal compute: an
-            iteration with two refits of a 4 × 256 net costs minutes against ten table updates, and the best arm's five
-            million hands took {hoursOf(best500.wallClockS)} hours of training.
+            marks 10, 20, 50, 100, 200, 500, 1,000 and 2,000 sit on the race's checkpoints exactly, and the last is the
+            race's own endpoint. Equal hands is not equal compute: an iteration with two refits of a 4 × 256 net costs
+            minutes against ten table updates, and the final arm's twenty million hands took{' '}
+            {hoursOf(final2000.wallClockS)} hours of training.
           </p>
           <Figure
             n={8}
             title="Deep CFR's iteration t and the table's lockstep iteration 1,000 t have seen the same hands per seat"
-            sub="The best arm's six graded marks on one axis of hands per seat, log; hours trained above, the table's grade below, chips per 100 hands"
+            sub="The final arm's five graded marks, a million to twenty million hands per seat, on one axis of hands, log; hours trained above, the table's grade below, chips per 100 hands"
             caption={
               <>
-                The table's grade at each mark, {p100(lcfrAt(BEST.marks[0].hands))} falling to{' '}
-                {p100(lcfrAt(best500.hands))}, is what the price divides by; the hours, {hoursAt(BEST.marks[0].wallClockS)}{' '}
-                at the first mark and {hoursAt(best500.wallClockS)} at the last, are the compute the equal-hands axis leaves
-                out. Hover or arrow a mark.
+                The table's grade at each mark, {p100(lcfrAt(FINAL.marks[0].hands))} falling to{' '}
+                {p100(lcfrAt(final2000.hands))}, is what the price divides by; the hours, {hoursAt(FINAL.marks[0].wallClockS)}{' '}
+                at the first mark and {hoursAt(final2000.wallClockS)} at the last, are the compute the equal-hands axis
+                leaves out. Hover or arrow a mark.
               </>
             }
-            source="figures/rung4/sweep_256x4-s16000-lr5e-4.json (the best arm's marks: iteration, hands per seat, wall clock) and figures/rung3/grades.json (LCFR at the same hands)"
+            source="figures/rung4/pot_1-256x4-s16000-lr5e-4.json (the final arm's marks: iteration, hands per seat, wall clock) and figures/rung3/grades.json (LCFR at the same hands)"
             label="Deep CFR's iteration and the table's lockstep iteration on one axis of hands per seat, with the table's grade at each mark"
           >
             <EqualHandsChart />
@@ -506,34 +511,43 @@ export function ResearchTab() {
             n={9}
             title={
               <>
-                At one million hands the net is exploitable for {p100(best100.exact.exploitability)} against the table's{' '}
-                {p100(lcfrAt(1_000_000))}, about {fraction(KEY_NUMBERS.priceAt1M)}
+                At one million hands the net is exploitable for {p100(final100.exact.exploitability)} against the table's{' '}
+                {p100(lcfrAt(1_000_000))}, about {fraction(KEY_NUMBERS.priceAt1M)}; at twenty million the table has passed
+                it, {final('lcfr').toFixed(1)} against {p100(final2000.exact.exploitability)}
               </>
             }
-            sub="LCFR and the best Deep CFR arm's three graded objects against hands per seat, chips per 100 hands, both axes log; the lower strip is the price"
+            sub="LCFR and the final Deep CFR arm's three graded objects against hands per seat, chips per 100 hands, both axes log; the lower strip is the price, with the dashed line where net and table are even"
             caption={
               <>
-                At five million hands the net grades {p100(best500.exact.exploitability)} against{' '}
-                {p100(lcfrAt(5_000_000))}, and its curve has flattened where the table's keeps falling toward{' '}
-                {final('lcfr').toFixed(1)} at {M(hands)}. Hover or arrow a mark.
+                The net is below the table at every mark to ten million hands, {p100(final1000.exact.exploitability)}{' '}
+                against {p100(lcfrAt(10_000_000))}, and flat from there, while the table keeps falling: at the race's
+                endpoint it grades {p100(final2000.exact.exploitability)} against the table's {final('lcfr').toFixed(1)}.
+                Hover or arrow a mark.
               </>
             }
-            source="figures/rung3/grades.json and figures/rung4/sweep_256x4-s16000-lr5e-4.json (4 × 256, 16,000-step refits at lr 5e-4) with figures/rung4/grades.json (3 × 64, the spec's default); seed 0"
+            source="figures/rung3/grades.json and figures/rung4/pot_1-256x4-s16000-lr5e-4.json (4 × 256, 16,000-step refits at lr 5e-4, regret targets ÷ pot) with figures/rung4/grades.json (3 × 64, the spec's default); seed 0"
             label="Exploitability of LCFR and Deep CFR against hands per seat, with the ratio"
           >
             <DeepRaceChart />
           </Figure>
           <Pull from="Figure 9. Both graded by the same exact best response.">
-            At one million hands per seat the network is exploitable for {p100(best100.exact.exploitability)} chips per
-            hundred hands. The table, on the same hands, is exploitable for {p100(lcfrAt(1_000_000))}.
+            At one million hands per seat the network is exploitable for {p100(final100.exact.exploitability)} chips per
+            hundred hands. The table, on the same hands, is exploitable for {p100(lcfrAt(1_000_000))}. At twenty million,
+            the table is at {final('lcfr').toFixed(1)} and the network at {p100(final2000.exact.exploitability)}.
           </Pull>
           <p>
             The two curves have different shapes. The table falls on a straight line in log–log, about 1/√N; the net
-            starts an eighth as exploitable and bends flat after two million hands: {p100(best100.exact.exploitability)} →{' '}
-            {p100(best200.exact.exploitability)} → {p100(best500.exact.exploitability)}, while the table went{' '}
-            {p100(lcfrAt(1_000_000))} → {p100(lcfrAt(2_000_000))} → {p100(lcfrAt(5_000_000))}. If the net stays near{' '}
-            {p100(best500.exact.exploitability)}, the table passes it somewhere between five and twenty million hands.
-            That is an extrapolation, and only one net has been graded past a million hands. The spec's default size,
+            starts a tenth as exploitable and bends flat after five million hands: {p100(final100.exact.exploitability)}{' '}
+            → {p100(markOf(FINAL, 200).exact.exploitability)} → {p100(markOf(FINAL, 500).exact.exploitability)} →{' '}
+            {p100(final1000.exact.exploitability, 2)} → {p100(final2000.exact.exploitability, 2)} from one million hands to
+            twenty, while the table went {p100(lcfrAt(1_000_000))} → {p100(lcfrAt(2_000_000))} →{' '}
+            {p100(lcfrAt(5_000_000))} → {p100(lcfrAt(10_000_000))} → {final('lcfr').toFixed(1)}. The table passes the net
+            between ten and twenty million hands. That is a measurement on one seed and one net, not an extrapolation: the
+            arm is the ÷ pot arm of chapter 06, the one run to the race's endpoint, and its last ten million hands,{' '}
+            {Math.round((final2000.wallClockS - final1000.wallClockS) / 3600)} hours of training, moved its grade by{' '}
+            {p100(Math.abs(final2000.exact.exploitability - final1000.exact.exploitability), 2)}. The raw-chips arm of the
+            same net, graded to five million hands, flattened higher, at {p100(raw500.exact.exploitability)} (Figure 13).
+            The spec's default size,
             3 × 64, is the faint line: about {fraction(small.marks[0].exact.exploitability / lcfrAt(small.marks[0].hands))}{' '}
             of the table at {M(small.marks[0].hands)} hands and{' '}
             {fraction(small.marks.at(-1)!.exact.exploitability / lcfrAt(small.marks.at(-1)!.hands))} by{' '}
@@ -541,7 +555,7 @@ export function ResearchTab() {
           </p>
           <h3>The net's exploitability sits in different spots from the table's</h3>
           <p>
-            Chapter 04's decomposition, run on the two Deep CFR averages at {M(best500.hands)} hands, shows what the net
+            Chapter 04's decomposition, run on the two Deep CFR averages at {M(raw500.hands)} hands, shows what the net
             changed. Per visit, the net's exact average leaks{' '}
             {(perVisit(bandAt(net, tabFirst.floor)) / perVisit(bandAt(tab, tabFirst.floor))).toFixed(1)} times what the
             table leaks at the commonest spots and{' '}
@@ -566,7 +580,7 @@ export function ResearchTab() {
                 {(perVisit(populated(net).at(-1)!) / perVisit(populated(net)[0])).toFixed(0)}-fold
               </>
             }
-            sub={`Figure 7's axis for the table at ${M(hands)} hands and the two Deep CFR averages at ${M(best500.hands)}. Top: each strategy's share of its own exploitability per band, and the band's share of the infosets (hollow). Bottom: leak per 100 visits, log`}
+            sub={`Figure 7's axis for the table at ${M(hands)} hands and the two Deep CFR averages at ${M(raw500.hands)}. Top: each strategy's share of its own exploitability per band, and the band's share of the infosets (hollow). Bottom: leak per 100 visits, log`}
             caption={
               <>
                 The net leaks more than the table where play is common, and the table's line rises past the net's in the{' '}
@@ -676,7 +690,7 @@ export function ResearchTab() {
             arms' gap there; its current iterate is far better at two million ({p100(pot(0.5).current[200])} against{' '}
             {p100(pot(1).current[200])}); and it is the weighting the chip-cost argument picks. On that basis, k = ½ is
             the default for new runs. Early, at a hundred thousand hands, the √pot arm is worse than raw (
-            {p100(sqrtPot10)} against {p100(markOf(BEST, 10).exact.exploitability)}; the ÷ pot arm was not graded there),
+            {p100(sqrtPot10)} against {p100(markOf(RAW, 10).exact.exploitability)}; the ÷ pot arm was not graded there),
             as a longer fit was in the previous section; arms are compared from a million hands.
           </p>
           <Figure
@@ -691,8 +705,10 @@ export function ResearchTab() {
             caption={
               <>
                 ÷ pot ties √pot at {p100(pot(1).exact[200])}, and both are under the raw arm's last grade,{' '}
-                {p100(best500.exact.exploitability)} at five million. The dashed grey line is the raw arm at the full
-                learning rate, the only yardstick for a run-to-run difference and a coarse one, since its rate differs too.
+                {p100(raw500.exact.exploitability)} at five million; run on alone, ÷ pot reaches{' '}
+                {p100(markOf(FINAL, 500).exact.exploitability)} there and {p100(final2000.exact.exploitability)} at twenty
+                million. The dashed grey line is the raw arm at the full learning rate, the only yardstick for a
+                run-to-run difference and a coarse one, since its rate differs too.
               </>
             }
             source="figures/rung4/sweep_256x4-s16000-lr5e-4.json, sweep_256x4-s16000.json, pot_0.5-256x4-s16000-lr5e-4.json and pot_1-256x4-s16000-lr5e-4.json · the exact average at every graded mark; one seed each"
@@ -712,9 +728,11 @@ export function ResearchTab() {
             clipping regime rather than the reweighting. A raw arm with a looser clip would separate the two and has not
             been run. And the raw arm at the full rate is its own single-seed gain over 5e-4 ({p100(pot(0, 0.001).exact[200])}{' '}
             against {p100(pot(0).exact[200])} at two million hands), so √pot at 1e-3, the pairing the default config now
-            runs, has not been graded. Whether the pot arms flatten where the raw arm did,{' '}
-            {p100(best500.exact.exploitability)} at five million hands, is the next thing to grade; both stopped at two
-            million.
+            runs, has not been graded. The ÷ pot arm was run on to the race's endpoint, and it flattens lower than the raw
+            arm did: {p100(final1000.exact.exploitability)} from ten million hands against the raw arm's{' '}
+            {p100(raw500.exact.exploitability)} at five, so the weighting moved the floor and not only the approach to it
+            (chapter 05, Figure 9). The √pot arm stopped at two million hands, and whether it lands on the same floor is
+            ungraded.
           </p>
         </Chapter>
 
@@ -726,13 +744,13 @@ export function ResearchTab() {
             Deep CFR's average: during every phase the opponent's walks copy the strategy they sampled from into a policy
             memory, and a fresh net is fit to those rows at each mark. The current iterate is regret matching over the
             materialised table. Exact beats Π at every graded mark of every linear arm, usually by about a fifth. The
-            current iterate is usually worst but not always, and it swings: {p100(best100.current.exploitability)} at a
-            million hands, {p100(best200.current.exploitability)} at two, {p100(best500.current.exploitability)} at five.
+            current iterate is usually worst but not always, and it swings: {p100(raw100.current.exploitability)} at a
+            million hands, {p100(raw200.current.exploitability)} at two, {p100(raw500.current.exploitability)} at five.
           </p>
           <Figure
             n={14}
             title="The exact average is below Π at every mark; the current iterate is promised nothing and swings"
-            sub="The 4 × 256 arm's three graded objects from a hundred thousand to five million hands per seat, chips per 100 hands, both axes log"
+            sub="The raw-chips 4 × 256 arm's three graded objects from a hundred thousand to five million hands per seat, chips per 100 hands, both axes log"
             caption="Hover or arrow a mark for each seat's best response."
             source="figures/rung4/sweep_256x4-s16000-lr5e-4.json · deep/<t>/{exact, pi, current}"
             label="Three graded objects of one Deep CFR arm against iteration"
@@ -741,9 +759,9 @@ export function ResearchTab() {
           </Figure>
           <h3>Π stalled from two to five million hands because of its fit, and cross-entropy repairs it</h3>
           <p>
-            Between two and five million hands the exact average fell from {p100(best200.exact.exploitability)} to{' '}
-            {p100(best500.exact.exploitability)} while Π went from {p100(best200.pi.exploitability)} to{' '}
-            {p100(best500.pi.exploitability)}. Π is a fresh net fit on the policy memory at each mark, so the stall is in
+            Between two and five million hands the exact average fell from {p100(raw200.exact.exploitability)} to{' '}
+            {p100(raw500.exact.exploitability)} while Π went from {p100(raw200.pi.exploitability)} to{' '}
+            {p100(raw500.pi.exploitability)}. Π is a fresh net fit on the policy memory at each mark, so the stall is in
             the memory or in the fit. A sweep held the memory fixed (the one saved at mark 500, and at marks 100 and 200
             for three arms) and changed only the fit: {arms500.length} refits of the loss, the head, the step count, the
             schedule, the width and the depth, each frozen the way Π is frozen and graded exactly. The control, the run's
@@ -863,16 +881,18 @@ export function ResearchTab() {
               <tr>
                 <td className="k">Equal hands</td>
                 <td>
-                  Equal hands is not equal compute. A Deep CFR iteration refits two nets; the best arm's five million hands
-                  took {hoursOf(best500.wallClockS)} hours on a laptop GPU, and the table's twenty million ran on eleven
-                  Modal cores per rule.
+                  Equal hands is not equal compute. A Deep CFR iteration refits two nets; the final arm's twenty million
+                  hands took {hoursOf(final2000.wallClockS)} hours on a laptop GPU, and the table's twenty million ran on
+                  eleven Modal cores per rule.
                 </td>
               </tr>
               <tr>
                 <td className="k">The endpoint</td>
                 <td>
-                  No net has been run to the race's own endpoint, {M(hands)} hands. Whether the table passes the net, and
-                  where, is extrapolated from one arm's slope.
+                  One net has been run to the race's own endpoint, {M(hands)} hands: the ÷ pot arm. The table passes it
+                  between ten and twenty million hands, {perHundred(KEY_NUMBERS.tableAt20M).toFixed(1)} against{' '}
+                  {perHundred(KEY_NUMBERS.netAt20M).toFixed(1)} at the end, on one seed; the net's last ten million hands
+                  moved it from {perHundred(KEY_NUMBERS.netAt10M).toFixed(2)} to {perHundred(KEY_NUMBERS.netAt20M).toFixed(2)}.
                 </td>
               </tr>
               <tr>
@@ -892,8 +912,9 @@ export function ResearchTab() {
               <tr>
                 <td className="k">The pot arms</td>
                 <td>
-                  One seed each, stopped at two million hands. √pot with the full learning rate, the pairing new runs
-                  default to, is ungraded, and part of the gain may be the gradient clip biting less on smaller targets.
+                  One seed each; √pot stopped at two million hands, ÷ pot ran to twenty. √pot with the full learning rate,
+                  the pairing new runs default to, is ungraded, and part of the gain may be the gradient clip biting less
+                  on smaller targets.
                 </td>
               </tr>
               <tr>

@@ -16,24 +16,27 @@ the same config see identical data. Only the refit's arithmetic order can differ
 
 ## The scoreboard: the exact average at each mark
 
-| arm | where | net | refit steps | Adam lr | ÷ pot^k | t=10 | t=20 | t=50 | t=100 | t=200 | file |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| **LCFR (rung 3, tabular)** | Modal | table | — | — | — | 3.048 | 2.697 | 1.876 | 1.131 | 0.630 | `figures/rung3/grades.json` |
-| 3 × 64 | Mac, W = 8 | 3 × 64 | 4,000 | 1e-3 | 0 | 0.581 | 0.444 | 0.396 | | | `figures/rung4/grades.json` |
-| sweep 3 × 64 | Modal | 3 × 64 | 4,000 | 1e-3 | 0 | | | | 0.382 | | `figures/rung4/sweep.json` |
-| sweep 4 × 64 | Modal | 4 × 64 | 4,000 | 1e-3 | 0 | | | | 0.375 | | `figures/rung4/sweep.json` |
-| sweep 3 × 128 | Modal | 3 × 128 | 4,000 | 1e-3 | 0 | | | | 0.243 | | `figures/rung4/sweep.json` |
-| 3 × 128 to t = 200 | Mac | 3 × 128 | 4,000 | 1e-3 | 0 | | | | | 0.234 | `figures/rung4/sweep_128x3_t200.json` |
-| 3 × 128, double fit | Mac | 3 × 128 | 8,000 | 1e-3 | 0 | | | 0.213 | 0.184 | | `figures/rung4/sweep_128x3-s8000.json` |
-| 4 × 128 | Mac | 4 × 128 | 4,000 | 1e-3 | 0 | | | 0.220 | 0.221 | | `figures/rung4/sweep_128x4.json` |
-| 4 × 256 | Mac | 4 × 256 | 4,000 | 1e-3 | 0 | | 0.294 | 0.173 | 0.152 | | `figures/rung4/sweep_256x4.json` |
-| 4 × 256, double fit | Mac (cpu, then mps from t = 37) | 4 × 256 | 8,000 | 1e-3 | 0 | | 0.330 | 0.167 | 0.134 | | `figures/rung4/sweep_256x4-s8000.json` |
-| 4 × 256, 4× fit, half rate (to t = 500: 0.108) | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 0 | 0.643 | 0.330 | 0.169 | 0.133 | 0.115 | `figures/rung4/sweep_256x4-s16000-lr5e-4.json` |
-| 4 × 256, 4× fit, full rate | Mac, mps | 4 × 256 | 16,000 | 1e-3 | 0 | 0.850 | | | 0.127 | 0.104 | `figures/rung4/sweep_256x4-s16000.json` |
-| **4 × 256, 4× fit, half rate, ÷ √pot** | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 0.5 | 0.879 | | | **0.108** | **0.086** | `figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json` |
-| 4 × 256, 4× fit, half rate, ÷ pot | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 1 | | | | 0.114 | **0.084** | `figures/rung4/pot_1-256x4-s16000-lr5e-4.json` |
-| DCFR screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 0 | 1.515 | 2.227 | 2.870 | | | `figures/rung4/rule_dcfr-256x4.json` |
-| CFR+ screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 0 | 2.539 | 2.858 | 3.092 | | | `figures/rung4/rule_cfrplus-256x4.json` |
+Marks t = 1,000 and 2,000 (10M and 20M hands per seat) exist for one arm, the ÷ pot arm run to the race's own
+endpoint; LCFR's grades at those hands are the race's last two checkpoints.
+
+| arm | where | net | refit steps | Adam lr | ÷ pot^k | t=10 | t=20 | t=50 | t=100 | t=200 | t=500 | t=1000 | t=2000 | file |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **LCFR (rung 3, tabular)** | Modal | table | — | — | — | 3.048 | 2.697 | 1.876 | 1.131 | 0.630 | 0.264 | 0.126 | 0.061 | `figures/rung3/grades.json` |
+| 3 × 64 | Mac, W = 8 | 3 × 64 | 4,000 | 1e-3 | 0 | 0.581 | 0.444 | 0.396 | | | | | | `figures/rung4/grades.json` |
+| sweep 3 × 64 | Modal | 3 × 64 | 4,000 | 1e-3 | 0 | | | | 0.382 | | | | | `figures/rung4/sweep.json` |
+| sweep 4 × 64 | Modal | 4 × 64 | 4,000 | 1e-3 | 0 | | | | 0.375 | | | | | `figures/rung4/sweep.json` |
+| sweep 3 × 128 | Modal | 3 × 128 | 4,000 | 1e-3 | 0 | | | | 0.243 | | | | | `figures/rung4/sweep.json` |
+| 3 × 128 to t = 200 | Mac | 3 × 128 | 4,000 | 1e-3 | 0 | | | | | 0.234 | | | | `figures/rung4/sweep_128x3_t200.json` |
+| 3 × 128, double fit | Mac | 3 × 128 | 8,000 | 1e-3 | 0 | | | 0.213 | 0.184 | | | | | `figures/rung4/sweep_128x3-s8000.json` |
+| 4 × 128 | Mac | 4 × 128 | 4,000 | 1e-3 | 0 | | | 0.220 | 0.221 | | | | | `figures/rung4/sweep_128x4.json` |
+| 4 × 256 | Mac | 4 × 256 | 4,000 | 1e-3 | 0 | | 0.294 | 0.173 | 0.152 | | | | | `figures/rung4/sweep_256x4.json` |
+| 4 × 256, double fit | Mac (cpu, then mps from t = 37) | 4 × 256 | 8,000 | 1e-3 | 0 | | 0.330 | 0.167 | 0.134 | | | | | `figures/rung4/sweep_256x4-s8000.json` |
+| 4 × 256, 4× fit, half rate | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 0 | 0.643 | 0.330 | 0.169 | 0.133 | 0.115 | 0.108 | | | `figures/rung4/sweep_256x4-s16000-lr5e-4.json` |
+| 4 × 256, 4× fit, full rate | Mac, mps | 4 × 256 | 16,000 | 1e-3 | 0 | 0.850 | | | 0.127 | 0.104 | | | | `figures/rung4/sweep_256x4-s16000.json` |
+| 4 × 256, 4× fit, half rate, ÷ √pot | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 0.5 | 0.879 | | | **0.108** | 0.086 | | | | `figures/rung4/pot_0.5-256x4-s16000-lr5e-4.json` |
+| **4 × 256, 4× fit, half rate, ÷ pot, to t = 2,000** | Mac, mps | 4 × 256 | 16,000 | 5e-4 | 1 | | | | 0.114 | **0.084** | **0.071** | **0.068** | 0.068 | `figures/rung4/pot_1-256x4-s16000-lr5e-4.json` |
+| DCFR screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 0 | 1.515 | 2.227 | 2.870 | | | | | | `figures/rung4/rule_dcfr-256x4.json` |
+| CFR+ screen | Mac, mps | 4 × 256 | 4,000 | 1e-3 | 0 | 2.539 | 2.858 | 3.092 | | | | | | `figures/rung4/rule_cfrplus-256x4.json` |
 
 "Net" is depth × width (the JSON files spell it width x depth: `sweep_256x4` is four hidden
 layers of 256). Every file also holds Π (the policy net) and the current iterate at each mark,
@@ -68,9 +71,12 @@ hands, and its curve has the same shape: its exact average went 0.133 → 0.115 
 from t = 100 to t = 200 to t = 500 (−19% over five times the hands) while LCFR went
 1.131 → 0.630 → 0.264 (−77%). At t = 500 Deep CFR is still 2.4× better at equal hands, but LCFR
 reaches 0.061 at t = 2,000, so if the net stays near 0.108 the table passes it somewhere between
-t = 500 and t = 2,000. That is one seed, and whether a bigger net or a different fit moves the
-floor is the open question; the arm was stopped at t = 506 and its two averages at t = 500 are
-what `/solver` shows beside the table (below).
+t = 500 and t = 2,000. That was one seed and an extrapolation; the arm was stopped at t = 506 and
+its two averages at t = 500 are what `/solver` shows beside the table (below). The measurement
+came from the ÷ pot arm (finding 8): run to t = 2,000, it is below the table at every mark to
+t = 1,000 (0.068 against 0.126) and above it at t = 2,000 (0.068 against 0.061), so the table
+passes the net between 10M and 20M hands, and the net's floor is lower than the raw arm's
+(0.068 against 0.108) but a floor all the same.
 
 **4. The three graded objects usually order exact < Π < current, not always.** The exact
 average beats Π at every graded mark of every linear arm. The current iterate is usually worst
@@ -133,8 +139,29 @@ dividing them by up to √52 ≈ 7.2 also shrinks the residuals, and with them t
 the clip of 1.0 sees. Adam's step is scale-free, the clip is not: it bites less often in the
 pot arms than in the raw arm, so part of the gain may be a changed clipping regime rather than
 the reweighting. A raw arm with a looser clip would separate the two; it has not been run.
-Whether the pot arms flatten where the raw arm did (0.108 at t = 500) is the next thing to
-grade; both were stopped at t = 200.
+Whether the pot arms flatten where the raw arm did (0.108 at t = 500) was the next thing to
+grade: the ÷ pot arm was run on to t = 2,000 (finding 8) and flattens lower, at 0.068; the √pot
+arm was stopped at t = 200, so whether it lands on the same floor is ungraded.
+
+**8. Run to the race's own endpoint, the ÷ pot net flattens at 0.068 from 10M hands, and the
+table passes it between 10M and 20M.** The ÷ pot arm's exact average, from `pot_1-256x4-s16000-lr5e-4.json`:
+
+| hands per seat | 1M | 2M | 5M | 10M | 20M |
+|---|---|---|---|---|---|
+| exact average | 0.114 | 0.084 | 0.071 | 0.068 | 0.068 |
+| Π | 0.152 | 0.115 | 0.098 | 0.114 | 0.103 |
+| current iterate | 0.197 | 0.214 | 0.175 | 0.163 | 0.191 |
+| LCFR at the same hands | 1.131 | 0.630 | 0.264 | 0.126 | 0.061 |
+| training clock, hours | 6.2 | 10.6 | 22.5 | 51.7 | 100.7 |
+
+To four figures the last two exact grades are 0.0679 and 0.0685: the second 10M hands, 49 hours
+of training, bought nothing. The net is a tenth as exploitable as the table at 1M hands and
+half at 10M; at 20M the table, still on its ~1/√N line, is under it by 0.007. So the plateau in
+finding 3 is real at this net size for the ÷ pot weighting too, lower than the raw arm's by
+37% (0.068 against 0.108) and not removed. Π at these marks does not track the exact average
+(0.098 at 5M, then 0.114 and 0.103): the squared-error Π fit of finding 4 and the Π sweep in
+`/research` chapter 07, which this run did not change. One seed, one net; the open questions
+are in "Not yet run".
 
 ## The Modal main run: started, then stopped
 
@@ -208,25 +235,38 @@ copied into `figures/rung4/` as `sweep_256x4-s16000.json` (lr 1e-3; the name fol
 Finding 7 reads them. A run saved before `pot_power` existed resumes only with `--pot-power 0`:
 its state reads as raw chips, and a resume under the new default is refused by name.
 
+**The ÷ pot arm went on.** After its t = 200 grade the ÷ pot arm was resumed with `--target 2000`
+on this Mac (mps, 16 workers) and ran to t = 2,000, 100.7 hours of training clock in all, with
+marks kept at 500, 1,000 and 2,000; each was graded by `modal_rung4.py::grade --local
+runs/pot1-256x4-s16000-lr5e-4 --marks <t> --grades …` as it landed, the last on 2026-11-02, and
+`figures/rung4/pot_1-256x4-s16000-lr5e-4.json` now holds all five marks. Finding 8 reads them;
+the homepage, the Benchmarks page and `/research`'s Figures 8, 9 and 13 draw this file against
+LCFR. The t = 500 and 1,000 marks' frozen averages are in `runs/…/frozen/` and are not released:
+the best graded Deep CFR object is now this arm's exact average at t = 1,000 (0.0679), and
+releasing it for `/solver` and the Play tab is a catalogue edit, an asset upload and a re-export.
+
 **What shipped from it.** The ÷ √pot arm's two averages at t = 200 are the release
 `rung4-deep-pot0.5-t200` (`deep-pot0.5-256x4-s16000-lr5e-4-t200-exact.npz` and `…-pi.npz`, the
 files `grade` wrote under `runs/pot0.5-…/frozen/`), catalogued with the three earlier releases in
 `src/drawmaha_solver/minidrawmaha/answer/releases.py`. The exact average — 0.086, the best
-graded Deep CFR object so far — is what `uv run minidraw-deals` packs for `/rung3`'s Play tab,
+graded Deep CFR object when it was packed; the ÷ pot arm's 0.068 at t = 1,000 (finding 8) is
+not released — is what `uv run minidraw-deals` packs for `/rung3`'s Play tab,
 which quotes that grade from the pack's manifest. `/solver` and the Learn tab still show the
 t = 500 raw arm's Π and exact average (`rung4-deep-t500`); moving them to this release is a
 catalogue edit and a re-export.
 
 ## Not yet run
 
-- The 2,000-iteration Modal run at the chosen size. It was the spec's headline. The
-  16,000-step arm answered the fit-size question in the negative (a longer refit does not move
-  the 4 × 256 floor), so the run's net and refit are Alec's call from the arms above.
+- The 2,000-iteration Modal run at the chosen size, the spec's headline, was made on a Mac
+  instead: the ÷ pot arm of finding 8. A Modal run of the same config would be a
+  reproducibility check, not a new arm.
 - The tᵞ sample-weight arm (γ = 0 vanilla, γ = 2 quadratic). Linear is γ = 1.
 - ÷ √pot with lr 1e-3: the two single-seed gains of finding 7 have not been tried together,
   and it is the pairing the default config now runs.
 - A raw arm with a looser gradient clip, to separate the pot weighting from the clipping
   regime it changes (finding 7's last caveat).
-- The pot arms past t = 200: whether they flatten where the raw arm did.
+- The √pot arm past t = 200: whether it flattens where the ÷ pot arm did (0.068) or elsewhere.
+- A bigger net, or the cross-entropy Π, run to t = 2,000 under ÷ pot: whether anything moves the
+  0.068 floor, now that the table is known to pass it.
 - A second seed for any arm. Every comparison above is one seed, so differences under ~10% are
   suggestive, not settled.

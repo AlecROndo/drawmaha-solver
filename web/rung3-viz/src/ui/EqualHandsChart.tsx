@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { BEST, lcfrMarkAt } from '../deep'
+import { FINAL, lcfrMarkAt } from '../deep'
 import { perHundred } from '../research'
 import { EQUAL_DOMAIN, fmtHands, hoursAt, logScale } from './scales'
 
@@ -8,7 +8,8 @@ import { EQUAL_DOMAIN, fmtHands, hoursAt, logScale } from './scales'
  * Two clocks on one ruler. The ruler is hands per seat on a log axis, so a
  * notch sits by the log of its hands and equal gaps are equal ratios, not
  * equal counts; the hands are printed under each notch for that reason.
- * There is a notch at each of the best arm's six graded marks. Above it
+ * There is a notch at each of the final arm's five graded marks, from a
+ * million hands to the race's endpoint at twenty million. Above it
  * reads Deep CFR's clock — the iteration t, and under it the hours of
  * training that iteration had cost — and below it the table's clock, the
  * lockstep iteration read from rung 3's grade at the same hands. One
@@ -34,7 +35,7 @@ const x = logScale(EQUAL_DOMAIN.hands[0], EQUAL_DOMAIN.hands[1], M.l, W - M.r)
 const yGrade = logScale(EQUAL_DOMAIN.per100[0], EQUAL_DOMAIN.per100[1], ROW.gradeBottom, ROW.gradeTop)
 
 export function EqualHandsChart() {
-  const marks = BEST.marks
+  const marks = FINAL.marks
   const [at, setAt] = useState(marks.length - 1)
   const mark = marks[at]
   const table = lcfrMarkAt(mark.hands)
