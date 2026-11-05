@@ -146,7 +146,7 @@ export default function App() {
       <main className="wrap">
         <PageHead
           eyebrow="Benchmarks · Kuhn poker"
-          title={`Kuhn poker: ${SOLVE.exploitabilityAverage[LAST].toFixed(5)} chips a hand.`}
+          title={`Kuhn poker: exploitable by ${SOLVE.exploitabilityAverage[LAST].toFixed(5)}.`}
           lede={
             <>
               Three cards, one bet, twelve information sets, and an equilibrium known in closed form. After 100,000

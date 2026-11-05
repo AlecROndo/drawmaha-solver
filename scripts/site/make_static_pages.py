@@ -885,7 +885,7 @@ def home() -> str:
 <section class="band split" id="explorer">
   <div class="split-aside">
     <p class="eyebrow">Range explorer</p>
-    <h2>First to act bets {pct(SPOT["bet"])} of the time</h2>
+    <h2>The opening spot: a bet {pct(SPOT["bet"])} of the time</h2>
     <p>Rows are what the three held cards make on their own; columns are what they reach for with the board card. Each cell is its share of every opening hand and how often that share bets. The explorer opens any cell down to a single hand, at every spot of the game.</p>
     <p class="more-row"><a class="more" href="/solver">Open the range explorer →</a></p>
   </div>
@@ -1246,10 +1246,10 @@ def benchmarks() -> str:
 
   <section class="b" id="kuhn">
     <p class="eyebrow">Benchmark 2 · Kuhn poker</p>
-    <h2>Kuhn poker: {avg[-1][1]:.5f} chips a hand</h2>
+    <h2>Kuhn poker: exploitable by {avg[-1][1]:.5f}</h2>
     <p class="sub">Three cards, one bet, twelve information sets. The equilibrium is a one-parameter family known in closed form, and the game is small enough that all 64 pure strategies are enumerated for the grade. The game value is −1/18 for the first player.</p>
     <div class="two">
-      {figure(None, "The average strategy falls steadily; the current one never settles", "Exploitability by iteration, vanilla CFR, log scales", kuhn_chart, "The current iterate cycles around 0.2 and is worse at 1,000 iterations than at 10. Only the average converges, which is why every strategy on this site is an average.")}
+      {figure(None, "The average strategy falls; the current one never settles", "Exploitability by iteration, vanilla CFR, log scales", kuhn_chart, "The current iterate cycles around 0.2 and is worse at 1,000 iterations than at 10. Only the average converges, which is why every strategy on this site is an average.")}
       <div>
         <table class="hair"><thead><tr><th>Iterations</th><th class="r">Average</th><th class="r">Current</th><th class="r">Game value</th></tr></thead><tbody>{kuhn_table}</tbody></table>
         <p class="note">Exploitability in chips per hand. At 100 iterations the game value is within 0.0009 of −1/18 and looks solved, while the strategy is still 15 times more exploitable than at 10,000.</p>
@@ -1260,7 +1260,7 @@ def benchmarks() -> str:
 
   <section class="b" id="leduc">
     <p class="eyebrow">Benchmark 3 · Leduc poker</p>
-    <h2>Leduc poker: {l_avg:.3f} chips a hand</h2>
+    <h2>Leduc poker: exploitable by {l_avg:.3f}</h2>
     <p class="sub">Six cards, two rounds, one community card, 288 information sets. There is no closed form, so the reference is OpenSpiel's solve of the same game, frozen in the repository as a fixture.</p>
     <div class="two">
       {figure(None, f"After {leduc['iterations']:,} iterations the average is {ratio:.0f} times less exploitable than the current strategy", "Exploitability in chips per hand, vanilla CFR, the committed solve", leduc_chart, "Both strategies come from the same run; only the average is the answer.")}
@@ -1278,14 +1278,14 @@ def benchmarks() -> str:
 
   <section class="b" id="mini">
     <p class="eyebrow">Benchmark 4 · Mini-drawmaha</p>
-    <h2>Mini-drawmaha: {g3(LCFR[-1][1])} chips a hand</h2>
+    <h2>Mini-drawmaha: exploitable by {g3(LCFR[-1][1])}</h2>
     <p class="sub">6,220,050 information sets, sampled by lockstep MCCFR, four regret rules raced on one seed. The grader is an exact best-response walk; no outside engine plays this game.</p>
     {figure(None, f"Linear CFR is four times less exploitable than CFR+ and DCFR at {hands(LCFR[-1][0])} hands per seat", "Exploitability of the linear average by hands per seat, seed 0, log scales", race_chart(896, 360), f"Vanilla ends at {g3(vanilla)}, CFR+ at {g3(cfrplus)} and DCFR at {g3(dcfr)}; uniform random play is {UNIFORM:.2f}. The full write-up is <a href=\"/research\">on the research page</a>.")}
   </section>
 
   <section class="b" id="deep">
     <p class="eyebrow">Benchmark 5 · Deep CFR</p>
-    <h2>Deep CFR: {g3(DEEP[-1][1])} chips a hand</h2>
+    <h2>Deep CFR: exploitable by {g3(DEEP[-1][1])}</h2>
     <p class="sub">The same sampler and the same grader, with the regret table replaced by a 4 × 256 network per seat and its regret targets divided by the pot, run to the table's own endpoint. Graded at equal hands per seat against the table.</p>
     {figure(None, "Net vs table at equal hands", "Exploitability at equal hands per seat, exact average against tabular LCFR, log scales", equal_hands_chart(896, 340), f"At {hands(LEAD_HANDS)} hands per seat the table grades {g3(lcfr_lead)} against the net's {g3(net_lead)}; at {hands(DEEP_HANDS)} it grades {g3(lcfr_at_deep)}, under the net for the first time, while the net's last ten million hands moved it from {g4(net_lead)} to {g4(DEEP[-1][1])}. The run's policy network Π grades {g3(pi_deep)} at the end; the chapter on the network is <a href=\"/research#ch-05\">on the research page</a>.")}
   </section>
