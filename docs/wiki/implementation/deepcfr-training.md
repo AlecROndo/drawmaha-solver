@@ -51,7 +51,7 @@ The oracle pin is the correctness gate. A change to the loop's order, to the flo
 
 **`rule_targets`** is the screen behind the DCFR and CFR+ arms. It rescales each sample by what the rule would weigh it at iteration `now`. Because Deep CFR stores no running total, the sign it tests is each *sample's* own rather than the cumulative regret's. That is why per-sample DCFR and CFR+ lost to linear by about 17×. See [Regret rules](wiki:theory/regret-rules).
 
-## `DeepConfig` is the run; a resume that changes it is refused
+## Config and resume
 
 **`DeepConfig`** is everything a run is:
 
@@ -107,7 +107,7 @@ price = exploitability(Deep CFR's average) ÷ exploitability(LCFR's linear avera
 
 ![Deep CFR ÷ LCFR at equal hands](fig:rung4/price.png)
 
-## Three side studies: Π's stall, refit error, sign flips
+## Side studies
 
 | Script | Question it answered |
 | --- | --- |

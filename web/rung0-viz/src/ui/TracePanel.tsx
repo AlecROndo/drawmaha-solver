@@ -20,7 +20,7 @@ export function TracePanel({ engine, running }: { engine: Engine; running: boole
       n="Figure 4"
       id="fig-4"
       wide
-      title="One round, step by step: each regret moves by u − ⟨σ, u⟩"
+      title="One round moves each regret by u − ⟨σ, u⟩"
       sub={
         <>
           The baseline is the strategy's expected utility against the revealed throw, not the sampled

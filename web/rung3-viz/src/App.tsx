@@ -139,7 +139,7 @@ export default function App() {
         {tab === 'research' ? (
           <Masthead
             eyebrow="Research · Mini-drawmaha · 2 November 2026"
-            title="Mini-drawmaha, solved: Linear CFR wins, and a neural net leads until 10M hands"
+            title="Mini-drawmaha, solved"
             dek={
               <>
                 A draw game of {(SIZES[2].infosets / 1e6).toFixed(1)} million information sets, with a pot that pays twice,
@@ -168,7 +168,7 @@ export default function App() {
         ) : tab === 'learn' ? (
           <PageHead
             eyebrow="Learn · Mini-drawmaha"
-            title="The solver's mix for every hand at every spot"
+            title="Every spot, every hand it could hold"
             lede="Pick a spot and read the strategy's mix for every hand in range. Three strategies sit behind one switch: the tabular LCFR answer, Deep CFR's policy net Π and Deep CFR's exact average."
           />
         ) : (

@@ -19,7 +19,7 @@ No app reimplements CFR or anything else that touches the solver. Each one draws
 
 What an app may transcribe is **rules arithmetic**: payoffs, the betting grammar, the hand-ranking key. Each transcription has a `*.test.ts` that pins it against the same tables the Python suite pins, so a port that disagrees with Python fails a test.
 
-## Five apps: what each draws and where its data comes from
+## The five apps
 
 | App | Route | Draws | Data |
 | --- | --- | --- | --- |
@@ -56,7 +56,7 @@ Five files are copied, byte for byte, into every app: `src/theme.css`, `src/main
 
 The price is drift, and [`tests/test_shared_chrome.py`](repo:tests/test_shared_chrome.py) is what pays it. Edit rung 0's copy, `cp` it to the other four, and `cmp` them. Per-app styling goes in that app's own `src/index.css`, on top of the theme.
 
-## A new app or page: four edits in one change
+## Adding a surface
 
 A new app or page touches, in the same change:
 

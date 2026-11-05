@@ -119,7 +119,7 @@ export function LedgerPanel({ engine }: { engine: Engine }) {
     <Figure
       n="Figure 1"
       wide
-      title="Positive regret picks the next throw; the average is the answer"
+      title="Positive regret sets the next throw"
       sub={
         <>
           The ledger of {selfPlay ? `player ${p}` : 'the learner'} after round <b>{fmtIter(engine.iteration)}</b>.

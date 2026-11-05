@@ -5,7 +5,7 @@ description: The packed table, external-sampling MCCFR, the four regret rules, l
 
 Mini-drawmaha has 6.2 million infosets, about 21,000 times Leduc's 288, and a tree of 85 billion decision nodes, so a full pass per iteration does not run at all. [`solver/`](repo:src/drawmaha_solver/minidrawmaha/solver) keeps the shape of the earlier walks and changes three things. It stores the ledgers in four flat arrays, samples the deck and the opponent instead of enumerating them, and walks W sampled hands per seat against one frozen strategy so that W processes can share one table. The race this machinery ran, four regret rules for 20M hands per seat on Modal, is what picked LCFR as the tabular answer.
 
-## Seven solver files, and the meter one level up
+## Files
 
 | File | What it is for |
 | --- | --- |

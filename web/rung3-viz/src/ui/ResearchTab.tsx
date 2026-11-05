@@ -200,7 +200,7 @@ export function ResearchTab() {
 
       <div className="doc">
         {/* ------------------------------------------------ Part I: the game */}
-        <Chapter id="ch-01" title="The game: three cards, one draw, a split pot, and an exact grader">
+        <Chapter id="ch-01" title="The game and its grader">
           <p>
             The deck is fifteen cards, ranks 2–6 in three suits. Both players ante 1 from 26-chip stacks; there are no
             blinds and no preflop betting. Each player holds three private cards; a board card falls and a betting round
@@ -232,7 +232,7 @@ export function ResearchTab() {
           >
             <ScaleChart />
           </Figure>
-          <h3>No engine plays this game, so the grader is the ground truth</h3>
+          <h3>The grader is the ground truth</h3>
           <p>
             Every number on this page is an exploitability: the mean of what a perfect P0 wins against the strategy's P1
             and what a perfect P1 wins against its P0, in chips per hundred hands. The walk that computes it sums over the
@@ -243,7 +243,7 @@ export function ResearchTab() {
           </p>
         </Chapter>
 
-        <Chapter id="ch-02" title="The game is too big to walk, so we sample the cards and the opponent">
+        <Chapter id="ch-02" title="Sampling the tree">
           <p>
             Vanilla CFR walks the whole tree every iteration, as it did on Kuhn and Leduc. This game is too large for
             that. External sampling walks one hand at a time: it deals one hand, follows one outcome at every chance node
@@ -264,7 +264,7 @@ export function ResearchTab() {
             probability twice. A spot play reaches often is sampled often and its regrets settle fast; a spot reached
             once in a thousand hands collects one noisy sample per thousand hands. Chapter 04 measures the cost of that.
           </p>
-          <h3>Each iteration plays {WORKERS} hands per seat, in lockstep</h3>
+          <h3>Lockstep: {WORKERS} hands per seat per iteration</h3>
           <p>
             One hand per iteration is too slow for a {(mini / 1e6).toFixed(1)}M-row table, and W processes writing into
             one table would race. So an iteration walks {WORKERS} hands per seat against the <i>same</i> frozen σₜ and
@@ -277,7 +277,7 @@ export function ResearchTab() {
         </Chapter>
 
         {/* -------------------------------------------- Part II: the rules race */}
-        <Chapter id="ch-03" title="Vanilla and Linear CFR, which keep negative regret, win by three to four times">
+        <Chapter id="ch-03" title="Four regret rules, raced">
           <p>
             Each visit measures one sample r of counterfactual regret. The four rules differ only in what the ledger does
             with it:
@@ -298,7 +298,7 @@ export function ResearchTab() {
           </p>
           <Figure
             n={2}
-            title="Vanilla and Linear CFR, which keep negative regret, win by three to four times"
+            title="Keeping negative regret wins, 3–4×"
             sub={`The linear average of each rule at eight checkpoints to ${M(hands)} hands per seat, chips per 100 hands; both axes log`}
             caption={
               <>
@@ -329,7 +329,7 @@ export function ResearchTab() {
           </p>
           <Figure
             n={3}
-            title="Linear averaging beats the plain average, but the regret rule matters more"
+            title="Linear vs uniform averaging"
             sub={`Each averaging column of the same run at ${M(hands)} hands per seat, chips per 100 hands`}
             caption="Each bar is one average of one run; only the weight given to each iteration differs."
             source="figures/rung3/grades.json · the extra averaging columns at the race's last checkpoint"
@@ -339,7 +339,7 @@ export function ResearchTab() {
           </Figure>
         </Chapter>
 
-        <Chapter id="ch-04" title={<>The answer: Linear CFR at {M(hands)} hands, exploitable for {FROZEN.exploitability.toFixed(4)} chips a hand</>}>
+        <Chapter id="ch-04" title={<>The answer: LCFR's linear average at {M(hands)} hands, {FROZEN.exploitability.toFixed(4)} chips a hand</>}>
           <p>
             The winner is frozen as the tabular solution: {FROZEN_FLOATS.toLocaleString()} float32 probabilities,{' '}
             {FROZEN_MB} MB compressed, published as a release asset and checked against a pinned SHA-256 on load. The
@@ -350,7 +350,7 @@ export function ResearchTab() {
           </p>
           <Figure
             n={4}
-            title="Even a perfect first player loses; acting last is worth a tenth of an ante"
+            title="Acting last is worth a tenth of an ante"
             sub="Each seat's value in self-play (hollow) and a perfect adversary's result in that seat (filled), chips per hand"
             caption="Exploitability is the mean of the two gains over the seats' own values."
             source="figures/rung3/answer_sheet.json · the frozen strategy's grade, chips per hand"
@@ -366,7 +366,7 @@ export function ResearchTab() {
           </p>
           <Figure
             n={5}
-            title="Round one: the first player bets every hand type and slowplays trips"
+            title="Round one, by hand type"
             sub="Round-one betting by inner hand category, commonest first; the frozen LCFR strategy"
             caption="Each bar averages the spot over every deal of the category with equal weight."
             source="figures/rung3/answer_sheet.json · round_one"
@@ -376,7 +376,7 @@ export function ResearchTab() {
           </Figure>
           <Figure
             n={6}
-            title="High cards and pairs throw a card; flushes and better almost never do"
+            title="Who draws, by hand type"
             sub="The draw by inner hand category: P0, then P1 after each of P0's choices"
             caption={
               <>
@@ -389,7 +389,7 @@ export function ResearchTab() {
           >
             <SpotBars figures={DRAW} />
           </Figure>
-          <h3>The rarer a spot, the more it leaks per visit</h3>
+          <h3>Rare spots leak more</h3>
           <p>
             A best responder's edge can be charged to the spots where it is won. At each of the responder's infosets,
             the frequency with which the strategy's own play arrives there, times what the best response earns from
@@ -422,8 +422,8 @@ export function ResearchTab() {
             n={7}
             title={
               <>
-                The rarest spots leak {(perVisit(tabLast) / perVisit(tabFirst)).toFixed(0)} times more per visit than the
-                commonest
+                A spot leaks {(perVisit(tabLast) / perVisit(tabFirst)).toFixed(0)} times more per visit in the rarest band
+                than in the commonest
               </>
             }
             sub="The frozen table's spots by how often play reaches them, commonest at the left. Top: share of the exploitability (filled) and of the infosets (hollow). Bottom: chips leaked per 100 visits, log"
@@ -448,7 +448,7 @@ export function ResearchTab() {
         </Chapter>
 
         {/* -------------------------------------------- Part III: the net */}
-        <Chapter id="ch-05" title="Deep CFR: a neural net replaces the table, on the same hands">
+        <Chapter id="ch-05" title="Deep CFR: a net replaces the table">
           <p>
             The Deep CFR experiment measures what a network gives up. It trains Deep CFR on this game with this sampler,
             grades it with this walk, and reports one number at every point of the race's grid:
@@ -464,7 +464,7 @@ export function ResearchTab() {
           </p>
           <Figure
             n={8}
-            title="Per seat, Deep CFR's iteration t has seen as many hands as the table's iteration 1,000 t"
+            title="Equal hands per seat"
             sub="The final arm's five graded marks, a million to twenty million hands per seat, on one axis of hands, log; hours trained above, the table's grade below, chips per 100 hands"
             caption={
               <>
@@ -479,7 +479,7 @@ export function ResearchTab() {
           >
             <EqualHandsChart />
           </Figure>
-          <h3>One iteration: a neural net learns the regrets the table used to store</h3>
+          <h3>One Deep CFR iteration</h3>
           <p>
             The walk does not change. For each seat in turn, both seats' nets are written into the packed table's regret
             slots, so the ledger's own regret matching plays them. The walk samples K hands and returns the traverser's
@@ -511,8 +511,9 @@ export function ResearchTab() {
             n={9}
             title={
               <>
-                The net leads at one million hands, {p100(final100.exact.exploitability)} to {p100(lcfrAt(1_000_000))}; at
-                twenty million the table leads, {final('lcfr').toFixed(1)} to {p100(final2000.exact.exploitability)}
+                At one million hands the net is exploitable for {p100(final100.exact.exploitability)} against the table's{' '}
+                {p100(lcfrAt(1_000_000))}, about {fraction(KEY_NUMBERS.priceAt1M)}; at twenty million the table has passed
+                it, {final('lcfr').toFixed(1)} against {p100(final2000.exact.exploitability)}
               </>
             }
             sub="LCFR and the final Deep CFR arm's three graded objects against hands per seat, chips per 100 hands, both axes log; the lower strip is the price, with the dashed line where net and table are even"
@@ -552,7 +553,7 @@ export function ResearchTab() {
             {fraction(small.marks.at(-1)!.exact.exploitability / lcfrAt(small.marks.at(-1)!.hands))} by{' '}
             {M(small.marks.at(-1)!.hands)}, which is why chapter 06 sweeps the net's size.
           </p>
-          <h3>The net leaks at different spots than the table</h3>
+          <h3>Where the net leaks</h3>
           <p>
             Chapter 04's decomposition, run on the two Deep CFR averages at {M(raw500.hands)} hands, shows what the net
             changed. Per visit, the net's exact average leaks{' '}
@@ -593,7 +594,7 @@ export function ResearchTab() {
           </Figure>
         </Chapter>
 
-        <Chapter id="ch-06" title={<>Doubling the width cut the grade {cut(size('3 × 64').exact, size('3 × 128').exact)}; an extra layer cut only {cut(size('3 × 64').exact, size('4 × 64').exact)} to {cut(size('3 × 128').exact, size('4 × 128').exact)}</>}>
+        <Chapter id="ch-06" title="Width is the lever">
           <p>
             Five nets were graded at one million hands, all with the spec's refit (4,000 Adam steps at 1e-3), all on
             identical hands. The sweep's verdict was fixed before its numbers existed ({SWEEP_RULE.rule}) and it picked{' '}
@@ -622,7 +623,7 @@ export function ResearchTab() {
           >
             <SizeChart />
           </Figure>
-          <h3>Longer refits help the small net, not the big one</h3>
+          <h3>Longer refits help only the small net</h3>
           <p>
             Each refit is a fresh net fit to the memory's t-weighted mean, so more Adam steps settle closer to that mean.
             That helps a net that was under-fit and barely moves one near its floor. Doubling the refit from 4,000 to
@@ -651,7 +652,10 @@ export function ResearchTab() {
           >
             <RefitChart />
           </Figure>
-          <h3>Dividing each regret by √pot cuts the grade {cut(pot(0).exact[200], pot(0.5).exact[200])} at two million hands</h3>
+          <h3>
+            Dividing each regret target by √pot cut the two-million-hand grade{' '}
+            {cut(pot(0).exact[200], pot(0.5).exact[200])}: the fit weighs each spot by its chips, not by its pot squared
+          </h3>
           <p>
             One net fits every spot's mean regret with one accuracy budget, and the loss decides where that budget goes.
             A regret is in chips, so a spot's regrets are about as large as its pot, and a relative miss ε at a spot costs
@@ -732,7 +736,7 @@ export function ResearchTab() {
           </p>
         </Chapter>
 
-        <Chapter id="ch-07" title="The exact average beats the policy net, which its loss function held back">
+        <Chapter id="ch-07" title="Exact average vs policy net">
           <p>
             CFR's answer is the average of its iterates, never the last one. The exact average is accumulated as the run
             goes, each iteration's strategy weighted by t and by the seat's own reach, pushed through a predecessor table
@@ -745,7 +749,7 @@ export function ResearchTab() {
           </p>
           <Figure
             n={14}
-            title="The exact average beats the policy net at every mark; the current strategy swings"
+            title="Exact average vs Π vs current"
             sub="The raw-chips 4 × 256 arm's three graded objects from a hundred thousand to five million hands per seat, chips per 100 hands, both axes log"
             caption="Hover or arrow a mark for each seat's best response."
             source="figures/rung4/sweep_256x4-s16000-lr5e-4.json · deep/<t>/{exact, pi, current}"
@@ -753,7 +757,7 @@ export function ResearchTab() {
           >
             <AveragesChart />
           </Figure>
-          <h3>The policy net stalled from 2M to 5M hands; cross-entropy loss fixes it</h3>
+          <h3>Why Π stalled</h3>
           <p>
             Between two and five million hands the exact average fell from {p100(raw200.exact.exploitability)} to{' '}
             {p100(raw500.exact.exploitability)} while Π went from {p100(raw200.pi.exploitability)} to{' '}
@@ -800,7 +804,7 @@ export function ResearchTab() {
           </p>
           <Figure
             n={16}
-            title="Cross-entropy charges a miss at a rare action fourteen times what squared error does"
+            title="Cross-entropy vs squared error"
             sub="Squared error and cross-entropy minus its floor (the KL divergence) for a miss at a 4% action and at a 50% action"
             caption="Both curves are the losses' definitions, computed; nothing is read from a file."
             source="the two losses' formulas: squared error, and cross-entropy minus its floor (the KL divergence)"
@@ -815,7 +819,7 @@ export function ResearchTab() {
           </p>
         </Chapter>
 
-        <Chapter id="ch-08" title={<>Under Deep CFR, DCFR and CFR+ lose to linear by {KEY_NUMBERS.ruleScreenRatio.toFixed(0)} times at iteration 50, and worsen with training</>}>
+        <Chapter id="ch-08" title="DCFR and CFR+ under Deep CFR">
           <p>
             Deep CFR stores no running regret. Each refit learns the t-weighted <i>mean</i> of every regret sample the
             reservoir holds, and regret matching reads that mean's sign pattern. A rule can therefore act only on the
@@ -861,7 +865,7 @@ export function ResearchTab() {
           </p>
         </Chapter>
 
-        <Chapter id="ch-09" title="Limits: one seed per run, and what is still open">
+        <Chapter id="ch-09" title="What is and is not settled">
           <table className="hair settled">
             <tbody>
               <tr>

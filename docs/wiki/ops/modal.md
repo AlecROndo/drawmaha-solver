@@ -54,7 +54,7 @@ Deep CFR's claim, heartbeat and continuation are lifted from the race's launcher
 
 Beside each grade go `hands_per_seat` (t · K, which lines a mark up with the tabular race), `wall_clock_s` and the run's config. The local entrypoint writes everything into `figures/rung4/grades.json`, keyed `deep/<t>/<exact|pi|current>`. A grade is a pure function of the mark, so regrading is idempotent. Then `uv run deep-analysis` draws the figures from the grades file. The three graded strategies are also kept on the Volume under `frozen/`, which is where a [release](wiki:ops/releases) comes from.
 
-## Every arm and its marks go in the run log
+## Run records
 
 Every Deep CFR arm trained so far, with where it ran, its net and refit settings, and its graded marks, is in [`docs/notes/rung4-run-log.md`](repo:docs/notes/rung4-run-log.md). Add a row when an arm is graded. Every number there is read from a file under `figures/rung4/`, and `tests/deepcfr/test_rung4_quotes.py` checks the scoreboard against those files. See [the run log page](wiki:research/run-log) for what the arms showed.
 

@@ -45,7 +45,7 @@ Before animating anything, decide in this order:
 3. **Which curve?** Entering or settling uses `--ease-out`. Moving while on screen uses `--ease-in-out`. Colour under the pointer uses `ease`. Constant motion uses `linear`.
 4. **How long?** A press is 160 ms, hover colour 150 ms, a popover or sheet 150–250 ms. Nothing in the chrome runs over 300 ms per declaration, delays included. Exits are faster than entrances.
 
-## The test: presses shrink to 0.97, only transform and opacity animate
+## What the test enforces
 
 | Rule | Example on the site |
 | --- | --- |
@@ -60,7 +60,7 @@ Before animating anything, decide in this order:
 
 A motion that explains rather than decorates can be exempted. `EXPLANATORY` in the test lists each such selector with its reason: today `.sweep` (chips crossing the felt to the pot, 400 ms) and the archived Cover's three. `test_every_allowlisted_selector_names_a_rule_that_moves` fails on an entry that exempts nothing, so a stale exemption cannot hide the next real one.
 
-## A UI review is one Before / After / Why table
+## Reviewing UI
 
 A UI review in this repo is a single markdown table with `Before | After | Why` columns, one row per finding:
 

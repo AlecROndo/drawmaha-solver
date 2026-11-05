@@ -18,7 +18,7 @@ A ledger over n actions stores two persistent vectors and two extra slots:
 
 The **current** strategy and the **average** strategy are never stored. Both are read off these vectors when asked for, so nothing inside a ledger is ever "already averaged".
 
-## `strategy()`, `average_strategy()` and `update()`, in plain words
+## The three methods
 
 - **`strategy()`**: what this spot plays right now. It keeps only the positive regrets and normalises them, so each action is played in proportion to how much it has been regretted. When no regret is positive, it plays uniformly.
 
@@ -59,7 +59,7 @@ At mini-drawmaha's 6.2 million infosets one Python object per ledger cost 3.4 GB
 
 That is also why every writer changes the arrays in place (`+=`, `[:] =`) and never rebinds an attribute. Rebinding would silently cut the ledger loose from its table. [Mini-drawmaha solver](wiki:implementation/minidrawmaha-solver) covers the packed table this serves.
 
-## Four callers, from rock-paper-scissors to Deep CFR
+## Callers
 
 | Caller | How it feeds the ledger |
 | --- | --- |

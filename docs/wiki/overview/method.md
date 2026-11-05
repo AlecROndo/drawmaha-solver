@@ -1,5 +1,5 @@
 ---
-title: Method: one graded game at a time
+title: Method
 description: The validation ladder, the pre-registered evaluation protocol, and what each rung found.
 ---
 
@@ -42,7 +42,7 @@ Units are total chips across both pot halves, per hand, with per-half EV and sco
 The **current** strategy is not the answer. At rungs 1 and 2 its exploitability sits near 0.2 and between 0.75 and 1.48 chips/hand for the whole run while the **average** strategy's falls steadily (the README's Kuhn and Leduc tables). Every surface that plays a strategy reads an average, never the final iterate.
 :::
 
-## Each rung's exploitability, rock-paper-scissors to Deep CFR
+## Results, rung by rung
 
 From the results table at the top of `README.md`; every number there is recomputed by a test from a committed file.
 

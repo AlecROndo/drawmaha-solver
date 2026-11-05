@@ -1,5 +1,5 @@
 ---
-title: The literature: nine notes behind the survey
+title: Literature
 description: The nine research notes the ML survey was written from — the question each answers, its key papers, and what the solver took from it.
 ---
 
@@ -7,7 +7,7 @@ Before any solver code existed, a literature sweep (2026-08-28) split the field 
 
 Read a lane when the code you are about to touch rests on its idea. Each note opens with a lane narrative — the story, the builder's options as a decision tree, the pitfalls — then one section per paper.
 
-## Nine lanes: the question each answers and what the project took
+## The nine lanes
 
 | Note | The question it answers | Key papers | What the project took from it |
 | --- | --- | --- | --- |
@@ -27,7 +27,7 @@ Read a lane when the code you are about to touch rests on its idea. Each note op
 - **The grader is the product.** Lane 06's one-sentence summary — self-play produces no labels, so the only principled question is what a perfect adversary wins — is why each game in the project was solved against a known answer before the next was attempted.
 - **Nobody had done this.** Lane 07 searched papers, code, the commercial solver market and forums for any Drawmaha equilibrium work and found none. The game is documented and dealt online; no solver plays it.
 
-## Each note's caveats, and one correction to lane 01
+## Caveats
 
 Each lane ends with its own verification caveats: which papers were fetched in full, which hyperparameters were read from summaries, which venue labels come from background knowledge. One correction is worth knowing before quoting the notes: lane 01 gives the two-player deal space as C(52,5)² ≈ 6.7 × 10¹², but the hands are disjoint, so the right count is C(52,5) × C(47,5) ≈ 4.0 × 10¹² (the audit's own note).
 

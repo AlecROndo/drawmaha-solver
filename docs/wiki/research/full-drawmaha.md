@@ -37,14 +37,14 @@ Two of those rows end the methods that solved mini-drawmaha. **The table cannot 
 
 Suit isomorphism helps, but less than it seems: the 2,598,960 five-card holdings collapse to 134,459 suit-isomorphic classes before the deal (`docs/research/05-abstraction-bucketing.md`), and the factor shrinks as the board and the kept cards fix suits.
 
-## Carried over: the algorithm, Π, the grader rule, the range interface
+## What carries over
 
 - **The algorithm.** External-sampling Deep CFR with linear weighting, ÷ √pot regret targets, reservoir memories and a from-scratch refit — the configuration the [run log](wiki:research/run-log) converged on. The rule that came out of rungs 3 and 4 holds: anything sampled uses linear weighting, and DCFR or CFR+ need a reason to be tried again ([regret rules](wiki:theory/regret-rules)).
 - **Π as the answer.** Mini-drawmaha could keep an exact average in a table; the full game cannot. The policy net Π — fit at each mark on the stored strategy samples — is the only average it can keep, and on mini-drawmaha Π was always more exploitable than the exact average (0.103 against 0.068 at 20M hands). How good Π can be made is a full-game question that mini-drawmaha can still answer cheaply.
 - **The rule that a grader never shares code with what it grades.** At full scale the grader is an exploiter rather than a walk, but it must still be written against the rules alone.
 - **The range interface.** [`/solver`](/solver) already samples 50,000 five-card holdings for a flop, classifies each twice (the five cards alone, and the best two with the board), and draws the range as a grid of inner rows × outer columns. The composition is real to sampling error; the action mix is a smooth function of each hand's two equities and is labelled illustrative. [`web/solver-viz/src/engine/policy.ts`](repo:web/solver-viz/src/engine/policy.ts) is the one file that changes when the network exists.
 
-## Five things to build: engine, encoder, discard head, scale, evaluation
+## Full Drawmaha pipeline
 
 1. **An engine for the full game**: deck, streets, the draw with its face-up rule, both scorers, terminal payoffs including odd chips and double ties.
 2. **An encoder.** Mini-drawmaha's net reads 136 features; the full game needs a representation of five hole cards, the discard, a five-card board, three rounds of betting, and both players' public draw counts. Which cards were kept matters, not only how many — draw-game solvers found discard blockers change strategies.
@@ -62,7 +62,7 @@ Training loss is not a progress meter in self-play; the only honest question is 
 
 On mini-drawmaha both ends of this can be checked against the exact grader first — how close a trained exploiter comes to the true best response there is a measurement that can be made today.
 
-## No design document yet; the rung-4 spec marks it out of scope
+## Plans
 
 Full Drawmaha has no design document yet. The rung-4 spec, [`docs/superpowers/specs/2026-10-07-deep-cfr-m1-design.md`](repo:docs/superpowers/specs/2026-10-07-deep-cfr-m1-design.md), lists the full game's engine and encoder as out of scope for its milestone, and its PR table is the live record for current work. The range interface was planned in [`docs/superpowers/plans/2026-10-07-solver-range-interface.md`](repo:docs/superpowers/plans/2026-10-07-solver-range-interface.md); the ten design studies it was placed from are under `docs/research/range-ui-studies/`. Per the docs convention, a change of direction gets a new dated spec — the full-game solve will start with one.
 

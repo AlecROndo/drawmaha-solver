@@ -48,7 +48,7 @@ export function EvChart({ run, index }: { run: ExploitRun; index: number }) {
   return (
     <Figure
       n="Figure 2"
-      title="CFR's counter-play rises to the most it can win against your locks"
+      title="The counter-strategy rises to the exact ceiling"
       sub={`Chips per hand to P${evSeat}, iterations on a log axis.`}
       caption="The solid rule is the exact best response; the dashed one is what equilibrium play earns against the same locks. The band between them is what Nash leaves on the table."
       label="Counter-strategy EV over the run"

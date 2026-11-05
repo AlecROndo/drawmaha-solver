@@ -55,7 +55,7 @@ cd web/rung1-viz && npm install && npm run dev   # then http://localhost:5173/ru
 
 `leduc-exploit-server` with `web/rung2-viz` works the same way.
 
-## Serve the whole site at localhost:4321
+## See the site
 
 An app alone:
 

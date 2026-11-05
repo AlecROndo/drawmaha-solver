@@ -36,7 +36,7 @@ The two rules that keep negative regret (vanilla, LCFR) beat the two that throw 
 
 The winner is frozen as the project's tabular answer: LCFR's linear average at 2M iterations, 14.25M probabilities, released as `rung3-lcfr-2m` and graded at **0.061346** (BR₀ −0.034421, BR₁ +0.157114). In self-play the first seat is worth −0.0906 a hand: the second seat acts last in both rounds and at the draw, and that is worth about a tenth of an ante.
 
-## Deep CFR leads early, flattens at 0.068, and the table passes it by 20M
+## Deep CFR vs the table
 
 Rung 4 replaces the 6.2M ledgers with a network and asks one question at every point of the race's grid:
 
@@ -77,7 +77,7 @@ The best graded Deep CFR object — this arm's exact average at 10M hands, 0.067
 
 The exact average beats Π at every graded mark of every linear arm, so Π's fit costs exploitability (at 20M hands, 0.103 against 0.068). The current iterate is usually worst but not always; none of those exceptions is a bug, because CFR's guarantee is about the average only.
 
-## Next: release the 0.068 net, move the floor, full Drawmaha
+## Next
 
 - **Release the 0.068 object** for `/solver`, Learn and Play — the best graded Deep CFR strategy is sitting frozen under `runs/` unpublished.
 - **Move the floor.** A bigger net, a cross-entropy Π, ÷ √pot at the full learning rate, a second seed — the untried arms are listed in [open questions](wiki:research/open-questions).

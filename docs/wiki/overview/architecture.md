@@ -1,5 +1,5 @@
 ---
-title: Architecture: solve, grade, export, draw
+title: Architecture
 description: How the solver packages, the graders, the analysis commands, the committed figures and the site fit together.
 ---
 
@@ -19,7 +19,7 @@ Heavy runs (the rung 3 race and the rung 4 arms) train on Modal or on a Mac, wri
 The layering inside a rung is always the same: the rules → the ledgers (`infoset_table.py`) → the solver → the meter (`exploitability.py`) → the entry points (`analysis.py`, `play.py`, `exploit_server.py`). Reading any rung in that order works (`src/drawmaha_solver/AGENTS.md`).
 :::
 
-## Twelve parts: where each lives and what it does
+## Components
 
 | Component | Where | Technology | Role |
 | --- | --- | --- | --- |

@@ -155,7 +155,7 @@ Nearly every change reaches `main` through a pull request, and its subject state
 - **External-sampling MCCFR**, graded on Leduc first (#33).
 - **The ledger table**: 3.1M spots, 1.77 GB, and a readout for one hand (#32). (The ordered-board key of #39 later doubled the rows to 6.2M.)
 
-### Site — the cover splits into the homepage and `/rules`
+### Site
 
 - The cover becomes two static pages with a rules tab at `/rules` (#37), and a share page for the hero studies at `/hero` (#34).
 
@@ -217,6 +217,6 @@ Nearly every change reaches `main` through a pull request, and its subject state
 
 ## August 28, 2026
 
-### Repo — scaffolded: the rules and the plan to reach them
+### The repository
 
 - Scaffolded: a README with the game's rules and the plan to build up to it through games with known answers.

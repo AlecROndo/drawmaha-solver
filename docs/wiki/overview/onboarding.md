@@ -1,5 +1,5 @@
 ---
-title: Onboarding: the rules every change follows
+title: Onboarding
 description: The rules every change in the repository follows, why each exists, and how to add a new surface.
 ---
 
@@ -44,7 +44,7 @@ The launchers under `scripts/` that run on Modal are started by a person, never 
 
 Several agents work in parallel worktrees that share one stash stack; a bare `git stash pop` can take another session's changes.
 
-## Code rules: column order, seeding, optional torch, the oracle pin
+## Rules inside the code
 
 | Where | Rule | Why |
 | --- | --- | --- |

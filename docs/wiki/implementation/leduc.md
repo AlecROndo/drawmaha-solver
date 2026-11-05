@@ -5,7 +5,7 @@ description: Chance in the middle of the tree, ledgers of varying width, a best-
 
 Leduc poker has six cards, two each of J, Q and K. Each player gets one, a betting round follows, then one public board card, then a second betting round at double the stake. Two things change from Kuhn, and between them they are the whole game. The deck now acts *in the middle* of the hand, so the walk meets a chance node mid-tree. And spots no longer all offer the same actions, so ledgers are two or three wide depending on where they sit. Leduc has 288 infosets against Kuhn's 12, and its equilibrium has no closed form, so ground truth comes from an outside implementation.
 
-## Eight files, plus the script that queries OpenSpiel
+## Files
 
 | File | What it is for |
 | --- | --- |
@@ -60,7 +60,7 @@ uv run --with open_spiel --with cvxpy --with ecos --no-project \
 
 It writes `tests/leduc/referee.json`: the node census, the collapse of OpenSpiel's 936 suited infosets onto our 288 ranked ones, the payoffs, the path probabilities, the sequence-form LP's game value and OpenSpiel's own CFR curve. `tests/leduc/test_referee.py` re-derives every fact from our code with no OpenSpiel present. OpenSpiel's wheels are large and the Vercel build must not pull them, so it is deliberately not a dependency.
 
-## Three commands: solve, play, serve the Exploit tab
+## Entry points
 
 | Command | What it does |
 | --- | --- |
