@@ -67,7 +67,7 @@ An equilibrium guarantees v; it does not collect what a weak opponent leaves on 
 
 Equilibrium play still loses a little (the seat is worth −1/18 at equilibrium, so the leaks have only partly offset it). The best response wins 0.195 chips/hand more. Equilibrium play doesn't make mistakes of its own, but it doesn't exploit yours either. Exploiting a known opponent means computing a **best response**, which is a different object (see [Exploitability](wiki:theory/exploitability) and [Kuhn](wiki:implementation/kuhn)).
 
-## Units used everywhere
+## The unit: chips per hand, with the ante worth 1
 
 | Quantity | Unit |
 | --- | --- |

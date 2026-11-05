@@ -62,7 +62,7 @@ At 500k hands the two screens grade 2.870 and 3.092 against linear's 0.173, and 
 
 The two refits are about 95% of an iteration's time. Moving them to Apple's GPU (`--device mps`, PR #61) cut a 4 × 256, 8,000-step refit from 127 s to 34 s per seat. The 16,000-step arms cost about 70 s per seat per refit, about 152 s an iteration.
 
-### 7. Dividing each regret target by its spot's pot moved the plateau: −25% at 2M hands
+### 7. Dividing targets by the pot cut the plateau 25% at 2M hands
 
 Three 16,000-step arms differ only in the divisor k:
 
@@ -80,7 +80,7 @@ Three 16,000-step arms differ only in the divisor k:
 
 **The caveats.** One seed each, and the only noise estimate is two raw runs 0.005 apart; the pot arms' gain is five to six times that. The two weightings are tied at 2M hands. The targets are not otherwise normalised, so dividing also shrinks the gradients the clip of 1.0 sees — part of the gain may be a changed clipping regime rather than the reweighting.
 
-### 8. Run to the race's endpoint, the ÷ pot net flattens at 0.068, and the table passes it between 10M and 20M
+### 8. The ÷ pot net flattens at 0.068; the table passes it by 20M
 
 | hands per seat | 1M | 2M | 5M | 10M | 20M |
 | --- | ---: | ---: | ---: | ---: | ---: |

@@ -7,7 +7,7 @@ The Drawmaha solver is a game-theory solver for heads-up pot-limit **Drawmaha**,
 
 The question every step answers is the same: **how much would a perfect adversary win against this strategy?** That number, *exploitability*, is zero exactly at a Nash equilibrium and positive everywhere else, and it is computed exactly by a grader that shares no code with the solver. Training loss is never used as a progress meter, because in self-play it can fall while the strategy gets no better.
 
-## Drawmaha in one page
+## The game: five hole cards, one draw, a pot split two ways
 
 If you have never played Drawmaha, this is the minimum you need to follow the rest of the wiki. The target game, as the README's "The target game" section defines it:
 
@@ -57,7 +57,7 @@ Why it is hard: a hand is judged two ways at once, the draw changes both of them
 | **MCCFR** | Monte Carlo CFR: CFR on sampled hands instead of the whole tree, for games too large to enumerate. |
 | **Deep CFR** | CFR with the per-infoset regret tables replaced by a neural network that generalises across infosets. |
 
-## Key concepts
+## Eight ideas the solver is built from, each linked to its theory
 
 These are the ideas the solver is built from. Each links to its full treatment in the Theory tab.
 

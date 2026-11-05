@@ -1,5 +1,5 @@
 ---
-title: The site at a glance
+title: The site: routes, data flow, one theme
 description: Six static pages and five Vite apps, served from one public/ folder by Vercel, with every number read from a committed file.
 ---
 
@@ -38,7 +38,7 @@ solver run  →  committed file (figures/, an export, a release asset)  →  gen
 
 So a re-run that moves a number has to show up as a diff in the committed file, the page, or a red test. It cannot drift silently.
 
-## One look across every surface
+## One theme file, one chrome, self-hosted fonts
 
 Everything the reader sees is one visual system, defined in a single theme file:
 

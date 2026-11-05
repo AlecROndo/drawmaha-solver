@@ -19,7 +19,7 @@ Edit the generator (or the data it reads), run it, and commit the regenerated pa
 `web/cover/cover.html` is the one exception. It is the archived old front page, served at `/cover` and linked from nowhere. It is edited by hand if at all and never regenerated. It loads fonts the build no longer ships, so it renders in fallback faces by design.
 :::
 
-## What each page reads
+## Each page's data: README tables, figures, the release catalogue
 
 | Page | Reads |
 | --- | --- |
@@ -35,7 +35,7 @@ Two kinds of fact have no committed home: the publication dates of the release t
 
 This wiki is written as markdown under `docs/wiki/`. [`scripts/site/wiki.py`](repo:scripts/site/wiki.py) renders that markdown, and the generator wraps the result in the site's chrome as `web/cover/wiki.html`. The source layout, the markdown dialect (callouts, cards, `eq` blocks, `wiki:` and `repo:` links) and the writing rules are in [`docs/wiki/README.md`](repo:docs/wiki/README.md). An edit to a wiki page follows the same loop as any other page: edit the markdown, regenerate, commit both.
 
-## What every page loads
+## Every page loads the theme, the fonts, the chip and the favicon
 
 - `/theme.css` is rung 0's theme, copied by the build. The chrome, tokens and type come from there, and each page adds one inline `<style>` block of its own layout and chart classes (the generator's `BASE_CSS` plus a per-page sheet).
 - `/fonts.css` declares the `@font-face` rules for the files in the site's `fonts` folder. A page never names a font file itself.

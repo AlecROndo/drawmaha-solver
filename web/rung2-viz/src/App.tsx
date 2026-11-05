@@ -49,7 +49,7 @@ function WalkTab({ walk, setWalk, x }: { walk: Walk; setWalk: (w: Walk) => void;
       <Figure
         n="Figure 1"
         className="timeline"
-        title="A hand of Leduc is a line of decisions, one station each"
+        title="Step through a hand of Leduc one decision at a time"
         sub="Press a station to rewind to it; press the board card to change it. The track is solid as far as the hand has gone."
         caption={
           <>
@@ -112,7 +112,7 @@ export default function App() {
       <main className="wrap">
         <PageHead
           eyebrow="Benchmarks · Leduc poker"
-          title="Vanilla CFR on Leduc poker grades 0.011 chips per hand."
+          title="Leduc poker: CFR ends 0.011 chips a hand from the exact answer"
           lede={
             <>
               Six cards, two betting rounds, one board card, 288 information sets. After{' '}

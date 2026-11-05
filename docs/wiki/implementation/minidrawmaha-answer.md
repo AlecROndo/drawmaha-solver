@@ -5,7 +5,7 @@ description: The frozen strategy and its release, the race's analysis and figure
 
 [`answer/`](repo:src/drawmaha_solver/minidrawmaha/answer) is everything built on the solved game. A training checkpoint is the wrong thing to hand anyone: 555 MB, almost all of it the learner's working state. What the game needs is one probability per legal action. This package freezes that, publishes it as a release asset pinned by SHA-256, grades it, and cuts it into the two shapes the site reads, because the browser cannot look the strategy up itself.
 
-## Files
+## Six files: the frozen strategy and everything that reads it
 
 | File | Command | What it is for |
 | --- | --- | --- |

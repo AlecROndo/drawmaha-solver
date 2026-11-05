@@ -5,7 +5,7 @@ description: The first game tree — twelve ledgers, vanilla CFR's two-direction
 
 Kuhn poker is the first game with a tree, and so the first where the ledger's utilities have to be *computed*. The deck has three cards, J < Q < K. Both players ante 1, each gets one card, and one round of betting follows with a single bet size of 1. The whole state of a solve is 12 ledgers of 4 numbers each. Its equilibrium has a closed form, so every number the solver produces can be checked on paper.
 
-## Files
+## Eight files; the meter imports only the rules
 
 | File | What it is for |
 | --- | --- |
@@ -54,7 +54,7 @@ Enumerating pure strategies *over infosets* is what keeps the adversary honest. 
 
 `exploiter.py` asks the opposite question, "what beats *this*?", with no new algorithm. **`LockedStrategy`** pins some infosets to probabilities you supply. They never bank an update, but their probabilities still drive the reach, so they still enter the learner's counterfactual weight. Minimising regret against a player who cannot move back converges to a **best response** instead of to Nash. **`exploit`** runs that training and samples **`Checkpoint`**s along the way. **`ExploitResult`** carries the grade: **`gap`** is how far CFR still is from the exact ceiling the meter computes. **`locked_seat`** tells the two cases apart. A whole locked seat has a ground-truth ceiling. A partial lock leaves the rest of that seat learning, which gives a constrained equilibrium rather than a best response, so no ceiling is claimed.
 
-## Entry points
+## Three commands: solve, play, serve the Exploit tab
 
 | Command | What it does |
 | --- | --- |

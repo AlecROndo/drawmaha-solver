@@ -14,7 +14,7 @@ Mini-drawmaha is a shrunken Drawmaha that keeps the two things the full game is 
 5. **Board card 2**, then **betting round 2**, then the showdown.
 6. **The pot splits in half.** The *inner* half goes to the best 3-card hand made of the three private cards alone. The *outer* half goes to the best 4-card hand made of exactly two private cards plus both board cards. Winning both halves is a scoop.
 
-## Files
+## Five files: deck, hand scores, state machine, enumeration, features
 
 | File | What it is for |
 | --- | --- |

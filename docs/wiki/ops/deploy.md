@@ -22,7 +22,7 @@ The site deploys on Vercel from [`vercel.json`](repo:vercel.json). There is no s
 
 The build command lives in a script because Vercel caps `buildCommand` at 256 characters.
 
-## What the build script does
+## The build script builds five apps and copies the rest
 
 [`scripts/site/vercel_build.sh`](repo:scripts/site/vercel_build.sh), in order:
 
@@ -54,7 +54,7 @@ uv run python scripts/site/serve_site.py   # http://localhost:4321
 
 [`serve_site.py`](repo:scripts/site/serve_site.py) serves `public/` filesystem-first and applies the rewrites it reads from `vercel.json`. It does not mirror them, because a hand copy silently missed each new route's rewrite. It is standard library only, so it can never break on the solver's numeric stack. This is the only local way to drive `/learn`, which fetches its exports from `/solver/mini*/`.
 
-## Where to look when a deploy is wrong
+## Deploy symptoms and their usual causes
 
 | Symptom | Usual cause |
 | --- | --- |

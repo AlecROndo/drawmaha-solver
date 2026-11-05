@@ -5,7 +5,7 @@ description: The ledger with nothing around it — the rules, the players, the t
 
 Rock-paper-scissors is the smallest game with a mixed-strategy equilibrium, the uniform (⅓, ⅓, ⅓). The regret ledger therefore has an exact answer to converge to before any game tree exists. There is no tree, no chance and no hidden information here, only the ledger playing itself. That isolates the one thing every later game inherits: regret matching's *average* converges and its *current* strategy does not.
 
-## Files
+## Four files: rules, players, experiments, terminal play
 
 | File | What it is for |
 | --- | --- |
@@ -42,7 +42,7 @@ Rock-paper-scissors is the smallest game with a mixed-strategy equilibrium, the 
 
 ![The current strategy cycles; the average settles](fig:rung0/self_play_current_vs_average.png)
 
-## Where it is drawn
+## `/rung0`, the one app that ports the ledger to TypeScript
 
 `web/rung0-viz`, served at [`/rung0`](/rung0). It is the one app that ports its ledger to TypeScript. The 63-line regret-matching rule is safe to transcribe, which the reach-weighted tree walk of the later games is not. The rung-0 writeup (Markdown, LaTeX and PDF) is under [`docs/writeups/rung0-rps/`](repo:docs/writeups/rung0-rps).
 

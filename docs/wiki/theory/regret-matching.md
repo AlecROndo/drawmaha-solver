@@ -55,7 +55,7 @@ Both default to 1, so RPS callers never mention them.
 **Swapped, both versions run silently.** On Kuhn, swapping the two weights still completes, still prints a converged-looking grid, and folds the king to a bet 18% of the time, with game value −0.00001 instead of −1/18. That is why `update(utilities, *, regret_weight, strategy_weight)` takes them keyword-only, and why a test pins that the two scales are distinguishable. The repo's root instructions forbid making them positional.
 :::
 
-## The ledger contract
+## Four slots per ledger, written in place and never rebound
 
 From mini-drawmaha on, many things touch a ledger: the walk, the regret rules, the checkpoint, the packed table that holds 6.2M of them in flat arrays. The module docstring fixes exactly which slots they may use:
 

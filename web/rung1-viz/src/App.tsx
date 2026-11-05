@@ -43,7 +43,7 @@ function SolveTab() {
         <Figure
           n="Figure 1"
           wide
-          title="Twelve bars walk onto the closed-form equilibrium"
+          title="All twelve strategy bars converge to the exact answer"
           sub="Four decision nodes × three cards: the twelve information sets, each bar CFR's average strategy at the playhead."
           caption={`Each tick is the closed form at the α = ${SOLVE.alpha.toFixed(3)} this run found. Edge widths are how often each action is taken.`}
           label="Game tree and strategy"
@@ -77,7 +77,7 @@ function SolveTab() {
         <div className="stop-head">
           <div>
             <p className="eyebrow">What to look for</p>
-            <h2>The run shows three things its strategy table cannot.</h2>
+            <h2>CFR finds the bluff itself, and only its average converges</h2>
           </div>
           <p>
             The figures above are one solve of one small game. Each row names a thing the run does that a table of its
@@ -146,7 +146,7 @@ export default function App() {
       <main className="wrap">
         <PageHead
           eyebrow="Benchmarks · Kuhn poker"
-          title={`Vanilla CFR solves Kuhn poker to ${SOLVE.exploitabilityAverage[LAST].toFixed(5)} chips a hand.`}
+          title={`Kuhn poker: CFR ends ${SOLVE.exploitabilityAverage[LAST].toFixed(5)} chips a hand from the exact answer`}
           lede={
             <>
               Three cards, one bet, twelve information sets, and an equilibrium known in closed form. After 100,000

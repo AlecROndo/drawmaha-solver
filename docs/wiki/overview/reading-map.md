@@ -1,11 +1,11 @@
 ---
-title: Reading map
+title: Reading map: which document answers what
 description: Which document in the repository answers which question, and which of them are living and which are dated records.
 ---
 
 The repository keeps three kinds of writing, and knowing which is which saves reading the wrong one. **Living documents** are corrected in place when the code or a run changes them. **Dated records** say why the code looks the way it does on the day they were written and are never rewritten. **Instructions** tell an agent or a contributor what to do in a subtree.
 
-## Find the document for your question
+## From README to run log: the file for each task
 
 | When you want to… | Read |
 | --- | --- |
@@ -23,7 +23,7 @@ The repository keeps three kinds of writing, and knowing which is which saves re
 | Know what a committed figure is and which command writes it | `figures/AGENTS.md` and the rung's section of `README.md` |
 | Run something on Modal | the launcher's docstring under `scripts/`, and [Modal](wiki:ops/modal); it costs money |
 
-## Living documents and dated records
+## Notes are corrected in place; specs and plans never are
 
 | Kind | Where | Rule |
 | --- | --- | --- |
@@ -36,7 +36,7 @@ The repository keeps three kinds of writing, and knowing which is which saves re
 Paths in documents dated before 2026-10-20 predate two moves: `scripts/` was grouped into `scripts/site/`, `scripts/leduc/`, `scripts/minidrawmaha/` and `scripts/deepcfr/`, and `minidrawmaha/` was grouped into `rules/`, `solver/` and `answer/`. Documents before 2026-10-28 also predate the move of the top-level `research/` and `writeups/` into `docs/`. Read an older path with that mapping in mind rather than treating it as missing (`docs/AGENTS.md`).
 :::
 
-## Where this wiki sits
+## The wiki quotes the README and figures, and the file wins
 
 The wiki explains; it is not a second source of results. Its numbers are quoted from the README and from `figures/`, and it names where each comes from. When the two disagree, the committed file is right and the wiki is the bug.
 
