@@ -136,9 +136,12 @@ def batch_loss(
 
     Public so a test and PR 4's logging read the same number the optimiser
     does. Builds the batch's features on the fly from `layout()`. `weight`
-    left out is a batch of plain samples, every row weighing 1. Assumes
-    what `fit_from_scratch` checks: every t is >= 1 and every weight is
-    finite and non-negative.
+    left out is a batch of plain samples, every row weighing 1: a default
+    here, where a caller hands arrays it built itself, while `Learner.fit`
+    in `train.py` has none, because that is where a memory's column could
+    be dropped by accident. Assumes what `fit_from_scratch` checks: every t
+    is >= 1, every weight finite and non-negative, and t × weight within
+    float32's range.
     """
     built = layout()
     point, _ = built.locate_rows(rows)
@@ -207,7 +210,8 @@ def fit_from_scratch(
     - a `rows`, `t` or `weight` that is not 1-D, or non-integer rows;
     - mismatched lengths, or an empty memory;
     - a non-finite t, or one below 1;
-    - a non-finite or negative weight, or weights with no positive entry
+    - a non-finite or negative weight, one whose t × weight overflows
+      float32 (the loss's scale), or weights with no positive entry
       (nothing to fit, as an empty memory is);
     - targets not `MAX_WIDTH` wide, or non-finite at a legal column;
     - a row outside the table.
@@ -222,7 +226,8 @@ def fit_from_scratch(
     # refused by name, not left to broadcasting.
     if rows.ndim != 1 or t.ndim != 1:
         raise ValueError(f"rows and t must be 1-D, got shapes {rows.shape} and {t.shape}")
-    weight = np.ones(len(rows), dtype=np.float32) if weight is None else np.asarray(weight, dtype=np.float32)
+    with np.errstate(over="ignore"):  # a weight past float32's range is refused below as the inf it became
+        weight = np.ones(len(rows), dtype=np.float32) if weight is None else np.asarray(weight, dtype=np.float32)
     if weight.ndim != 1:
         raise ValueError(f"weight must be 1-D, got shape {weight.shape}")
     if not np.issubdtype(rows.dtype, np.integer):
@@ -240,8 +245,16 @@ def fit_from_scratch(
         raise ValueError("every t must be finite")
     if t.min() < 1:
         raise ValueError(f"every t must be an iteration number >= 1, got a minimum of {t.min()}")
+    # Checked after the cast to float32, so a float64 weight past float32's
+    # range is caught as the inf it became, not passed as the finite number
+    # it was given as.
     if not np.isfinite(weight).all() or weight.min() < 0:
-        raise ValueError("every weight must be finite and non-negative")
+        raise ValueError("every weight must be finite and non-negative in float32")
+    # The loss scales a row by t × weight in float32; a product past its
+    # range would reach the batch as inf and the loss as NaN.
+    with np.errstate(over="ignore"):
+        if not np.isfinite(t.astype(np.float32) * weight).all():
+            raise ValueError("t × weight must fit float32")
     # Every row inert: the batches would all be the weightless case the
     # loss guards, and 4,000 steps of zero gradient would "fit" nothing.
     if not (weight > 0).any():

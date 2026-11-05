@@ -139,8 +139,9 @@ class Reservoir:
     ) -> None:
         """Offer one phase's rows, all stamped `t`, drawing from `rng`.
 
-        `weight` is one finite, non-negative float per row; left out, every
-        row weighs 1, the walk's own sample. `rng` needs
+        `weight` is one finite, non-negative float per row, with t × weight
+        within float32's range; left out, every row weighs 1, the walk's own
+        sample. `rng` needs
         `Generator.integers(low, high)` with an array `high`: one draw per
         late offer. Rows below capacity are kept outright and draw nothing,
         so a memory still filling consumes no randomness.
@@ -213,7 +214,12 @@ class Reservoir:
         Refuses a file that is not a reservoir (no `offered`) and one whose
         resident rows do not match its counts, naming the file either way. A
         file with no `weight` is from before the column existed: its rows
-        were all plain samples and load weighing one.
+        were all plain samples and load weighing one. A `weight` the column
+        would not have stored — not float32, not one per row, negative,
+        non-finite, or overflowing t × weight in float32 — is refused naming
+        the file: `merge` never writes one, so it is a corrupt or hand-edited
+        file, and `fit_from_scratch` would otherwise be the first to say so,
+        without the file's name.
         """
         path = Path(path)
         with np.load(path, allow_pickle=False) as saved:
@@ -248,6 +254,12 @@ class Reservoir:
         for name, array, dtype in expected:
             if array.dtype != dtype:
                 raise ValueError(f"{path}: {name} must be {dtype.__name__}, got {array.dtype}")
+        # What `merge` refuses on the way in, refused on the way back as well.
+        if not (np.isfinite(weight).all() and (weight >= 0).all()):
+            raise ValueError(f"{path}: every weight must be finite and non-negative")
+        with np.errstate(over="ignore"):
+            if not np.isfinite(t.astype(np.float32) * weight).all():
+                raise ValueError(f"{path}: t × weight must fit float32")
         memory._rows[:size] = rows
         memory._t[:size] = t
         memory._targets[:size] = targets
@@ -290,11 +302,10 @@ def _validate_offer(
         )
     if weight.shape != (rows.shape[0],):
         raise ValueError(f"weight must be shaped ({rows.shape[0]},), one per row, got {weight.shape}")
-    # The refit multiplies a row's error by its weight: a negative one would
-    # pull the net AWAY from the row's target, and a NaN would spread through
-    # the batch's mean into every row's gradient.
-    if weight.size and not (np.isfinite(weight).all() and weight.min() >= 0):
-        raise ValueError("every weight must be finite and non-negative")
+    # A weight is a count of samples: a bool, a complex or an object array is
+    # a caller handing the wrong array, not a count.
+    if not (np.issubdtype(weight.dtype, np.floating) or np.issubdtype(weight.dtype, np.integer)):
+        raise ValueError(f"weight must be a float or int array, got dtype {weight.dtype}")
     # Iterations start at 1; the refit weights a row by its t, so 0 would
     # erase it and a negative would pull against the others.
     if not _is_int(t) or t < 1:
@@ -303,8 +314,16 @@ def _validate_offer(
     # below the bound, which is here so the stamp can never wrap in silence.
     if t >= 2**31:
         raise ValueError(f"t must fit int32, got {t!r}")
-    return (
-        rows.astype(np.int32, copy=False),
-        targets.astype(np.float32, copy=False),
-        weight.astype(np.float32, copy=False),
-    )
+    # The column is float32, so the weight is checked AFTER the cast: a
+    # float64 weight past float32's range is finite as given and inf once
+    # stored. The refit multiplies a row's error by t × weight in float32: a
+    # negative weight would pull the net AWAY from the row's target, a NaN
+    # or an inf (the product's, if not the weight's own) would spread through
+    # the batch's mean into every row's gradient.
+    with np.errstate(over="ignore"):  # the overflow is what is being looked for
+        weight = weight.astype(np.float32, copy=False)
+        if weight.size and not (np.isfinite(weight).all() and weight.min() >= 0):
+            raise ValueError("every weight must be finite and non-negative in float32")
+        if weight.size and not np.isfinite(np.float32(t) * weight).all():
+            raise ValueError(f"t × weight must fit float32: at t = {t} a weight of {weight.max()} overflows")
+    return rows.astype(np.int32, copy=False), targets.astype(np.float32, copy=False), weight

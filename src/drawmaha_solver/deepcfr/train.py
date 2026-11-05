@@ -1078,6 +1078,9 @@ class NetLearner:
         net = fit_from_scratch(rows, t, targets, weight, seed=seed, config=config)
         draw = torch.Generator().manual_seed(_fold_seed((*seed, _HELD_TAG)))
         held = torch.randint(len(rows), (config.batch,), generator=draw).numpy()
+        # The held loss is a number for the progress line (`StepStats.loss`)
+        # and nothing decides on it: a held batch of weight-0 rows alone
+        # reads 0, as the loss would, and says so there rather than NaN.
         with torch.inference_mode():
             loss = float(batch_loss(net, rows[held], t[held], targets[held], weight[held]).item())
         return Fitted(net, loss)
@@ -1156,9 +1159,13 @@ class OracleLearner:
     memory order with `np.add.at`, then `R[cols] += t′ · totals` — so the
     bits match `bank_rows` through any number of iterations, not only the
     first: × 1.0 is exact, so a memory of weight-one rows banks what it
-    banked before the column existed. A row of weight 2 banks what the same
-    row offered twice would (r + r = 2r exactly), and a row of weight 0
-    banks nothing. The two models are summed one after the other, which is
+    banked before the column existed. A row of weight w banks w × r, so a
+    row of weight 0 banks nothing, and a row of weight 2 banks 2r, which is
+    what the same row offered twice banks when the two are the only samples
+    at the column in that t′ (0 + r + r is 2r exactly); with other samples
+    there, the two agree only up to rounding, since `np.add.at` sums the
+    column's samples one at a time and (a + r) + r is not a + 2r to the
+    bit. The two models are summed one after the other, which is
     only LCFR's order because a row belongs to one acting seat and so
     appears in one model. A row no sample names stays exactly 0.0. NumPy
     only, so gate 1 runs without torch.

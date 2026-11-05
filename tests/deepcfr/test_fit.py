@@ -179,6 +179,12 @@ def test_fit_refuses_bad_weights():
         fit_from_scratch(rows, t, targets, np.ones((10, 1)), seed=(0,), config=SMALL)
     with pytest.raises(ValueError, match="nothing to fit"):
         fit_from_scratch(rows, t, targets, np.zeros(10), seed=(0,), config=SMALL)
+    # Finite in float64, inf in the float32 the loss computes in.
+    with pytest.raises(ValueError, match="finite"):
+        fit_from_scratch(rows, t, targets, np.r_[np.ones(9), 1e300], seed=(0,), config=SMALL)
+    # Finite in float32 on its own; t × weight is not, and that is the scale.
+    with pytest.raises(ValueError, match="fit float32"):
+        fit_from_scratch(rows, np.full(10, 2), targets, np.r_[np.ones(9), 2e38], seed=(0,), config=SMALL)
 
 def test_loss_is_over_the_legal_columns_only():
     # A 2-wide betting row: its loss is the sum over its two columns, so a

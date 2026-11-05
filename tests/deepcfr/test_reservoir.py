@@ -151,7 +151,19 @@ def test_merge_refuses_bad_weights():
         memory.merge(np.arange(2), targets(2), t=1, rng=rng, weight=np.array([1.0, 1.0, 1.0]))
     with pytest.raises(ValueError, match="weight"):
         memory.merge(np.arange(2), targets(2), t=1, rng=rng, weight=np.ones((2, 1)))
-    assert memory.offered == 0  # a refused offer changes nothing
+    # Finite as given, inf once cast into the float32 column: refused as the
+    # inf it would be stored as, not passed as the float64 it was handed as.
+    with pytest.raises(ValueError, match="finite"):
+        memory.merge(np.arange(2), targets(2), t=1, rng=rng, weight=np.array([1.0, 1e300]))
+    # The refit's scale is t × weight in float32: a weight the column holds
+    # but the product cannot is refused at the t that overflows it.
+    memory.merge(np.arange(2), targets(2), t=1, rng=rng, weight=np.array([1.0, 2e38], np.float32))
+    with pytest.raises(ValueError, match="fit float32"):
+        memory.merge(np.arange(2), targets(2), t=2, rng=rng, weight=np.array([1.0, 2e38], np.float32))
+    # A bool array is a caller handing the wrong array, not a count of samples.
+    with pytest.raises(ValueError, match="float or int"):
+        memory.merge(np.arange(2), targets(2), t=1, rng=rng, weight=np.array([True, True]))
+    assert memory.offered == 2  # the one accepted offer counts; a refused one changes nothing
 
 def test_an_empty_merge_changes_nothing():
     memory = filled_memory()
@@ -346,6 +358,31 @@ def test_load_refuses_a_weight_of_the_wrong_length_or_type(tmp_path):
         Reservoir.load(write("short.npz", np.ones(2, np.float32)))
     with pytest.raises(ValueError, match="weight must be float32"):
         Reservoir.load(write("double.npz", np.ones(3, np.float64)))
+
+def test_load_refuses_a_weight_with_a_bad_value_by_name(tmp_path):
+    # `merge` never stores one, so a NaN, a negative, or a weight whose
+    # t × weight overflows float32 is a corrupt or hand-edited file, refused
+    # by name here rather than by `fit_from_scratch` later without it.
+    def write(name, weight, t=1):
+        path = tmp_path / name
+        np.savez(
+            path,
+            rows=np.arange(3, dtype=np.int32),
+            t=np.full(3, t, np.int32),
+            targets=targets(3),
+            weight=np.array(weight, np.float32),
+            offered=np.int64(3),
+            capacity=np.int64(8),
+        )
+        return path
+
+    with pytest.raises(ValueError, match="nan.npz.*finite"):
+        Reservoir.load(write("nan.npz", [1.0, np.nan, 1.0]))
+    with pytest.raises(ValueError, match="negative.npz.*non-negative"):
+        Reservoir.load(write("negative.npz", [1.0, -1.0, 1.0]))
+    with pytest.raises(ValueError, match="overflow.npz.*fit float32"):
+        Reservoir.load(write("overflow.npz", [1.0, 2e38, 1.0], t=2))
+    assert Reservoir.load(write("fine.npz", [1.0, 2e38, 1.0], t=1)).contents()[3][1] == np.float32(2e38)
 
 def test_load_refuses_a_corrupt_file_without_a_weight_by_name(tmp_path):
     # The ones default must not run ahead of the counts check: a negative
