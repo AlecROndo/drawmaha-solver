@@ -1,0 +1,90 @@
+{
+  "tabs": [
+    {
+      "tab": "Overview",
+      "groups": [
+        {
+          "group": "Getting started",
+          "pages": ["overview/introduction", "overview/method"]
+        },
+        {
+          "group": "Dive deeper",
+          "pages": ["overview/architecture", "overview/quickstart"]
+        },
+        {
+          "group": "Working in the repo",
+          "pages": ["overview/onboarding", "overview/reading-map"]
+        }
+      ]
+    },
+    {
+      "tab": "Theory",
+      "groups": [
+        {
+          "group": "Equilibrium and regret",
+          "pages": ["theory/equilibrium", "theory/regret-matching", "theory/cfr", "theory/exploitability"]
+        },
+        {
+          "group": "Scaling up",
+          "pages": ["theory/mccfr", "theory/regret-rules", "theory/deep-cfr", "theory/abstraction"]
+        }
+      ]
+    },
+    {
+      "tab": "Implementation",
+      "groups": [
+        {
+          "group": "Shared",
+          "pages": ["implementation/package-map", "implementation/ledger"]
+        },
+        {
+          "group": "The graded games",
+          "pages": ["implementation/rps", "implementation/kuhn", "implementation/leduc"]
+        },
+        {
+          "group": "Mini-drawmaha",
+          "pages": ["implementation/minidrawmaha-rules", "implementation/minidrawmaha-solver", "implementation/minidrawmaha-answer"]
+        },
+        {
+          "group": "Deep CFR",
+          "pages": ["implementation/deepcfr", "implementation/deepcfr-training"]
+        }
+      ]
+    },
+    {
+      "tab": "Site & Ops",
+      "groups": [
+        {
+          "group": "The site",
+          "pages": ["ops/site", "ops/static-pages", "ops/apps", "ops/design-standard"]
+        },
+        {
+          "group": "Running things",
+          "pages": ["ops/testing", "ops/modal", "ops/releases", "ops/deploy"]
+        }
+      ]
+    },
+    {
+      "tab": "Research",
+      "groups": [
+        {
+          "group": "Where it stands",
+          "pages": ["research/status", "research/run-log", "research/open-questions"]
+        },
+        {
+          "group": "Literature",
+          "pages": ["research/literature", "research/full-drawmaha"]
+        }
+      ]
+    },
+    {
+      "tab": "Changelog",
+      "groups": [
+        {
+          "group": "Updates",
+          "pages": ["changelog/changelog"]
+        }
+      ]
+    }
+  ]
+}

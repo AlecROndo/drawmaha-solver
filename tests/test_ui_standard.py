@@ -39,7 +39,7 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 
 APPS = ("rung0-viz", "rung1-viz", "rung2-viz", "rung3-viz", "solver-viz")
-PAGES = ("index.html", "rules.html", "benchmarks.html", "releases.html", "cover.html")
+PAGES = ("index.html", "rules.html", "benchmarks.html", "releases.html", "wiki.html", "cover.html")
 
 TOKENS = ("--ease-out", "--ease-in-out", "--t-press")
 TOKEN_VALUES = {
@@ -84,6 +84,8 @@ PRESSABLES = {
     "rules.html": (".btn", ".navbtn"),
     "benchmarks.html": (".btn", ".navbtn"),
     "releases.html": (".btn", ".navbtn"),
+    # the wiki's tabs and both its rails are the theme's .view and .rail a
+    "wiki.html": (".btn", ".navbtn", ".wk-card", ".wk-pager a"),
     "cover.html": (".btn", ".navbtn", ".rmain", ".racts a"),
 }
 

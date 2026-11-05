@@ -45,7 +45,11 @@ import itertools
 import json
 import math
 import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wiki  # noqa: E402  (scripts/site/wiki.py, beside this file)
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "web" / "cover"
@@ -605,7 +609,7 @@ def race_chart(w: int, h: int) -> str:
 # ===================================================================== chrome
 
 NAV = (("research", "Research", "/research"), ("solver", "Solver", "/solver"),
-       ("benchmarks", "Benchmarks", "/benchmarks"), ("play", "Play", "/play"), ("rules", "Rules", "/rules"))
+       ("benchmarks", "Benchmarks", "/benchmarks"), ("play", "Play", "/play"), ("rules", "Rules", "/rules"), ("wiki", "Wiki", "/wiki"))
 
 
 def top_bar(here: str) -> str:
@@ -652,6 +656,7 @@ FOOTER = f"""<footer>
       <div>
         <h4>Resources</h4>
         <ul>
+          <li><a href="/wiki">Wiki</a></li>
           <li><a href="{REPO}">GitHub</a></li>
           <li><a href="{REPO}/tree/main/figures">Figure data</a></li>
           <li><a href="{REPO}/releases">Strategy packs</a></li>
@@ -1413,8 +1418,22 @@ table.releases th:nth-child(1) { width: 30%; } table.releases th:nth-child(4) { 
 
 # ===================================================================== main
 
+def wiki_page() -> str:
+    body, css, script, sources = wiki.render()
+    return page(
+        title="Wiki · Drawmaha Solver",
+        description="Everything about the Drawmaha solver for a new reader: the game, the theory, the code, the site and where the research stands.",
+        here="wiki",
+        css=css,
+        body=body,
+        sources=sources,
+        script=script,
+    )
+
+
 def render() -> dict[str, str]:
     return {
+        "wiki.html": wiki_page(),
         "index.html": home(),
         "rules.html": rules(),
         "benchmarks.html": benchmarks(),

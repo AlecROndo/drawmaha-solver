@@ -64,6 +64,13 @@ cp web/cover/fonts.css public/fonts.css
 cp web/cover/chip.js public/chip.js
 # The tab icon every page and app links as /favicon.svg: the chip, flat.
 cp web/cover/favicon.svg public/favicon.svg
-for page in index rules benchmarks releases cover; do
+for page in index rules benchmarks releases wiki cover; do
   cp "web/cover/$page.html" "public/$page.html"
+done
+
+# The wiki's figures: every PNG under figures/, served at /figures/ for the
+# pages of docs/wiki/ that show one. The JSON beside them stays in the repo.
+(cd figures && find . -name '*.png') | while read -r png; do
+  mkdir -p "public/figures/$(dirname "$png")"
+  cp "figures/$png" "public/figures/$png"
 done
