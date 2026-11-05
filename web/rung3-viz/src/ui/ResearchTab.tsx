@@ -339,7 +339,7 @@ export function ResearchTab() {
           </Figure>
         </Chapter>
 
-        <Chapter id="ch-04" title={<>The answer: LCFR's linear average at {M(hands)} hands, {FROZEN.exploitability.toFixed(4)} chips a hand</>}>
+        <Chapter id="ch-04" title={<>The answer: exploitable by {FROZEN.exploitability.toFixed(4)} at {M(hands)} hands</>}>
           <p>
             The winner is frozen as the tabular solution: {FROZEN_FLOATS.toLocaleString()} float32 probabilities,{' '}
             {FROZEN_MB} MB compressed, published as a release asset and checked against a pinned SHA-256 on load. The
@@ -653,8 +653,7 @@ export function ResearchTab() {
             <RefitChart />
           </Figure>
           <h3>
-            Dividing each regret target by √pot cut the two-million-hand grade{' '}
-            {cut(pot(0).exact[200], pot(0.5).exact[200])}: the fit weighs each spot by its chips, not by its pot squared
+            √pot targets cut the grade {cut(pot(0).exact[200], pot(0.5).exact[200])}
           </h3>
           <p>
             One net fits every spot's mean regret with one accuracy budget, and the loss decides where that budget goes.
@@ -749,7 +748,7 @@ export function ResearchTab() {
           </p>
           <Figure
             n={14}
-            title="Exact average vs Π vs current"
+            title="Exact average vs policy net vs current"
             sub="The raw-chips 4 × 256 arm's three graded objects from a hundred thousand to five million hands per seat, chips per 100 hands, both axes log"
             caption="Hover or arrow a mark for each seat's best response."
             source="figures/rung4/sweep_256x4-s16000-lr5e-4.json · deep/<t>/{exact, pi, current}"
@@ -757,7 +756,7 @@ export function ResearchTab() {
           >
             <AveragesChart />
           </Figure>
-          <h3>Why Π stalled</h3>
+          <h3>Why the policy net stalled</h3>
           <p>
             Between two and five million hands the exact average fell from {p100(raw200.exact.exploitability)} to{' '}
             {p100(raw500.exact.exploitability)} while Π went from {p100(raw200.pi.exploitability)} to{' '}
@@ -865,7 +864,7 @@ export function ResearchTab() {
           </p>
         </Chapter>
 
-        <Chapter id="ch-09" title="What is and is not settled">
+        <Chapter id="ch-09" title="Limits: one seed per run">
           <table className="hair settled">
             <tbody>
               <tr>

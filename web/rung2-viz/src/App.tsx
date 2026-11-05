@@ -112,7 +112,7 @@ export default function App() {
       <main className="wrap">
         <PageHead
           eyebrow="Benchmarks · Leduc poker"
-          title="Leduc poker: 0.011 chips a hand."
+          title="Leduc poker: exploitable by 0.011."
           lede={
             <>
               Six cards, two betting rounds, one board card, 288 information sets. After{' '}
