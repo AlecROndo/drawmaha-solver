@@ -37,7 +37,7 @@ The ledger therefore keeps a second vector, `strategy_sum`, which banks σ after
 ![Self-play average strategy converges to the uniform Nash](fig:rung0/self_play_average_strategy.png)
 
 :::warning
-Every solver in the repo answers with the **average**, and every grader grades the average. The Kuhn and Leduc tables in [CFR](wiki:theory/cfr) show the current iterate sitting about 0.2 (Kuhn) or 0.75–1.48 (Leduc) chips/hand exploitable however long the run goes. This is also why rung 4 has to rebuild an average explicitly — see [Deep CFR](wiki:theory/deep-cfr).
+Every solver in the repo answers with the **average**, and every grader grades the average. Kuhn's table in [CFR](wiki:theory/cfr) shows the current iterate between 0.20 and 0.28 chips/hand exploitable however long the run goes, and Leduc's committed solve ends with the current iterate at 0.97 against the average's 0.011 ([`web/rung2-viz/src/data/solve.json`](repo:web/rung2-viz/src/data/solve.json)). This is also why rung 4 has to rebuild an average explicitly — see [Deep CFR](wiki:theory/deep-cfr).
 :::
 
 ## Two weights let the same ledger serve a game tree

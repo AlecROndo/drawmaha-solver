@@ -126,9 +126,9 @@ class Renderer:
                 raise ValueError(f"{self.page.path}: repo link to {rel}, which does not exist")
             kind = "tree" if (ROOT / rel.split("#")[0]).is_dir() else "blob"
             return f"{REPO}/{kind}/main/{rel}", True
-        if target.startswith("/"):
+        if target.startswith("/") and not target.startswith("//"):
             return target, False
-        if target.startswith(REPO):
+        if target == REPO or target.startswith(REPO + "/"):
             return target, True
         # The site's one outside destination is the repository (tests/test_cover_page.py).
         raise ValueError(f"{self.page.path}: link {target!r} is not wiki:, repo:, a route or the repository")
@@ -317,6 +317,7 @@ class Renderer:
         base = len(lines[i]) - len(lines[i].lstrip())
         ordered = bool(re.match(r"\s*\d+\.", lines[i]))
         items: list[list[str]] = []
+        width = 2
         j = i
         while j < end:
             line = lines[j]
@@ -329,13 +330,14 @@ class Renderer:
             indent = len(line) - len(line.lstrip())
             m = re.match(r"\s*([-*]|\d+\.)\s+(.*)", line)
             if m and indent == base:
+                width = m.start(2) - indent  # the marker and its space: 2 for "- ", 3 for "1. "
                 if bool(re.match(r"\d+\.", m.group(1))) != ordered:
                     break  # a numbered list after a bulleted one is a new list
                 items.append([m.group(2)])
             elif m is None and items and len(items[-1]) == 1 and indent > base:
                 items[-1][0] += " " + line.strip()  # a wrapped first line, indented
             elif indent > base and items:
-                items[-1].append(line[base + 2 :] if len(line) > base + 2 else line.strip())
+                items[-1].append(line[base + width :] if len(line) > base + width else line.strip())
             elif m is None and items and indent >= base and len(items[-1]) == 1:
                 items[-1][0] += " " + line.strip()  # a wrapped first line
             else:
@@ -361,13 +363,17 @@ def known_headings(pages: list[Page]) -> dict[str, set[str]]:
     """Every page's heading slugs, read before any page renders so links can be checked."""
     known = {}
     for p in pages:
-        slugs = set()
+        slugs: set[str] = set()
         fence = False
         for line in p.body.splitlines():
             if line.strip().startswith("```"):
                 fence = not fence
             elif not fence and (m := re.match(r"\s*#{2,4}\s+(.*)", line)):
-                slugs.add(slug(m.group(1)))
+                s = slug(m.group(1))
+                if s in slugs:
+                    # two headings, one id: the second would be unreachable by link
+                    raise ValueError(f"{p.path}: two headings share the anchor {s!r}; reword one")
+                slugs.add(s)
         known[p.path] = slugs
     return known
 
@@ -467,7 +473,8 @@ SCRIPT = """<script>
   var tabs = document.querySelectorAll('.wk-tab');
   var first = pages[0].id;
   function show() {
-    var target = decodeURIComponent(location.hash.slice(1)) || first;
+    var target;
+    try { target = decodeURIComponent(location.hash.slice(1)) || first; } catch (e) { target = first; }
     var id = target.split('--')[0];
     var page = document.getElementById(id);
     if (!page || !page.classList.contains('wk-page')) { id = first; page = document.getElementById(first); }

@@ -7,6 +7,7 @@ as the README says.
 """
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -67,3 +68,37 @@ def test_blocks_render_and_an_unclosed_one_fails() -> None:
 def test_a_numbered_list_after_a_bulleted_one_is_its_own_list() -> None:
     out = _render("- a\n  wrapped\n1. b")
     assert "<ul><li>a wrapped</li></ul>" in out and "<ol><li>b</li></ol>" in out
+
+
+def test_every_page_renders_a_body() -> None:
+    body, _, _, _ = wiki.render()
+    for page in wiki.load_pages():
+        start = body.index(f'id="{page.path}"')
+        article = body[start : body.index("</article>", start)]
+        text = re.sub(r"<[^>]+>", " ", article.split('<div class="wk-body">', 1)[1])
+        assert len(text.split()) > 150, f"{page.path} rendered almost nothing"
+
+
+def test_only_the_repository_and_routes_leave_a_page() -> None:
+    for bad in ("https://example.com", "//example.com/x", f"{wiki.REPO}-evil", "mailto:a@b.c"):
+        with pytest.raises(ValueError, match="not wiki:"):
+            _render(f"[a]({bad})")
+    assert f'href="{wiki.REPO}/releases"' in _render(f"[a]({wiki.REPO}/releases)")
+
+
+def test_figures_and_equations() -> None:
+    out = _render("![The race](fig:rung3/race.png)\n\n```eq\na = b\nc = d\n```")
+    assert '<img src="/figures/rung3/race.png" alt="The race"' in out
+    assert out.count('<div class="wk-eq-row">') == 2
+    with pytest.raises(ValueError, match="does not exist"):
+        _render("![x](fig:nowhere.png)")
+
+
+def test_a_numbered_item_nests_under_its_three_wide_marker() -> None:
+    out = _render("1. first\n   - inner\n2. second")
+    assert "<ol><li>first<ul><li>inner</li></ul></li><li>second</li></ol>" in out
+
+
+def test_two_headings_with_one_anchor_fail() -> None:
+    with pytest.raises(ValueError, match="share the anchor"):
+        _render("## Example\n\n## Example")
