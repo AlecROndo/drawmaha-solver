@@ -277,7 +277,7 @@ export function ResearchTab() {
         </Chapter>
 
         {/* -------------------------------------------- Part II: the rules race */}
-        <Chapter id="ch-03" title="Vanilla and Linear CFR beat CFR+ and DCFR by three to four times">
+        <Chapter id="ch-03" title="Vanilla and Linear CFR, which keep negative regret, win by three to four times">
           <p>
             Each visit measures one sample r of counterfactual regret. The four rules differ only in what the ledger does
             with it:
@@ -298,7 +298,7 @@ export function ResearchTab() {
           </p>
           <Figure
             n={2}
-            title="Vanilla and Linear CFR beat CFR+ and DCFR by three to four times"
+            title="Vanilla and Linear CFR, which keep negative regret, win by three to four times"
             sub={`The linear average of each rule at eight checkpoints to ${M(hands)} hands per seat, chips per 100 hands; both axes log`}
             caption={
               <>
@@ -464,7 +464,7 @@ export function ResearchTab() {
           </p>
           <Figure
             n={8}
-            title="One Deep CFR iteration sees as many hands as 1,000 table iterations"
+            title="Per seat, Deep CFR's iteration t has seen as many hands as the table's iteration 1,000 t"
             sub="The final arm's five graded marks, a million to twenty million hands per seat, on one axis of hands, log; hours trained above, the table's grade below, chips per 100 hands"
             caption={
               <>
@@ -593,7 +593,7 @@ export function ResearchTab() {
           </Figure>
         </Chapter>
 
-        <Chapter id="ch-06" title="A wider net helps more than a deeper one">
+        <Chapter id="ch-06" title={<>Doubling the width cut the grade {cut(size('3 × 64').exact, size('3 × 128').exact)}; an extra layer cut only {cut(size('3 × 64').exact, size('4 × 64').exact)} to {cut(size('3 × 128').exact, size('4 × 128').exact)}</>}>
           <p>
             Five nets were graded at one million hands, all with the spec's refit (4,000 Adam steps at 1e-3), all on
             identical hands. The sweep's verdict was fixed before its numbers existed ({SWEEP_RULE.rule}) and it picked{' '}
@@ -815,7 +815,7 @@ export function ResearchTab() {
           </p>
         </Chapter>
 
-        <Chapter id="ch-08" title={<>Under Deep CFR, DCFR and CFR+ lose to linear by {KEY_NUMBERS.ruleScreenRatio.toFixed(0)} times</>}>
+        <Chapter id="ch-08" title={<>Under Deep CFR, DCFR and CFR+ lose to linear by {KEY_NUMBERS.ruleScreenRatio.toFixed(0)} times at iteration 50, and worsen with training</>}>
           <p>
             Deep CFR stores no running regret. Each refit learns the t-weighted <i>mean</i> of every regret sample the
             reservoir holds, and regret matching reads that mean's sign pattern. A rule can therefore act only on the

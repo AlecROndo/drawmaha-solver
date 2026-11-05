@@ -865,7 +865,7 @@ def home() -> str:
 <section class="hero">
   <div class="hero-copy">
     <p class="eyebrow">A research project · Deep CFR on mini-drawmaha</p>
-    <h1>A Drawmaha solver, built one graded game at a time.</h1>
+    <h1>A solver for Drawmaha, a poker game nobody has solved yet.</h1>
     <p class="lede">Drawmaha is a split-pot draw and Omaha hybrid. This solver is built one game at a time: four smaller games, each solved and graded against a known answer before the next is started.</p>
     <div class="cta"><a class="btn primary" href="/solver">Open the range explorer</a><a class="more" href="/research">Read the research →</a></div>
   </div>
@@ -875,7 +875,7 @@ def home() -> str:
 <section class="band split" id="results">
   <div class="split-aside">
     <p class="eyebrow">Results</p>
-    <h2>Four games solved, each scored against a perfect opponent</h2>
+    <h2>Four games solved, each scored by its strongest counter-strategy</h2>
     <p>Exploitability is what a best response wins per hand against the solver's average strategy. Zero is a Nash equilibrium. Every grader reads the game's rules and nothing from the solver it grades.</p>
     <p class="more-row"><a class="more" href="/benchmarks">All benchmarks →</a></p>
   </div>
@@ -1246,7 +1246,7 @@ def benchmarks() -> str:
 
   <section class="b" id="kuhn">
     <p class="eyebrow">Benchmark 2 · Kuhn poker</p>
-    <h2>Kuhn poker: CFR ends {avg[-1][1]:.5f} chips a hand from the exact answer</h2>
+    <h2>Kuhn poker: CFR is exploitable for {avg[-1][1]:.5f} chips a hand</h2>
     <p class="sub">Three cards, one bet, twelve information sets. The equilibrium is a one-parameter family known in closed form, and the game is small enough that all 64 pure strategies are enumerated for the grade. The game value is −1/18 for the first player.</p>
     <div class="two">
       {figure(None, "The average strategy keeps improving; the current one never settles", "Exploitability by iteration, vanilla CFR, log scales", kuhn_chart, "The current iterate cycles around 0.2 and is worse at 1,000 iterations than at 10. Only the average converges, which is why every strategy on this site is an average.")}
@@ -1260,7 +1260,7 @@ def benchmarks() -> str:
 
   <section class="b" id="leduc">
     <p class="eyebrow">Benchmark 3 · Leduc poker</p>
-    <h2>Leduc poker: CFR ends {l_avg:.3f} chips a hand from OpenSpiel's answer</h2>
+    <h2>Leduc poker: CFR is exploitable for {l_avg:.3f} chips a hand</h2>
     <p class="sub">Six cards, two rounds, one community card, 288 information sets. There is no closed form, so the reference is OpenSpiel's solve of the same game, frozen in the repository as a fixture.</p>
     <div class="two">
       {figure(None, f"After {leduc['iterations']:,} iterations the average is {ratio:.0f} times less exploitable than the current strategy", "Exploitability in chips per hand, vanilla CFR, the committed solve", leduc_chart, "Both strategies come from the same run; only the average is the answer.")}

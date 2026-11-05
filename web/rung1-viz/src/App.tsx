@@ -77,7 +77,7 @@ function SolveTab() {
         <div className="stop-head">
           <div>
             <p className="eyebrow">What to look for</p>
-            <h2>CFR finds the bluff itself, and only its average converges</h2>
+            <h2>CFR discovers the bluff on its own and lands on a known answer</h2>
           </div>
           <p>
             The figures above are one solve of one small game. Each row names a thing the run does that a table of its
@@ -146,7 +146,7 @@ export default function App() {
       <main className="wrap">
         <PageHead
           eyebrow="Benchmarks · Kuhn poker"
-          title={`Kuhn poker: CFR ends ${SOLVE.exploitabilityAverage[LAST].toFixed(5)} chips a hand from the exact answer`}
+          title={`Kuhn poker: CFR is exploitable for ${SOLVE.exploitabilityAverage[LAST].toFixed(5)} chips a hand`}
           lede={
             <>
               Three cards, one bet, twelve information sets, and an equilibrium known in closed form. After 100,000

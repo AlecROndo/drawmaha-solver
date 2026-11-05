@@ -112,7 +112,7 @@ export default function App() {
       <main className="wrap">
         <PageHead
           eyebrow="Benchmarks · Leduc poker"
-          title="Leduc poker: CFR ends 0.011 chips a hand from the exact answer"
+          title="Leduc poker: CFR is exploitable for 0.011 chips a hand"
           lede={
             <>
               Six cards, two betting rounds, one board card, 288 information sets. After{' '}
