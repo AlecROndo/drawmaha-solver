@@ -48,6 +48,8 @@ def test_wiki_and_repo_links_resolve_and_a_bad_one_fails() -> None:
         _render("[a](wiki:t/x#nothing)")
     with pytest.raises(ValueError, match="does not exist"):
         _render("[a](repo:no/such/file.py)")
+    with pytest.raises(ValueError, match="inside the repository"):
+        _render("[a](repo:../outside.md)")
 
 
 def test_code_is_literal_and_tables_keep_a_pipe_inside_code() -> None:

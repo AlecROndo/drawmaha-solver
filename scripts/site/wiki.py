@@ -122,6 +122,8 @@ class Renderer:
             return f"#{self.page.path}--{anchor}", False
         if target.startswith("repo:"):
             rel = target[5:]
+            if ".." in Path(rel.split("#")[0]).parts or rel.startswith("/"):
+                raise ValueError(f"{self.page.path}: repo link {rel!r} must be a path inside the repository")
             if not (ROOT / rel.split("#")[0]).exists():
                 raise ValueError(f"{self.page.path}: repo link to {rel}, which does not exist")
             kind = "tree" if (ROOT / rel.split("#")[0]).is_dir() else "blob"
