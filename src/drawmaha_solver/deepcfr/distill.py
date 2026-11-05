@@ -225,3 +225,272 @@ def training_rows(config: DistillConfig, rows: int) -> np.ndarray | None:
     rng = np.random.default_rng((config.seed, 0x5452))  # "TR": the subset's own stream
     picked = rng.random(rows) < config.train_fraction
     return np.flatnonzero(picked).astype(np.int64)
+
+def sampling_weights(weights: np.ndarray, config: DistillConfig) -> np.ndarray:
+    """What the sampler draws by: the reach weights, or ones for the unweighted ablation, zero off the training rows."""
+    weights = np.asarray(weights, dtype=np.float64)
+    drawn = weights.copy() if config.weighted else np.ones_like(weights)
+    rows = training_rows(config, len(weights))
+    if rows is not None:
+        kept = np.zeros_like(drawn)
+        kept[rows] = drawn[rows]
+        drawn = kept
+    return drawn
+
+# ---------------------------------------------------------------------------
+# The loss
+# ---------------------------------------------------------------------------
+
+def masked_cross_entropy(
+    outputs: torch.Tensor, gather: torch.Tensor, targets: torch.Tensor
+) -> torch.Tensor:
+    """Mean over rows of −Σ_legal target · log softmax(outputs at the legal columns); a scalar tensor.
+
+    `outputs` (b, head) the net's raw head, `gather` (b, MAX_WIDTH) each
+    row's head columns with `NO_ACTION` padding, `targets` (b, MAX_WIDTH)
+    distributions with zeros in the padding. An illegal column's logit is
+    replaced by −1e9 before the softmax, so it holds no probability and
+    receives no gradient; its target is zero, so it adds nothing to the
+    sum either way.
+    """
+    import torch
+
+    from drawmaha_solver.minidrawmaha.rules.features import NO_ACTION
+
+    legal = gather != NO_ACTION
+    picked = outputs.gather(1, gather.clamp(min=0))
+    log_probabilities = torch.log_softmax(torch.where(legal, picked, -1e9), dim=1)
+    per_row = -torch.where(legal, targets * log_probabilities, 0.0).sum(dim=1)
+    return per_row.mean()
+
+# ---------------------------------------------------------------------------
+# The layout on the device
+# ---------------------------------------------------------------------------
+
+# Rows per forward pass when the student is read over every row of the game.
+EVAL_CHUNK = 262_144
+
+class _DeviceLayout:
+    """The layout's two feature halves and the gather, on one device, and the student read over rows there."""
+
+    def __init__(self, device: torch.device) -> None:
+        import torch
+
+        from drawmaha_solver.minidrawmaha.rules.features import NO_ACTION
+
+        built = layout()
+        self.device = device
+        self.rows = int(built.row_offset[-1])
+        self.row_offset = torch.from_numpy(built.row_offset).to(device)
+        self.private_offset = torch.from_numpy(built.private_offset).to(device)
+        self.private = torch.from_numpy(np.array(built.private)).to(device)
+        self.public = torch.from_numpy(np.array(built.public)).to(device)
+        self.gather = torch.from_numpy(legal_gather().astype(np.int64)).to(device)
+        self.width = torch.from_numpy(built.width).to(device)
+        self.no_action = NO_ACTION
+
+    def point_of(self, rows: torch.Tensor) -> torch.Tensor:
+        import torch
+
+        return torch.searchsorted(self.row_offset, rows, right=True) - 1
+
+    def features_and_gather(self, rows: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """(n, 136) features and (n, MAX_WIDTH) gather for row numbers on the device."""
+        import torch
+
+        point = self.point_of(rows)
+        position = rows - self.row_offset[point]
+        features = torch.cat([self.private[self.private_offset[point] + position], self.public[point]], dim=1)
+        return features, self.gather[point]
+
+    def probabilities(self, net: Net, rows: torch.Tensor) -> torch.Tensor:
+        """The student's softmax at the legal columns of `rows`, (n, MAX_WIDTH), zeros in the padding."""
+        import torch
+
+        features, gather = self.features_and_gather(rows)
+        legal = gather != self.no_action
+        picked = net(features).gather(1, gather.clamp(min=0))
+        return torch.where(legal, torch.softmax(torch.where(legal, picked, -1e9), dim=1), 0.0)
+
+# ---------------------------------------------------------------------------
+# The reach-weighted error
+# ---------------------------------------------------------------------------
+
+def reach_weighted_error(
+    student: FrozenStrategy, targets: np.ndarray, weights: np.ndarray
+) -> float:
+    """Σ over columns of weight · |student − teacher| over Σ weight, each column at its row's weight.
+
+    The `rw_mad` of `scripts/deepcfr/pi_reach_weighted.py` restated over
+    the padded layout: the diagnostic that tracked exploitability across
+    the Π refits. `targets` and `weights` are `teacher_targets` and
+    `row_weights` (or any (rows,) weights); a weight of zero drops the row.
+    """
+    weights = np.asarray(weights, dtype=np.float64)
+    difference = np.abs(teacher_targets(student).astype(np.float64) - np.asarray(targets, dtype=np.float64))
+    widths = np.repeat(layout().width, np.diff(layout().row_offset))
+    return float((weights * difference.sum(axis=1)).sum() / (weights * widths).sum())
+
+def _device_error(
+    net: Net, on_device: _DeviceLayout, targets: torch.Tensor, weights: torch.Tensor
+) -> float:
+    """`reach_weighted_error` computed on the device in chunks, without freezing the student."""
+    import torch
+
+    numerator = torch.zeros((), dtype=torch.float32, device=on_device.device)
+    denominator = torch.zeros((), dtype=torch.float32, device=on_device.device)
+    with torch.inference_mode():
+        for start in range(0, on_device.rows, EVAL_CHUNK):
+            rows = torch.arange(start, min(start + EVAL_CHUNK, on_device.rows), device=on_device.device)
+            difference = (on_device.probabilities(net, rows) - targets[rows]).abs().sum(dim=1)
+            widths = on_device.width[on_device.point_of(rows)].to(torch.float32)
+            numerator += (weights[rows] * difference).sum()
+            denominator += (weights[rows] * widths).sum()
+    return float(numerator / denominator)
+
+def student_probabilities(net: Net, *, device: str) -> np.ndarray:
+    """The student's distribution at every row, (rows, MAX_WIDTH) float32, read on `device`: what the curve's error is taken from."""
+    import torch
+
+    on_device = _DeviceLayout(torch.device(device))
+    net = net.to(on_device.device).eval()
+    out = np.empty((on_device.rows, MAX_WIDTH), dtype=np.float32)
+    with torch.inference_mode():
+        for start in range(0, on_device.rows, EVAL_CHUNK):
+            rows = torch.arange(start, min(start + EVAL_CHUNK, on_device.rows), device=on_device.device)
+            out[start : start + len(rows)] = on_device.probabilities(net, rows).cpu().numpy()
+    net.to("cpu")
+    return out
+
+# ---------------------------------------------------------------------------
+# The fit
+# ---------------------------------------------------------------------------
+
+# The second word of the fit's seed, "DS" in ASCII, beside the config's seed;
+# the Π fit's third word is "PI" and the advantage fits' is the seat.
+DISTILL_TAG = 0x4453
+
+Curve = list[dict[str, float]]
+
+def distill(
+    targets: np.ndarray,
+    weights: np.ndarray,
+    config: DistillConfig,
+    *,
+    log: Callable[[str], None] = print,
+) -> tuple[Net, Curve]:
+    """A fresh `Net(config.width, config.depth)` fitted to `targets` under `weights`; the net on the cpu in `eval()` mode, and its curve.
+
+    `targets` is `teacher_targets`'s (rows, MAX_WIDTH); `weights` is
+    `row_weights`'s (rows,), the measure the error is taken under, and —
+    unless the config says otherwise — the one rows are drawn by. The curve
+    has one entry per `eval_every` steps and at the last step: the step,
+    the mean loss since the previous entry, the learning rate, the seconds
+    so far, and `rw_error` over every row; a fraction arm adds
+    `rw_error_seen` and `rw_error_unseen`. Refuses, by name, targets of the
+    wrong shape, weights of the wrong length, and an `mps` device on a
+    machine without one.
+    """
+    import math
+    import time
+
+    import torch
+    from torch.nn.utils import clip_grad_norm_
+
+    from drawmaha_solver.deepcfr.fit import _fold_seed
+    from drawmaha_solver.deepcfr.net import Net
+
+    rows = int(layout().row_offset[-1])
+    targets = np.asarray(targets, dtype=np.float32)
+    weights = np.asarray(weights, dtype=np.float64)
+    if targets.shape != (rows, MAX_WIDTH):
+        raise ValueError(f"targets must be ({rows:,}, {MAX_WIDTH}), got shape {targets.shape}")
+    if weights.shape != (rows,):
+        raise ValueError(f"weights must be ({rows:,},), got shape {weights.shape}")
+    if config.device == "mps" and not torch.backends.mps.is_available():
+        raise RuntimeError("device 'mps' was asked for, but this machine has no usable Apple GPU")
+    device = torch.device(config.device)
+    on_device = _DeviceLayout(device)
+    device_targets = torch.from_numpy(targets).to(device)
+    device_weights = torch.from_numpy(weights.astype(np.float32)).to(device)
+    sampler = ReachSampler(sampling_weights(weights, config), seed=config.seed)
+    seen = training_rows(config, rows)
+    seen_mask = None
+    if seen is not None:
+        seen_mask = np.zeros(rows, dtype=bool)
+        seen_mask[seen] = True
+
+    folded = _fold_seed((config.seed, DISTILL_TAG))
+    torch.manual_seed(folded)
+    net = Net(width=config.width, depth=config.depth).to(device)
+    optimiser = torch.optim.Adam(net.parameters(), lr=config.lr)
+    curve: Curve = []
+    started = time.perf_counter()
+    running, since = 0.0, 0
+    for step in range(1, config.steps + 1):
+        lr = 0.5 * config.lr * (1.0 + math.cos(math.pi * (step - 1) / config.steps))
+        for group in optimiser.param_groups:
+            group["lr"] = lr
+        picked = torch.from_numpy(sampler.draw(config.batch)).to(device)
+        features, gather = on_device.features_and_gather(picked)
+        net.train()
+        loss = masked_cross_entropy(net(features), gather, device_targets[picked])
+        optimiser.zero_grad()
+        loss.backward()
+        clip_grad_norm_(net.parameters(), config.clip)
+        optimiser.step()
+        running += loss.item()
+        since += 1
+        if step % config.eval_every == 0 or step == config.steps:
+            net.eval()
+            entry = {
+                "step": step,
+                "loss": running / since,
+                "lr": lr,
+                "seconds": time.perf_counter() - started,
+                "rw_error": _device_error(net, on_device, device_targets, device_weights),
+            }
+            if seen_mask is not None:
+                mask = torch.from_numpy(seen_mask.astype(np.float32)).to(device)
+                entry["rw_error_seen"] = _device_error(net, on_device, device_targets, device_weights * mask)
+                entry["rw_error_unseen"] = _device_error(
+                    net, on_device, device_targets, device_weights * (1.0 - mask)
+                )
+            curve.append(entry)
+            running, since = 0.0, 0
+            unseen = f"  unseen {entry['rw_error_unseen']:.5f}" if "rw_error_unseen" in entry else ""
+            log(
+                f"step {step:>7,}  loss {entry['loss']:.5f}  rw_error {entry['rw_error']:.5f}{unseen}"
+                f"  lr {lr:.2e}  {entry['seconds']:.0f} s"
+            )
+    net = net.to("cpu")
+    if not all(torch.isfinite(parameter).all() for parameter in net.parameters()):
+        raise ValueError("the fit diverged: a weight is not finite")
+    net.eval()
+    return net, curve
+
+# ---------------------------------------------------------------------------
+# The freeze
+# ---------------------------------------------------------------------------
+
+def student_strategy(net: Net, *, teacher: StrategyInfo) -> FrozenStrategy:
+    """The student over every key: the softmax of its outputs at the legal columns, as a strategy the exact grader reads.
+
+    The info is the teacher's with `rule="distill"`: what was copied, from
+    which run, column, iteration and seed, so the file says what it is.
+    """
+    from drawmaha_solver.deepcfr.net import predict_by_point
+
+    built = layout()
+    flat = np.empty(int(built.column_offset[-1]), dtype=np.float64)
+    for p, outputs in predict_by_point(net):
+        shifted = np.exp(outputs.astype(np.float64) - outputs.max(axis=1, keepdims=True))
+        flat[built.column_offset[p] : built.column_offset[p + 1]] = (
+            shifted / shifted.sum(axis=1, keepdims=True)
+        ).ravel()
+    widths = np.repeat(built.width, np.diff(built.row_offset))
+    info = StrategyInfo(
+        rule="distill", column=teacher.column, iteration=teacher.iteration,
+        seed=teacher.seed, workers=teacher.workers,
+    )
+    return FrozenStrategy(flat.astype(np.float32), widths, info)
