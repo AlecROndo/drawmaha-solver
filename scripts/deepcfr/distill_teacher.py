@@ -19,13 +19,15 @@ hold (teacher vs copy) and what Deep CFR's training loses (copy vs Deep
 CFR).
 
 **The arms.** `ARMS` names each by depth × width and a suffix for what
-differs from the headline `4x256`: `-25k` fewer steps, `-unweighted` rows
-drawn uniformly instead of by reach, `-f0.1` / `-f0.5` trained on a random
-tenth / half of the rows and graded on the whole game. Every arm is
-100,000 Adam steps of 16,384 rows under a cosine schedule from 1e-3 unless
-its suffix says otherwise; the step count was chosen so that the headline's
-curve is flat well before the end, and the `-25k` arm shows what fewer
-would have cost.
+differs from the headline `4x256`: `-25k` / `-400k` fewer or more steps,
+`-unweighted` rows drawn uniformly instead of by reach, `-f0.1` / `-f0.5`
+trained on a random tenth / half of the rows and graded on the whole game.
+Every arm is 100,000 Adam steps of 16,384 rows under a cosine schedule
+from 1e-3 unless its suffix says otherwise. The headline's error curve was
+still easing down when the schedule reached zero (0.0452 → 0.0450 over the
+last 10,000 steps), so the `-400k` arm asks how much of the copy's gap to
+the teacher is optimisation rather than capacity, and `-25k` what fewer
+steps would have cost.
 
 **What is recorded per arm**: its config, the parameter count, the fit's
 seconds, the curve (`distill`'s entries), the frozen file's name and
@@ -88,12 +90,16 @@ ARMS: dict[str, DistillConfig] = {
     "4x512": replace(_HEADLINE, width=512),
     "4x1024": replace(_HEADLINE, width=1024),
     "4x256-25k": replace(_HEADLINE, steps=25_000),
+    "4x256-400k": replace(_HEADLINE, steps=400_000, eval_every=20_000),
     "4x256-unweighted": replace(_HEADLINE, weighted=False),
     "4x256-f0.5": replace(_HEADLINE, train_fraction=0.5),
     "4x256-f0.1": replace(_HEADLINE, train_fraction=0.1),
 }
 # The headline first, the biggest last, so a stopped pass has the answer.
-ORDER = ("4x256", "3x64", "3x128", "4x512", "4x256-25k", "4x256-unweighted", "4x256-f0.5", "4x256-f0.1", "4x1024")
+ORDER = (
+    "4x256", "3x64", "3x128", "4x512", "4x256-25k", "4x256-unweighted",
+    "4x256-f0.5", "4x256-f0.1", "4x1024", "4x256-400k",
+)
 
 # ---------------------------------------------------------------------------
 # The records
