@@ -9,7 +9,7 @@ import { linScale } from './scales'
  * KL divergence.
  */
 
-const W = 760
+const W = 860
 const H = 250
 const PANEL = { l: 54, r: 24, t: 26, b: 36 }
 const HALF = W / 2
@@ -50,22 +50,22 @@ export function LossShapes() {
           const curve = (f: (p: number, q: number) => number) => qs.map((q, i) => `${i ? 'L' : 'M'} ${x(q).toFixed(1)} ${y(Math.min(f(panel.p, q), Y_MAX)).toFixed(1)}`).join(' ')
           return (
             <g key={panel.p}>
-              <text x={x0} y={PANEL.t - 10} fontSize="10.5" fill="var(--panel-dim)">
+              <text x={x0} y={PANEL.t - 10} fontSize="10.5" fill="var(--ink-3)">
                 {panel.title}
               </text>
               {[0, 0.02, 0.04, 0.06].map((v) => (
                 <g key={v}>
-                  <line x1={x0} x2={x1} y1={y(v)} y2={y(v)} stroke="var(--panel-hair)" />
-                  <text x={x0 - 8} y={y(v) + 3.5} textAnchor="end" fontSize="10.5" fill="var(--panel-dim)">
+                  <line x1={x0} x2={x1} y1={y(v)} y2={y(v)} stroke="var(--grid)" />
+                  <text x={x0 - 8} y={y(v) + 3.5} textAnchor="end" fontSize="10.5" fill="var(--ink-3)">
                     {v.toFixed(2)}
                   </text>
                 </g>
               ))}
-              <line x1={x(panel.p)} x2={x(panel.p)} y1={PANEL.t} y2={H - PANEL.b} stroke="var(--panel-dim)" strokeDasharray="2 3" />
-              <text x={x(panel.p)} y={H - 14} textAnchor="middle" fontSize="10.5" fill="var(--panel-dim)">
+              <line x1={x(panel.p)} x2={x(panel.p)} y1={PANEL.t} y2={H - PANEL.b} stroke="var(--ink-3)" strokeDasharray="2 3" />
+              <text x={x(panel.p)} y={H - 14} textAnchor="middle" fontSize="10.5" fill="var(--ink-3)">
                 truth {panel.p}
               </text>
-              <text x={x1} y={H - 14} textAnchor="end" fontSize="10" fill="var(--panel-dim)">
+              <text x={x1} y={H - 14} textAnchor="end" fontSize="10" fill="var(--ink-3)">
                 Π's probability
               </text>
               <path d={curve(mse)} fill="none" stroke="var(--loss-mse)" strokeWidth={1.8} />

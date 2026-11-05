@@ -4,10 +4,13 @@
  *
  * A "mix" is the solver's action distribution over a region of the range —
  * fold, check/call, pot — and it is drawn the same way everywhere on the
- * page: fold in the quiet ink, check/call in the calm fill, pot in the hot
- * fill (`--fold-fill`, `--call-fill`, `--pot-fill` in index.css, one pair
- * for every mix on the page), left to right, with a 2 px gap of surface
- * between bands so adjacent fills never need a border.
+ * page, in GTO Wizard's convention shifted to the chip's palette: fold and
+ * check in the theme's blue, call in its green, pot in the oxblood. The
+ * band classes are `f`, `c` and `p`; their fills are `--rx-f`, `--rx-c` and
+ * `--rx-p`, set on the tool's root in index.css, where the `c` band turns
+ * blue at a node that opens the betting (a check) and green at a node that
+ * faces a bet (a call). Left to right, with a 2 px gap of paper between
+ * bands so adjacent fills never need a border.
  */
 
 import type { Mix } from '../engine/aggregate'
@@ -20,10 +23,27 @@ export const count = (n: number): string => n.toLocaleString('en-US')
 /** Cards sorted high to low so a hand reads the way a player fans it. */
 export const byRankDesc = (cards: readonly number[]): number[] => [...cards].sort((a, b) => b - a)
 
-/** One card face, spelled by the game. `size` is `sm` for a hand in a row of text, `lg` for the holding strip. */
+/** The suit's letter from its glyph, the class the theme's `.cardface` colours by. */
+export const suitKey = (glyph: string): string => ({ '♠': 's', '♥': 'h', '♦': 'd', '♣': 'c' })[glyph] ?? 's'
+
+/**
+ * One card face, spelled by the game: the theme's bleed pip (`.cardface`),
+ * the rank in the top-left and the suit glyph too big for the card,
+ * cropped by its lower-right edge, in the suit's ink. `size` is `sm` for a
+ * hand in a row of text, `lg` for the holding strip. A ghost is an empty
+ * slot. The span is one labelled image to a screen reader; the glyph is
+ * hidden so the name is not read twice.
+ */
 export function CardFace({ game, card, size = 'sm', ghost }: { game: GameUI; card?: number; size?: 'sm' | 'lg'; ghost?: boolean }) {
-  if (card === undefined || ghost) return <span className={`cf ${size} ghost`} aria-hidden />
-  return <span className={`cf ${size}${game.isRed(card) ? ' red' : ''}`}>{game.label(card)}</span>
+  if (card === undefined || ghost) return <span className={`cf ${size} cardface empty`} aria-hidden />
+  const label = game.label(card)
+  const glyph = label.slice(-1)
+  return (
+    <span className={`cf ${size} cardface su-${suitKey(glyph)}`} role="img" aria-label={label}>
+      <b>{label.slice(0, -1)}</b>
+      <i aria-hidden="true">{glyph}</i>
+    </span>
+  )
 }
 
 /** A fanned hand, high card first. */
@@ -37,13 +57,13 @@ export function Hand({ game, cards, size = 'sm' }: { game: GameUI; cards: readon
   )
 }
 
-/** The stacked mix bar. `h` is its height in px; the bands are proportional. */
+/** The stacked mix bar. `h` is its height in px; the bands are proportional, and an empty band is not drawn so it leaves no gap. */
 export function MixBar({ mix, h = 8, className }: { mix: Mix; h?: number; className?: string }) {
   return (
     <span className={['mixbar', className ?? ''].filter(Boolean).join(' ')} style={{ height: h }} aria-hidden>
-      <i className="f" style={{ width: `${mix.f * 100}%` }} />
-      <i className="c" style={{ width: `${mix.c * 100}%` }} />
-      <i className="p" style={{ width: `${mix.p * 100}%` }} />
+      {mix.f > 0 && <i className="f" style={{ width: `${mix.f * 100}%` }} />}
+      {mix.c > 0 && <i className="c" style={{ width: `${mix.c * 100}%` }} />}
+      {mix.p > 0 && <i className="p" style={{ width: `${mix.p * 100}%` }} />}
     </span>
   )
 }

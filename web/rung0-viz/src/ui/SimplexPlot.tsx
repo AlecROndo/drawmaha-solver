@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react'
 import type { Engine } from '../sim/engine'
 import type { Vec3 } from '../sim/game'
 import { ACTIONS } from '../sim/game'
-import { Panel } from './site'
+import { LegendKey } from './chartChrome'
+import { AVG, CUR } from './format'
+import { Figure } from './site'
 
 const SIZE = 470
 const PAD = 42
@@ -43,12 +45,12 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, SIZE, SIZE)
 
-    const axis = cssVar(canvas, '--panel-hair')
-    const muted = cssVar(canvas, '--panel-dim')
-    const ink2 = cssVar(canvas, '--panel-dim')
-    const curCol = cssVar(canvas, '--cur-obj')
-    const avgCol = cssVar(canvas, '--avg-obj')
-    const actionCols = [cssVar(canvas, '--rock'), cssVar(canvas, '--paper'), cssVar(canvas, '--scissors')]
+    const axis = cssVar(canvas, '--rule-2')
+    const muted = cssVar(canvas, '--ink-3')
+    const ink2 = cssVar(canvas, '--ink-2')
+    const curCol = cssVar(canvas, '--series-3')
+    const avgCol = cssVar(canvas, '--series-2')
+    const sans = cssVar(canvas, '--sans')
 
     // triangle
     const [rx, ry] = project([1, 0, 0])
@@ -63,22 +65,13 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
     ctx.closePath()
     ctx.stroke()
 
-    // vertex labels: action-colored dot, then the name in text ink
-    ctx.font = '12px "IBM Plex Mono", monospace'
-    const labels: [string, number, number, number][] = [
-      [ACTIONS[0], rx - 4, ry + 18, 0],
-      [ACTIONS[1], px - 38, py + 18, 1],
-      [ACTIONS[2], sx + 10, sy + 2, 2],
-    ]
-    ctx.textAlign = 'left'
-    for (const [name, x, yy, i] of labels) {
-      ctx.fillStyle = actionCols[i]
-      ctx.beginPath()
-      ctx.arc(x, yy - 3.5, 3.5, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.fillStyle = ink2
-      ctx.fillText(name, x + 7, yy)
-    }
+    // vertex labels in text ink: the corners are the pure strategies
+    ctx.font = `12px ${sans}`
+    ctx.fillStyle = ink2
+    ctx.textAlign = 'center'
+    ctx.fillText(ACTIONS[0], rx, ry + 20)
+    ctx.fillText(ACTIONS[1], px, py + 20)
+    ctx.fillText(ACTIONS[2], sx, sy - 12)
 
     // center mark (⅓, ⅓, ⅓)
     const [cx, cy] = project([1 / 3, 1 / 3, 1 / 3])
@@ -133,31 +126,46 @@ export function SimplexPlot({ engine, version }: { engine: Engine; version: numb
       ctx.beginPath()
       ctx.arc(ax1, ay1, 4.5, 0, Math.PI * 2)
       ctx.fill()
-      ctx.strokeStyle = cssVar(canvas, '--panel')
+      ctx.strokeStyle = cssVar(canvas, '--paper')
       ctx.lineWidth = 2
       ctx.stroke()
     }
+
+    // the Nash label goes on last, haloed in paper, so the spiral that ends
+    // on top of it never hides it
+    ctx.font = `11px ${sans}`
+    ctx.textAlign = 'left'
+    ctx.lineJoin = 'round'
+    ctx.strokeStyle = cssVar(canvas, '--paper')
+    ctx.lineWidth = 3
+    ctx.strokeText('Nash', cx + 9, cy + 18)
+    ctx.fillStyle = muted
+    ctx.fillText('Nash', cx + 9, cy + 18)
   }, [engine, version])
 
+  // Only self-play has an orbit: a fixed opponent's regret grows without end
+  // for the one action that beats it, so both estimates head for that corner.
+  const mode = engine.config.mode
+  const title =
+    mode === 'self-play'
+      ? 'The average spirals in to the Nash; the current strategy orbits it'
+      : mode === 'vs-fixed'
+        ? 'Against a fixed opponent both strategies head for the corner that beats it'
+        : 'Against you the strategy follows your habits around the triangle'
+
   return (
-    <Panel
-      n="02"
-      k="Fig. 2 · the simplex"
-      title="The average spirals in, the current strategy orbits"
-      say="Each point is a strategy; the corners are pure rock, paper and scissors. The faint trail is the last 300 rounds of σ."
+    <Figure
+      n="Figure 2"
+      id="fig-2"
+      title={title}
+      sub="Each point is a strategy; the corners are pure rock, paper and scissors."
       label="Strategy simplex"
     >
       <div className="legend">
-        <span className="item">
-          <span className="swatch" style={{ background: 'var(--avg-obj)' }} />
-          average S/n, every round so far
-        </span>
-        <span className="item">
-          <span className="swatch" style={{ background: 'var(--cur-obj)' }} />
-          current σ, last 300 rounds
-        </span>
+        <LegendKey color={AVG}>average S/n, every round so far</LegendKey>
+        <LegendKey color={CUR}>current σ, the last 300 rounds</LegendKey>
       </div>
-      <canvas ref={canvasRef} style={{ width: '100%', maxWidth: SIZE, display: 'block' }} />
-    </Panel>
+      <canvas ref={canvasRef} className="simplex" />
+    </Figure>
   )
 }

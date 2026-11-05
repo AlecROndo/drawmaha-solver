@@ -25,18 +25,18 @@ describe('describeStrategy', () => {
     const words = describeStrategy(
       manifest({ rule: 'lcfr', column: 'linear', iteration: 2_000_000, workers: 10 }, { exploitability: 0.06134626307457512, valueP0: -0.0906451773437125, handsPerSeat: 20_000_000, file: 'f', key: 'k' }),
     )
-    expect(words).toEqual({ name: 'rung-3 LCFR · tabular', detail: '2,000,000 iterations × 10 workers · 20M hands per seat', grade: '0.061' })
+    expect(words).toEqual({ name: 'tabular LCFR', detail: '2,000,000 iterations × 10 workers · 20M hands per seat', grade: '0.061' })
   })
   it('names Π and the exact average by their column', () => {
     const pi = describeStrategy(manifest({ rule: 'deep', column: 'pi', iteration: 500, workers: 0 }, { exploitability: 0.13634085589731734, valueP0: -0.1, handsPerSeat: 5_000_000, file: 'f', key: 'k' }))
-    expect(pi).toEqual({ name: 'rung-4 Deep CFR · Π, the policy net', detail: 'iteration 500 · 5M hands per seat', grade: '0.136' })
+    expect(pi).toEqual({ name: 'Deep CFR · Π, the policy net', detail: 'iteration 500 · 5M hands per seat', grade: '0.136' })
     const exact = describeStrategy(manifest({ rule: 'deep', column: 'exact', iteration: 500, workers: 0 }, { exploitability: 0.10794019398465793, valueP0: -0.1, handsPerSeat: 5_000_000, file: 'f', key: 'k' }))
-    expect(exact.name).toBe('rung-4 Deep CFR · the exact average')
+    expect(exact.name).toBe('Deep CFR · the exact average')
     expect(exact.grade).toBe('0.108')
   })
   it('reads a deal-pack manifest, which carries only the two blocks', () => {
     const { strategy, grade } = manifest({ rule: 'deep', column: 'exact', iteration: 200, workers: 0 }, { exploitability: 0.08591359915074376, valueP0: -0.10580907636152471, handsPerSeat: 2_000_000, file: 'f', key: 'k' })
-    expect(describeStrategy({ strategy, grade })).toEqual({ name: 'rung-4 Deep CFR · the exact average', detail: 'iteration 200 · 2M hands per seat', grade: '0.086' })
+    expect(describeStrategy({ strategy, grade })).toEqual({ name: 'Deep CFR · the exact average', detail: 'iteration 200 · 2M hands per seat', grade: '0.086' })
   })
   it('has no grade to quote when the manifest carries none', () => {
     const words = describeStrategy(manifest({ rule: 'test', iteration: 1, workers: 1 }, null))

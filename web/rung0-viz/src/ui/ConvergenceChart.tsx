@@ -1,6 +1,6 @@
 import type { Engine } from '../sim/engine'
 import { ACTIONS } from '../sim/game'
-import { ACTION_COLORS, fmt } from './format'
+import { ACTION_DASH, AVG, fmt } from './format'
 import { makeLogX, spreadLabels } from './chartScale'
 import {
   ChartTooltip,
@@ -8,11 +8,12 @@ import {
   EdgeLabel,
   FULL,
   HoverCrosshair,
+  LegendKey,
   YGridline,
   useChartHover,
   type ChartBox,
 } from './chartChrome'
-import { Panel } from './site'
+import { Figure } from './site'
 
 const BOX: ChartBox = { ...FULL, l: 50, r: 90, t: 14, b: 30 }
 
@@ -20,6 +21,8 @@ const BOX: ChartBox = { ...FULL, l: 50, r: 90, t: 14, b: 30 }
  * Average-strategy components vs iteration, log x, dashed reference at ⅓.
  * Runs the full width of the container: it is one long time axis, and cutting
  * it to half a column would throw away the decades that make the walk read.
+ * All three lines are the average, so all three are the accent; the actions
+ * are told apart by dash and by the label at the right edge.
  */
 export function ConvergenceChart({ engine }: { engine: Engine }) {
   const history = engine.history
@@ -33,26 +36,31 @@ export function ConvergenceChart({ engine }: { engine: Engine }) {
       .join('')
 
   const last = history[history.length - 1]
+  const mode = engine.config.mode
+  const title =
+    mode === 'self-play'
+      ? "Each action's share of the average walks to one third"
+      : mode === 'vs-fixed'
+        ? 'Against a fixed opponent the average walks to the action that beats it'
+        : 'Against you the average moves toward what beats your throws'
 
   return (
-    <Panel
-      n="05"
+    <Figure
+      n="Figure 5"
       wide
-      k="Fig. 5 · convergence"
-      title="Each component of the average walks to one third"
-      say="The running average of σ, per action, on a log time axis."
+      title={title}
+      sub="The average S/n per action, against rounds on a log axis. The grey dash is ⅓, the uniform Nash."
       label="Convergence of the average strategy"
     >
       <div className="legend">
         {ACTIONS.map((name, i) => (
-          <span className="item" key={name}>
-            <span className="swatch" style={{ background: ACTION_COLORS[i] }} />
+          <LegendKey key={name} color={AVG} dash={ACTION_DASH[i]}>
             {name}
-          </span>
+          </LegendKey>
         ))}
-        <span className="item">
-          <span className="swatch" style={{ background: 'var(--panel-dim)' }} />⅓, the uniform Nash
-        </span>
+        <LegendKey color="var(--ink-3)" dash="4 3">
+          ⅓, the uniform Nash
+        </LegendKey>
       </div>
       <div className="chart-wrap" ref={wrapRef}>
         <svg viewBox={`0 0 ${BOX.w} ${BOX.h}`} onMouseMove={onMove} onMouseLeave={onLeave}>
@@ -65,7 +73,7 @@ export function ConvergenceChart({ engine }: { engine: Engine }) {
             x2={BOX.w - BOX.r}
             y1={y(1 / 3)}
             y2={y(1 / 3)}
-            stroke="var(--panel-dim)"
+            stroke="var(--ink-3)"
             strokeDasharray="4 3"
           />
           {history.length > 1 &&
@@ -74,8 +82,9 @@ export function ConvergenceChart({ engine }: { engine: Engine }) {
                 key={i}
                 d={path(i)}
                 fill="none"
-                stroke={ACTION_COLORS[i]}
+                stroke={AVG}
                 strokeWidth="2"
+                strokeDasharray={ACTION_DASH[i]}
                 strokeLinejoin="round"
               />
             ))}
@@ -84,12 +93,12 @@ export function ConvergenceChart({ engine }: { engine: Engine }) {
             (() => {
               const ys = spreadLabels(
                 [0, 1, 2].map((i) => y(last.avg[i])),
-                13,
+                14,
                 BOX.t + 6,
                 BOX.h - BOX.b - 4,
               )
               return ACTIONS.map((name, i) => (
-                <EdgeLabel key={name} y={ys[i]} color={ACTION_COLORS[i]} text={name} box={BOX} />
+                <EdgeLabel key={name} y={ys[i]} color={AVG} dash={ACTION_DASH[i]} text={name} box={BOX} />
               ))
             })()}
           {hover && (
@@ -100,29 +109,26 @@ export function ConvergenceChart({ engine }: { engine: Engine }) {
                   key={i}
                   cx={scale.x(hover.t)}
                   cy={y(hover.avg[i])}
-                  r={3}
-                  fill={ACTION_COLORS[i]}
-                  stroke="var(--panel)"
-                  strokeWidth="1.5"
+                  r={4}
+                  fill={AVG}
+                  stroke="var(--paper)"
+                  strokeWidth="2"
                 />
               ))}
             </g>
           )}
         </svg>
         {hover && wrapRef.current && (
-          <ChartTooltip x={scale.x(hover.t)} wrap={wrapRef.current} clamp={130} t={hover.t} box={BOX}>
+          <ChartTooltip x={scale.x(hover.t)} wrap={wrapRef.current} clamp={150} t={hover.t} box={BOX}>
             {ACTIONS.map((name, i) => (
               <div className="row" key={name}>
-                <span className="chip">
-                  <span className="dot" style={{ background: ACTION_COLORS[i], width: 7, height: 7 }} />
-                  {name}
-                </span>
+                <span>{name}</span>
                 <span className="val">{fmt(hover.avg[i])}</span>
               </div>
             ))}
           </ChartTooltip>
         )}
       </div>
-    </Panel>
+    </Figure>
   )
 }

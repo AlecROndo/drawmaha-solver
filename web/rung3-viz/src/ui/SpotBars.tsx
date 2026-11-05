@@ -20,7 +20,7 @@ function Spot({ fig }: { fig: SpotFigure }) {
             <span className="cat">{CATEGORY_NAME[row.category]}</span>
             <span className="mix" role="img" aria-label={fig.columns.map((c, i) => `${c} ${(row.mix[i] * 100).toFixed(0)}%`).join(', ')}>
               {row.mix.map((v, i) => (
-                <i key={fig.columns[i]} style={{ flex: `${v} 0 0`, background: inkFor(fig.columns[i]) }}>
+                <i key={fig.columns[i]} style={{ flex: `${v} 0 0`, background: inkFor(fig.columns[i]), color: fig.columns[i] === 'throw low' ? 'var(--ink)' : 'var(--paper)' }}>
                   {v > 0.12 && <small>{pct(v)}</small>}
                 </i>
               ))}
@@ -33,22 +33,24 @@ function Spot({ fig }: { fig: SpotFigure }) {
 }
 
 export function SpotBars({ figures }: { figures: SpotFigure[] }) {
-  const columns = figures[figures.length - 1].columns
+  // one legend entry per colour, in first-seen order: the check and the fold
+  // share the quiet blue and never meet in one spot, so they share an entry
+  const keys: { ink: string; words: string[] }[] = []
+  for (const c of figures.flatMap((f) => f.columns)) {
+    const ink = inkFor(c)
+    const at = keys.find((k) => k.ink === ink)
+    if (!at) keys.push({ ink, words: [c] })
+    else if (!at.words.includes(c)) at.words.push(c)
+  }
   return (
     <>
       <div className="legend">
-        {columns.map((c) => (
-          <span key={c} className="item">
-            <span className="swatch" style={{ background: inkFor(c) }} />
-            {c}
+        {keys.map((k) => (
+          <span key={k.ink} className="item">
+            <span className="swatch sq" style={{ background: k.ink }} />
+            {k.words.join(' / ')}
           </span>
         ))}
-        {figures[0].columns.length !== columns.length && (
-          <span className="item">
-            <span className="swatch" style={{ background: inkFor(figures[0].columns[1]) }} />
-            {figures[0].columns[1]}
-          </span>
-        )}
       </div>
       <div className="spots">
         {figures.map((fig) => (

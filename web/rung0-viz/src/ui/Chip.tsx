@@ -1,12 +1,7 @@
 import type { Action } from '../sim/game'
-import { ACTION_COLORS, actionName } from './format'
+import { actionName } from './format'
 
-/** Action name in text ink with a colored dot carrying identity. */
-export function Chip({ a, label }: { a: Action; label?: string }) {
-  return (
-    <span className="chip">
-      <span className="dot" style={{ background: ACTION_COLORS[a] }} />
-      {label ?? actionName(a)}
-    </span>
-  )
+/** An action named in ink. Colour on this page belongs to the average and the iterate, not to an action. */
+export function Chip({ a }: { a: Action }) {
+  return <span className="act">{actionName(a)}</span>
 }

@@ -1,5 +1,52 @@
 import { describe, expect, it } from 'vitest'
-import { formatHash, parseHash } from './learn'
+import { addressOf, formatHash, parseHash, parseLocation } from './learn'
+
+describe('parseLocation', () => {
+  // Vercel rewrites /research, /learn and /play to this app's index.html, so
+  // the path names the tab when the hash does not.
+  it('opens the tab the path names', () => {
+    expect(parseLocation('/play', '')).toMatchObject({ tab: 'play' })
+    expect(parseLocation('/learn', '')).toMatchObject({ tab: 'learn' })
+    expect(parseLocation('/research', '')).toMatchObject({ tab: 'research' })
+    expect(parseLocation('/rung3', '')).toMatchObject({ tab: 'research' })
+    expect(parseLocation('/rung3/', '')).toMatchObject({ tab: 'research' })
+  })
+  it('reads a trailing slash, and gives a bare /learn the Learn defaults', () => {
+    expect(parseLocation('/play/', '')).toMatchObject({ tab: 'play' })
+    expect(parseLocation('/learn', '')).toEqual({ tab: 'learn', view: 'range', strategy: 'tabular' })
+  })
+  it('lets the hash win when it names a tab', () => {
+    expect(parseLocation('/rung3', '#play')).toMatchObject({ tab: 'play' })
+    expect(parseLocation('/play', '#research')).toMatchObject({ tab: 'research' })
+    expect(parseLocation('/research', '#learn/versus/deep-pi')).toEqual({ tab: 'learn', view: 'versus', strategy: 'deep-pi' })
+  })
+  it('keeps the path when the hash names no tab, such as a chapter anchor', () => {
+    expect(parseLocation('/play', '#nope')).toMatchObject({ tab: 'play' })
+    expect(parseLocation('/research', '#ch-03')).toMatchObject({ tab: 'research' })
+  })
+})
+
+describe('addressOf', () => {
+  const learn = { tab: 'learn', view: 'versus', strategy: 'deep-pi' } as const
+  it('moves between the product paths when the page was opened at one', () => {
+    expect(addressOf('/research', { ...learn, tab: 'play' })).toBe('/play')
+    expect(addressOf('/play', learn)).toBe('/learn#learn/versus/deep-pi')
+    expect(addressOf('/learn', { ...learn, tab: 'research' })).toBe('/research')
+  })
+  it('writes only the hash under /rung3, where the old links live', () => {
+    expect(addressOf('/rung3/', { ...learn, tab: 'play' })).toBe('#play')
+    expect(addressOf('/rung3', learn)).toBe('#learn/versus/deep-pi')
+  })
+  it('round-trips through parseLocation', () => {
+    for (const path of ['/research', '/play', '/learn', '/rung3/']) {
+      for (const tab of ['research', 'play', 'learn'] as const) {
+        const page = { ...learn, tab }
+        const url = new URL(addressOf(path, page), `https://drawmaha.app${path}`)
+        expect(parseLocation(url.pathname, url.hash).tab).toBe(tab)
+      }
+    }
+  })
+})
 
 describe('parseHash', () => {
   it('reads the two old tabs as before', () => {

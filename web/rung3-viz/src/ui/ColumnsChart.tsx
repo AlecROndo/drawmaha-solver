@@ -10,7 +10,7 @@ import { RULE_INK } from '../inks'
  * quadratic average edges its linear one.
  */
 
-const W = 560
+const W = 860
 const H = 230
 const M = { l: 54, r: 20, t: 18, b: 44 }
 
@@ -36,8 +36,8 @@ export function ColumnsChart() {
       <svg className="chart columns" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Averaging columns at the end of the race">
         {[0, 10, 20, 30, 40].map((v) => (
           <g key={v}>
-            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--panel-hair)" />
-            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--grid)" />
+            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {v}
             </text>
           </g>
@@ -62,10 +62,10 @@ export function ColumnsChart() {
                       stroke={p.column === 'linear' ? 'none' : RULE_INK[rule]}
                       strokeDasharray={p.column === 'quadratic' ? '3 3' : undefined}
                     />
-                    <text x={x + barW / 2} y={y(v) - 6} textAnchor="middle" fontSize="11" fill="var(--panel-mark)">
+                    <text x={x + barW / 2} y={y(v) - 6} textAnchor="middle" fontSize="11" fill="var(--ink)">
                       {v.toFixed(1)}
                     </text>
-                    <text x={x + barW / 2} y={y(0) + 13} textAnchor="middle" fontSize="9.5" fill="var(--panel-dim)">
+                    <text x={x + barW / 2} y={y(0) + 13} textAnchor="middle" fontSize="9.5" fill="var(--ink-3)">
                       {p.column === 'linear' ? 't' : p.column === 'uniform' ? '1' : 't²'}
                     </text>
                   </g>

@@ -5,7 +5,7 @@ does, what reduced motion keeps — and this is where it is enforced, because
 the next edit to a minified `<style>` block or a copied theme is exactly the
 kind of thing a reviewer reads past. What is checked, per stylesheet:
 
-- the motion tokens exist in every `:root` and agree across the four copies;
+- the motion tokens exist in every `:root` and agree across the five copies;
 - no `transition: all`, no `ease-in`, and no hard-coded curve outside the
   tokens except in a figure that is allowlisted with its reason;
 - nothing in the chrome runs over 300 ms, and only `transform`/`opacity`
@@ -19,6 +19,10 @@ kind of thing a reviewer reads past. What is checked, per stylesheet:
 
 Durations are read as every `<n>s` / `<n>ms` in a declaration, delays
 included: a 300 ms delay is a wait the user feels just as a 300 ms slide is.
+
+The static pages link the apps' theme (`/theme.css`), so a page is read as its
+inline `<style>` blocks plus the theme; the archived Cover still inlines the
+old chrome and is read alone.
 
 Adding motion that breaks a rule on purpose means adding its selector to
 `EXPLANATORY` with a one-line reason, the way the existing ones are.
@@ -35,7 +39,7 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 
 APPS = ("rung0-viz", "rung1-viz", "rung2-viz", "rung3-viz", "solver-viz")
-PAGES = ("index.html", "rules.html", "cover.html")
+PAGES = ("index.html", "rules.html", "benchmarks.html", "releases.html", "wiki.html", "cover.html")
 
 TOKENS = ("--ease-out", "--ease-in-out", "--t-press")
 TOKEN_VALUES = {
@@ -51,66 +55,71 @@ PRESS_RANGE = (0.95, 0.98)
 # itself, a section arriving on scroll, a status pulse. Each is allowed to
 # exceed 300 ms, to own a curve, or to animate a layout property — and each
 # says why. Matched inside the rule's selector at a selector boundary, so
-# `.card` covers `.card.lit` and `.card .n` but not `.cardinal`.
+# `.sweep` covers `.sweep.from-you` but not `.sweeper`. An entry must still
+# match a rule that moves; the first test below refuses a ghost.
 EXPLANATORY = {
-    ".reveal": "a section arriving on scroll, seen once per visit; 550 ms travel",
-    ".beat": "the Rules hand's current beat lights as it reaches mid-screen",
-    ".fig ": "the ladder's figures draw themselves once as they scroll in",
-    ".meter .track": "the Leduc meter fills once; its fill is a gradient scaleX would squash",
-    ".sizes .bar": "the Rules tab's game-size bars fill once on scroll",
-    ".act .bar": "the homepage's action-mix bars, a reading not a control",
-    ".bars .b i": "the homepage's side-panel strategy bars, a reading not a control",
-    ".console .prog .bar": "a progress bar: linear, 120 ms, tracks a live counter",
-    ".live i": "the live dot's pulse, 2 s, constant",
-    ".st i": "the in-progress status dot's pulse",
-    ".st.prog i": "the ladder's in-progress badge pulse",
-    ".st::before": "the Cover ladder's in-progress dot pulse",
+    ".live i": "the archived Cover's live dot, a 2 s constant pulse",
+    ".st::before": "the archived Cover's in-progress dot pulse on its ladder",
     ".sweep": "rungs 2 and 3's chips crossing 58 px of felt to the pot, one-shot, 400 ms",
-    ".rungs-menu": "the Rungs menu animates width on purpose: it pushes Rules aside",
-    ".card": "the Rules tab's worked-hand cards, highlighted once by the reading",
+    ".rungs-menu": "the old chrome's Rungs menu animates width on purpose; only the archived Cover still inlines it",
 }
 
 # Every pressable thing, per stylesheet. A pressable has `.x:active` with a
 # scale in range and `transform` in its base transition list.
 PRESSABLES = {
-    "theme": (".btn", ".navbtn", ".view", ".rmain", ".racts a"),
-    "rung0-viz": (".mode-tabs button",),
-    "rung1-viz": (".locks button.unlock",),
+    "theme": (".btn", ".navbtn", ".view", ".seg button", ".radios label", ".rail a"),
+    # rung 0's switches are the theme's .seg and rung 1's unlock its .btn
+    "rung0-viz": (),
+    "rung1-viz": (),
     "rung2-viz": (".tl button.stn", ".next button", ".lockbtn"),
-    # rung 3's buttons are the theme's .btn; the research page's contents rail is its one pressable
-    "rung3-viz": (".contents a",),
+    # rung 3's buttons are the theme's .btn and its contents rail the theme's .rail
+    "rung3-viz": (),
     # the range interface: the score's chips, the header's controls, the filter
     # chips, the grid's cells, the ledger's rows, the ribbon's keys, the deck,
     # and the hand so far's steps, options, board cards and picker cards
-    "solver-viz": (".score .act", ".hbtn", ".seg button", ".cell", ".lrow", ".key", ".dcard", ".sofar .tok", ".sofar .opt", ".sofar .bp", ".sofar .pk"),
-    "index.html": (
-        ".btn",
-        ".navbtn",
-        ".rmain",
-        ".racts a",
-        ".console button",
-        ".titlebar .tabs a",
-        ".seg button",
-        ".act",
-        ".playbtns button",
-    ),
-    "rules.html": (".btn", ".navbtn", ".rmain", ".racts a"),
+    "solver-viz": (".score .act", ".hbtn", ".cell", ".lrow", ".key", ".dcard", ".sofar .tok", ".sofar .opt", ".sofar .bp", ".sofar .pk"),
+    # the pages read their chrome from the linked theme; the Cover, kept as an
+    # archive, still inlines the old chrome and its Rungs menu
+    "index.html": (".btn", ".navbtn"),
+    "rules.html": (".btn", ".navbtn"),
+    "benchmarks.html": (".btn", ".navbtn"),
+    "releases.html": (".btn", ".navbtn"),
+    # the wiki's tabs and both its rails are the theme's .view and .rail a
+    "wiki.html": (".btn", ".navbtn", ".wk-card", ".wk-pager a"),
     "cover.html": (".btn", ".navbtn", ".rmain", ".racts a"),
 }
+
+# The tokens of the field the site left (`--yellow`, `--pink`, the black
+# `--field`, the `--ivory` ink, the `--ox` brand pair): gone from every sheet
+# but the archived Cover.
+RETIRED_TOKENS = ("--yellow", "--pink", "--field", "--ivory", "--ox", "--ox-lit")
+ARCHIVED = ("cover.html",)
 
 
 # ---------------------------------------------------------------- the CSS
 
 
+THEME_LINK = 'href="/theme.css"'
+
+
 def _sheets() -> dict[str, str]:
-    sheets = {"theme": (WEB / APPS[0] / "src" / "theme.css").read_text()}
+    """One sheet per app, plus the theme, plus what each static page is styled by.
+
+    A page that links `/theme.css` (the build serves the apps' theme at that
+    path) is read as its inline `<style>` blocks followed by the theme, so its
+    tokens are found and its pressables resolve to the theme's rules. A page
+    that still inlines its own chrome is read as its `<style>` blocks alone.
+    """
+    theme = (WEB / APPS[0] / "src" / "theme.css").read_text()
+    sheets = {"theme": theme}
     for app in APPS:
         sheets[app] = (WEB / app / "src" / "index.css").read_text()
     for page in PAGES:
         html = (WEB / "cover" / page).read_text()
         styles = re.findall(r"<style>(.*?)</style>", html, re.DOTALL)
-        assert styles, f"{page} has no <style> block — the regex stopped matching"
-        sheets[page] = "\n".join(styles)
+        linked = THEME_LINK in html
+        assert styles or linked, f"{page} has no <style> block and links no theme — the regex stopped matching"
+        sheets[page] = "\n".join([*styles, theme] if linked else styles)
     return sheets
 
 
@@ -201,6 +210,22 @@ def _motion_values(rule: Rule) -> list[str]:
     return values
 
 
+# ------------------------------------------------------------ the allowlist
+
+
+@pytest.mark.parametrize("key", sorted(EXPLANATORY))
+def test_every_allowlisted_selector_names_a_rule_that_moves(key: str) -> None:
+    """An entry that exempts nothing is a ghost, and a ghost hides the next real exception."""
+    pattern = rf"{re.escape(key)}(?![\w-])"
+    moving = [
+        f"{name}: {rule!r}"
+        for name, rules in RULES.items()
+        for rule in rules
+        if re.search(pattern, rule.selector) and _motion_values(rule)
+    ]
+    assert moving, f"EXPLANATORY names {key!r}, which matches no rule that moves; delete the entry"
+
+
 # -------------------------------------------------------------- the tokens
 
 
@@ -217,6 +242,50 @@ def test_the_motion_tokens_are_declared_and_agree(name: str) -> None:
         assert got == TOKEN_VALUES[token], (
             f"{name}: {token} is {got}, the standard says {TOKEN_VALUES[token]}"
         )
+
+
+def test_retired_tokens_are_gone() -> None:
+    """No sheet but the archived Cover names a token of the black field."""
+    offenders = {}
+    for name, css in SHEETS.items():
+        if name in ARCHIVED:
+            continue
+        found = sorted(t for t in RETIRED_TOKENS if re.search(rf"{re.escape(t)}(?![\w-])", css))
+        if found:
+            offenders[name] = found
+    assert not offenders, f"retired tokens still named: {offenders}"
+
+
+# -------------------------------------------------------------- the card
+
+
+# The theme's `.cardface` and every surface class that wears it. A card's
+# rank is its own `<b>` and its pip its own `<i>`, both direct children.
+CARD_CLASSES = (".cardface", ".cf", ".dcard", ".pcard", ".cardglyph", ".pc")
+_CARD = "|".join(re.escape(c) for c in CARD_CLASSES)
+# a card class (whole, so `.cf` is not `.cfx`), any further classes or
+# pseudo-classes on the same element, then a *descendant* `b` or `i`
+DESCENDANT_PIP = re.compile(rf"(?:{_CARD})(?![\w-])[\w.:()-]*\s+[bi](?![\w-])")
+
+
+@pytest.mark.parametrize("name", sorted(SHEETS))
+def test_a_card_reaches_only_its_own_rank_and_pip(name: str) -> None:
+    """Every rank or pip rule on a card is `card > b` / `card > i`, never `card b`.
+
+    A descendant selector would reach every `<b>` and `<i>` a surface nests
+    inside a card for its own purpose, and draw it as a pip: absolutely
+    positioned past the card's lower-right edge, at pip size, under the card's
+    `overflow: hidden`. The solver's deck tile carries its pot-lift bar that
+    way, `<span class="bar"><i></i></span>`, and that fill was pushed out of
+    the card and clipped until the rules were scoped to direct children.
+    """
+    offenders = [
+        rule.selector
+        for rule in RULES[name]
+        for part in rule.selector.split(",")
+        if DESCENDANT_PIP.search(part.strip())
+    ]
+    assert not offenders, f"{name}: a card rule reaches a descendant, not a child: {offenders}"
 
 
 # ------------------------------------------------------------ the curves
@@ -353,7 +422,17 @@ def test_a_hover_that_moves_something_is_gated_on_a_real_pointer(name: str) -> N
 @pytest.mark.parametrize("name", sorted(SHEETS))
 def test_reduced_motion_is_fewer_and_gentler_not_none(name: str) -> None:
     reduced = [r for r in RULES[name] if _reduced(r)]
-    assert reduced, f"{name}: no @media (prefers-reduced-motion: reduce) block"
+    # A sheet whose only motion is colour (its presses are the theme's, it
+    # animates and travels nothing) has nothing to quiet and needs no block.
+    travels = any(
+        re.search(r"\btransform\b", v) or "animation" in v or rule.declarations("animation")
+        for rule in RULES[name]
+        if not _reduced(rule)
+        for v in rule.declarations("transition") + [""]
+    )
+    assert reduced or not (travels or PRESSABLES.get(name)), (
+        f"{name}: no @media (prefers-reduced-motion: reduce) block"
+    )
     for rule in reduced:
         if rule.selector.strip() == "*":
             assert "!important" not in rule.body, (
@@ -508,13 +587,12 @@ def test_every_pulse_and_travel_is_quieted_under_reduced_motion(name: str) -> No
 # than remembered: a rule added to either that names a selector the other
 # also names would restyle the research and play tabs silently, the later
 # sheet winning. The guest may agree with what /rung3 already loads only on
-# `:root`, declaring tokens of its own, and `.block`, declaring the same
-# thing; and it reaches the shared chrome — the wrap, the hero copy — only
+# `:root`, declaring tokens of its own; and it reaches the shared chrome — the wrap, the hero copy — only
 # under `body.wide`, which /rung3 sets while Learn shows and never otherwise.
 
 GUEST = "solver-viz"
 LOADED_BY_RUNG3 = ("rung3-viz", "theme")
-SHARED_SELECTORS = {":root", ".block"}
+SHARED_SELECTORS = {":root"}
 WIDE = "body.wide "
 
 
@@ -531,12 +609,8 @@ def _tokens(rules: list[Rule]) -> set[str]:
     return {m.group(1) for rule in rules for m in re.finditer(r"(--[\w-]+)\s*:", rule.body)}
 
 
-def _bodies(rules: list[Rule]) -> list[list[str]]:
-    return [rule.body.split() for rule in rules]
-
-
 @pytest.mark.parametrize("host", LOADED_BY_RUNG3)
-def test_the_solver_sheet_shares_only_root_and_block_with_what_rung3_loads(host: str) -> None:
+def test_the_solver_sheet_shares_only_root_with_what_rung3_loads(host: str) -> None:
     guest, other = _by_selector(GUEST), _by_selector(host)
     collisions = (set(guest) & set(other)) - SHARED_SELECTORS
     assert not collisions, (
@@ -544,8 +618,6 @@ def test_the_solver_sheet_shares_only_root_and_block_with_what_rung3_loads(host:
         "the later sheet wins on every tab, not only Learn"
     )
     assert not _tokens(guest[":root"]) & _tokens(other[":root"]), "the two :root blocks redefine a token"
-    if ".block" in other:
-        assert _bodies(guest[".block"]) == _bodies(other[".block"]), ".block is declared differently by the two sheets"
 
 
 def test_the_solver_sheet_reaches_the_chrome_only_under_body_wide() -> None:
@@ -562,29 +634,3 @@ def test_the_solver_sheet_reaches_the_chrome_only_under_body_wide() -> None:
     for selector in gated:
         for cls in re.findall(r"\.[\w-]+", selector[len(WIDE) :]):
             assert cls in theme_classes, f"{selector!r} gates {cls}, which the theme does not declare"
-
-
-# ------------------------------------------------- the harbour pair, twice
-# /rung3's trainer draws the coach's mix in the harbour pair Learn's grid
-# uses, under its own token names (`--mix-call` / `--mix-pot`) because the two
-# sheets share one page and may not share a `:root` token (the overlap test
-# above). A hand-kept copy drifts; this holds it to the original, so a retune
-# of the pair in solver-viz fails here until the trainer follows.
-
-HARBOUR_PAIR = {"--mix-call": "--call-fill", "--mix-pot": "--pot-fill"}
-
-
-def _declared(name: str, token: str) -> str:
-    """The value a sheet declares for a token, comments stripped first (the solver sheet keeps the losing pairs in one)."""
-    css = re.sub(r"/\*.*?\*/", "", SHEETS[name], flags=re.DOTALL)
-    found = re.findall(rf"{re.escape(token)}\s*:\s*([^;}}]+)", css)
-    assert len(found) == 1, f"{name} declares {token} {len(found)} times; expected exactly once"
-    return found[0].strip()
-
-
-@pytest.mark.parametrize(("copy", "original"), sorted(HARBOUR_PAIR.items()))
-def test_the_trainers_mix_pair_is_learns_harbour_pair(copy: str, original: str) -> None:
-    assert _declared("rung3-viz", copy) == _declared(GUEST, original), (
-        f"rung3-viz declares {copy} as {_declared('rung3-viz', copy)} but {GUEST} has {original} as "
-        f"{_declared(GUEST, original)}: the trainer's mix bands no longer match Learn's"
-    )

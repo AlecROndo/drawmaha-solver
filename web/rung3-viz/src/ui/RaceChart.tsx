@@ -22,7 +22,7 @@ import { RULE_INK } from '../inks'
  * a checkpoint to read the four numbers at that column.
  */
 
-const W = 560
+const W = 860
 const H = 300
 const M = { l: 54, r: 112, t: 26, b: 34 }
 
@@ -85,24 +85,24 @@ export function RaceChart() {
       >
         {Y_TICKS.map((v) => (
           <g key={v}>
-            <line x1={M.l} x2={W - M.r} y1={logy(v)} y2={logy(v)} stroke="var(--panel-hair)" />
-            <text x={M.l - 8} y={logy(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
+            <line x1={M.l} x2={W - M.r} y1={logy(v)} y2={logy(v)} stroke="var(--grid)" />
+            <text x={M.l - 8} y={logy(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--ink-3)">
               {v}
             </text>
           </g>
         ))}
         {X_TICKS.map((v) => (
           <g key={v}>
-            <line x1={logx(v)} x2={logx(v)} y1={M.t} y2={H - M.b} stroke="var(--panel-hair)" />
-            <text x={logx(v)} y={H - 12} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+            <line x1={logx(v)} x2={logx(v)} y1={M.t} y2={H - M.b} stroke="var(--grid)" />
+            <text x={logx(v)} y={H - 12} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
               {hands(v)}
             </text>
           </g>
         ))}
-        <text x={W - M.r + 8} y={H - 12} fontSize="10" fill="var(--panel-dim)">
+        <text x={W - M.r + 8} y={H - 12} fontSize="10" fill="var(--ink-3)">
           hands / seat
         </text>
-        <text x={4} y={M.t - 12} fontSize="10" fill="var(--panel-dim)">
+        <text x={4} y={M.t - 12} fontSize="10" fill="var(--ink-3)">
           chips / 100 hands
         </text>
 
@@ -112,14 +112,14 @@ export function RaceChart() {
           x2={W - M.r}
           y1={logy(perHundred(UNIFORM_RANDOM.exploitability))}
           y2={logy(perHundred(UNIFORM_RANDOM.exploitability))}
-          stroke="var(--panel-dim)"
+          stroke="var(--ink-3)"
           strokeDasharray="4 4"
         />
         <text
           x={W - M.r + 8}
           y={logy(perHundred(UNIFORM_RANDOM.exploitability)) + 4}
           fontSize="10.5"
-          fill="var(--panel-dim)"
+          fill="var(--ink-3)"
         >
           random {perHundred(UNIFORM_RANDOM.exploitability).toFixed(0)}
         </text>
@@ -130,11 +130,11 @@ export function RaceChart() {
           y1={logy(guide(first.hands))}
           x2={logx(X_MAX)}
           y2={logy(guide(X_MAX))}
-          stroke="var(--panel-dim)"
+          stroke="var(--ink-3)"
           strokeDasharray="1.5 4"
           strokeOpacity="0.8"
         />
-        <text x={logx(4e5)} y={logy(guide(4e5)) + 14} fontSize="10.5" fill="var(--panel-dim)">
+        <text x={logx(4e5)} y={logy(guide(4e5)) + 14} fontSize="10.5" fill="var(--ink-3)">
           1/√N
         </text>
 
@@ -150,7 +150,7 @@ export function RaceChart() {
         ))}
 
         {/* the selected checkpoint: a playhead and a dot per rule */}
-        <line x1={xAt} x2={xAt} y1={M.t} y2={H - M.b} stroke="var(--panel-mark)" strokeWidth={1} />
+        <line x1={xAt} x2={xAt} y1={M.t} y2={H - M.b} stroke="var(--ink)" strokeWidth={1} />
         {column.map(({ rule, point }) => (
           <circle
             key={rule}
@@ -190,7 +190,7 @@ export function RaceChart() {
           )
         })}
       </svg>
-      <dl className="stat">
+      <dl className="readout">
         <div>
           <dt>hands per seat</dt>
           <dd>{(iteration * WORKERS).toLocaleString()}</dd>

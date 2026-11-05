@@ -1,18 +1,19 @@
 /**
- * The full game's range window: the two-lane score above, and inside the
- * window the spot header whose controls open the secondary views (the three
- * panes from the mix bar, the ledger from an action, the deck from the cards
- * button), the two-half grid beside the strength ribbon and the equity
- * plane, and the draw board in the grid's place when the cursor is on the
- * draw. A second tab puts the other seat's range beside yours with the
- * filmstrip at its foot.
+ * The full game's range explorer, in the same three columns as
+ * mini-drawmaha's: at left the hand so far (the flop, what seat 0 did, your
+ * two decisions), the grid's filters and the deck; in the centre the spot's
+ * head over the two-half grid, or the draw board at the draw; at right the
+ * selected region, this spot's figures, the strength ribbon, the equity
+ * plane and the ledger. The second tab puts the other seat's range beside
+ * yours with the filmstrip at its foot.
  *
  * Everything here is an aggregate over one sampled range: N holdings drawn
  * from the cards unseen on the flop and classified twice. The composition
  * is real to sampling error; the action mix is an illustrative function of
- * each hand's two equities, because rung 4 is not trained yet. The status
- * line says so and nothing pretends otherwise. Mini-drawmaha, the solved
- * game, is `MiniRange.tsx`.
+ * each hand's two equities, because the network that will replace it is
+ * not trained yet. The status line under the spot's head says so and
+ * nothing pretends otherwise. Mini-drawmaha, the solved game, is
+ * `MiniRange.tsx`.
  */
 
 import { useCallback, useMemo, useState } from 'react'
@@ -29,14 +30,15 @@ import { Grid, type Pin } from './Grid'
 import { Ledger } from './Ledger'
 import { Panes } from './Panes'
 import { Plane } from './Plane'
-import { Ribbon } from './Ribbon'
-import { OneLine, Score, type Cursor, type HandLine } from './Score'
+import { Ribbon, type RibbonView } from './Ribbon'
+import { Score, type Cursor, type HandLine } from './Score'
 import { Sheet } from './Sheet'
 import { SpotHead, type Opened, type SortKey } from './SpotHead'
 import { Versus } from './Versus'
-import { count } from './bars'
+import { MixBar, MixKey, actionWord, count, pct } from './bars'
+import { Filters } from './Filters'
+import { HeldSlots, Section, Selected, Stats } from './Tool'
 import type { TabId } from '../App'
-import { Panel } from './site'
 import { tableOf } from '../engine/table'
 import { FULL_GAME } from './game'
 import { equitiesOfHand as handEquities } from '../engine/policy'
@@ -100,7 +102,9 @@ export function FullRange({ tab }: { tab: TabId }) {
   const [pin, setPin] = useState<Pin | null>(null)
   const [opened, setOpened] = useState<Opened>(null)
   const [sort, setSort] = useState<SortKey>(null)
-  const [rkey, setRkey] = useState<RibbonKey>('total')
+  const [rview, setRview] = useState<RibbonView>('class')
+  // The key the sorted ribbon and the held hand's percentile read; the class stack reads none.
+  const rkey: RibbonKey = rview === 'class' ? 'total' : rview
 
   // With five cards placed the range is one hand, and a one-slice ribbon says
   // nothing: the ribbon and the plane then show the whole range with the hand
@@ -151,133 +155,151 @@ export function FullRange({ tab }: { tab: TabId }) {
     setSort(null)
   }
 
+  const facing = node === 'facing'
+  const title = line.cursor === 'draw' ? 'Your draw' : facing ? 'You, seat 1, facing a pot bet' : 'You, seat 1, first to act'
+  const sub = line.cursor === 'draw' ? 'the flop is settled; how many to throw, and which' : facing ? 'pot 4, 2 to call, a raise is 8' : 'pot 2, check or bet 2'
+  const inView = range !== sample ? `${count(Math.round(view.all.share * range.n))} of ${count(range.n)}, exact` : `${count(Math.round(view.all.share * 1906884))} of ${count(1906884)}`
+
   return (
     <>
-        <div className="block">
-          <Panel n="01" k="the hand so far — click a cell to move to that decision" wide>
-            <Score line={line} onToggleVillain={() => setLine((l) => ({ ...l, villainAct: l.villainAct === 'pot' ? 'check' : 'pot' }))} onCursor={onCursor} />
-          </Panel>
-        </div>
+      <div className={`rx ${tab === 'versus' ? 'rx-vs' : ''}`} data-node={line.cursor === 'draw' ? 'open' : node}>
+        <aside className="rx-left">
+          <Section title="Hand so far">
+            <Score
+              line={line}
+              boardText={boardText}
+              boardError={boardError}
+              onBoard={onBoard}
+              onToggleVillain={() => setLine((l) => ({ ...l, villainAct: l.villainAct === 'pot' ? 'check' : 'pot' }))}
+              onCursor={onCursor}
+            />
+          </Section>
+          {tab === 'range' && line.cursor === 'you' && (
+            <Filters game={FULL_GAME} whole={whole} rows={filter.rows} cols={filter.cols} onRows={(rows) => setFilter((f) => ({ ...f, rows }))} onCols={(cols) => setFilter((f) => ({ ...f, cols }))} />
+          )}
+          <Section title="Deck · build a hand">
+            <div className="rx-held">
+              <HeldSlots game={FULL_GAME} held={held} onUnhold={toggleHeld} />
+              <span className="rx-held-n">
+                <b>{pct(view.all.share)}</b> of {range === sample ? 'the range' : 'the holdings with your cards'}
+              </span>
+            </div>
+            <Deck game={FULL_GAME} board={line.board} held={held} potLift={deck.potLift} onToggle={toggleHeld} />
+          </Section>
+        </aside>
 
         {tab === 'range' ? (
-          <div className="block">
-            <section className="panel wide rangewin" aria-label="your range at this spot">
-              <div className="titlebar">
-                <span className="dots">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                <span className="k">02 · your range</span>
-                <OneLine line={line} />
-                <span className="no">02</span>
-              </div>
-              <div className="pane">
-                <SpotHead
-                  node={node}
-                  cursor={line.cursor}
-                  all={whole.all}
-                  left={view.all}
-                  n={N}
-                  exact={range === sample ? null : range.n}
-                  held={held}
-                  boardText={boardText}
-                  boardError={boardError}
-                  onBoard={onBoard}
-                  opened={opened}
-                  onOpen={setOpened}
-                  sort={sort}
-                  onSort={(k) => {
-                    setSort(k)
-                    if (k && !pin) setPin({ row: -1, col: -1 })
-                  }}
-                  onUnhold={toggleHeld}
-                />
-                {opened === 'panes' && (
-                  <Sheet title="one pane per action" onClose={() => setOpened(null)}>
-                    <Panes game={FULL_GAME} view={view} node={node} />
-                  </Sheet>
-                )}
-                {opened === 'deck' && (
-                  <Sheet title="the deck · tap cards to hold them" onClose={() => setOpened(null)}>
-                    <Deck game={FULL_GAME} board={line.board} held={held} potLift={deck.potLift} onToggle={toggleHeld} />
-                  </Sheet>
-                )}
-                {handMix && line.cursor === 'you' && (
-                  <div className="handanswer">
-                    <span className="lbl">your hand · {node === 'facing' ? 'fold / call / pot' : 'check / pot'}</span>
-                    <span className="mixbar" style={{ height: 10 }}>
-                      <i className="f" style={{ width: `${handMix.f * 100}%` }} />
-                      <i className="c" style={{ width: `${handMix.c * 100}%` }} />
-                      <i className="p" style={{ width: `${handMix.p * 100}%` }} />
-                    </span>
-                    <span className="nums">
-                      {node === 'facing' && <>fold <b>{Math.round(handMix.f * 100)}%</b> · </>}
-                      {node === 'facing' ? 'call' : 'check'} <b>{Math.round(handMix.c * 100)}%</b> · pot <b>{Math.round(handMix.p * 100)}%</b> · equity{' '}
-                      <b>{Math.round(handMix.eq * 100)}%</b>
-                    </span>
-                  </div>
-                )}
-                <div className="body">
-                  <div className="main">
-                    {line.cursor === 'you' ? (
+          <>
+            <div className="rx-centre">
+              <SpotHead title={title} sub={sub} node={node} all={line.cursor === 'you' ? whole.all : null} opened={opened} onOpen={setOpened} sort={sort} onSort={setSort}>
+                <MixKey mix={whole.all} node={node} />
+              </SpotHead>
+              <p className="rx-status">
+                <b>The action mix is illustrative</b>, a stand-in for the network that has not been trained; the composition is exact to sampling.
+              </p>
+              {opened === 'panes' && (
+                <Sheet title="One map per action" onClose={() => setOpened(null)}>
+                  <Panes game={FULL_GAME} view={view} node={node} />
+                </Sheet>
+              )}
+              {handMix && line.cursor === 'you' && (
+                <div className="handanswer">
+                  <span className="lbl">Your hand</span>
+                  <MixBar mix={handMix} h={8} />
+                  <span className="nums">
+                    {facing && (
                       <>
-                        <Grid
-                          game={FULL_GAME}
-                          view={view}
-                          node={node}
-                          rows={filter.rows}
-                          cols={filter.cols}
-                          pin={pin && pin.row >= 0 ? pin : null}
-                          onRows={(rows) => setFilter((f) => ({ ...f, rows }))}
-                          onCols={(cols) => setFilter((f) => ({ ...f, cols }))}
-                          onPin={setPin}
-                        />
-                        {(pin || sort) && (
-                          <Ledger game={FULL_GAME} view={view} node={node} sort={sort} pin={pin && pin.row >= 0 ? pin : null} onPin={setPin} examplesFor={examplesFor} />
-                        )}
+                        fold <b>{Math.round(handMix.f * 100)}%</b> ·{' '}
                       </>
-                    ) : (
-                      <DrawBoard game={FULL_GAME} options={THROW_OPTIONS} table={draws} hand={handThrow && full ? { cards: held, ...handThrow } : null} fullHint="place five cards (the cards button) to see which of them are thrown" />
                     )}
-                  </div>
-                  {line.cursor === 'you' && (
-                    <aside className="side">
-                      <Ribbon bins={ribbonBins} rkey={rkey} onKey={setRkey} percentile={handPct} all={full ? whole.all : view.all} />
-                      <Plane cells={plane} bins={PLANE_BINS} hand={handPoint} />
-                    </aside>
-                  )}
+                    {facing ? 'call' : 'check'} <b>{Math.round(handMix.c * 100)}%</b> · pot <b>{Math.round(handMix.p * 100)}%</b> · equity <b>{Math.round(handMix.eq * 100)}%</b>
+                  </span>
                 </div>
-              </div>
-              <div className="statusbar">
-                <span>
-                  {count(N)} holdings sampled · composition exact to sampling · <b>policy illustrative — rung 4 not trained</b>
-                </span>
-                <span>
+              )}
+              {line.cursor === 'you' ? (
+                <Grid game={FULL_GAME} view={view} node={node} rows={filter.rows} cols={filter.cols} pin={pin && pin.row >= 0 ? pin : null} onPin={setPin} />
+              ) : (
+                <DrawBoard game={FULL_GAME} options={THROW_OPTIONS} table={draws} hand={handThrow && full ? { cards: held, ...handThrow } : null} fullHint="Place five cards from the deck to see which of them are thrown." />
+              )}
+            </div>
+
+            <aside className="rx-right">
+              {line.cursor === 'you' && pin && pin.row >= 0 && pin.col >= 0 && (
+                <Selected
+                  name={
+                    <>
+                      {FULL_GAME.rows[pin.row].label} <span>×</span> {FULL_GAME.cols[pin.col].label}
+                    </>
+                  }
+                  cell={view.cells[pin.row][pin.col]}
+                  node={node}
+                  noun={range === sample ? 'Sampled holdings' : 'Holdings, exact'}
+                  onClear={() => setPin(null)}
+                />
+              )}
+              <Section title="This spot">
+                <Stats
+                  rows={[
+                    ['Holdings sampled', count(N)],
+                    ['Of the range in view', pct(view.all.share)],
+                    ['Holdings in view', inView],
+                    ['Pot', facing ? (line.cursor === 'you' ? '4' : '6') : '2'],
+                    ['Policy', 'illustrative'],
+                  ]}
+                />
+                <p className="legend-line">
                   {range !== sample
-                    ? `${count(range.n)} holdings contain the ${held.length === 1 ? 'card' : 'cards'} you placed — enumerated exactly, not sampled`
-                    : mask
-                      ? `${count(mask.reduce((s, v) => s + v, 0))} of ${count(N)} sampled hands in the filter`
-                      : 'nothing filtered'}
-                </span>
-              </div>
-            </section>
-          </div>
+                    ? `${count(range.n)} holdings contain the ${held.length === 1 ? 'card' : 'cards'} you placed, enumerated exactly, not sampled.`
+                    : 'The composition is real to sampling; the mix is a smooth function of each hand’s two equities, not a solver’s.'}
+                </p>
+              </Section>
+              {line.cursor === 'you' && (
+                <>
+                  <Section title="Strength ribbon">
+                    <Ribbon
+                      bins={ribbonBins}
+                      classes={FULL_GAME.rows.map((r, i) => ({ label: r.label, cell: (full ? whole : view).rows[i] }))}
+                      rview={rview}
+                      onView={setRview}
+                      percentile={rview === 'class' ? null : handPct}
+                    />
+                  </Section>
+                  <Section title="The two equities">
+                    <Plane cells={plane} bins={PLANE_BINS} hand={handPoint} />
+                  </Section>
+                  <Section title="Ledger · by class" aside={sort ? `sorted by ${actionWord(sort, node)}` : undefined}>
+                    <Ledger game={FULL_GAME} view={view} node={node} sort={sort} pin={pin && pin.row >= 0 ? pin : null} onPin={setPin} examplesFor={examplesFor} />
+                  </Section>
+                </>
+              )}
+            </aside>
+          </>
         ) : (
-          <div className="block">
-            <Panel n="02" k="range vs range — their range after what they did, beside yours" wide>
-              <Versus game={FULL_GAME} mine={whole} theirs={theirs} node={node} villainAct={line.villainAct} equityOf={equityOf} throwsMine={throwMix(drawTable(wholeTable, throws, 6, null))} throwsTheirs={throwMix(drawTable(tableOf(other, theirOpen), theirThrows, 6, null))} />
-            </Panel>
+          <div className="rx-wide">
+            <SpotHead title={title} sub={sub} node={node} all={null} opened={null} onOpen={() => undefined} sort={null} onSort={() => undefined} />
+            <p className="rx-status">
+              <b>The action mix is illustrative</b>, a stand-in for the network that has not been trained.
+            </p>
+            <Versus
+              game={FULL_GAME}
+              mine={whole}
+              theirs={theirs}
+              node={node}
+              villainAct={line.villainAct}
+              equityOf={equityOf}
+              throwsMine={throwMix(drawTable(wholeTable, throws, 6, null))}
+              throwsTheirs={throwMix(drawTable(tableOf(other, theirOpen), theirThrows, 6, null))}
+            />
           </div>
         )}
+      </div>
 
-        <p className="foot">
-          Every number on this page is computed in the browser from {count(N)} sampled holdings per seat on the flop you
-          typed: each is scored as the five cards alone and as the best two with the board, and its two equities are its
-          percentile in the sample. The action mix is not a solver’s. It is the same illustrative rule the design studies
-          used, so the interface could be built and used before rung 4’s network exists; when it does, the policy module
-          is the one file that changes.
-        </p>
+      <p className="foot rx-foot">
+        Every number on this page is computed in the browser from {count(N)} sampled holdings per seat on the flop you typed: each is scored as the
+        five cards alone and as the best two with the board, and its two equities are its percentile in the sample. The action mix is not a
+        solver’s. It is an illustrative rule, so the interface could be built and used before the network exists; when it does, the policy module
+        is the one file that changes.
+      </p>
     </>
   )
 }

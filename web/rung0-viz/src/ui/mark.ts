@@ -1,21 +1,37 @@
 /**
  * The Drawmaha chip: a dithered, tilted poker chip turning on its axis, drawn
- * as ASCII on a canvas. A port of the homepage's chip.js, so the mark on a rung
- * page is the same object as the mark on the cover — same ramp, same tilt,
- * same wobble, same speed-up under the mouse.
+ * as ASCII on a canvas. The mark on paper: a poker-red face (#c8102e) with
+ * the edge sectors and the inner ring as black indents (#141414), the way a
+ * red casino chip looks; the site's oxblood accent is its deeper shade. The
+ * twin of the static pages'
+ * chip.js — same ramp, same tilt, same wobble, same speed-up under the mouse.
+ *
+ * On paper a glyph is ink over a light ground, so how dark a cell reads is how
+ * much of it the glyph covers. A 1.5 px cell of 400-weight mono covers a
+ * quarter of it at best, and the chip read as a pale cloud. So the grid is set
+ * in Plex Mono 600 and every glyph is emboldened by a stroke of its own colour
+ * (EMBOLDEN of the cell size); the face's ramp starts at '+' rather than
+ * blank, and the pattern is a solid block, so the indents are black rather
+ * than dark glyphs with paper showing through. Every glyph is drawn at full
+ * opacity.
  *
  * The canvas is sized by CSS (square); the glyph grid follows its box. The
  * field is transparent, so the chip sits on whatever the page is.
  */
 
-const FONT = "'IBM Plex Mono', ui-monospace, Menlo, monospace"
-const RAMP = " .'`,:;~-=+*x%#@"
+const FONT = "600 {px}px 'IBM Plex Mono', ui-monospace, Menlo, monospace"
+const font = (px: number) => FONT.replace('{px}', String(px))
+/** the stroke laid over each glyph, as a fraction of the cell size: the coverage that makes 1.5 px cells read */
+const EMBOLDEN = 0.16
+/** the face's glyphs from shadow to light; the pattern is always the last */
+const FACE = '+#@@@@'
 let CHARSET = ''
 for (let c = 32; c < 127; c++) CHARSET += String.fromCharCode(c)
-CHARSET += '♠♥♦♣·'
+CHARSET += '♠♥♦♣·█'
 const CIDX: Record<string, number> = {}
 for (let i = 0; i < CHARSET.length; i++) CIDX[CHARSET[i]] = i
-const RAMPIDX = [...RAMP].map((c) => CIDX[c])
+/** the solid block the indents are drawn in; its atlas cell is a filled rectangle, see buildAtlas */
+const BLOCK = CIDX['█']
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v)
 const BAYER = [
   [0, 8, 2, 10],
@@ -68,7 +84,7 @@ class Grid {
     this.canvas.height = Math.round(r.height * dpr)
     const ctx = this.ctx
     ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.font = `${this.fontPx}px ${FONT}`
+    ctx.font = font(this.fontPx)
     this.cw = ctx.measureText('M').width
     this.ch = this.fontPx * 1.02
     this.cols = Math.floor(r.width / this.cw)
@@ -96,11 +112,23 @@ class Grid {
       c.width = gw * CHARSET.length
       c.height = gh
       const x = c.getContext('2d')!
-      x.font = `${this.fontPx * dpr}px ${FONT}`
+      x.font = font(this.fontPx * dpr)
       x.textBaseline = 'middle'
       x.textAlign = 'center'
       x.fillStyle = col
-      for (let i = 0; i < CHARSET.length; i++) x.fillText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5)
+      x.strokeStyle = col
+      x.lineWidth = this.fontPx * dpr * EMBOLDEN
+      x.lineJoin = 'round'
+      for (let i = 0; i < CHARSET.length; i++) {
+        /* the block is painted as the whole cell, not set as a glyph: no Plex Mono subset carries U+2588, so a
+           font's '█' would come from a fallback face at its own width and leave paper between the indents */
+        if (i === BLOCK) {
+          x.fillRect(i * gw, 0, gw, gh)
+          continue
+        }
+        x.fillText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5)
+        x.strokeText(CHARSET[i], i * gw + gw / 2, gh / 2 + 0.5)
+      }
       return c
     })
   }
@@ -125,10 +153,6 @@ class Grid {
         if (!c) continue
         ctx.drawImage(this.atlas[this.cob[i]], c * gw, 0, gw, gh, ox + x * pw, oy + y * ph, gw, gh)
       }
-  }
-
-  ramp(v: number) {
-    return RAMPIDX[clamp(Math.round(v * (RAMP.length - 1)), 0, RAMP.length - 1)]
   }
 }
 
@@ -178,11 +202,10 @@ interface ChipParams {
   L: Vec3
   colBase: number
   colPattern: number
-  colDim: number
   sectors: number
 }
 
-/** A ray-traced chip: two faces and a rim, sectored pattern, Bayer-dithered onto six glyphs. */
+/** A ray-traced chip: two faces and a rim, sectored pattern, Bayer-dithered onto the face's six glyphs. */
 function rayChip(g: Grid, o: ChipParams) {
   const { cols, rows, ar } = g
   const m = o.M
@@ -198,7 +221,7 @@ function rayChip(g: Grid, o: ChipParams) {
   ]
   const { R, hz, L, sectors } = o
   const d = toLocal(0, 0, 1)
-  const chars = [0, CIDX['.'], CIDX[':'], CIDX['+'], CIDX['%'], CIDX['@']]
+  const chars = [...FACE].map((c) => CIDX[c])
   const ext = R * 1.05 + hz
   const cx0 = Math.max(0, Math.floor(o.cx - ext))
   const cx1 = Math.min(cols - 1, Math.ceil(o.cx + ext))
@@ -258,30 +281,14 @@ function rayChip(g: Grid, o: ChipParams) {
       }
       if (mat === 0) continue
       const i = cyy * cols + cxx
-      const col = mat === 1 ? o.colBase : o.colPattern
       const bay = (BAYER[cyy % 4][cxx % 4] + 0.5) / 16 - 0.5
-      /* the pattern never drops below '%': the sectors are what make the disc read as a chip, even in shadow */
-      const lv = Math.max(mat === 2 ? 4 : 0, clamp(Math.floor(I * 5 + bay * 1.15), 0, 5))
-      if (lv > 0) {
-        g.chb[i] = chars[lv]
-        g.cob[i] = col
-      } else {
-        g.chb[i] = chars[1]
-        g.cob[i] = o.colDim
-      }
+      /* the pattern is always the densest glyph: the sectors are what make the disc read as a chip, even in shadow */
+      const lv = mat === 2 ? 5 : clamp(Math.floor(I * 5 + bay * 1.15), 0, 5)
+      /* the pattern is a solid block, so the sectors and the ring read as black indents, not as dark glyphs over paper */
+      g.chb[i] = mat === 2 ? BLOCK : chars[lv]
+      g.cob[i] = mat === 1 ? o.colBase : o.colPattern
     }
   }
-}
-
-const hexA = (hex: string, a: number) => {
-  let h = hex.replace('#', '')
-  if (h.length === 3)
-    h = h
-      .split('')
-      .map((c) => c + c)
-      .join('')
-  const n = parseInt(h, 16)
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
 }
 
 export interface ChipOptions {
@@ -289,7 +296,7 @@ export interface ChipOptions {
   mark?: string
   /** the glyph colour of its pattern: the sectors and the inner ring */
   ink?: string
-  /** cell size in px; 1.5 everywhere the chip is the mark, which is ~60 glyphs across the 56px one in the bar */
+  /** cell size in px; 1.5 everywhere the chip is the mark, which is ~50 glyphs across the 44 px one in the bar */
   font?: number
   /** turn rate in rad/s when the mouse is elsewhere */
   speed?: number
@@ -301,10 +308,10 @@ export interface ChipOptions {
  * reduced motion the chip is drawn once and still answers a resize.
  */
 export function mountChip(canvas: HTMLCanvasElement, opts: ChipOptions = {}): () => void {
-  const mark = opts.mark ?? '#f5f0e6'
-  const ink = opts.ink ?? '#8e2038'
+  const mark = opts.mark ?? '#c8102e'
+  const ink = opts.ink ?? '#141414'
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-  const g = new Grid(canvas, ['transparent', mark, ink, hexA(mark, 0.5)], opts.font ?? 1.5)
+  const g = new Grid(canvas, ['transparent', mark, ink], opts.font ?? 1.5)
   const s = { yaw: 0.6, t: 0, speed: opts.speed ?? 0.3, tilt: opts.tilt ?? 0.8, drawn: false }
 
   const move = (cx: number, cy: number) => {
@@ -327,8 +334,9 @@ export function mountChip(canvas: HTMLCanvasElement, opts: ChipOptions = {}): ()
     s.drawn = false
   })
   ro.observe(canvas)
-  if (document.fonts?.ready)
-    document.fonts.ready.then(() => {
+  /* the 600 face is named only by the canvas, so ask for it: the page's own text never loads it */
+  if (document.fonts?.load)
+    document.fonts.load(font(12)).then(() => {
       g.resize()
       s.drawn = false
     })
@@ -357,7 +365,6 @@ export function mountChip(canvas: HTMLCanvasElement, opts: ChipOptions = {}): ()
         L: norm3([-0.55, -0.5, -0.67]),
         colBase: 1,
         colPattern: 2,
-        colDim: 3,
         sectors: 12,
       })
       g.draw()

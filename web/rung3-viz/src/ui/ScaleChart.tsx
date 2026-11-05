@@ -8,7 +8,7 @@ import { DEALS, DECISION_NODES, FINAL_ITERATION, SIZES, WORKERS } from '../resea
  * per hundred hands — which is the whole case for sampling.
  */
 
-const W = 560
+const W = 860
 const H = 240
 const M = { l: 210, r: 70, t: 20, b: 36 }
 const X_MAX = 1e12
@@ -24,8 +24,8 @@ const say = (n: number): string => {
 export function ScaleChart() {
   const sampled = FINAL_ITERATION * WORKERS * 2
   const rows: { label: string; value: number; ink: string }[] = [
-    ...SIZES.map((s) => ({ label: `${s.game} · infosets`, value: s.infosets, ink: s.rung === 3 ? 'var(--rule-lcfr)' : 'var(--panel-dim)' })),
-    { label: 'mini-drawmaha · deals', value: DEALS, ink: 'var(--panel-dim)' },
+    ...SIZES.map((s) => ({ label: `${s.game} · infosets`, value: s.infosets, ink: s.rung === 3 ? 'var(--rule-lcfr)' : 'var(--ink-3)' })),
+    { label: 'mini-drawmaha · deals', value: DEALS, ink: 'var(--ink-3)' },
     { label: 'mini-drawmaha · tree nodes', value: DECISION_NODES, ink: 'var(--rule-cfrplus)' },
     { label: 'hands sampled per rule', value: sampled, ink: 'var(--rule-lcfr)' },
   ]
@@ -36,8 +36,8 @@ export function ScaleChart() {
       <svg className="chart scale" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Game sizes on a log axis">
         {Array.from({ length: 7 }, (_, i) => i * 2).map((p) => (
           <g key={p}>
-            <line x1={x(10 ** p)} x2={x(10 ** p)} y1={M.t} y2={H - M.b} stroke="var(--panel-hair)" />
-            <text x={x(10 ** p)} y={H - M.b + 16} textAnchor="middle" fontSize="10.5" fill="var(--panel-dim)">
+            <line x1={x(10 ** p)} x2={x(10 ** p)} y1={M.t} y2={H - M.b} stroke="var(--grid)" />
+            <text x={x(10 ** p)} y={H - M.b + 16} textAnchor="middle" fontSize="10.5" fill="var(--ink-3)">
               10{String(p).replace(/\d/g, (d) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[Number(d)])}
             </text>
           </g>
@@ -46,11 +46,11 @@ export function ScaleChart() {
           const yMid = M.t + rh * i + rh / 2
           return (
             <g key={r.label}>
-              <text x={M.l - 10} y={yMid + 4} textAnchor="end" fontSize="10.5" fill="var(--panel-dim)">
+              <text x={M.l - 10} y={yMid + 4} textAnchor="end" fontSize="10.5" fill="var(--ink-3)">
                 {r.label}
               </text>
               <rect x={M.l} y={yMid - 8} width={x(r.value) - M.l} height={16} fill={r.ink} fillOpacity={0.85} />
-              <text x={x(r.value) + 8} y={yMid + 4} fontSize="11" fill="var(--panel-mark)">
+              <text x={x(r.value) + 8} y={yMid + 4} fontSize="11" fill="var(--ink)">
                 {say(r.value)}
               </text>
             </g>

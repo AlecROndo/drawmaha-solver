@@ -12,8 +12,11 @@ export const logScale = (lo: number, hi: number, a: number, b: number) => (v: nu
 export const linScale = (lo: number, hi: number, a: number, b: number) => (v: number) =>
   a + ((Math.min(Math.max(v, lo), hi) - lo) / (hi - lo)) * (b - a)
 
-/** The pot chart's axes (`PotChart.tsx`); kept here so `deep.test.ts` can hold every plotted point inside them, since the scales clamp rather than fail. */
-export const POT_DOMAIN = { hands: [1e5, 5e6], per100: [7, 100] } as const
+/** The pot chart's axes (`PotChart.tsx`), out to the race's endpoint at twenty million hands; kept here so `deep.test.ts` can hold every plotted point inside them, since the scales clamp rather than fail. */
+export const POT_DOMAIN = { hands: [1e5, 2e7], per100: [5, 100] } as const
+
+/** The equal-hands ruler's axes (`EqualHandsChart.tsx`): hands per seat from the final arm's first mark to the race's endpoint, and the table's grade in chips per hundred hands. `deep.test.ts` holds every mark inside them, because the scales clamp rather than fail and a mark past an edge would draw on it in silence. */
+export const EQUAL_DOMAIN = { hands: [1e6, 2e7], per100: [5, 200] } as const
 
 /**
  * Labels that end at the same x, stacked top to bottom: each y is pushed down
@@ -33,6 +36,20 @@ export const stackLabels = (ys: number[], gap: number, floor = Infinity): number
 
 /** 100000 → 100k, 2000000 → 2M. */
 export const fmtHands = (n: number): string => (n >= 1e6 ? `${n / 1e6}M` : `${n / 1e3}k`)
+
+/**
+ * Training hours at a mark, from its wall clock in seconds, as the prose
+ * prints them: one decimal under ten hours, whole from ten up. The branch is
+ * taken on the rounded value, so 9.97 hours reads 10, never 10.0.
+ */
+export const hoursOf = (wallClockS: number): string => {
+  const h = wallClockS / 3600
+  const tenths = h.toFixed(1)
+  return Number(tenths) < 10 ? tenths : h.toFixed(0)
+}
+
+/** The same with its unit, the way a figure prints it: 0.4 h, 21 h. */
+export const hoursAt = (wallClockS: number): string => `${hoursOf(wallClockS)} h`
 
 /** The page's unit: chips per hundred hands, to one decimal. */
 export const per100 = (chipsPerHand: number, digits = 1): string => (chipsPerHand * 100).toFixed(digits)

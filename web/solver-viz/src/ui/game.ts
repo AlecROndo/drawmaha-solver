@@ -12,14 +12,14 @@
  * a 52-card illustrative range and a 15-card solved one.
  */
 
-import { cardLabel, isRed, type Card } from '../engine/cards'
+import { cardLabel, type Card } from '../engine/cards'
 import { INNER_ROWS, OUTER_COLS, type Region } from '../engine/regions'
 
 export interface DeckLayout {
   /** rank labels, high first, as the deck sheet's columns */
   ranks: readonly string[]
-  /** suit glyphs as the deck sheet's rows, with whether each draws red */
-  suits: readonly { glyph: string; red: boolean }[]
+  /** suit glyphs as the deck sheet's rows; a suit's ink is the theme's, by the `su-<letter>` class its glyph maps to */
+  suits: readonly { glyph: string }[]
   /** the engine's card index for the rank at `rankIndex` (into `ranks`) and the suit at `suitIndex` */
   cardAt(rankIndex: number, suitIndex: number): number
 }
@@ -30,7 +30,6 @@ export interface GameUI {
   handSize: number
   deck: DeckLayout
   label(card: number): string
-  isRed(card: number): boolean
 }
 
 const FULL_RANKS = 'A K Q J T 9 8 7 6 5 4 3 2'.split(' ')
@@ -43,14 +42,13 @@ export const FULL_GAME: GameUI = {
   deck: {
     ranks: FULL_RANKS,
     suits: [
-      { glyph: '♠', red: false },
-      { glyph: '♥', red: true },
-      { glyph: '♦', red: true },
-      { glyph: '♣', red: false },
+      { glyph: '♠' },
+      { glyph: '♥' },
+      { glyph: '♦' },
+      { glyph: '♣' },
     ],
     // rank index 0 is the ace = engine rank 12; suits are ♠ ♥ ♦ ♣ = 0..3
     cardAt: (rankIndex, suitIndex) => (12 - rankIndex) * 4 + suitIndex,
   },
   label: (c) => cardLabel(c as Card),
-  isRed: (c) => isRed(c as Card),
 }

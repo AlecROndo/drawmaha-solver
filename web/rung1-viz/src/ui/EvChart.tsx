@@ -1,21 +1,27 @@
-import { Panel } from './site'
+import { Figure } from './site'
 import type { ExploitRun } from './useExploit'
 
 /**
- * What the counter-strategy earns, climbing toward the exact ceiling.
+ * What the counter-strategy earns, rising toward the exact ceiling.
  *
  * Two horizontal rules carry the whole argument. The upper one is the exact
  * best-response value, enumerated by `exploitability.py` — CFR's curve must
  * arrive there and cannot pass it. The lower one is what an EQUILIBRIUM player
  * earns against the same locked strategy: unbeatable, but not punishing. The
  * band between them is the money exploitative play collects and Nash leaves.
+ *
+ * CFR's curve is the thing pointed at, so it wears the accent; the ceiling is
+ * ink, the known answer; equilibrium play is the muted ink, dashed.
  */
 
 const W = 560
-const H = 260
-const M = { l: 54, r: 16, t: 16, b: 30 }
+const H = 280
+const M = { l: 56, r: 16, t: 28, b: 40 }
 
 const NICE_PADDING = 0.08
+
+/** A chip count with a true minus sign. */
+const num = (v: number, digits: number) => (v < 0 ? `−${Math.abs(v).toFixed(digits)}` : v.toFixed(digits))
 
 export function EvChart({ run, index }: { run: ExploitRun; index: number }) {
   const { iterations, ev, ceiling, nashValue, evSeat } = run
@@ -40,53 +46,54 @@ export function EvChart({ run, index }: { run: ExploitRun; index: number }) {
   )
 
   return (
-    <Panel
-      n="02"
-      wide
-      k="Fig. 2 · the ceiling"
-      title="The counter-strategy climbs to the exact ceiling"
-      say={`Chips per hand to P${evSeat}, x log. The upper rule is the exact best response; the lower one is what equilibrium play earns against the same locks.`}
+    <Figure
+      n="Figure 2"
+      title="The counter-strategy rises to the exact ceiling"
+      sub={`Chips per hand to P${evSeat}, iterations on a log axis.`}
+      caption="The solid rule is the exact best response; the dashed one is what equilibrium play earns against the same locks. The band between them is what Nash leaves on the table."
       label="Counter-strategy EV over the run"
     >
       <div className="legend">
         <span className="item">
-          <span className="swatch" style={{ background: 'var(--avg-obj)' }} />
+          <span className="swatch" style={{ background: 'var(--series-2)' }} />
           CFR's counter-strategy
         </span>
         <span className="item">
-          <span className="swatch" style={{ background: 'var(--panel-dim)' }} />
-          exact best response
+          <span className="swatch" style={{ background: 'var(--series-1)' }} />
+          Exact best response
         </span>
         <span className="item">
-          <span className="swatch" style={{ background: 'var(--cur-obj)' }} />
-          equilibrium play
+          <span className="swatch" style={{ background: 'var(--series-3)' }} />
+          Equilibrium play
         </span>
       </div>
-      <svg
-        className="chart"
-        viewBox={`0 0 ${W} ${H}`}
-        role="img"
-        aria-label="Counter-strategy EV against iterations"
-      >
+      <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Counter-strategy EV against iterations">
+        <text className="axis" x={M.l} y={12}>
+          chips/hand to P{evSeat}
+        </text>
         {/* Chips are linear and the range is data-driven, so the axis is
             labelled at its own ends rather than at round numbers that might
             fall outside the run entirely. */}
         {[hi + pad, (hi + lo) / 2, lo - pad].map((v) => (
           <g key={v}>
-            <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--panel-hair)" />
-            <text x={M.l - 8} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--panel-dim)">
-              {v.toFixed(3)}
+            <line className="grid" x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} />
+            <text className="axis" x={M.l - 8} y={y(v) + 4} textAnchor="end">
+              {num(v, 3)}
             </text>
           </g>
         ))}
+        <line className="axis-line" x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} />
         {decades.map((d) => (
           <g key={d}>
-            <line x1={x(d)} x2={x(d)} y1={M.t} y2={H - M.b} stroke="var(--panel-hair)" />
-            <text x={x(d)} y={H - 10} textAnchor="middle" fontSize="11" fill="var(--panel-dim)">
+            <line className="axis-line" x1={x(d)} x2={x(d)} y1={H - M.b} y2={H - M.b + 4} />
+            <text className="axis" x={x(d)} y={H - M.b + 18} textAnchor="middle">
               {d >= 1000 ? `${d / 1000}k` : d}
             </text>
           </g>
         ))}
+        <text className="axis" x={W - M.r} y={H - 4} textAnchor="end">
+          iterations
+        </text>
 
         {nashValue !== null && (
           <>
@@ -95,68 +102,52 @@ export function EvChart({ run, index }: { run: ExploitRun; index: number }) {
               x2={W - M.r}
               y1={y(nashValue)}
               y2={y(nashValue)}
-              stroke="var(--cur-obj)"
-              strokeWidth={1.2}
-              strokeDasharray="3 3"
+              stroke="var(--series-3)"
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
             />
-            <text
-              x={W - M.r}
-              y={y(nashValue) - 6}
-              textAnchor="end"
-              fontSize="11"
-              fill="var(--cur-obj)"
-            >
-              equilibrium play {nashValue.toFixed(4)}
+            {/* The best response never earns less than equilibrium play, so
+                the two rules can sit a pixel apart: the ceiling is labelled
+                above its rule and this one below, and they never collide. */}
+            <text className="lbl" x={W - M.r - 8} y={y(nashValue) + 16} textAnchor="end" fill="var(--series-3)">
+              Equilibrium play<tspan> {num(nashValue, 4)}</tspan>
             </text>
           </>
         )}
         {ceiling !== null && (
           <>
-            <line
-              x1={M.l}
-              x2={W - M.r}
-              y1={y(ceiling)}
-              y2={y(ceiling)}
-              stroke="var(--panel-dim)"
-              strokeWidth={1.2}
-            />
-            <text
-              x={W - M.r}
-              y={y(ceiling) - 6}
-              textAnchor="end"
-              fontSize="11"
-              fill="var(--panel-dim)"
-            >
-              exact best response {ceiling.toFixed(4)}
+            <line x1={M.l} x2={W - M.r} y1={y(ceiling)} y2={y(ceiling)} stroke="var(--series-1)" strokeWidth={1.5} />
+            <text className="lbl" x={W - M.r - 8} y={y(ceiling) - 7} textAnchor="end" fill="var(--series-1)">
+              Exact best response<tspan> {num(ceiling, 4)}</tspan>
             </text>
           </>
         )}
 
-        <path d={path} fill="none" stroke="var(--avg-obj)" strokeWidth={2} />
-        <line
-          x1={x(iterations[index])}
-          x2={x(iterations[index])}
-          y1={M.t}
-          y2={H - M.b}
-          stroke="var(--panel-mark)"
-          strokeWidth={1}
+        <path d={path} fill="none" stroke="var(--series-2)" strokeWidth={2.5} strokeLinejoin="round" />
+        <line className="playhead" x1={x(iterations[index])} x2={x(iterations[index])} y1={M.t} y2={H - M.b} />
+        <circle
+          cx={x(iterations[index])}
+          cy={y(ev[index])}
+          r={4}
+          fill="var(--series-2)"
+          stroke="var(--paper)"
+          strokeWidth={2}
         />
-        <circle cx={x(iterations[index])} cy={y(ev[index])} r={3.5} fill="var(--avg-obj)" />
       </svg>
-      <dl className="stat">
-        <div>
+      <dl className="stats">
+        <div className="stat">
           <dt>Earning now</dt>
-          <dd>{ev[index].toFixed(5)}</dd>
+          <dd>{num(ev[index], 5)}</dd>
         </div>
-        <div>
+        <div className="stat">
           <dt>Exact ceiling</dt>
-          <dd>{ceiling === null ? '—' : ceiling.toFixed(5)}</dd>
+          <dd>{ceiling === null ? '—' : num(ceiling, 5)}</dd>
         </div>
-        <div>
+        <div className="stat">
           <dt>Gap to it</dt>
-          <dd>{ceiling === null ? '—' : (ceiling - ev[index]).toFixed(5)}</dd>
+          <dd>{ceiling === null ? '—' : num(ceiling - ev[index], 5)}</dd>
         </div>
       </dl>
-    </Panel>
+    </Figure>
   )
 }

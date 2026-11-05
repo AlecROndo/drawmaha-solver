@@ -47,9 +47,9 @@ export interface StrategyChoice {
 }
 
 export const STRATEGIES: readonly StrategyChoice[] = [
-  { id: 'tabular', dir: 'mini/', label: 'Tabular LCFR', blurb: 'rung 3 · 20M hands per seat' },
-  { id: 'deep-pi', dir: 'mini-deep-pi/', label: 'Deep CFR · Π', blurb: 'rung 4 · the policy net · 5M hands' },
-  { id: 'deep-exact', dir: 'mini-deep-exact/', label: 'Deep CFR · exact', blurb: 'rung 4 · the exact average · 5M hands' },
+  { id: 'tabular', dir: 'mini/', label: 'Tabular LCFR', blurb: '20M hands per seat' },
+  { id: 'deep-pi', dir: 'mini-deep-pi/', label: 'Deep CFR · Π', blurb: 'the policy net · 5M hands' },
+  { id: 'deep-exact', dir: 'mini-deep-exact/', label: 'Deep CFR · exact', blurb: 'the exact average · 5M hands' },
 ]
 
 export const DEFAULT_STRATEGY: StrategyId = 'tabular'
@@ -66,7 +66,7 @@ export function strategyChoice(id: StrategyId): StrategyChoice {
 // ------------------------------------------------------------- the words
 
 export interface StrategyWords {
-  /** who solved it and what object this is: "rung-3 LCFR · tabular", "rung-4 Deep CFR · Π, the policy net" */
+  /** who solved it and what object this is: "tabular LCFR", "Deep CFR · Π, the policy net" */
   name: string
   /** how far it was trained: iterations, workers, hands per seat */
   detail: string
@@ -87,7 +87,7 @@ function hands(n: number): string {
 
 /**
  * The status line's words for a loaded manifest. A tabular rule is named by
- * its rung-3 rule in capitals and its lockstep size; the deep rule by the
+ * its rule in capitals and its lockstep size; the deep rule by the
  * object its column names. The grade is quoted to three decimals, the way
  * the run log and the README quote every grade. The Play tab on `/rung3`
  * reads its deal pack's manifest through this too, so the bot there is named
@@ -98,13 +98,13 @@ export function describeStrategy(index: StrategyManifest): StrategyWords {
   const seen = grade ? ` · ${hands(grade.handsPerSeat)} hands per seat` : ''
   if (strategy.rule === 'deep') {
     return {
-      name: `rung-4 Deep CFR · ${COLUMN_WORDS[strategy.column] ?? strategy.column}`,
+      name: `Deep CFR · ${COLUMN_WORDS[strategy.column] ?? strategy.column}`,
       detail: `iteration ${strategy.iteration.toLocaleString('en-US')}${seen}`,
       grade: grade ? grade.exploitability.toFixed(3) : null,
     }
   }
   return {
-    name: `rung-3 ${strategy.rule.toUpperCase()} · tabular`,
+    name: `tabular ${strategy.rule.toUpperCase()}`,
     detail: `${strategy.iteration.toLocaleString('en-US')} iterations × ${strategy.workers} workers${seen}`,
     grade: grade ? grade.exploitability.toFixed(3) : null,
   }

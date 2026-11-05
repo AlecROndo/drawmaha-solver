@@ -4,9 +4,9 @@ import { keyFor, rankWeights, word, RANKS, type Act, type Rank } from '../leduc'
 import { SOLVE } from '../solve'
 import { boardPending, lineOver, stateAt, type Line, type Walk } from '../timeline'
 import { activeStrategy, type Exploit } from './useExploit'
-import { Panel } from './site'
+import { Figure } from './site'
 
-/** Bar and number order: aggression leads from the ink side of the duotone. */
+/** Bar and number order: aggression leads, the bet or raise first and the fold last. */
 const ORDER: Act[] = ['r', 'c', 'f']
 
 const acts = (row: Partial<Record<Act, number>>): Act[] => ORDER.filter((a) => a in row)
@@ -21,6 +21,10 @@ const rowsDiffer = (
 ): boolean => (Object.keys(a) as Act[]).some((act) => Math.abs((a[act] ?? 0) - (b[act] ?? 0)) > SAME)
 
 /**
+ * Each segment is classed by the word the action is at this spot (bet, raise,
+ * check, call, fold), so the action triplet colours it: the bet in the
+ * accent, the call in green, the check and the fold in blue.
+ *
  * One row's whole mixed strategy — and, once a run exists, the Nash baseline
  * as a slim muted lane beneath it, so "where it was" and "where it moved"
  * read in one glance without a separate diff view.
@@ -29,22 +33,25 @@ function Mix({
   row,
   base,
   locked,
+  ctx,
 }: {
   row: Partial<Record<Act, number>>
   base: Partial<Record<Act, number>> | null
   locked: boolean
+  /** the line the actor faced, which names each action */
+  ctx: string
 }) {
   return (
     <div className="mixwrap">
       <div className={locked ? 'mix held' : 'mix'}>
         {acts(row).map((a) => (
-          <i key={a} className={a} style={{ width: `${((row[a] ?? 0) * 100).toFixed(2)}%` }} />
+          <i key={a} className={word(a, ctx)} style={{ width: `${((row[a] ?? 0) * 100).toFixed(2)}%` }} />
         ))}
       </div>
       {base && (
         <div className="mix was" aria-label="the Nash baseline before your edit">
           {acts(base).map((a) => (
-            <i key={a} className={a} style={{ width: `${((base[a] ?? 0) * 100).toFixed(2)}%` }} />
+            <i key={a} className={word(a, ctx)} style={{ width: `${((base[a] ?? 0) * 100).toFixed(2)}%` }} />
           ))}
         </div>
       )}
@@ -54,16 +61,16 @@ function Mix({
 
 /**
  * What the seat likely holds, before a word about what it does. A strategy
- * row can be solid oxblood — "bets every king" — while kings are nearly gone
+ * row can be all bet — "bets every king" — while kings are nearly gone
  * from the range, filtered out by the deal, the board, and the line itself.
- * This bar is that filter, in the ranks' identity colours. It reads the
+ * This bar is that filter, the ranks shaded from light (jack) to dark (king). It reads the
  * response strategy when a run exists: edited strategies move ranges too.
  */
 function Holding({ seat, s, x }: { seat: 0 | 1; s: Line; x: Exploit }) {
   const weights = rankWeights(seat, s, activeStrategy(x.run))
   return (
     <div className="holding">
-      <span className="k">likely holding</span>
+      <span className="k">Likely holding</span>
       <div className="range-bar">
         {RANKS.map(
           (r, i) =>
@@ -138,21 +145,16 @@ export function SeatPanel({ seat, walk, x }: { seat: 0 | 1; walk: Walk; x: Explo
     ? { board: s.board, l1: s.l1, l2: s.l2, ctx: line, took: null }
     : lastActed(seat, s)
 
-  const badge = isAct ? 'to act' : over ? 'hand over' : 'waiting'
+  const title = isAct ? `P${seat} is to act` : over ? `P${seat}: the hand is over` : `P${seat} is waiting`
   const sub = isAct
-    ? 'What each rank does here, right now.'
+    ? 'What each rank does at this spot.'
     : spot
-      ? 'Not this seat’s decision — what it did to get here is on the timeline.'
-      : 'Hasn’t acted yet — its first read of the hand is still to come.'
+      ? 'What each rank did at this seat’s last decision on the line.'
+      : 'This seat has not acted yet in the hand.'
 
   return (
-    <Panel k={`Seat · P${seat}`} className={isAct ? 'seat acting' : 'seat'} label={`Player ${seat}`}>
-      <div className="seat-head">
-        <span>P{seat}</span>
-        <span className={isAct ? 'badge act' : 'badge'}>{badge}</span>
-      </div>
+    <Figure title={title} sub={sub} className={isAct ? 'seat acting' : 'seat'} label={`Player ${seat}`}>
       <Holding seat={seat} s={s} x={x} />
-      <p className="seat-sub">{sub}</p>
       {spot !== null &&
         RANKS.map((r) => {
           const key = keyFor(r, spot.board, spot.l1, spot.l2)
@@ -173,7 +175,7 @@ export function SeatPanel({ seat, walk, x }: { seat: 0 | 1; walk: Walk; x: Explo
                 .join(' ')}
             >
               <span className={`rank ${r}`}>{r}</span>
-              <Mix row={row} base={showBase ? nash : null} locked={lockedRow !== null} />
+              <Mix row={row} base={showBase ? nash : null} locked={lockedRow !== null} ctx={spot.ctx} />
               <span className="nums">
                 {spot.took !== null ? (
                   <span>
@@ -218,6 +220,6 @@ export function SeatPanel({ seat, walk, x }: { seat: 0 | 1; walk: Walk; x: Explo
             </div>
           )
         })}
-    </Panel>
+    </Figure>
   )
 }

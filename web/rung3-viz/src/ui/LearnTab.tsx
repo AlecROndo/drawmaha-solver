@@ -22,8 +22,8 @@ import type { LearnView } from '../learn'
 export const EXPORTS_BASE = '/solver/'
 
 const VIEWS = [
-  { id: 'range', label: 'Your range', blurb: 'the grid, the ribbon, the ledger, the deck, the draw' },
-  { id: 'versus', label: 'Range vs range', blurb: 'their range beside yours, and the hand as ranges' },
+  { id: 'range', label: 'Your range', blurb: 'The grid, the ribbon, the ledger, the deck, the draw' },
+  { id: 'versus', label: 'Range vs range', blurb: 'Their range beside yours, and the hand as ranges' },
 ] as const
 
 export function LearnTab({
@@ -39,7 +39,7 @@ export function LearnTab({
 }) {
   return (
     <>
-      <div className="views" role="tablist" aria-label="Learn views">
+      <div className="views sub" role="tablist" aria-label="Learn views">
         {VIEWS.map((entry) => (
           <button
             key={entry.id}

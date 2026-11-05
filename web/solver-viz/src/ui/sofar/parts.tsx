@@ -10,7 +10,7 @@ import type { MiniCard } from '../../mini/cards'
 import { CardFace } from '../bars'
 import type { GameUI } from '../game'
 import { type Decision, type MiniLine, advance, freeCards } from '../MiniScore'
-import { type Head, pct } from './steps'
+import { type Head, hueOf, pct } from './steps'
 
 export interface ScoreProps {
   game: GameUI
@@ -65,7 +65,7 @@ export function Opts({ head, shares, line, onLine, className = '' }: { head: Hea
       {head.options.map((o) => {
         const p = pct(shares, o.key)
         return (
-          <button key={o.key} type="button" className={`opt ${o.tone}`} onClick={() => onLine(advance(line, o.key))} aria-label={`play ${o.word}`}>
+          <button key={o.key} type="button" className={`opt ${hueOf(o.tone, o.word)}`} onClick={() => onLine(advance(line, o.key))} aria-label={`play ${o.word}`}>
             <span className="w">{o.word}</span>
             {p && <b>{p}</b>}
           </button>
@@ -76,12 +76,12 @@ export function Opts({ head, shares, line, onLine, className = '' }: { head: Hea
 }
 
 /** The one-line hint under every variant, by the hand's state. */
-export function Hint({ d, extra }: { d: Decision; extra?: string }) {
+export function Hint({ d }: { d: Decision }) {
   const text =
     d.kind === 'over'
-      ? 'the hand is over · click a played step to rewind to it'
+      ? 'The hand is over. Press a step to rewind to it.'
       : d.kind === 'board2'
-        ? 'pick board card 2 to open round 2'
-        : `click an action to play it (the number is how much of that seat’s range takes it) · click a played step to rewind · click a board card to change it${extra ? ` · ${extra}` : ''}`
+        ? 'Pick board card 2 to open round 2.'
+        : `Press an action to play it; its number is the share of that seat’s range that takes it. Press a step to rewind, a board card to change it.`
   return <p className="legend-line hint">{text}</p>
 }

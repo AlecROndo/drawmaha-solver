@@ -3,8 +3,10 @@
 Grouped by what they serve. Every script is run from the repo root, and its
 docstring opens with the exact command to run it.
 
-- `site/` — `vercel_build.sh`, the build command `vercel.json` names, and
-  `serve_site.py`, which serves `public/` with the same rewrites, stdlib only.
+- `site/` — `vercel_build.sh`, the build command `vercel.json` names;
+  `serve_site.py`, which serves `public/` with the same rewrites, stdlib only;
+  `make_static_pages.py`, which writes the static pages; and `wiki.py`, which
+  it imports to render `docs/wiki/` into `/wiki`.
 - `leduc/` — `generate_referee.py` regenerates `tests/leduc/referee.json`
   from OpenSpiel.
 - `minidrawmaha/` — rung 3's race and its outputs: `generate_census.py`

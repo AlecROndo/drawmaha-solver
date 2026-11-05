@@ -15,7 +15,7 @@
  * as an `undefined` in a chart.
  */
 
-import { series } from './research'
+import { series, type Point } from './research'
 
 import grades64 from './data/rung4/grades.json'
 import sweepData from './data/rung4/sweep.json'
@@ -219,8 +219,21 @@ export const ARMS: Record<string, Arm> = {
   'rule-cfrplus': armOf('rule-cfrplus', ruleCfrplus, 'Mac'),
 }
 
-/** The arm run furthest: 4 × 256, 16,000-step refits at half the rate, graded to 5M hands. */
-export const BEST = ARMS['4x256-s16000-lr5e-4']
+/**
+ * The raw-chips reference arm: 4 × 256, 16,000-step refits at half the rate,
+ * graded at the six marks from 100k to 5M hands. It is the arm the Π sweep
+ * refit (chapter 07) and the two released averages on Learn came from, and
+ * the yardstick the pot arms are read against.
+ */
+export const RAW = ARMS['4x256-s16000-lr5e-4']
+
+/**
+ * The arm run to the race's own endpoint: the same net and refit with its
+ * regret targets divided by the pot, graded at 1M, 2M, 5M, 10M and 20M hands
+ * per seat. Its exact average is the best graded Deep CFR object, and the
+ * one curve that meets the table where the table finished.
+ */
+export const FINAL = ARMS['pot1-4x256-s16000-lr5e-4']
 
 export const markOf = (arm: Arm, t: number): Mark => {
   const mark = arm.marks.find((m) => m.t === t)
@@ -228,12 +241,20 @@ export const markOf = (arm: Arm, t: number): Mark => {
   return mark
 }
 
-/** LCFR's linear average at the same hands per seat, from rung 3's grades (chips per hand). */
-export const lcfrAt = (hands: number): number => {
+/**
+ * Rung 3's LCFR point at the same hands per seat: the lockstep iteration
+ * that had sampled them and its linear average's grade. The match is exact,
+ * because a mark of rung 4 off the race's grid has no table to be read
+ * against.
+ */
+export const lcfrMarkAt = (hands: number): Point => {
   const point = series('lcfr').find((p) => p.hands === hands)
   if (!point) throw new Error(`rung 3 has no LCFR grade at ${hands} hands per seat`)
-  return point.exploitability
+  return point
 }
+
+/** LCFR's linear average at the same hands per seat, from rung 3's grades (chips per hand). */
+export const lcfrAt = (hands: number): number => lcfrMarkAt(hands).exploitability
 
 /** The verdict the sweep fixed before its numbers existed, and the size it picked. */
 export const SWEEP_RULE: { rule: string; winner: string } = (() => {
@@ -314,7 +335,7 @@ const POT_IDS = ['4x256-s16000-lr5e-4', '4x256-s16000', 'pot0.5-4x256-s16000-lr5
 
 export const POT_ARMS: PotPoint[] = POT_IDS.map(potPoint)
 
-/** The same four arms as curves: every graded mark's exact average, the raw 5e-4 arm out to its last grade at five million hands. */
+/** The same four arms as curves: every graded mark's exact average, the raw 5e-4 arm out to five million hands and the ÷ pot arm out to twenty million, the race's endpoint. */
 export interface PotSeries {
   arm: Arm
   potPower: number
@@ -492,10 +513,17 @@ export const screenAt = (rule: keyof typeof RULE_SCREEN, t: number): number => {
   return point.exact
 }
 
-/** The four numbers the masthead quotes, each computed here from the files above. */
+/**
+ * The numbers the masthead and the settled table quote, each computed here
+ * from the files above: the final arm's price at a million hands, its exact
+ * average and the table's at ten and at twenty million hands (where the
+ * table passes it), and the per-sample screen's ratio.
+ */
 export const KEY_NUMBERS = {
-  priceAt1M: markOf(BEST, 100).exact.exploitability / lcfrAt(1_000_000),
-  netAt5M: markOf(BEST, 500).exact.exploitability,
-  tableAt5M: lcfrAt(5_000_000),
+  priceAt1M: markOf(FINAL, 100).exact.exploitability / lcfrAt(1_000_000),
+  netAt10M: markOf(FINAL, 1000).exact.exploitability,
+  tableAt10M: lcfrAt(10_000_000),
+  netAt20M: markOf(FINAL, 2000).exact.exploitability,
+  tableAt20M: lcfrAt(20_000_000),
   ruleScreenRatio: screenAt('dcfr', 50) / screenAt('linear', 50),
 }

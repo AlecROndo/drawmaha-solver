@@ -62,12 +62,6 @@ export function cardLabel(c: Card): string {
   return RANK_CHARS[rankOf(c)] + SUIT_GLYPHS[suitOf(c)]
 }
 
-/** Hearts and diamonds. */
-export function isRed(c: Card): boolean {
-  const suit = suitOf(c)
-  return suit === 1 || suit === 2
-}
-
 /** The 52 − |board| cards a holding can be dealt from, in deck order. */
 export function unseen(board: readonly Card[]): Card[] {
   assertDistinct(board, 'board')

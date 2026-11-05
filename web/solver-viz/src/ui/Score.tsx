@@ -1,19 +1,22 @@
 /**
- * The lead-up as a two-lane score: one lane per seat, one column per street,
- * the board along the top and the pot along the bottom. A hand of Drawmaha
- * is two players acting in turn across streets that have cards, and a draw
- * that has a size; a scorecard already has that shape, so you read it the
- * way you read a box score instead of decoding "P0 · check · P1 · check"
- * off a rail.
+ * The full game's hand so far, as a numbered list in the tool's left
+ * column: the flop, what seat 0 did, your decision, your draw. A hand of
+ * Drawmaha is two players acting in turn across streets, and the list reads
+ * in that order, the pot after each step at its right.
  *
  * The hand on this page is one fixed shape — flop, the other seat acts, you
  * act, the draw — because that is the part of the game the range view can
- * show today. Seat 0's flop chip is a toggle (bet pot ↔ check): it changes
- * the node you face. Your flop chip and your draw chip move the cursor
- * between the two decisions the page can draw.
+ * show today; the streets after the draw wait on the network. Seat 0's step
+ * is a toggle (bet pot ↔ check): it changes the node you face. Your two
+ * steps move the cursor between the two decisions the page can draw. The
+ * flop is the one text field on the page; a flop that does not parse is an
+ * error printed under the field, and the range on screen stays the last good
+ * one.
  */
 
-import { cardLabel, isRed, type Card } from '../engine/cards'
+import { useState } from 'react'
+
+import type { Card } from '../engine/cards'
 import { CardFace } from './bars'
 import { FULL_GAME } from './game'
 
@@ -34,141 +37,77 @@ export function potAfterFlop(villainAct: VillainAct): number {
 
 export function Score({
   line,
+  boardText,
+  boardError,
+  onBoard,
   onToggleVillain,
   onCursor,
 }: {
   line: HandLine
+  boardText: string
+  boardError: string | null
+  onBoard: (text: string) => void
   onToggleVillain: () => void
   onCursor: (c: Cursor) => void
 }) {
+  const [text, setText] = useState(boardText)
+  const facing = line.villainAct === 'pot'
   const pot = potAfterFlop(line.villainAct)
-  const facing = line.villainAct === 'pot'
   return (
-    <div className="score" style={{ '--n': 5 } as React.CSSProperties}>
-      <div className="h" />
-      {['flop', 'draw', 'turn', 'river', 'showdown'].map((h) => (
-        <div key={h} className="h st">
-          {h}
-        </div>
-      ))}
-
-      <div className="lane">board</div>
-      <div className="st board">
-        {line.board.map((c) => (
-          <span key={c} className={`cf sm${isRed(c) ? ' red' : ''}`}>
-            {cardLabel(c)}
-          </span>
-        ))}
-      </div>
-      <div className="st">
-        <span className="none">—</span>
-      </div>
-      <div className="st board">
-        <CardFace game={FULL_GAME} ghost />
-      </div>
-      <div className="st board">
-        <CardFace game={FULL_GAME} ghost />
-      </div>
-      <div className="st">
-        <span className="none">—</span>
-      </div>
-
-      <div className="lane">seat 0</div>
-      <div className="st">
-        <button
-          type="button"
-          className={`act ${facing ? 'p' : ''}`}
-          onClick={onToggleVillain}
-          aria-label={`seat 0 ${facing ? 'bets pot' : 'checks'}; click to make them ${facing ? 'check' : 'bet'} instead`}
-        >
-          {facing ? 'bet' : 'check'}
-          {facing && <small>pot · 2</small>}
-        </button>
-      </div>
-      <div className="st">
-        <span className="act d">
-          throws
-          <small>decided by their mix</small>
+    <div className="score">
+      <div className="score-board">
+        <span className="k">Flop</span>
+        <span className="hand">
+          {line.board.map((c) => (
+            <CardFace key={c} game={FULL_GAME} card={c} />
+          ))}
         </span>
+        <label className="boardfield">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={() => onBoard(text)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onBoard(text)
+            }}
+            spellCheck={false}
+            aria-label="the flop, three cards like Ks 9s 4d"
+          />
+        </label>
       </div>
-      <div className="st">
-        <span className="none">·</span>
-      </div>
-      <div className="st">
-        <span className="none">·</span>
-      </div>
-      <div className="st">
-        <span className="none">·</span>
-      </div>
-
-      <div className="lane">
-        <b>you</b> · seat 1
-      </div>
-      <div className="st">
-        <button
-          type="button"
-          className={`act ${line.cursor === 'you' ? 'you' : 'c'}`}
-          onClick={() => onCursor('you')}
-          aria-current={line.cursor === 'you' ? 'step' : undefined}
-        >
-          {line.cursor === 'you' ? 'to act' : facing ? 'call' : 'check'}
-          <small>{line.cursor === 'you' ? (facing ? 'fold / call / pot 8' : 'check / pot 2') : facing ? '2' : ''}</small>
-        </button>
-      </div>
-      <div className="st">
-        <button
-          type="button"
-          className={`act ${line.cursor === 'draw' ? 'you' : 'd'}`}
-          onClick={() => onCursor('draw')}
-          aria-current={line.cursor === 'draw' ? 'step' : undefined}
-        >
-          {line.cursor === 'draw' ? 'to draw' : 'throw'}
-          <small>{line.cursor === 'draw' ? 'stand pat … throw 5' : 'after the flop is settled'}</small>
-        </button>
-      </div>
-      <div className="st">
-        <span className="none">·</span>
-      </div>
-      <div className="st">
-        <span className="none">·</span>
-      </div>
-      <div className="st">
-        <span className="none">·</span>
-      </div>
-
-      <div className="lane">pot</div>
-      <div className="st pot">
-        <b>{facing ? `2 → ${pot}` : '2'}</b>
-      </div>
-      <div className="st pot">
-        <b>{pot}</b>
-      </div>
-      <div className="st pot">
-        <span className="none">·</span>
-      </div>
-      <div className="st pot">
-        <span className="none">·</span>
-      </div>
-      <div className="st pot">
-        <span className="none">·</span>
-      </div>
+      {boardError && <p className="err">{boardError}</p>}
+      <ol className="score-steps">
+        <li>
+          <span className="n">1</span>
+          <button
+            type="button"
+            className={`act ${facing ? 'p' : 'k'}`}
+            onClick={onToggleVillain}
+            aria-label={`seat 0 ${facing ? 'bets pot' : 'checks'}; click to make them ${facing ? 'check' : 'bet'} instead`}
+          >
+            <b>Seat 0</b> {facing ? 'bets the pot' : 'checks'}
+            <small>switch to {facing ? 'a check' : 'a pot bet'}</small>
+          </button>
+          <span className="pot">pot {facing ? 4 : 2}</span>
+        </li>
+        <li>
+          <span className="n">2</span>
+          <button type="button" className={`act ${line.cursor === 'you' ? 'you' : 'c'}`} onClick={() => onCursor('you')} aria-current={line.cursor === 'you' ? 'step' : undefined}>
+            <b>You, seat 1</b> {line.cursor === 'you' ? 'to act' : facing ? 'call' : 'check'}
+            <small>{facing ? 'fold, call 2 or raise to 8' : 'check or bet 2'}</small>
+          </button>
+          <span className="pot">pot {line.cursor === 'you' ? (facing ? 4 : 2) : pot}</span>
+        </li>
+        <li>
+          <span className="n">3</span>
+          <button type="button" className={`act ${line.cursor === 'draw' ? 'you' : 'k'}`} onClick={() => onCursor('draw')} aria-current={line.cursor === 'draw' ? 'step' : undefined}>
+            <b>Your draw</b> {line.cursor === 'draw' ? 'to draw' : 'after the flop'}
+            <small>stand pat, or throw one to five</small>
+          </button>
+          <span className="pot">pot {pot}</span>
+        </li>
+      </ol>
+      <p className="legend-line">Seat 0 throws by its own mix. The turn, the river and the showdown wait on the network.</p>
     </div>
-  )
-}
-
-/** The score collapsed to one line of notation, for the range window's title bar. */
-export function OneLine({ line }: { line: HandLine }) {
-  const facing = line.villainAct === 'pot'
-  return (
-    <span className="oneline">
-      <span className="hand">
-        {line.board.map((c) => (
-          <CardFace game={FULL_GAME} key={c} card={c} />
-        ))}
-      </span>
-      <span className={`pill ${facing ? 'p' : ''}`}>{facing ? 'bet 2' : 'check'}</span>
-      {line.cursor === 'draw' && <span className={`pill c`}>{facing ? 'call 2' : 'check'}</span>}
-      <span className="pill here">{line.cursor === 'draw' ? 'your draw' : 'you'}</span>
-    </span>
   )
 }

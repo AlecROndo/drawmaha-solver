@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { perHundred, series } from './research'
+import { WORKERS, perHundred, series } from './research'
 import piResults from './data/rung4/pi_sweep_results.json'
-import { POT_DOMAIN } from './ui/scales'
+import { EQUAL_DOMAIN, POT_DOMAIN, hoursAt } from './ui/scales'
 import {
   ARMS,
-  BEST,
+  FINAL,
+  RAW,
   KEY_NUMBERS,
   PI_FINAL_MARK,
   PI_REFERENCE,
@@ -19,6 +20,7 @@ import {
   SWEEP_RULE,
   armOf,
   lcfrAt,
+  lcfrMarkAt,
   markOf,
   piArm,
   piArmOf,
@@ -27,25 +29,98 @@ import {
   screenAt,
 } from './deep'
 
-describe('the best arm against the table at equal hands', () => {
-  it('is graded at six marks, three objects each, on the race grid', () => {
-    expect(BEST.net).toBe('4 × 256')
-    expect(BEST.marks.map((m) => m.t)).toEqual([10, 20, 50, 100, 200, 500])
-    for (const m of BEST.marks) {
+describe('the raw arm and the final arm against the table at equal hands', () => {
+  it('the raw arm is graded at six marks to 5M hands, the final arm at five marks to 20M, three objects each, on the race grid', () => {
+    expect(RAW.net).toBe('4 × 256')
+    expect(RAW.potPower).toBe(0)
+    expect(RAW.marks.map((m) => m.t)).toEqual([10, 20, 50, 100, 200, 500])
+    expect(FINAL.net).toBe('4 × 256')
+    expect(FINAL.potPower).toBe(1)
+    expect(FINAL.steps).toBe(RAW.steps)
+    expect(FINAL.lr).toBe(RAW.lr)
+    expect(FINAL.marks.map((m) => m.t)).toEqual([100, 200, 500, 1000, 2000])
+    for (const m of [...RAW.marks, ...FINAL.marks]) {
       expect(m.hands).toBe(m.t * 10_000)
       expect(lcfrAt(m.hands)).toBeGreaterThan(0)
     }
+    // the final arm ends where the race did
+    expect(FINAL.marks.at(-1)!.hands).toBe(series('lcfr').at(-1)!.hands)
   })
 
-  it('reads the run log: 0.133 / 0.115 / 0.108 against LCFR 1.131 / 0.630 / 0.264 at 1M / 2M / 5M', () => {
-    expect(markOf(BEST, 100).exact.exploitability).toBeCloseTo(0.1326, 3)
-    expect(markOf(BEST, 200).exact.exploitability).toBeCloseTo(0.1152, 3)
-    expect(markOf(BEST, 500).exact.exploitability).toBeCloseTo(0.1079, 3)
+  it('sits on the race\'s checkpoints exactly: a table point at every mark\'s hands, its lockstep iteration 1,000 t', () => {
+    // Figure 8's two clocks: the table's reads the iteration rung 3 graded at the same hands, and the caption says "exactly".
+    for (const m of [...RAW.marks, ...FINAL.marks]) {
+      expect(series('lcfr').some((p) => p.hands === m.hands)).toBe(true)
+      expect(lcfrMarkAt(m.hands).iteration).toBe(m.t * 1000)
+      expect(lcfrMarkAt(m.hands).iteration * WORKERS).toBe(m.hands)
+    }
+    expect(() => lcfrMarkAt(150_000)).toThrow('rung 3 has no LCFR grade at 150000 hands per seat')
+  })
+
+  it('grades the table 113.1 at the first mark and 6.1 at the last, lower at every mark than the one before', () => {
+    // Figure 8's bottom row: the caption quotes the two ends, and the dots fall left to right.
+    const grades = FINAL.marks.map((m) => perHundred(lcfrAt(m.hands)))
+    expect(grades[0]).toBeCloseTo(113.1, 1)
+    expect(grades.at(-1)).toBeCloseTo(6.1, 1)
+    for (let i = 1; i < grades.length; i++) expect(grades[i]).toBeLessThan(grades[i - 1])
+  })
+
+  it('keeps every mark inside the ruler\'s axes, its hands and the table\'s grade alike', () => {
+    // The scales clamp rather than fail, so a mark past twenty million hands would draw off the edge in silence.
+    for (const m of FINAL.marks) {
+      const grade = perHundred(lcfrAt(m.hands))
+      expect(m.hands).toBeGreaterThanOrEqual(EQUAL_DOMAIN.hands[0])
+      expect(m.hands).toBeLessThanOrEqual(EQUAL_DOMAIN.hands[1])
+      expect(grade).toBeGreaterThanOrEqual(EQUAL_DOMAIN.per100[0])
+      expect(grade).toBeLessThanOrEqual(EQUAL_DOMAIN.per100[1])
+    }
+  })
+
+  it('took 6.2 hours to the first mark and 101 to the last, the wall clock rising with every mark', () => {
+    // Figure 8 prints the hours under Deep CFR's clock; the caption quotes the ends.
+    expect(hoursAt(FINAL.marks[0].wallClockS)).toBe('6.2 h')
+    expect(hoursAt(FINAL.marks.at(-1)!.wallClockS)).toBe('101 h')
+    for (const arm of [RAW, FINAL]) {
+      for (let i = 1; i < arm.marks.length; i++) expect(arm.marks[i].wallClockS).toBeGreaterThan(arm.marks[i - 1].wallClockS)
+    }
+    expect(hoursAt(RAW.marks[0].wallClockS)).toBe('0.4 h')
+    expect(hoursAt(RAW.marks.at(-1)!.wallClockS)).toBe('21 h')
+  })
+
+  it('reads the run log: raw 0.133 / 0.115 / 0.108 at 1M / 2M / 5M; ÷ pot 0.114 / 0.084 / 0.071 / 0.068 / 0.068 to 20M; LCFR 1.131 / 0.630 / 0.264 / 0.126 / 0.061', () => {
+    expect(markOf(RAW, 100).exact.exploitability).toBeCloseTo(0.1326, 3)
+    expect(markOf(RAW, 200).exact.exploitability).toBeCloseTo(0.1152, 3)
+    expect(markOf(RAW, 500).exact.exploitability).toBeCloseTo(0.1079, 3)
+    expect(markOf(FINAL, 100).exact.exploitability).toBeCloseTo(0.1143, 3)
+    expect(markOf(FINAL, 200).exact.exploitability).toBeCloseTo(0.0841, 3)
+    expect(markOf(FINAL, 500).exact.exploitability).toBeCloseTo(0.0709, 3)
+    expect(markOf(FINAL, 1000).exact.exploitability).toBeCloseTo(0.0679, 3)
+    expect(markOf(FINAL, 2000).exact.exploitability).toBeCloseTo(0.0685, 3)
     expect(lcfrAt(1_000_000)).toBeCloseTo(1.1308, 3)
     expect(lcfrAt(2_000_000)).toBeCloseTo(0.6298, 3)
     expect(lcfrAt(5_000_000)).toBeCloseTo(0.264, 2)
+    expect(lcfrAt(10_000_000)).toBeCloseTo(0.1257, 3)
+    expect(lcfrAt(20_000_000)).toBeCloseTo(0.0613, 3)
     // the same number research.ts speaks in, per hundred hands
     expect(perHundred(lcfrAt(20_000_000))).toBeCloseTo(perHundred(series('lcfr').at(-1)!.exploitability), 6)
+  })
+
+  it('the table passes the final net between 10M and 20M hands: below at every mark to 10M, above at 20M, and the net flat over its last 10M', () => {
+    // Figure 9's finding and the price strip: the price is under 1 at every mark but the last, where it is just over.
+    for (const m of FINAL.marks) {
+      const price = m.exact.exploitability / lcfrAt(m.hands)
+      if (m.t < 2000) expect(price).toBeLessThan(1)
+      else expect(price).toBeGreaterThan(1)
+    }
+    expect(markOf(FINAL, 2000).exact.exploitability / lcfrAt(20_000_000)).toBeCloseTo(1.116, 2)
+    // the last ten million hands bought nothing: the move is under 0.001 chips per hand, a tenth of a chip per hundred hands
+    const moved = Math.abs(markOf(FINAL, 2000).exact.exploitability - markOf(FINAL, 1000).exact.exploitability)
+    expect(moved).toBeLessThan(0.001)
+    // it flattened lower than the raw arm's floor
+    expect(markOf(FINAL, 1000).exact.exploitability).toBeLessThan(markOf(RAW, 500).exact.exploitability)
+    // the ÷ pot arm's two marks it shares with the committed file before this run were not re-graded
+    expect(markOf(FINAL, 100).exact.exploitability).toBeCloseTo(0.1143, 4)
+    expect(markOf(FINAL, 200).exact.exploitability).toBeCloseTo(0.0841, 4)
   })
 
   it('orders exact < Π at every mark of every linear arm', () => {
@@ -103,17 +178,19 @@ describe('the ablations', () => {
     expect(Math.abs(at(0, 0.0005, 200) - at(0, 0.001, 200))).toBeCloseTo(0.0116, 3)
     // the early mark: the √pot arm is worse than raw at 100k hands, and the ÷ pot arm was never graded there
     expect(markOf(ARMS['pot0.5-4x256-s16000-lr5e-4'], 10).exact.exploitability).toBeCloseTo(0.879, 3)
-    expect(markOf(BEST, 10).exact.exploitability).toBeCloseTo(0.6433, 3)
-    expect(ARMS['pot1-4x256-s16000-lr5e-4'].marks.map((m) => m.t)).toEqual([100, 200])
+    expect(markOf(RAW, 10).exact.exploitability).toBeCloseTo(0.6433, 3)
+    expect(ARMS['pot1-4x256-s16000-lr5e-4'].marks.map((m) => m.t)).toEqual([100, 200, 500, 1000, 2000])
   })
 
-  it('the pot curves carry every graded mark: raw 5e-4 to 5M hands, raw 1e-3 and √pot from 100k, ÷ pot from 1M', () => {
-    expect(POT_SERIES.map((s) => s.points.map((p) => p.t))).toEqual([[10, 20, 50, 100, 200, 500], [10, 100, 200], [10, 100, 200], [100, 200]])
+  it('the pot curves carry every graded mark: raw 5e-4 to 5M hands, raw 1e-3 and √pot from 100k to 2M, ÷ pot from 1M to 20M', () => {
+    expect(POT_SERIES.map((s) => s.points.map((p) => p.t))).toEqual([[10, 20, 50, 100, 200, 500], [10, 100, 200], [10, 100, 200], [100, 200, 500, 1000, 2000]])
     for (const s of POT_SERIES) for (const p of s.points) expect(p.hands).toBe(p.t * 10_000)
     // the raw arm's last grade, at 5M hands, is above both pot arms at 2M
     const last = POT_SERIES[0].points.at(-1)!.exact
     expect(last).toBeCloseTo(0.1079, 3)
     expect(POT_SERIES[2].points.at(-1)!.exact).toBeLessThan(last)
+    expect(POT_SERIES[3].points.find((p) => p.t === 200)!.exact).toBeLessThan(last)
+    // and the ÷ pot arm, run on, flattens under that floor
     expect(POT_SERIES[3].points.at(-1)!.exact).toBeLessThan(last)
     // every plotted point lies inside the chart's axes, which clamp rather than fail
     for (const s of POT_SERIES) {
@@ -188,10 +265,12 @@ describe('the policy-net loss sweep', () => {
 })
 
 describe('the key numbers', () => {
-  it('are the four the masthead quotes, each from the files', () => {
-    expect(KEY_NUMBERS.priceAt1M).toBeCloseTo(0.1173, 4)
-    expect(KEY_NUMBERS.netAt5M).toBeCloseTo(0.1079, 4)
-    expect(KEY_NUMBERS.tableAt5M).toBeCloseTo(0.2641, 4)
+  it('are the ones the masthead and the settled table quote, each from the files', () => {
+    expect(KEY_NUMBERS.priceAt1M).toBeCloseTo(0.1011, 4)
+    expect(KEY_NUMBERS.netAt10M).toBeCloseTo(0.0679, 4)
+    expect(KEY_NUMBERS.tableAt10M).toBeCloseTo(0.1257, 4)
+    expect(KEY_NUMBERS.netAt20M).toBeCloseTo(0.0685, 4)
+    expect(KEY_NUMBERS.tableAt20M).toBeCloseTo(0.0613, 4)
     expect(KEY_NUMBERS.ruleScreenRatio).toBeCloseTo(16.62, 2)
   })
 })
