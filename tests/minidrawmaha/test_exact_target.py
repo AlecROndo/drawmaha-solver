@@ -535,8 +535,10 @@ def test_regret_and_arrival_match_the_sampled_walks_row_by_row_and_pooled():
         z_visits.append(zv)
     for z in (np.asarray(z_regret), np.asarray(z_visits)):
         assert z.size >= 8
-        # The mean of n squared standard normals has mean 1 and standard
-        # deviation √(2/n); this is a 4-sd band on it, (0.4, 1.6) at n = 10.
+        # Pooled: the mean of n fair z has standard deviation 1/√n and the
+        # mean of n squared ones has mean 1 and standard deviation √(2/n);
+        # both are 4-sd bands, (−1.3, 1.3) and (0.4, 1.6) at n = 10.
+        assert abs(np.mean(z)) < 4 / np.sqrt(z.size), (z.size, np.mean(z))
         assert abs(np.mean(z**2) - 1.0) < 4 * np.sqrt(2 / z.size), (z.size, np.mean(z**2))
 
 @pytest.mark.skipif(
@@ -565,11 +567,17 @@ def test_arrival_is_the_visit_rate_of_two_hundred_thousand_whole_game_walks(seat
     rows, counts, arrival = rows[fair], counts[fair], arrival[fair]
     assert rows.size >= 50
     z = (counts - walks * arrival) / np.sqrt(walks * arrival * (1 - arrival))
-    # Of about a thousand fair rows, the largest |z| passes 4 in about six
-    # runs out of a hundred and 5 in one out of a thousand; the pooled mean
-    # of z² is the sharp test (mean 1, standard deviation √(2/n)), and a
-    # bias of a quarter standard error in every row would read 1.06.
-    assert (np.abs(z) < 5).all(), (np.abs(z).max(), rows[np.argmax(np.abs(z))])
+    # The sharp tests are pooled: the mean of z over n fair rows has standard
+    # deviation 1/√n, so a bias of a tenth of a standard error in every row
+    # is caught at n ≈ 1,600; the mean of z² has mean 1 and standard
+    # deviation √(2/n). The per-row cap is loose on purpose: of some 3,000
+    # rows the largest |z| passes 5 in a run out of a thousand, and the deal
+    # alone can do it — at seed 12 one seat-1 picture (3c 3d 4h with 2c on
+    # the board, six relabellings) was dealt 292 times against an expected
+    # 220, 4.9 standard errors, in a count that involves no σ and nothing of
+    # this module, and 221, 219, 222 times on three other seeds.
+    assert (np.abs(z) < 6).all(), (np.abs(z).max(), rows[np.argmax(np.abs(z))])
+    assert abs(np.mean(z)) < 4 / np.sqrt(z.size), (z.size, np.mean(z))
     assert abs(np.mean(z**2) - 1.0) < 4 * np.sqrt(2 / z.size), (z.size, np.mean(z**2))
 
 # ---------------------------------------------------------------------------
