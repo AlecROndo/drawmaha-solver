@@ -49,6 +49,8 @@ PAIRS = {
 SCRIPTS = (
     "scripts/deepcfr/pi_loss_sweep.py",
     "scripts/deepcfr/pi_reach_weighted.py",
+    "scripts/deepcfr/distill_teacher.py",
+    "scripts/deepcfr/distill_figures.py",
 )
 
 
