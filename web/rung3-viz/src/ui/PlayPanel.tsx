@@ -118,8 +118,9 @@ function bandOf(act: Act, word: string | undefined): string {
  * `roll%` stands inside the band of the action the roll prescribed (it is
  * placed at the roll's left edge and extends right, as the segment's
  * half-open interval does). An action the strategy never takes here gets
- * no band and keeps its word below; a sliver for it would push every band
- * right of it off the roll's scale.
+ * a zero-width band (`segments` keeps it, at `[x, x]`) and keeps its word
+ * below; a sliver for it would push every band right of it off the roll's
+ * scale.
  */
 function MixCaption({ row }: { row: Extract<PlayRow, { kind: 'action' }> }) {
   // row.words carries each action's word in the context the actor faced.
