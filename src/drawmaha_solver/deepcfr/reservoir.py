@@ -1,13 +1,27 @@
-"""The memories: Algorithm R over (row, t, target) rows, with an exact resume.
+"""The memories: Algorithm R over (row, t, target, weight) rows, with an exact resume.
 
 Deep CFR trains each iteration's net on a MEMORY of what the walks saw: for the
 advantage memory of seat p, every traverser visit's regret sample r = u − ⟨σ, u⟩
 at some table row; for the policy memory, every opponent visit's σ. A row of
-either memory is 24 bytes — `row: int32` (which table row), `t: int32` (which
-iteration offered it, the refit's weight) and `target: float32 × 4` (r or σ at
-the row's legal columns, zero-padded to the widest ledger, 4). Over 2,000
-iterations the walks offer about 280 million advantage rows per seat; the
-memory keeps a capacity C of them, 50 million in the run.
+either memory is 28 bytes — `row: int32` (which table row), `t: int32` (which
+iteration offered it), `target: float32 × 4` (r or σ at the row's legal
+columns, zero-padded to the widest ledger, 4) and `weight: float32` (how many
+sampled rows this one stands for). The refit weighs a row by t × weight. Over
+2,000 iterations the walks offer about 280 million advantage rows per seat;
+the memory keeps a capacity C of them, 50 million in the run.
+
+**The weight.** Every row the walk offers is one sample and weighs 1, which is
+what `merge` stamps when no weight is given, so a memory of walk rows alone is
+what it was before the column existed. The column is for rows that are NOT one
+sample: the targeted-sampling plan's boost stage adds, at a chosen infoset, one
+row holding the EXACT regret under the current strategy, weighted
+(1 − α) · K · arrival, the number of sampled rows the walk would have put there
+in expectation, so the infoset's expected total weight per iteration is
+unchanged; and it turns the walk's own rows there down to α. A weight of 0 is a
+row the refit must not learn from, kept in the memory so the reservoir sees the
+same offers as a run without the boost. The weight rides the same slot as its
+row through eviction, save and load, and a file written before the column
+existed loads with ones, so a saved run resumes as the run it was.
 
 **Which C of the n rows ever offered?** A uniform sample without replacement —
 every offer resident with probability C/n — so that the refit sees the
@@ -34,10 +48,11 @@ RNG state is ever checkpointed — the rule rung 3's `lockstep.stream` set. The
 fifth word, the ASCII constant "RESV", keeps a reservoir stream from ever
 equalling a walk's four-word stream.
 
-The three arrays are `np.zeros` at construction, which the kernel pages in
-lazily: a 50M-row memory costs 1.2 GB only as it fills, nothing when three of
+The four arrays are `np.zeros` at construction, which the kernel pages in
+lazily: a 50M-row memory costs 1.4 GB only as it fills, nothing when three of
 them are built on a laptop. `contents()` is the refit's input — read-only views
-of the resident rows, the shape `fit_from_scratch(rows, t, targets, …)` takes.
+of the resident rows, the shape `fit_from_scratch(rows, t, targets, weight, …)`
+takes.
 """
 
 from __future__ import annotations
@@ -57,9 +72,13 @@ TARGET_WIDTH = 4
 # has four words, so no reservoir stream can equal one.
 _STREAM_TAG = 0x52455356
 
-# What a reservoir file holds. `offered` marks a file as a reservoir: no other
-# checkpoint in the repo records a count of offers.
+# What every reservoir file holds. `offered` marks a file as a reservoir: no
+# other checkpoint in the repo records a count of offers.
 _FILE_KEYS = ("rows", "t", "targets", "offered", "capacity")
+# Written by every `save` since the column existed, and read as ones when
+# absent: a file without it predates the column, and every row it holds was
+# one sample.
+_WEIGHT_KEY = "weight"
 
 class Memory(IntEnum):
     """Which memory a stream feeds; the word that tells the two apart in the seed."""
@@ -92,6 +111,7 @@ class Reservoir:
         self._rows = np.zeros(self._capacity, dtype=np.int32)
         self._t = np.zeros(self._capacity, dtype=np.int32)
         self._targets = np.zeros((self._capacity, TARGET_WIDTH), dtype=np.float32)
+        self._weight = np.zeros(self._capacity, dtype=np.float32)
 
     @property
     def capacity(self) -> int:
@@ -108,14 +128,24 @@ class Reservoir:
         """How many rows are resident: min(n, capacity)."""
         return min(self._offered, self._capacity)
 
-    def merge(self, rows: np.ndarray, targets: np.ndarray, *, t: int, rng) -> None:
+    def merge(
+        self,
+        rows: np.ndarray,
+        targets: np.ndarray,
+        *,
+        t: int,
+        rng,
+        weight: np.ndarray | None = None,
+    ) -> None:
         """Offer one phase's rows, all stamped `t`, drawing from `rng`.
 
-        `rng` needs `Generator.integers(low, high)` with an array `high`: one
-        draw per late offer. Rows below capacity are kept outright and draw
-        nothing, so a memory still filling consumes no randomness.
+        `weight` is one finite, non-negative float per row; left out, every
+        row weighs 1, the walk's own sample. `rng` needs
+        `Generator.integers(low, high)` with an array `high`: one draw per
+        late offer. Rows below capacity are kept outright and draw nothing,
+        so a memory still filling consumes no randomness.
         """
-        rows, targets = _validate_offer(rows, targets, t)
+        rows, targets, weight = _validate_offer(rows, targets, t, weight)
         count = rows.shape[0]
         capacity = self._capacity
         # Every offer's global index among all offers ever made.
@@ -136,16 +166,17 @@ class Reservoir:
         self._rows[slot[winners]] = rows[winners]
         self._t[slot[winners]] = t
         self._targets[slot[winners]] = targets[winners]
+        self._weight[slot[winners]] = weight[winners]
         self._offered += count
 
-    def contents(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """The resident rows as read-only views: `(rows, t, targets)`, the refit's input.
+    def contents(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """The resident rows as read-only views: `(rows, t, targets, weight)`, the refit's input.
 
         Live views, not a snapshot: a later `merge` shows through them. The
         loop takes them after the phase's merge and hands them to the refit.
         """
         size = self.size
-        views = (self._rows[:size], self._t[:size], self._targets[:size])
+        views = (self._rows[:size], self._t[:size], self._targets[:size], self._weight[:size])
         for view in views:
             view.setflags(write=False)
         return views
@@ -159,7 +190,7 @@ class Reservoir:
         crash mid-write leaves the previous file whole.
         """
         path = Path(path)
-        rows, t, targets = self.contents()
+        rows, t, targets, weight = self.contents()
         temporary = path.with_name(path.name + ".tmp")
         with temporary.open("wb") as file:
             np.savez(
@@ -167,6 +198,7 @@ class Reservoir:
                 rows=rows,
                 t=t,
                 targets=targets,
+                weight=weight,
                 offered=np.int64(self._offered),
                 capacity=np.int64(self._capacity),
             )
@@ -179,7 +211,9 @@ class Reservoir:
         """A memory as `save` left it, ready for the next `merge`.
 
         Refuses a file that is not a reservoir (no `offered`) and one whose
-        resident rows do not match its counts, naming the file either way.
+        resident rows do not match its counts, naming the file either way. A
+        file with no `weight` is from before the column existed: its rows
+        were all plain samples and load weighing one.
         """
         path = Path(path)
         with np.load(path, allow_pickle=False) as saved:
@@ -188,30 +222,40 @@ class Reservoir:
                 raise ValueError(f"{path} is not a reservoir checkpoint (no {missing[0]!r})")
             capacity, offered = int(saved["capacity"]), int(saved["offered"])
             rows, t, targets = saved["rows"], saved["t"], saved["targets"]
+            weight = saved[_WEIGHT_KEY] if _WEIGHT_KEY in saved.files else None
         # The constructor would refuse this too, but without the file's name.
         if capacity < 1:
             raise ValueError(f"{path}: capacity must be a positive int, got {capacity}")
         memory = cls(capacity)
         size = min(offered, capacity)
+        if weight is None:
+            weight = np.ones(size, dtype=np.float32)
         if (
             offered < 0
             or rows.shape != (size,)
             or t.shape != (size,)
             or targets.shape != (size, TARGET_WIDTH)
+            or weight.shape != (size,)
         ):
             raise ValueError(
-                f"{path} holds {rows.shape[0]} rows, but {offered} offers into a capacity "
-                f"of {capacity} means {size} resident"
+                f"{path} holds {rows.shape[0]} rows and {weight.shape[0]} weights, but "
+                f"{offered} offers into a capacity of {capacity} means {size} resident"
             )
         # The arrays are poured in as they are: a float `rows` would be
         # truncated into the int32 slots without a word.
-        expected = (("rows", rows, np.int32), ("t", t, np.int32), ("targets", targets, np.float32))
+        expected = (
+            ("rows", rows, np.int32),
+            ("t", t, np.int32),
+            ("targets", targets, np.float32),
+            ("weight", weight, np.float32),
+        )
         for name, array, dtype in expected:
             if array.dtype != dtype:
                 raise ValueError(f"{path}: {name} must be {dtype.__name__}, got {array.dtype}")
         memory._rows[:size] = rows
         memory._t[:size] = t
         memory._targets[:size] = targets
+        memory._weight[:size] = weight
         memory._offered = offered
         return memory
 
@@ -223,10 +267,13 @@ def _is_int(value: object) -> bool:
     # A bool is an int to Python and never what a caller meant.
     return isinstance(value, (int, np.integer)) and not isinstance(value, bool)
 
-def _validate_offer(rows: np.ndarray, targets: np.ndarray, t: int) -> tuple[np.ndarray, np.ndarray]:
-    """The phase's rows as int32 and its targets as float32, or a ValueError naming the fault."""
+def _validate_offer(
+    rows: np.ndarray, targets: np.ndarray, t: int, weight: np.ndarray | None
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """The phase's rows as int32, its targets and weights as float32, or a ValueError naming the fault."""
     rows = np.asarray(rows)
     targets = np.asarray(targets)
+    weight = np.ones(rows.shape[0], dtype=np.float32) if weight is None else np.asarray(weight)
     # A row is a table row number: a float or a negative is a caller handing
     # the wrong array.
     if rows.ndim != 1 or not np.issubdtype(rows.dtype, np.integer):
@@ -245,6 +292,13 @@ def _validate_offer(rows: np.ndarray, targets: np.ndarray, t: int) -> tuple[np.n
             "rows and targets must have the same length, "
             f"got {rows.shape[0]} and {targets.shape[0]}"
         )
+    if weight.shape != (rows.shape[0],):
+        raise ValueError(f"weight must be shaped ({rows.shape[0]},), one per row, got {weight.shape}")
+    # The refit multiplies a row's error by its weight: a negative one would
+    # pull the net AWAY from the row's target, and a NaN would spread through
+    # the batch's mean into every row's gradient.
+    if weight.size and not (np.isfinite(weight).all() and weight.min() >= 0):
+        raise ValueError("every weight must be finite and non-negative")
     # Iterations start at 1; the refit weights a row by its t, so 0 would
     # erase it and a negative would pull against the others.
     if not _is_int(t) or t < 1:
@@ -253,4 +307,8 @@ def _validate_offer(rows: np.ndarray, targets: np.ndarray, t: int) -> tuple[np.n
     # below the bound, which is here so the stamp can never wrap in silence.
     if t >= 2**31:
         raise ValueError(f"t must fit int32, got {t!r}")
-    return rows.astype(np.int32, copy=False), targets.astype(np.float32, copy=False)
+    return (
+        rows.astype(np.int32, copy=False),
+        targets.astype(np.float32, copy=False),
+        weight.astype(np.float32, copy=False),
+    )

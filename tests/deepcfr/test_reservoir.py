@@ -1,4 +1,4 @@
-"""The reservoir: Algorithm R over (row, t, target) rows, pinned on what the loop relies on.
+"""The reservoir: Algorithm R over (row, t, target, weight) rows, pinned on what the loop relies on.
 
 Four claims. Below capacity every offer is kept, in order. Above it the memory
 never grows, counts every offer, and every offer ever made is resident with
@@ -6,7 +6,8 @@ probability C/n (a chi-square over thousands of trials, correctness gate 2).
 A memory saved and loaded merges the next phase exactly as the uninterrupted
 memory does, because the stream is a function of (seed, t, seat, memory) and
 the count of offers travels with the checkpoint. And the file format refuses
-anything that is not a reservoir.
+anything that is not a reservoir, while a file from before the weight column
+existed loads with every row weighing one.
 """
 
 from __future__ import annotations
@@ -53,8 +54,9 @@ def filled_memory() -> Reservoir:
 def test_below_capacity_everything_is_kept_in_order():
     memory = Reservoir(capacity=10)
     memory.merge(np.arange(6), targets(6), t=1, rng=np.random.default_rng(0))
-    rows, t, kept = memory.contents()
+    rows, t, kept, weight = memory.contents()
     assert memory.offered == 6 and memory.size == 6
+    assert weight.tolist() == [1.0] * 6
     np.testing.assert_array_equal(rows, np.arange(6))
     assert (t == 1).all()
     np.testing.assert_array_equal(kept, targets(6))
@@ -63,20 +65,23 @@ def test_a_second_merge_below_capacity_appends_after_the_first():
     memory = Reservoir(capacity=10)
     memory.merge(np.arange(4), targets(4), t=1, rng=np.random.default_rng(0))
     memory.merge(np.arange(3) + 100, targets(3), t=2, rng=np.random.default_rng(0))
-    rows, t, _ = memory.contents()
+    rows, t, _, _ = memory.contents()
     assert rows.tolist() == [0, 1, 2, 3, 100, 101, 102]
     assert t.tolist() == [1, 1, 1, 1, 2, 2, 2]
 
 def test_never_exceeds_capacity_and_counts_every_offer():
     memory = Reservoir(capacity=10)
     for t in range(1, 6):
-        memory.merge(np.arange(7) + 100 * t, targets(7), t=t, rng=np.random.default_rng(t))
+        memory.merge(
+            np.arange(7) + 100 * t, targets(7), t=t, rng=np.random.default_rng(t), weight=np.arange(7) + 0.5
+        )
     assert memory.offered == 35 and memory.size == 10
-    rows, t_col, kept = memory.contents()
+    rows, t_col, kept, weight = memory.contents()
     assert set(rows.tolist()) <= {r + 100 * t for t in range(1, 6) for r in range(7)}
-    # Each row kept its own t and its own target: the three columns move together.
+    # Each row kept its own t, target and weight: the four columns move together.
     np.testing.assert_array_equal(t_col, rows // 100)
     np.testing.assert_array_equal(kept[:, 0], rows % 100)
+    np.testing.assert_array_equal(weight, rows % 100 + 0.5)
 
 def test_a_merge_that_straddles_capacity_fills_then_samples():
     memory = Reservoir(capacity=5)
@@ -115,10 +120,38 @@ def test_the_later_offer_wins_a_shared_slot():
     memory = Reservoir(capacity=2)
     memory.merge(np.array([0, 1]), targets(2), t=1, rng=np.random.default_rng(0))
     memory.merge(np.array([7, 8]), targets(2), t=2, rng=FixedDraws([1, 1]))
-    rows, t, kept = memory.contents()
+    rows, t, kept, _ = memory.contents()
     assert rows.tolist() == [0, 8]
     assert t.tolist() == [1, 2]
     assert kept[1, 0] == 1.0  # offer 8 was the second target of its merge
+
+def test_rows_offered_without_a_weight_weigh_one():
+    _, _, _, weight = filled_memory().contents()
+    assert weight.dtype == np.float32 and weight.tolist() == [1.0] * 5
+
+def test_a_weight_rides_its_row_through_eviction():
+    # The straddle case above, with a distinct weight per offer: slot 0 is
+    # overwritten by offer 12, whose weight is 4.0, and the dropped offer 13
+    # leaves no weight behind.
+    memory = Reservoir(capacity=5)
+    memory.merge(np.arange(3), targets(3), t=1, rng=np.random.default_rng(0), weight=np.array([0.5, 1.0, 1.5]))
+    memory.merge(np.arange(4) + 10, targets(4), t=2, rng=FixedDraws([0, 7]), weight=np.array([2.0, 3.0, 4.0, 5.0]))
+    rows, _, _, weight = memory.contents()
+    assert rows.tolist() == [12, 1, 2, 10, 11]
+    assert weight.tolist() == [4.0, 1.0, 1.5, 2.0, 3.0]
+
+def test_merge_refuses_bad_weights():
+    memory = Reservoir(capacity=10)
+    rng = np.random.default_rng(0)
+    with pytest.raises(ValueError, match="weight"):
+        memory.merge(np.arange(2), targets(2), t=1, rng=rng, weight=np.array([1.0, -0.5]))
+    with pytest.raises(ValueError, match="weight"):
+        memory.merge(np.arange(2), targets(2), t=1, rng=rng, weight=np.array([1.0, np.nan]))
+    with pytest.raises(ValueError, match="weight"):
+        memory.merge(np.arange(2), targets(2), t=1, rng=rng, weight=np.array([1.0, 1.0, 1.0]))
+    with pytest.raises(ValueError, match="weight"):
+        memory.merge(np.arange(2), targets(2), t=1, rng=rng, weight=np.ones((2, 1)))
+    assert memory.offered == 0  # a refused offer changes nothing
 
 def test_an_empty_merge_changes_nothing():
     memory = filled_memory()
@@ -204,13 +237,17 @@ def test_merge_refuses_bad_rows():
         Reservoir(capacity=True)
 
 def test_contents_are_read_only_and_feed_the_fit():
-    rows, t, tg = filled_memory().contents()
+    rows, t, tg, weight = filled_memory().contents()
     assert rows.dtype == np.int32 and t.dtype == np.int32 and tg.dtype == np.float32
+    assert weight.dtype == np.float32
     assert rows.shape == (5,) and t.shape == (5,) and tg.shape == (5, TARGET_WIDTH)
+    assert weight.shape == (5,)
     with pytest.raises(ValueError):
         rows[0] = 1
     with pytest.raises(ValueError):
         tg[0, 0] = 1.0
+    with pytest.raises(ValueError):
+        weight[0] = 2.0
 
 # ---------------------------------------------------------------------------
 # The file
@@ -269,6 +306,43 @@ def test_load_refuses_arrays_of_the_wrong_type(tmp_path):
     )
     with pytest.raises(ValueError, match="rows must be int32"):
         Reservoir.load(broken)
+
+def test_a_file_written_before_the_weight_existed_loads_with_ones(tmp_path):
+    # Every memory saved before PR 2 of the targeted-sampling plan has no
+    # `weight` key; its rows were all plain samples, so they weigh one.
+    old = tmp_path / "advantage-p0-t00007.npz"
+    np.savez(
+        old,
+        rows=np.arange(5, dtype=np.int32),
+        t=np.full(5, 7, np.int32),
+        targets=targets(5),
+        offered=np.int64(5),
+        capacity=np.int64(8),
+    )
+    loaded = Reservoir.load(old)
+    rows, t, kept, weight = loaded.contents()
+    assert weight.dtype == np.float32 and weight.tolist() == [1.0] * 5
+    loaded.merge(np.arange(3) + 50, targets(3), t=8, rng=np.random.default_rng(0), weight=np.array([2.0, 2.0, 2.0]))
+    assert loaded.contents()[3].tolist() == [1.0] * 5 + [2.0] * 3
+
+def test_load_refuses_a_weight_of_the_wrong_length_or_type(tmp_path):
+    def write(name, weight):
+        path = tmp_path / name
+        np.savez(
+            path,
+            rows=np.arange(3, dtype=np.int32),
+            t=np.ones(3, np.int32),
+            targets=targets(3),
+            weight=weight,
+            offered=np.int64(3),
+            capacity=np.int64(8),
+        )
+        return path
+
+    with pytest.raises(ValueError, match="short.npz"):
+        Reservoir.load(write("short.npz", np.ones(2, np.float32)))
+    with pytest.raises(ValueError, match="weight must be float32"):
+        Reservoir.load(write("double.npz", np.ones(3, np.float64)))
 
 def test_a_loaded_memory_can_keep_filling_to_its_capacity(tmp_path):
     memory = filled_memory()
