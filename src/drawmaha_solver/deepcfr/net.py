@@ -21,19 +21,35 @@ runs the net over 100,400-row shapes; a chunk of 262,144 keeps one forward
 pass to a few tens of megabytes and builds no autograd graph. The result is
 float32 NumPy, which is what the table's writer gathers from.
 
+**The whole game is 141 forward passes.** The table's rows are laid out
+point by point, each point's rows a contiguous slice of the layout's
+private half beside one public row, and each point's legal actions are a
+fixed set of head columns (`features.legal_gather()`). So reading the net
+over every key is one batched pass per public point, gathered at that
+point's columns — `predict_by_point`. `materialise` writes those outputs
+into the regret slots, Π's freeze clips and normalises them, and the
+distillation freeze takes their softmax; the loop is here so the three
+cannot drift apart. No key is ever built.
+
 **The save file** is one `torch.save` of the size and the weights, read
 back with `weights_only=True` so a checkpoint cannot execute code on load.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 import numpy as np
 import torch
 from torch import nn
 
-from drawmaha_solver.minidrawmaha.rules.features import FEATURE_WIDTH, HEAD_WIDTH
+from drawmaha_solver.minidrawmaha.rules.features import (
+    FEATURE_WIDTH,
+    HEAD_WIDTH,
+    layout,
+    legal_gather,
+)
 
 # Rows per forward pass in `predict`; a run parameter only in the sense
 # that a test shrinks it to force several chunks.
@@ -92,6 +108,34 @@ def predict(net: Net, features: np.ndarray) -> np.ndarray:
             chunk = np.ascontiguousarray(features[start : start + PREDICT_CHUNK], dtype=np.float32)
             out[start : start + len(chunk)] = net(torch.from_numpy(chunk)).numpy()
     return out
+
+# ---------------------------------------------------------------------------
+# The whole game, one public point at a time
+# ---------------------------------------------------------------------------
+
+def predict_by_point(
+    net: Net, points: Iterable[int] | None = None
+) -> Iterator[tuple[int, np.ndarray]]:
+    """Per public point in walk order: `(p, outputs)`, outputs (rows_p, width_p) float32 at the point's legal columns.
+
+    Row k of a point's outputs is the key at position k of the point's
+    shape of `private_keys`, the order the whole-game table keeps, so a
+    caller writes or reads `layout().column_offset[p]` onward with one
+    `ravel()`. Column j is the net's head at `legal_gather()[p, j]`: the
+    j-th legal action of every key on the point, in ledger-column order.
+    `points` restricts the pass to those point indices, in the order given
+    (`materialise` passes one seat's points, so a net is never run over
+    the other seat's keys); the default is every point.
+    """
+    built = layout()
+    gather = legal_gather()
+    for p in range(len(built.points)) if points is None else points:
+        rows = built.row_offset[p + 1] - built.row_offset[p]
+        width = built.width[p]
+        private = built.private[built.private_offset[p] : built.private_offset[p] + rows]
+        public = np.broadcast_to(built.public[p], (rows, built.public.shape[1]))
+        outputs = predict(net, np.concatenate([private, public], axis=1))
+        yield p, outputs[:, gather[p, :width]]
 
 # ---------------------------------------------------------------------------
 # The save file
