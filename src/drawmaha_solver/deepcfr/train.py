@@ -37,7 +37,7 @@ sum over every regret sample the memory holds there of t′ × weight × r, and
 with it Deep CFR collapses into rung 3's tabular LCFR. The weight is the
 memory's fourth column (`reservoir.py`): 1 for every row a walk offers, so
 until the targeted-sampling plan's boost stage injects rows that stand for
-more or fewer samples than one, it multiplies nothing. The one thing the loop asks
+more or fewer samples than one, it changes nothing. The one thing the loop asks
 of a `write` is that it assigns INTO `table.cumulative_regret` and never
 rebinds it: the collector's workers read that array through a shared block,
 and a rebound array would leave them walking stale regrets.

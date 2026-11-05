@@ -216,6 +216,9 @@ def test_the_stream_is_a_function_of_its_four_words():
 def test_merge_refuses_bad_rows():
     rng0 = np.random.default_rng(0)
     memory = Reservoir(capacity=4)
+    # A scalar: the ones default for the weight must not trip over it first.
+    with pytest.raises(ValueError, match="1-D"):
+        memory.merge(np.int64(3), targets(1), t=1, rng=rng0)
     with pytest.raises(ValueError, match="same length"):
         memory.merge(np.arange(3), targets(2), t=1, rng=rng0)
     with pytest.raises(ValueError, match="4"):
@@ -343,6 +346,35 @@ def test_load_refuses_a_weight_of_the_wrong_length_or_type(tmp_path):
         Reservoir.load(write("short.npz", np.ones(2, np.float32)))
     with pytest.raises(ValueError, match="weight must be float32"):
         Reservoir.load(write("double.npz", np.ones(3, np.float64)))
+
+def test_load_refuses_a_corrupt_file_without_a_weight_by_name(tmp_path):
+    # The ones default must not run ahead of the counts check: a negative
+    # `offered` in a pre-column file is refused naming the file, as before.
+    broken = tmp_path / "negative.npz"
+    np.savez(
+        broken,
+        rows=np.zeros(0, np.int32),
+        t=np.zeros(0, np.int32),
+        targets=np.zeros((0, TARGET_WIDTH), np.float32),
+        offered=np.int64(-1),
+        capacity=np.int64(8),
+    )
+    with pytest.raises(ValueError, match="negative.npz"):
+        Reservoir.load(broken)
+
+def test_load_refuses_a_scalar_weight_by_name(tmp_path):
+    scalar = tmp_path / "scalar.npz"
+    np.savez(
+        scalar,
+        rows=np.arange(3, dtype=np.int32),
+        t=np.ones(3, np.int32),
+        targets=targets(3),
+        weight=np.float32(1.0),
+        offered=np.int64(3),
+        capacity=np.int64(8),
+    )
+    with pytest.raises(ValueError, match="scalar.npz"):
+        Reservoir.load(scalar)
 
 def test_a_loaded_memory_can_keep_filling_to_its_capacity(tmp_path):
     memory = filled_memory()

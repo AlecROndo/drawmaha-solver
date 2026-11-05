@@ -217,14 +217,14 @@ def fit_from_scratch(
     rows = np.asarray(rows)
     t = np.asarray(t)
     targets = np.asarray(targets, dtype=np.float32)
-    weight = np.ones(len(rows), dtype=np.float32) if weight is None else np.asarray(weight, dtype=np.float32)
     # A (n, 1) t would broadcast against the (n,) error into an (n, n) loss
     # and train on the wrong number without a word, so the shapes are
     # refused by name, not left to broadcasting.
-    if rows.ndim != 1 or t.ndim != 1 or weight.ndim != 1:
-        raise ValueError(
-            f"rows, t and weight must be 1-D, got shapes {rows.shape}, {t.shape} and {weight.shape}"
-        )
+    if rows.ndim != 1 or t.ndim != 1:
+        raise ValueError(f"rows and t must be 1-D, got shapes {rows.shape} and {t.shape}")
+    weight = np.ones(len(rows), dtype=np.float32) if weight is None else np.asarray(weight, dtype=np.float32)
+    if weight.ndim != 1:
+        raise ValueError(f"weight must be 1-D, got shape {weight.shape}")
     if not np.issubdtype(rows.dtype, np.integer):
         raise ValueError(f"rows must be integer row numbers, got dtype {rows.dtype}")
     if not len(rows) == len(t) == len(targets) == len(weight):

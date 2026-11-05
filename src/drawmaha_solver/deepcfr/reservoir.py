@@ -228,19 +228,15 @@ class Reservoir:
             raise ValueError(f"{path}: capacity must be a positive int, got {capacity}")
         memory = cls(capacity)
         size = min(offered, capacity)
+        if offered < 0 or rows.shape != (size,) or t.shape != (size,) or targets.shape != (size, TARGET_WIDTH):
+            raise ValueError(
+                f"{path} holds {rows.shape} rows, but {offered} offers into a capacity "
+                f"of {capacity} means {size} resident"
+            )
         if weight is None:
             weight = np.ones(size, dtype=np.float32)
-        if (
-            offered < 0
-            or rows.shape != (size,)
-            or t.shape != (size,)
-            or targets.shape != (size, TARGET_WIDTH)
-            or weight.shape != (size,)
-        ):
-            raise ValueError(
-                f"{path} holds {rows.shape[0]} rows and {weight.shape[0]} weights, but "
-                f"{offered} offers into a capacity of {capacity} means {size} resident"
-            )
+        elif weight.shape != (size,):
+            raise ValueError(f"{path} holds {size} rows but a weight of shape {weight.shape}")
         # The arrays are poured in as they are: a float `rows` would be
         # truncated into the int32 slots without a word.
         expected = (
@@ -273,11 +269,11 @@ def _validate_offer(
     """The phase's rows as int32, its targets and weights as float32, or a ValueError naming the fault."""
     rows = np.asarray(rows)
     targets = np.asarray(targets)
-    weight = np.ones(rows.shape[0], dtype=np.float32) if weight is None else np.asarray(weight)
     # A row is a table row number: a float or a negative is a caller handing
     # the wrong array.
     if rows.ndim != 1 or not np.issubdtype(rows.dtype, np.integer):
         raise ValueError(f"rows must be a 1-D integer array, got {rows.dtype} {rows.shape}")
+    weight = np.ones(rows.shape[0], dtype=np.float32) if weight is None else np.asarray(weight)
     if rows.size and rows.min() < 0:
         raise ValueError(f"rows must not be negative, got {int(rows.min())}")
     # Rows are stored as int32; a bigger one would wrap silently in `astype`.
