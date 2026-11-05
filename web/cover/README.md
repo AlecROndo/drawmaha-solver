@@ -10,11 +10,12 @@ fifth is the old front page, kept as an archive:
 | `rules.html` | `/rules` | the rules of Drawmaha: the streets as a ruler, one hand read two ways, why the game is unsolved |
 | `benchmarks.html` | `/benchmarks` | the four graded games on one page: the results table, then each game's chart, grade and link to its live demo |
 | `releases.html` | `/releases` | every released strategy with its tag, grade, the pages that ship it and the command that exports it |
+| `wiki.html` | `/wiki` | the wiki: `docs/wiki/` rendered by `scripts/site/wiki.py` — tabs, groups and pages for a new reader; `docs/wiki/README.md` is its authoring guide |
 | `cover.html` | `/cover` | the original front page, archived with its own inlined chrome; unlinked from the nav and not regenerated |
 
 ## Written by a generator, never by hand
 
-`index.html`, `rules.html`, `benchmarks.html` and `releases.html` are the
+`index.html`, `rules.html`, `benchmarks.html`, `releases.html` and `wiki.html` are the
 output of `scripts/site/make_static_pages.py`, and each names it in a comment
 above its `<head>`. To change a page, change the generator and run
 

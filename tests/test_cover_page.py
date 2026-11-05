@@ -19,7 +19,8 @@ reviewer catches by reading:
 - a request leaving the host — the pages self-host everything, no CDN;
 - a page that drifted from what its generator writes, i.e. a hand edit to a
   file that is regenerated;
-- the method's words ("rung", "ladder", "climb") in the product's copy.
+- the method's words ("rung", "ladder", "climb") in the product's copy (the
+  wiki, which explains the method, is exempt).
 
 The set of real destinations is read out of `vercel.json`, so adding a route
 there is what unlocks linking to it.
@@ -38,9 +39,12 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 COVER = ROOT / "web" / "cover"
-PAGES = ("index.html", "rules.html", "benchmarks.html", "releases.html", "cover.html")
-# The four written by the generator; the Cover is the archive and keeps its old chrome.
-GENERATED = ("index.html", "rules.html", "benchmarks.html", "releases.html")
+PAGES = ("index.html", "rules.html", "benchmarks.html", "releases.html", "wiki.html", "cover.html")
+# The five written by the generator; the Cover is the archive and keeps its old chrome.
+GENERATED = ("index.html", "rules.html", "benchmarks.html", "releases.html", "wiki.html")
+# The product's pages. The wiki is the method's reference, the README's twin for
+# a new reader, so it is the one generated page that names the rungs.
+PRODUCT = ("index.html", "rules.html", "benchmarks.html", "releases.html")
 GENERATOR = ROOT / "scripts" / "site" / "make_static_pages.py"
 
 # The site's own origin; absolute links to it are the same as root-relative ones.
@@ -294,7 +298,7 @@ def _copy(page: str) -> str:
     return html.unescape(f"{head} {body}")
 
 
-@pytest.mark.parametrize("name", GENERATED)
+@pytest.mark.parametrize("name", PRODUCT)
 def test_no_page_says_rung_or_ladder_in_its_copy(name: str, pages: dict[str, str]) -> None:
     """The ladder is the method, told in the README; the product's pages speak the product's words."""
     copy = _copy(pages[name])
