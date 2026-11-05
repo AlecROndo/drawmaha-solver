@@ -290,7 +290,8 @@ def assert_pooled_fair(z: np.ndarray) -> None:
     18 and 19 for seat 1 (2026-11-05, mean z within 0.01 of zero on every
     fair selection); they are a calibrated regression gate, not a
     distributional guarantee. At small n the z² band is wide: 1 ± 1.79 at
-    n = 10, so its low side bites only from n ≈ 45 (1 ± 0.84).
+    n = 10; its low side bites once the half-width drops under 1, from
+    n = 33 (1 ± 0.98), and is 1 ± 0.84 at n = 45.
     """
     n = z.size
     assert abs(np.mean(z)) < 4 / np.sqrt(n), (n, np.mean(z))
