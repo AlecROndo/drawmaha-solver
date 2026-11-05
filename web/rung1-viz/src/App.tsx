@@ -77,7 +77,7 @@ function SolveTab() {
         <div className="stop-head">
           <div>
             <p className="eyebrow">What to look for</p>
-            <h2>CFR discovers the bluff on its own and lands on a known answer</h2>
+            <h2>CFR discovers the bluff on its own and lands in the known family of answers</h2>
           </div>
           <p>
             The figures above are one solve of one small game. Each row names a thing the run does that a table of its
