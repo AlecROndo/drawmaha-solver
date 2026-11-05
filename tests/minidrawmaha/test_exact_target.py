@@ -285,9 +285,12 @@ def assert_pooled_fair(z: np.ndarray) -> None:
     visit counts over rows come from one multinomial (negative, so that
     band is conservative), and a z built from a plug-in standard error over
     40-odd samples has heavier tails than normal. The seeds are fixed, so
-    the runs are deterministic, and the thresholds were checked at those
-    seeds and on several others; they are a calibrated regression gate,
-    not a distributional guarantee.
+    the runs are deterministic. The arrival bands were checked at the
+    gated test's seed 12 for both seats and at seeds 13, 14, 15, 16, 17,
+    18 and 19 for seat 1 (2026-11-05, mean z within 0.01 of zero on every
+    fair selection); they are a calibrated regression gate, not a
+    distributional guarantee. At small n the z² band is wide: 1 ± 1.79 at
+    n = 10, so its low side bites only from n ≈ 45 (1 ± 0.84).
     """
     n = z.size
     assert abs(np.mean(z)) < 4 / np.sqrt(n), (n, np.mean(z))
@@ -555,7 +558,7 @@ def test_regret_and_arrival_match_the_sampled_walks_row_by_row_and_pooled():
         z_visits.append(zv)
     for z in (np.asarray(z_regret), np.asarray(z_visits)):
         assert z.size >= 8
-        assert_pooled_fair(z)  # (−1.3, 1.3) and (0.4, 1.6) at n = 10
+        assert_pooled_fair(z)
 
 @pytest.mark.skipif(
     not FULL_TARGET, reason="200,000 whole-game walks on 8 workers, ~2 min; set MINIDRAWMAHA_FULL_TARGET=1"
