@@ -9,7 +9,7 @@ description: How CFR turns a game tree into one regret-matching ledger per infos
 
 One CFR iteration is a recursive walk from the root. At every node it carries **reach probabilities down** and returns **values up**.
 
-- **Down: reach.** `reach[p]` is the product of player p's *own* action probabilities on the path so far, and nothing else. Chance is in neither entry.
+- **Down: reach.** `reach[p]` is the product of player p's *own* action probabilities on the path so far, and nothing else. Chance is in neither entry: its probability travels separately and is multiplied into the counterfactual reach π₋ᵢ (chance × opponent) when a ledger is banked, as below.
 - **Up: values.** What the node is worth to each seat, as a plain conditional expectation: at a decision node, Σₐ σ(I, a) · v(child a). Values are *not* weighted by reach. Reach weights are applied once, when a ledger is banked.
 - The walk returns the value to *both* seats, so nothing is negated on the way up.
 

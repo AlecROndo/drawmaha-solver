@@ -104,3 +104,9 @@ def test_a_numbered_item_nests_under_its_three_wide_marker() -> None:
 def test_two_headings_with_one_anchor_fail() -> None:
     with pytest.raises(ValueError, match="share the anchor"):
         _render("## Example\n\n## Example")
+
+
+def test_markup_written_in_prose_is_text() -> None:
+    out = _render('A literal <a href="x">tag</a> and [a *link*](wiki:t/x).')
+    assert "&lt;a href=&quot;x&quot;&gt;tag&lt;/a&gt;" in out
+    assert '<a href="#t/x">a <em>link</em></a>' in out

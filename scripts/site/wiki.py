@@ -137,7 +137,7 @@ class Renderer:
 
     def inline(self, text: str) -> str:
         """Code spans first (their contents are literal), then links, then emphasis."""
-        out, codes = [], []
+        codes: list[str] = []
 
         def stash_code(m: re.Match) -> str:
             codes.append(f"<code>{esc(m.group(1))}</code>")
@@ -145,23 +145,20 @@ class Renderer:
 
         text = re.sub(r"`([^`]+)`", stash_code, text)
 
+        anchors: list[str] = []
+
         def link(m: re.Match) -> str:
             label, target = m.group(1), m.group(2)
             url, outside = self.href(target)
             rel = ' rel="noopener"' if outside else ""
-            return f'<a href="{esc(url)}"{rel}>\x01{label}\x02</a>'
+            anchors.append(f'<a href="{esc(url)}"{rel}>')
+            return f"\x01{len(anchors) - 1}\x01{label}\x02"
 
         text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", link, text)
-        # escape everything outside the tags just built
-        parts = re.split(r"(<a [^>]*>|</a>|\x01|\x02)", text)
-        for part in parts:
-            if part.startswith("<a ") or part == "</a>":
-                out.append(part)
-            elif part in ("\x01", "\x02"):
-                continue
-            else:
-                out.append(esc(part).replace("&#x27;", "'"))
-        s = "".join(out)
+        # Escape all the text, labels included, then put back the tags built above:
+        # a literal "<a ...>" written in prose is text, never markup.
+        s = esc(text).replace("&#x27;", "'")
+        s = re.sub(r"\x01(\d+)\x01", lambda m: anchors[int(m.group(1))], s).replace("\x02", "</a>")
         s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
         s = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"<em>\1</em>", s)
         return re.sub(r"\x00(\d+)\x00", lambda m: codes[int(m.group(1))], s)
