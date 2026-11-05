@@ -1,26 +1,35 @@
-"""The from-scratch refit: a fresh net fitted to (row, t, target) rows.
+"""The from-scratch refit: a fresh net fitted to (row, t, target, weight) rows.
 
 Deep CFR does not update a net between iterations; it throws the net away
-and fits a new one to everything the memory holds. The memory is three
+and fits a new one to everything the memory holds. The memory is four
 arrays the same length: `rows`, the table row each sample was taken at
 (the net never sees the row number — `Layout.features` turns it into the
 136 floats the player could see); `t`, the iteration the sample was taken
-on; and `targets`, what the net should say at that row's legal columns,
-`MAX_WIDTH` wide with padding past the row's width. Nothing here knows
-what a target IS — a sampled regret, an action probability — so the same
-fit serves the regret nets and the policy net.
+on; `targets`, what the net should say at that row's legal columns,
+`MAX_WIDTH` wide with padding past the row's width; and `weight`, how many
+sampled rows the row stands for, 1 for a walk's own sample (see
+`reservoir.py` for the rows that are not one). Nothing here knows what a
+target IS — a sampled regret, an action probability — so the same fit
+serves the regret nets and the policy net.
 
 **The loss.** Per row, the squared error summed over its legal columns,
 read off the head through `features.legal_gather()`; the padding is masked
 out BEFORE the subtraction, so a padded column holding NaN is never looked
-at and never leaks into a gradient. Each row is weighted by its iteration
-t, divided by the batch's mean t so the loss keeps one scale as the run
+at and never leaks into a gradient. Each row is weighted by t × weight —
+its iteration times how many samples it stands for — divided by the
+batch's mean of t × weight so the loss keeps one scale as the run
 lengthens, and the batch loss is the mean over rows: a 2-wide and a 4-wide
-spot each count as one row. The weight is Deep CFR's (Brown, Lerer, Gross &
+spot each count as one row. The t is Deep CFR's (Brown, Lerer, Gross &
 Sandholm 2019), borrowed from Linear CFR (Brown & Sandholm 2019): the
 early iterations' strategies are far from equilibrium, so the regrets
 sampled against them say the least about the game, and a weight that
-grows with t lets the later samples outvote them.
+grows with t lets the later samples outvote them. The weight multiplies t
+rather than the target, so it changes how much a row counts and never
+what the row says; at weight 1 throughout it is t / mean(t) bit for bit
+(t · 1.0 is t in float32), and a row of weight 0 contributes nothing. A
+batch whose every row weighs 0 has a mean of 0 to divide by; its loss is
+0 rather than 0/0, so a tiny memory under the boost cannot end a fit as
+"diverged" on one unlucky draw.
 
 **The optimiser.** Adam at the spec's learning rate, the gradient's norm
 clipped to the spec's bound before each step so one wild sample cannot
@@ -49,7 +58,7 @@ the same minibatch draws (still from a cpu generator), the same loss, one
 feature halves and the legal gather go to the device once per fit and each
 batch's features are gathered there, so no step goes back through numpy.
 That copy holds the whole memory a second time for the fit's duration
-(rows, t, and `MAX_WIDTH` float32 targets per row), so peak memory is
+(rows, t, weight, and `MAX_WIDTH` float32 targets per row), so peak memory is
 about twice the memory's; unified memory makes the copy cheap, not free.
 Only the order of the arithmetic changes, so it is the same rule but not
 the same net. Adam divides by √v, so a near-zero gradient component turns
@@ -116,34 +125,48 @@ class FitConfig:
 # The loss
 # ---------------------------------------------------------------------------
 
-def batch_loss(net: Net, rows: np.ndarray, t: np.ndarray, targets: np.ndarray) -> torch.Tensor:
+def batch_loss(
+    net: Net,
+    rows: np.ndarray,
+    t: np.ndarray,
+    targets: np.ndarray,
+    weight: np.ndarray | None = None,
+) -> torch.Tensor:
     """One batch's loss, a scalar tensor: what every step minimises.
 
     Public so a test and PR 4's logging read the same number the optimiser
-    does. Builds the batch's features on the fly from `layout()`. Assumes
-    what `fit_from_scratch` checks: every t is >= 1, so the batch's mean t
-    the weights are divided by is positive.
+    does. Builds the batch's features on the fly from `layout()`. `weight`
+    left out is a batch of plain samples, every row weighing 1. Assumes
+    what `fit_from_scratch` checks: every t is >= 1 and every weight is
+    finite and non-negative.
     """
     built = layout()
     point, _ = built.locate_rows(rows)
     gather = torch.from_numpy(legal_gather()[point].astype(np.int64))
+    if weight is None:
+        weight = np.ones(len(rows), dtype=np.float32)
     return _weighted_loss(
         net(torch.from_numpy(built.features(rows))),
         gather,
         torch.from_numpy(np.asarray(targets, dtype=np.float32)),
         torch.from_numpy(np.asarray(t, dtype=np.float32)),
+        torch.from_numpy(np.asarray(weight, dtype=np.float32)),
     )
 
 def _weighted_loss(
-    outputs: torch.Tensor, gather: torch.Tensor, targets: torch.Tensor, t: torch.Tensor
+    outputs: torch.Tensor,
+    gather: torch.Tensor,
+    targets: torch.Tensor,
+    t: torch.Tensor,
+    weight: torch.Tensor,
 ) -> torch.Tensor:
     """The loss from the net's outputs on: the one copy both the cpu and the device fit call.
 
     `outputs` (b, head) the net's raw head, `gather` (b, MAX_WIDTH) each
-    row's ledger columns with `NO_ACTION` padding, `targets` (b, MAX_WIDTH)
-    and `t` (b,) float32, all on one device. Everything before this — the
-    features, the gather's rows — differs between the paths only in where
-    it is looked up, never in what it is.
+    row's ledger columns with `NO_ACTION` padding, `targets` (b, MAX_WIDTH),
+    `t` (b,) and `weight` (b,) float32, all on one device. Everything
+    before this — the features, the gather's rows — differs between the
+    paths only in where it is looked up, never in what it is.
     """
     legal = gather != NO_ACTION
     predicted = outputs.gather(1, gather.clamp(min=0))
@@ -151,7 +174,11 @@ def _weighted_loss(
     # survive `where` in the backward pass, where 0 * NaN is NaN.
     target = torch.where(legal, targets, 0.0)
     error = torch.where(legal, (predicted - target) ** 2, 0.0).sum(dim=1)
-    weight = t / t.mean()
+    scale = t * weight
+    # A batch of weight-0 rows alone has a mean of 0; clamped, its loss is 0
+    # and not NaN. Any positive mean is far above `tiny`, so the clamp
+    # returns it unchanged and the division is the plain one.
+    weight = scale / scale.mean().clamp(min=torch.finfo(scale.dtype).tiny)
     return (weight * error).mean()
 
 # ---------------------------------------------------------------------------
@@ -162,6 +189,7 @@ def fit_from_scratch(
     rows: np.ndarray,
     t: np.ndarray,
     targets: np.ndarray,
+    weight: np.ndarray | None = None,
     *,
     seed: tuple[int, ...],
     config: FitConfig = FitConfig(),
@@ -171,13 +199,16 @@ def fit_from_scratch(
     `rows` (n,) int table rows, `t` (n,) iteration numbers >= 1 (an
     integer-valued float is accepted: t enters only as a float32 weight),
     `targets` (n, MAX_WIDTH) float in ledger-column order with padding
-    ignored.
+    ignored, `weight` (n,) finite and >= 0, or None for a memory of plain
+    samples, every row weighing 1.
 
     Refused by name before anything is built:
 
-    - a `rows` or `t` that is not 1-D, or non-integer rows;
+    - a `rows`, `t` or `weight` that is not 1-D, or non-integer rows;
     - mismatched lengths, or an empty memory;
     - a non-finite t, or one below 1;
+    - a non-finite or negative weight, or weights with no positive entry
+      (nothing to fit, as an empty memory is);
     - targets not `MAX_WIDTH` wide, or non-finite at a legal column;
     - a row outside the table.
 
@@ -186,16 +217,20 @@ def fit_from_scratch(
     rows = np.asarray(rows)
     t = np.asarray(t)
     targets = np.asarray(targets, dtype=np.float32)
+    weight = np.ones(len(rows), dtype=np.float32) if weight is None else np.asarray(weight, dtype=np.float32)
     # A (n, 1) t would broadcast against the (n,) error into an (n, n) loss
     # and train on the wrong number without a word, so the shapes are
     # refused by name, not left to broadcasting.
-    if rows.ndim != 1 or t.ndim != 1:
-        raise ValueError(f"rows and t must be 1-D, got shapes {rows.shape} and {t.shape}")
+    if rows.ndim != 1 or t.ndim != 1 or weight.ndim != 1:
+        raise ValueError(
+            f"rows, t and weight must be 1-D, got shapes {rows.shape}, {t.shape} and {weight.shape}"
+        )
     if not np.issubdtype(rows.dtype, np.integer):
         raise ValueError(f"rows must be integer row numbers, got dtype {rows.dtype}")
-    if not len(rows) == len(t) == len(targets):
+    if not len(rows) == len(t) == len(targets) == len(weight):
         raise ValueError(
-            f"rows, t and targets must have the same length, got {len(rows)}, {len(t)}, {len(targets)}"
+            "rows, t, targets and weight must have the same length, "
+            f"got {len(rows)}, {len(t)}, {len(targets)}, {len(weight)}"
         )
     if len(rows) == 0:
         raise ValueError("the memory is empty: nothing to fit")
@@ -205,6 +240,12 @@ def fit_from_scratch(
         raise ValueError("every t must be finite")
     if t.min() < 1:
         raise ValueError(f"every t must be an iteration number >= 1, got a minimum of {t.min()}")
+    if not np.isfinite(weight).all() or weight.min() < 0:
+        raise ValueError("every weight must be finite and non-negative")
+    # Every row inert: the batches would all be the weightless case the
+    # loss guards, and 4,000 steps of zero gradient would "fit" nothing.
+    if not (weight > 0).any():
+        raise ValueError("no row carries weight: nothing to fit")
     rows = rows.astype(np.int64)
     point, _ = layout().locate_rows(rows)  # raises IndexError for a row outside the table
     # Only the legal columns are checked: the padding may hold anything.
@@ -215,7 +256,7 @@ def fit_from_scratch(
     # config can never quietly run the cpu loop; the device loop checks only
     # mps's availability, so a new name must add its own check there.
     if config.device != "cpu":
-        return _fit_on_device(rows, t, targets, folded, config, device=config.device)
+        return _fit_on_device(rows, t, targets, weight, folded, config, device=config.device)
     threads_before = torch.get_num_threads()
     torch.set_num_threads(config.threads)
     try:
@@ -229,7 +270,7 @@ def fit_from_scratch(
             # (the cpu-parity test in test_fit.py is the guard).
             picked = torch.randint(len(rows), (config.batch,), generator=draw).numpy()
             optimiser.zero_grad()
-            batch_loss(net, rows[picked], t[picked], targets[picked]).backward()
+            batch_loss(net, rows[picked], t[picked], targets[picked], weight[picked]).backward()
             clip_grad_norm_(net.parameters(), config.clip)
             optimiser.step()
     finally:
@@ -245,6 +286,7 @@ def _fit_on_device(
     rows: np.ndarray,
     t: np.ndarray,
     targets: np.ndarray,
+    weight: np.ndarray,
     folded: int,
     config: FitConfig,
     *,
@@ -274,6 +316,7 @@ def _fit_on_device(
     gather_all = torch.from_numpy(legal_gather().astype(np.int64)).to(device)
     memory_rows = torch.from_numpy(rows).to(device)
     memory_t = torch.from_numpy(np.asarray(t, dtype=np.float32)).to(device)
+    memory_weight = torch.from_numpy(np.asarray(weight, dtype=np.float32)).to(device)
     # `from_numpy` warns on a read-only array (a memory loaded from a file
     # can be one); `require` copies only in that case.
     memory_targets = torch.from_numpy(np.require(targets, requirements="W")).to(device)
@@ -292,7 +335,11 @@ def _fit_on_device(
         position = batch_rows - row_offset[point]
         features = torch.cat([private[private_offset[point] + position], public[point]], dim=1)
         loss = _weighted_loss(
-            net(features), gather_all[point], memory_targets[picked], memory_t[picked]
+            net(features),
+            gather_all[point],
+            memory_targets[picked],
+            memory_t[picked],
+            memory_weight[picked],
         )
         optimiser.zero_grad()
         loss.backward()

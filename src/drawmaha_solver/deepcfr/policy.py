@@ -23,7 +23,9 @@ objects per grid mark").
 
 **The fit.** `fit_from_scratch` on the memory's `contents()`; the targets
 are σ rows zero-padded to `TARGET_WIDTH`, and `batch_loss` masks the
-padding before the subtraction, as it does for advantage rows. Nothing in
+padding before the subtraction, as it does for advantage rows. The policy
+memory's weights are all 1 — the opponent's walks are the only thing that
+offers σ rows — so the column is carried and changes nothing here. Nothing in
 the fit knows the target is a probability, so a regret memory handed by
 mistake would fit in silence; `fit_policy` refuses one by checking that
 every row is a distribution at its legal columns. A fresh net every time,
@@ -84,13 +86,16 @@ def fit_policy(
     rows: np.ndarray,
     t: np.ndarray,
     targets: np.ndarray,
+    weight: np.ndarray | None = None,
     *,
     seed: int,
     iteration: int,
     config: FitConfig | None = None,
 ) -> Net:
-    """A fresh net fit to the policy memory's `(rows, t, targets)` at `iteration`, under `policy_seed`.
+    """A fresh net fit to the policy memory's `(rows, t, targets, weight)` at `iteration`, under `policy_seed`.
 
+    `weight` is the memory's fourth column, positional so the memory's
+    `contents()` unpacks straight in; None is a memory of plain samples.
     `config` defaults to `FitConfig()`, the spec's refit. Refuses, before
     anything is built, a targets row that is not a distribution at its
     legal columns — a regret memory handed in place of the policy memory.
@@ -100,7 +105,7 @@ def fit_policy(
     targets = np.asarray(targets, dtype=np.float32)
     _require_distributions(np.asarray(rows), targets)
     return fit_from_scratch(
-        rows, t, targets, seed=policy_seed(seed, iteration), config=config or FitConfig()
+        rows, t, targets, weight, seed=policy_seed(seed, iteration), config=config or FitConfig()
     )
 
 def _require_distributions(rows: np.ndarray, targets: np.ndarray) -> None:

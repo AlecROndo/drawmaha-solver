@@ -101,6 +101,65 @@ def test_later_iterations_weigh_more():
     )
     np.testing.assert_allclose(legal_prediction(net, row), 0.5, atol=0.05)
 
+def test_weight_one_is_the_unweighted_fit_bit_for_bit():
+    # t · 1.0 is t exactly in float32, so the loss, the gradients and the
+    # weights are the same bits as a fit told nothing about weights.
+    rows, t, targets = real_rows(300, seed=4)
+    plain = fit_from_scratch(rows, t, targets, seed=(0, 1, 0), config=SMALL)
+    ones = fit_from_scratch(rows, t, targets, np.ones(300, np.float32), seed=(0, 1, 0), config=SMALL)
+    for a, b in zip(plain.parameters(), ones.parameters(), strict=True):
+        assert torch.equal(a, b)
+
+def test_a_row_of_weight_zero_is_inert():
+    # One row twice at t = 1: +1 at weight 0 and −1 at weight 1. The first
+    # row must leave no trace, so the fit lands on −1, not on the mean 0.
+    (row,), _, _ = real_rows(1, seed=3)
+    rows = np.array([row, row])
+    t = np.array([1, 1])
+    targets = np.array([[1, 1, 1, 1], [-1, -1, -1, -1]], dtype=np.float32)
+    net = fit_from_scratch(
+        rows, t, targets, np.array([0.0, 1.0]), seed=(0, 1, 0), config=FitConfig(steps=1_500, batch=64, threads=1)
+    )
+    np.testing.assert_allclose(legal_prediction(net, row), -1.0, atol=0.05)
+
+def test_the_loss_weighs_a_row_by_t_times_weight():
+    # The same two rows as `test_later_iterations_weigh_more`, +1 at t = 3 and
+    # −1 at t = 1, with weights (1, 3): t · w is 3 for both, so the weighted
+    # least-squares answer moves from +0.5 to the plain mean, 0.
+    (row,), _, _ = real_rows(1, seed=3)
+    rows = np.array([row, row])
+    t = np.array([3, 1])
+    targets = np.array([[1, 1, 1, 1], [-1, -1, -1, -1]], dtype=np.float32)
+    net = fit_from_scratch(
+        rows, t, targets, np.array([1.0, 3.0]), seed=(0, 1, 0), config=FitConfig(steps=1_500, batch=64, threads=1)
+    )
+    np.testing.assert_allclose(legal_prediction(net, row), 0.0, atol=0.05)
+
+def test_a_batch_of_weightless_rows_has_a_finite_loss():
+    # Every row of the batch at weight 0 (a tiny memory under the boost's α = 0):
+    # the normalising mean is 0, and 0/0 would make the loss NaN and the fit
+    # "diverged". The loss is 0 instead, and its gradient finite.
+    rows, t, targets = real_rows(16, seed=8)
+    torch.manual_seed(0)
+    net = Net()
+    loss = batch_loss(net, rows, t, targets, np.zeros(16, np.float32))
+    assert loss.item() == 0.0
+    loss.backward()
+    assert all(torch.isfinite(p.grad).all() for p in net.parameters())
+
+def test_fit_refuses_bad_weights():
+    rows, t, targets = real_rows(10, seed=3)
+    with pytest.raises(ValueError, match="weight"):
+        fit_from_scratch(rows, t, targets, np.r_[np.ones(9), -1.0], seed=(0,), config=SMALL)
+    with pytest.raises(ValueError, match="weight"):
+        fit_from_scratch(rows, t, targets, np.r_[np.ones(9), np.nan], seed=(0,), config=SMALL)
+    with pytest.raises(ValueError, match="length"):
+        fit_from_scratch(rows, t, targets, np.ones(9), seed=(0,), config=SMALL)
+    with pytest.raises(ValueError, match="1-D"):
+        fit_from_scratch(rows, t, targets, np.ones((10, 1)), seed=(0,), config=SMALL)
+    with pytest.raises(ValueError, match="nothing to fit"):
+        fit_from_scratch(rows, t, targets, np.zeros(10), seed=(0,), config=SMALL)
+
 def test_loss_is_over_the_legal_columns_only():
     # A 2-wide betting row: its loss is the sum over its two columns, so a
     # target met exactly at both leaves zero whatever the padding says.
@@ -267,6 +326,7 @@ def test_the_device_loop_on_the_cpu_is_the_cpu_fit_bit_for_bit():
             rows.astype(np.int64),
             t,
             targets.astype(np.float32),
+            np.ones(len(rows), np.float32),
             fit_module._fold_seed((0, 2, 1)),
             SMALL,
             device="cpu",
