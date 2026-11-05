@@ -139,7 +139,7 @@ export default function App() {
         {tab === 'research' ? (
           <Masthead
             eyebrow="Research · Mini-drawmaha · 2 November 2026"
-            title="Mini-drawmaha, solved: keeping negative regret wins by four times, and a network leads the table to ten million hands, then flattens where the table keeps falling"
+            title="Mini-drawmaha, solved"
             dek={
               <>
                 A draw game of {(SIZES[2].infosets / 1e6).toFixed(1)} million information sets, with a pot that pays twice,

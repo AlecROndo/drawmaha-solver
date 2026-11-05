@@ -19,7 +19,7 @@ No app reimplements CFR or anything else that touches the solver. Each one draws
 
 What an app may transcribe is **rules arithmetic**: payoffs, the betting grammar, the hand-ranking key. Each transcription has a `*.test.ts` that pins it against the same tables the Python suite pins, so a port that disagrees with Python fails a test.
 
-## What each app is
+## The five apps
 
 | App | Route | Draws | Data |
 | --- | --- | --- | --- |
