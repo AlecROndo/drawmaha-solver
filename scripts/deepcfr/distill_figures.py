@@ -70,6 +70,18 @@ def _style(ax) -> None:
     ax.grid(False, which="minor")
     ax.set_axisbelow(True)
 
+def _plain_ticks(ax, axis: str, values, labels=None) -> None:
+    """Log-axis ticks as plain numbers (0.02, 51k), never 2 × 10⁻²."""
+    import matplotlib.ticker as ticker
+
+    which = ax.xaxis if axis == "x" else ax.yaxis
+    which.set_major_locator(ticker.FixedLocator(values))
+    which.set_major_formatter(ticker.FixedFormatter(labels or [str(v) for v in values]))
+    which.set_minor_locator(ticker.NullLocator())
+
+def _thousands(x: float) -> str:
+    return f"{x / 1e6:.1f}M" if x >= 1e6 else f"{x / 1e3:.0f}k"
+
 def _save(fig, path: Path) -> None:
     fig.savefig(path, dpi=180, facecolor=SURFACE, bbox_inches="tight")
     plt.close(fig)
@@ -96,9 +108,13 @@ def by_size(results: dict, out: Path) -> None:
     ax.axhline(deep["exact"]["exploitability"], color=DEEP, linewidth=1.4, linestyle="-", label=f"Deep CFR {deep['depth']} × {deep['width']}, exact average at {deep['hands_per_seat'] / 1e6:.0f}M hands", zorder=3)
     ax.axhline(deep["pi"]["exploitability"], color=PI, linewidth=1.4, linestyle=":", label="Deep CFR, policy net Π", zorder=3)
     ax.plot([deep["parameters"]], [deep["exact"]["exploitability"]], marker="s", color=DEEP, markersize=7, markeredgecolor=SURFACE, markeredgewidth=1.5, zorder=5)
-    ax.set_xlabel("parameters in the net", color=MUTED)
-    ax.set_ylabel("exploitability (chips per hand, log)", color=MUTED)
-    ax.set_title("Each copy of the table sits between the teacher and Deep CFR; the floor falls with size", loc="left", fontsize=10.5, color=INK)
+    ax.annotate("Deep CFR, same net", (deep["parameters"], deep["exact"]["exploitability"]), textcoords="offset points", xytext=(-9, 0), ha="right", va="center", fontsize=8.5, color=INK)
+    ax.margins(x=0.12, y=0.30)
+    _plain_ticks(ax, "x", xs + [deep["parameters"]] if deep["parameters"] not in xs else xs, [_thousands(x) for x in (xs + [deep["parameters"]] if deep["parameters"] not in xs else xs)])
+    _plain_ticks(ax, "y", [0.01, 0.02, 0.03, 0.05, 0.07, 0.1, 0.2, 0.3])
+    ax.set_xlabel("parameters in the net (log)", color=MUTED)
+    ax.set_ylabel("exploitability, chips per hand (log)", color=MUTED)
+    ax.set_title("Each copy of the table sits between the teacher and Deep CFR; the floor falls with size", loc="left", fontsize=10.5, color=INK, pad=12)
     ax.legend(frameon=False, fontsize=8.5, loc="upper right")
     _save(fig, out / "by_size.png")
 
@@ -111,27 +127,32 @@ def gaps(results: dict, out: Path, headline: str = "4x256") -> None:
     copy = results["arms"][headline]["exploitability"]
     deep = results["deep_cfr"]["exact"]["exploitability"]
     whole = deep - teacher
-    fig, ax = plt.subplots(figsize=(6.4, 4.4))
+    fig, ax = plt.subplots(figsize=(6.8, 4.4))
     _style(ax)
-    ax.set_yscale("log")
+    ax.grid(False)
     ax.set_xlim(0, 1)
     ax.set_xticks([])
     ax.spines["bottom"].set_visible(False)
+    ax.set_ylim(0, deep * 1.18)
+    # A linear axis: the two gaps add up to the plateau, and the picture
+    # must say so; a log axis would stretch the lower one.
     marks = [
-        (teacher, INK, f"teacher (LCFR table)  {teacher:.4f}"),
-        (copy, COPY, f"its {size_label(headline)} copy  {copy:.4f}"),
-        (deep, DEEP, f"Deep CFR {size_label(headline)}  {deep:.4f}"),
+        (teacher, INK, f"teacher, the LCFR table   {teacher:.4f}"),
+        (copy, COPY, f"its {size_label(headline)} copy   {copy:.4f}"),
+        (deep, DEEP, f"Deep CFR {size_label(headline)}   {deep:.4f}"),
     ]
     for value, colour, label in marks:
-        ax.hlines(value, 0.08, 0.5, color=colour, linewidth=2.2)
-        ax.annotate(label, (0.5, value), textcoords="offset points", xytext=(8, 0), va="center", fontsize=9.5, color=INK)
+        ax.hlines(value, 0.04, 0.34, color=colour, linewidth=2.4)
+        ax.annotate(label, (0.34, value), textcoords="offset points", xytext=(8, 0), va="center", fontsize=9.5, color=INK)
     def bracket(x, low, high, text, colour):
-        ax.annotate("", (x, high), (x, low), arrowprops=dict(arrowstyle="<->", color=colour, linewidth=1.2, shrinkA=0, shrinkB=0))
-        ax.annotate(text, (x, (low * high) ** 0.5), textcoords="offset points", xytext=(-8, 0), ha="right", va="center", fontsize=9, color=colour)
-    bracket(0.06, teacher, copy, f"representation\n{copy - teacher:+.4f}\n{(copy - teacher) / whole:.0%} of the plateau", COPY)
-    bracket(0.03, copy, deep, f"training\n{deep - copy:+.4f}\n{(deep - copy) / whole:.0%}", DEEP)
-    ax.set_ylabel("exploitability (chips per hand, log)", color=MUTED)
-    ax.set_title(f"The {size_label(headline)} plateau split: what the net cannot hold, what Deep CFR did not find", loc="left", fontsize=10.5, color=INK)
+        ax.annotate("", (x, high), (x, low), arrowprops=dict(arrowstyle="<->", color=colour, linewidth=1.3, shrinkA=0, shrinkB=0))
+        ax.annotate(text, (x, (low + high) / 2), textcoords="offset points", xytext=(8, 0), ha="left", va="center", fontsize=9, color=INK)
+    bracket(0.72, teacher, copy, f"representation: what the net cannot hold\n+{copy - teacher:.4f}, {(copy - teacher) / whole:.0%} of the plateau", COPY)
+    bracket(0.72, copy, deep, f"training: what Deep CFR did not find\n+{deep - copy:.4f}, {(deep - copy) / whole:.0%}", DEEP)
+    ax.set_yticks([0, teacher, copy, deep])
+    ax.set_yticklabels(["0", f"{teacher:.4f}", f"{copy:.4f}", f"{deep:.4f}"])
+    ax.set_ylabel("exploitability, chips per hand", color=MUTED)
+    ax.set_title(f"The {size_label(headline)} plateau over the table, split into its two parts", loc="left", fontsize=10.5, color=INK, pad=10)
     _save(fig, out / "gaps.png")
 
 # ---------------------------------------------------------------------------
@@ -151,16 +172,20 @@ def curves(results: dict, out: Path) -> None:
         steps = [c["step"] for c in curve]
         top.plot(steps, [c["loss"] for c in curve], color=colour, linewidth=1.8, label=size_label(arm))
         bottom.plot(steps, [c["rw_error"] for c in curve], color=colour, linewidth=1.8)
-        bottom.annotate(f"{size_label(arm)}  graded {arms[arm]['exploitability']:.4f}", (steps[-1], curve[-1]["rw_error"]), textcoords="offset points", xytext=(6, 0), va="center", fontsize=8.5, color=colour)
+        bottom.annotate(f"{size_label(arm)}  graded {arms[arm]['exploitability']:.4f}", (steps[-1], curve[-1]["rw_error"]), textcoords="offset points", xytext=(6, 0), va="center", fontsize=8.5, color=INK)
     top.set_yscale("log")
     bottom.set_yscale("log")
+    _plain_ticks(top, "y", [0.1, 0.15, 0.2, 0.3, 0.4])
+    _plain_ticks(bottom, "y", [0.02, 0.03, 0.05, 0.1, 0.15])
+    most = max(c["step"] for arm in sizes for c in arms[arm]["curve"])
+    ticks = [t for t in range(0, most + 1, 20_000)]
+    _plain_ticks(bottom, "x", ticks, [_thousands(t) if t else "0" for t in ticks])
     top.set_ylabel("cross-entropy per row (log)", color=MUTED)
     bottom.set_ylabel("reach-weighted error vs teacher (log)", color=MUTED)
     bottom.set_xlabel("Adam steps of 16,384 rows", color=MUTED)
-    top.set_title("Loss and reach-weighted error fall together; the bigger net ends lower and grades lower", loc="left", fontsize=10.5, color=INK)
+    top.set_title("Loss and reach-weighted error fall together; the bigger net ends lower and grades lower", loc="left", fontsize=10.5, color=INK, pad=10)
     top.legend(frameon=False, fontsize=8.5, loc="upper right", ncol=len(sizes))
-    bottom.set_xlim(left=0)
-    bottom.margins(x=0.25)
+    bottom.set_xlim(0, most * 1.3)
     _save(fig, out / "curves.png")
 
 # ---------------------------------------------------------------------------
