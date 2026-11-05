@@ -24,7 +24,7 @@ import numpy as np
 import pytest
 
 from drawmaha_solver.deepcfr.collect import Collector
-from drawmaha_solver.deepcfr.reservoir import Memory, Reservoir, reservoir_stream
+from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Memory, Reservoir, reservoir_stream
 import drawmaha_solver.deepcfr.train as train
 from drawmaha_solver.deepcfr.train import (
     GRID,
@@ -38,6 +38,7 @@ from drawmaha_solver.deepcfr.train import (
     DeepRun,
     Fitted,
     OracleLearner,
+    OracleModel,
     current_iterate,
     load_run,
     mark_name,
@@ -82,8 +83,8 @@ class Spy:
         self.events: list[tuple] = []
 
     # -- the learner --
-    def fit(self, rows, t, targets, *, seed) -> Fitted:
-        self.events.append(("fit", seed, (rows.copy(), t.copy(), targets.copy())))
+    def fit(self, rows, t, targets, weight, *, seed) -> Fitted:
+        self.events.append(("fit", seed, (rows.copy(), t.copy(), targets.copy(), weight.copy())))
         return Fitted(("model", seed), None)
 
     def write(self, table, models) -> None:
@@ -248,8 +249,8 @@ def test_fit_receives_the_memory_as_it_stands_after_the_merge(collector):
     step(run, spy, spy)
     fits = spy.of("fit")
     for seat in SEATS:
-        _, (rows, t, targets) = [fit for fit in fits if fit[0][2] == seat][-1]
-        for given, resident in zip((rows, t, targets), run.advantage[seat].contents(), strict=True):
+        _, (rows, t, targets, weight) = [fit for fit in fits if fit[0][2] == seat][-1]
+        for given, resident in zip((rows, t, targets, weight), run.advantage[seat].contents(), strict=True):
             assert given.dtype == resident.dtype
             np.testing.assert_array_equal(given, resident)
         assert rows.shape[0] == run.advantage[seat].size > 0
@@ -373,11 +374,40 @@ def test_oracle_models_round_trip(tmp_path, collector):
     step(run, collector, learner)
     learner.save(run.nets[0], tmp_path / "p0-t00001.pt")
     back = learner.load(tmp_path / "p0-t00001.pt")
-    for name in ("rows", "t", "targets"):
+    for name in ("rows", "t", "targets", "weight"):
         a, b = getattr(run.nets[0], name), getattr(back, name)
         assert a.dtype == b.dtype
         np.testing.assert_array_equal(a, b)
     assert run.nets[0].rows.shape[0] == run.advantage[0].size
+    assert run.nets[0].weight.dtype == np.float32 and (run.nets[0].weight == 1.0).all()
+
+def test_an_oracle_model_saved_without_a_weight_loads_with_ones(tmp_path):
+    old = tmp_path / "p0-t00003.pt"
+    with old.open("wb") as file:
+        np.savez(file, rows=np.arange(4, dtype=np.int32), t=np.full(4, 3, np.int32), targets=np.ones((4, TARGET_WIDTH), np.float32))
+    back = OracleLearner().load(old)
+    assert back.weight.dtype == np.float32 and back.weight.tolist() == [1.0] * 4
+
+def oracle_table(*models: OracleModel) -> np.ndarray:
+    table = PackedTable.whole_game()
+    OracleLearner().write(table, models)
+    return table.cumulative_regret
+
+def test_the_oracle_weighs_a_row_by_its_weight():
+    # One real row with the sample r = (0.5, −0.25, 0, 0) at t = 3. A weight
+    # of 2 is the row offered twice; a weight of 0 is the row never offered.
+    row = np.array([first_row_at(((),))] * 2, dtype=np.int32)
+    t = np.array([3, 3], dtype=np.int32)
+    r = np.array([[0.5, -0.25, 0.0, 0.0]] * 2, dtype=np.float32)
+    w = lambda *values: np.array(values, dtype=np.float32)  # noqa: E731
+    twice = oracle_table(OracleModel(row, t, r, w(1.0, 1.0)))
+    weighted = oracle_table(OracleModel(row[:1], t[:1], r[:1], w(2.0)))
+    np.testing.assert_array_equal(twice, weighted)
+    assert twice.any()
+    once = oracle_table(OracleModel(row[:1], t[:1], r[:1], w(1.0)))
+    with_an_inert_row = oracle_table(OracleModel(row, t, r, w(1.0, 0.0)))
+    np.testing.assert_array_equal(once, with_an_inert_row)
+    assert not np.array_equal(once, twice)
 
 # ---------------------------------------------------------------------------
 # The resume state

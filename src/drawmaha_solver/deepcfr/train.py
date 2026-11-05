@@ -12,7 +12,7 @@ order. This module is that order — one iteration is
         rows = collector.collect(seat=p, t=t, walks=K)
         advantage[p].merge(rows.advantage_rows, rows.advantage_targets, t=t, rng=stream(ADVANTAGE))
         policy.merge(rows.policy_rows, rows.policy_targets, t=t, rng=stream(POLICY))
-        nets[p] = learner.fit(*advantage[p].contents(), seed=(seed, t, p)).model
+        nets[p] = learner.fit(*advantage[p].contents(), seed=(seed, t, p)).model  # rows, t, targets, weight
 
 — plus everything a 15-hour run needs around it: the resume state, grid-mark
 saves, a progress line per iteration, and a graceful stop on a signal or a
@@ -33,8 +33,11 @@ the table, `save` and `load` a model — and the real one, `NetLearner`,
 imports `fit`, `materialise` and `net` inside those methods. That is what
 lets the whole-loop test run in the default suite with no torch: the
 `OracleLearner` below is a "perfect net" that returns, at every row, the
-t′-weighted sum of every regret sample the memory holds there, and with it
-Deep CFR collapses into rung 3's tabular LCFR. The one thing the loop asks
+sum over every regret sample the memory holds there of t′ × weight × r, and
+with it Deep CFR collapses into rung 3's tabular LCFR. The weight is the
+memory's fourth column (`reservoir.py`): 1 for every row a walk offers, so
+until the targeted-sampling plan's boost stage injects rows that stand for
+more or fewer samples than one, it multiplies nothing. The one thing the loop asks
 of a `write` is that it assigns INTO `table.cumulative_regret` and never
 rebinds it: the collector's workers read that array through a shared block,
 and a rebound array would leave them walking stale regrets.
@@ -53,7 +56,10 @@ join of the loop (a stale table, the wrong t, the wrong seat, a dropped or
 reordered row) still breaks that — and to float32 precision against the
 untouched `train_lockstep`. The oracle repeats LCFR's float operations in
 LCFR's order (per t′ in increasing order, `R[cols] += t′ · totals`) because
-a single Σ t′·r over all rows would round differently from t = 2 on.
+a single Σ t′·r over all rows would round differently from t = 2 on. The
+weight multiplies each sample before that sum, in float64, where × 1.0 is
+exact: a memory of weight-one rows banks the same bits as before the column
+existed, which is what keeps the pin a pin.
 
 **The resume state** is three memories, the two latest nets, the file of
 every observer that carries state (PR 5's `ExactAverage`: an observer with
@@ -311,14 +317,23 @@ class Fitted:
 class Learner(Protocol):
     """The one seam between the loop and the model.
 
-    `fit` takes a memory's `contents()` and the fit's seed `(seed, t, seat)`;
-    `write` plays `models[seat]` for both seats by assigning into
-    `table.cumulative_regret`; `save` and `load` round-trip one model
-    through one file, for the resume state and the kept nets.
+    `fit` takes a memory's `contents()` — rows, t, targets and the weight
+    of each row, how many samples it stands for — and the fit's seed
+    `(seed, t, seat)`; `write` plays `models[seat]` for both seats by
+    assigning into `table.cumulative_regret`; `save` and `load` round-trip
+    one model through one file, for the resume state and the kept nets.
+    The weight is positional and has no default here, so no learner can
+    take the memory and drop its weights by accident.
     """
 
     def fit(
-        self, rows: np.ndarray, t: np.ndarray, targets: np.ndarray, *, seed: tuple[int, int, int]
+        self,
+        rows: np.ndarray,
+        t: np.ndarray,
+        targets: np.ndarray,
+        weight: np.ndarray,
+        *,
+        seed: tuple[int, int, int],
     ) -> Fitted: ...
 
     def write(self, table: PackedTable, models: Sequence[object | None]) -> None: ...
@@ -388,7 +403,10 @@ def step(
     `collector` is a `Collector` (or anything with its `table` and
     `collect`); the iteration is `run.t + 1`, and `run.t` advances once both
     phases are done. A raise mid-way leaves `run` half-advanced (seat 0's
-    net and memories updated, `t` not), which `run_deep` never saves.
+    net and memories updated, `t` not), which `run_deep` never saves. The
+    walks' rows are merged without a weight and so weigh one each; the
+    targeted-sampling plan's boost stage is what will offer rows that weigh
+    otherwise, after the natural rows so these keep their stream positions.
     """
     t = run.t + 1
     config = run.config
@@ -1037,7 +1055,13 @@ class NetLearner:
         self._fit_config = None
 
     def fit(
-        self, rows: np.ndarray, t: np.ndarray, targets: np.ndarray, *, seed: tuple[int, int, int]
+        self,
+        rows: np.ndarray,
+        t: np.ndarray,
+        targets: np.ndarray,
+        weight: np.ndarray,
+        *,
+        seed: tuple[int, int, int],
     ) -> Fitted:
         import torch
 
@@ -1047,12 +1071,15 @@ class NetLearner:
         if self._config.rule != "linear":
             targets = rule_targets(targets, t, now=seed[1], rule=self._config.rule)
             t = np.ones(len(t), dtype=np.float32)
+        # The weight is a sample weight, how much the row counts, and never
+        # touches the target: the pot scaling and the rules act on what the
+        # row says, the weight on how loudly, and the two compose.
         targets = pot_scaled(rows, targets, power=self._config.pot_power)
-        net = fit_from_scratch(rows, t, targets, seed=seed, config=config)
+        net = fit_from_scratch(rows, t, targets, weight, seed=seed, config=config)
         draw = torch.Generator().manual_seed(_fold_seed((*seed, _HELD_TAG)))
         held = torch.randint(len(rows), (config.batch,), generator=draw).numpy()
         with torch.inference_mode():
-            loss = float(batch_loss(net, rows[held], t[held], targets[held]).item())
+            loss = float(batch_loss(net, rows[held], t[held], targets[held], weight[held]).item())
         return Fitted(net, loss)
 
     def write(self, table: PackedTable, models: Sequence[object | None]) -> None:
@@ -1117,19 +1144,24 @@ class OracleModel:
     rows: np.ndarray  # int32 (n,)
     t: np.ndarray  # int32 (n,)
     targets: np.ndarray  # float32 (n, TARGET_WIDTH)
+    weight: np.ndarray  # float32 (n,)
 
 class OracleLearner:
     """The learner that makes the loop LCFR: its model is the memory, its write is LCFR's bank.
 
-    `fit` copies the memory. `write` puts at every row of each seat the
-    t′-weighted sum of the samples its model holds there, computed as LCFR
-    computes it — per t′ in increasing order, the samples of that t′ summed
-    per column in memory order with `np.add.at`, then `R[cols] += t′ ·
-    totals` — so the bits match `bank_rows` through any number of
-    iterations, not only the first. The two models are summed one after
-    the other, which is only LCFR's order because a row belongs to one
-    acting seat and so appears in one model. A row no sample names stays
-    exactly 0.0. NumPy only, so gate 1 runs without torch.
+    `fit` copies the memory. `write` puts at every row of each seat the sum
+    of t′ × weight × sample over the samples its model holds there, computed
+    as LCFR computes it — per t′ in increasing order, the samples of that
+    t′ each multiplied by their weight in float64 and summed per column in
+    memory order with `np.add.at`, then `R[cols] += t′ · totals` — so the
+    bits match `bank_rows` through any number of iterations, not only the
+    first: × 1.0 is exact, so a memory of weight-one rows banks what it
+    banked before the column existed. A row of weight 2 banks what the same
+    row offered twice would (r + r = 2r exactly), and a row of weight 0
+    banks nothing. The two models are summed one after the other, which is
+    only LCFR's order because a row belongs to one acting seat and so
+    appears in one model. A row no sample names stays exactly 0.0. NumPy
+    only, so gate 1 runs without torch.
     """
 
     def __init__(self) -> None:
@@ -1137,9 +1169,17 @@ class OracleLearner:
         self._starts: dict[int, tuple[np.ndarray, np.ndarray]] = {}
 
     def fit(
-        self, rows: np.ndarray, t: np.ndarray, targets: np.ndarray, *, seed: tuple[int, int, int]
+        self,
+        rows: np.ndarray,
+        t: np.ndarray,
+        targets: np.ndarray,
+        weight: np.ndarray,
+        *,
+        seed: tuple[int, int, int],
     ) -> Fitted:
-        return Fitted(OracleModel(np.array(rows), np.array(t), np.array(targets)), None)
+        return Fitted(
+            OracleModel(np.array(rows), np.array(t), np.array(targets), np.array(weight)), None
+        )
 
     def write(self, table: PackedTable, models: Sequence[OracleModel | None]) -> None:
         starts, widths = self._layout(table)
@@ -1153,7 +1193,11 @@ class OracleLearner:
                 width = widths[rows]
                 columns = _columns(starts[rows], width)
                 legal = np.arange(TARGET_WIDTH)[None, :] < width[:, None]
-                values = model.targets[at][legal].astype(np.float64)
+                # `legal` reads row by row, so each row's weight repeats once
+                # per legal column, in the same order as its values.
+                values = model.targets[at][legal].astype(np.float64) * np.repeat(
+                    model.weight[at].astype(np.float64), width
+                )
                 touched, _, inverse = np.unique(columns, return_index=True, return_inverse=True)
                 totals = np.zeros(touched.size)
                 np.add.at(totals, inverse, values)
@@ -1164,11 +1208,18 @@ class OracleLearner:
     def save(self, model: OracleModel, path: Path) -> None:
         # Through an open file, so NumPy does not append `.npz` to the name.
         with Path(path).open("wb") as file:
-            np.savez(file, rows=model.rows, t=model.t, targets=model.targets)
+            np.savez(file, rows=model.rows, t=model.t, targets=model.targets, weight=model.weight)
 
     def load(self, path: Path) -> OracleModel:
+        # A model saved before the weight column existed held plain samples,
+        # one each, as a reservoir file without the key does.
         with np.load(Path(path), allow_pickle=False) as saved:
-            return OracleModel(saved["rows"], saved["t"], saved["targets"])
+            weight = (
+                saved["weight"]
+                if "weight" in saved.files
+                else np.ones(saved["rows"].shape[0], dtype=np.float32)
+            )
+            return OracleModel(saved["rows"], saved["t"], saved["targets"], weight)
 
     def _layout(self, table: PackedTable) -> tuple[np.ndarray, np.ndarray]:
         if id(table) not in self._starts:

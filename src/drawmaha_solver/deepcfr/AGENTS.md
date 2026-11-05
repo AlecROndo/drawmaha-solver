@@ -22,9 +22,10 @@ itself is complete; what remains is the paid run and its grades.
   game sit behind `MINIDRAWMAHA_FULL_DEEP=1`.
 - **The oracle pin is the correctness gate.** With `OracleLearner` the loop
   must reproduce rung 3's LCFR table bit for bit over three iterations. A
-  change to the loop's order, to the float32 cast in `collect.rows_of`, or to
-  `regret_rules.bank_rows` breaks that pin. If it breaks, the loop is wrong,
-  not the test.
+  change to the loop's order, to the float32 cast in `collect.rows_of`, to
+  `regret_rules.bank_rows`, or to where the row weight multiplies (it scales
+  each sample in float64 before LCFR's per-t′ sum, so weight one is exact)
+  breaks that pin. If it breaks, the loop is wrong, not the test.
 - **A learner's `write` assigns into `table.cumulative_regret` and never
   rebinds it.** The collector's workers read that array through a shared
   block; a rebound array leaves them walking stale regrets.
