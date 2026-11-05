@@ -20,11 +20,13 @@ import {
   board1,
   board2,
   fmt,
+  handNumber,
   holeOf,
   linesOf,
   nextHand,
   phaseOf,
   playAct,
+  segments,
   spotOf,
   thrownCard,
   type Hand,
@@ -110,24 +112,32 @@ function bandOf(act: Act, word: string | undefined): string {
  * aggression owns the low rolls, so the bar reads left to right the way the
  * roll's segments do, and the tick is where your roll fell. Under it, each
  * action's word and share, the one you took in ink.
+ *
+ * The bands are `segments` at their exact widths, no gaps and no minimum:
+ * the same partition `prescribed` graded the roll against, so the tick at
+ * `roll%` stands inside the band of the action the roll prescribed (it is
+ * placed at the roll's left edge and extends right, as the segment's
+ * half-open interval does). An action the strategy never takes here gets
+ * a zero-width band (`segments` keeps it, at `[x, x]`) and keeps its word
+ * below; a sliver for it would push every band right of it off the roll's
+ * scale.
  */
 function MixCaption({ row }: { row: Extract<PlayRow, { kind: 'action' }> }) {
-  // AGGRESSION is the roll's own segment order; row.words carries each
-  // action's word in the context the actor faced.
-  const acts = AGGRESSION.filter((a) => a in row.mix)
+  // row.words carries each action's word in the context the actor faced.
+  const bands = segments(row.mix)
   return (
     <span className="side-mix">
       <span className="mixband" aria-hidden>
-        {acts.map((a) => (
-          <i key={a} className={bandOf(a, row.words[a])} style={{ flexGrow: Math.max(row.mix[a] ?? 0, 0.002) }} />
+        {bands.map(({ act, start, end }) => (
+          <i key={act} className={bandOf(act, row.words[act])} style={{ width: `${end - start}%` }} />
         ))}
         {row.roll !== null && <em className="tick" style={{ left: `${row.roll}%` }} />}
       </span>
       <span className="mixwords">
-        {acts.map((a) => (
-          <span key={a} className={a === row.act ? 'chosen' : ''}>
-            <i className={`akey ${bandOf(a, row.words[a])}`} />
-            {row.words[a]} {pct(row.mix[a] ?? 0)}%
+        {bands.map(({ act }) => (
+          <span key={act} className={act === row.act ? 'chosen' : ''}>
+            <i className={`akey ${bandOf(act, row.words[act])}`} />
+            {row.words[act]} {pct(row.mix[act] ?? 0)}%
           </span>
         ))}
       </span>
@@ -416,10 +426,9 @@ export function PlayPanel({
   const seatWorth = (seat: 0 | 1) => (grade ? `seat worth ${signed(seatValue(grade.valueP0, seat), 3)}` : 'seat value ungraded')
 
   // The turn line states the spot: the hand, where in it we are, and whose
-  // decision it is; the line under it says what to do about it. `hands` is
-  // banked in the same update that settles a hand, so once a hand is over it
-  // is already counted: its number is `hands`, not the next.
-  const n = over ? hands : hands + 1
+  // decision it is; the line under it says what to do about it. `handNumber`
+  // carries the settled-hand rule (a hand over is already counted).
+  const n = handNumber(session)
   const result = hand.result ?? 0
   const stage = drawing ? 'the draw' : phase === 'round1' ? 'round 1' : over ? 'settled' : 'round 2'
   const headline = over
@@ -558,6 +567,9 @@ export function PlayPanel({
           })}
         </dl>
         <p className="playnote">
+          {manifest
+            ? `The pack is ${manifest.deals} pre-dealt hands — the same ${manifest.deals} for every visitor, reshuffled each sitting, not fresh draws; the seats alternate and the coach's roll is drawn live, so a deal plays differently each time it comes round. `
+            : ''}
           Matching the bot in both seats averages zero{grade ? `; a perfect adversary makes at most ${grade.exploitability.toFixed(3)} a hand` : ''}.
           A hand swings by several chips, so short sessions are mostly noise.
         </p>
