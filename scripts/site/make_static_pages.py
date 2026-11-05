@@ -1287,7 +1287,7 @@ def benchmarks() -> str:
     <p class="eyebrow">Benchmark 5 · Deep CFR</p>
     <h2>Deep CFR: exploitable by {g3(DEEP[-1][1])}</h2>
     <p class="sub">The same sampler and the same grader, with the regret table replaced by a 4 × 256 network per seat and its regret targets divided by the pot, run to the table's own endpoint. Graded at equal hands per seat against the table.</p>
-    {figure(None, "Net vs table at equal hands", "Exploitability at equal hands per seat, exact average against tabular LCFR, log scales", equal_hands_chart(896, 340), f"At {hands(LEAD_HANDS)} hands per seat the table grades {g3(lcfr_lead)} against the net's {g3(net_lead)}; at {hands(DEEP_HANDS)} it grades {g3(lcfr_at_deep)}, under the net for the first time, while the net's last ten million hands moved it from {g4(net_lead)} to {g4(DEEP[-1][1])}. The run's policy network Π grades {g3(pi_deep)} at the end; the chapter on the network is <a href=\"/research#ch-05\">on the research page</a>.")}
+    {figure(None, "Net vs table at equal hands", "Exploitability at equal hands per seat, exact average against tabular LCFR, log scales", equal_hands_chart(896, 340), f"At {hands(LEAD_HANDS)} hands per seat the table grades {g3(lcfr_lead)} against the net's {g3(net_lead)}; at {hands(DEEP_HANDS)} it grades {g3(lcfr_at_deep)}, under the net for the first time, while the net's last ten million hands moved it from {g4(net_lead)} to {g4(DEEP[-1][1])}. The run's policy network grades {g3(pi_deep)} at the end; the chapter on the network is <a href=\"/research#ch-05\">on the research page</a>.")}
   </section>
 
   <section class="b" id="full">

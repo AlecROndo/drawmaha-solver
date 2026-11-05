@@ -339,7 +339,7 @@ export function ResearchTab() {
           </Figure>
         </Chapter>
 
-        <Chapter id="ch-04" title={<>The answer: LCFR's linear average at {M(hands)} hands, {FROZEN.exploitability.toFixed(4)} chips a hand</>}>
+        <Chapter id="ch-04" title={<>The answer: exploitable by {FROZEN.exploitability.toFixed(4)} at {M(hands)} hands</>}>
           <p>
             The winner is frozen as the tabular solution: {FROZEN_FLOATS.toLocaleString()} float32 probabilities,{' '}
             {FROZEN_MB} MB compressed, published as a release asset and checked against a pinned SHA-256 on load. The
