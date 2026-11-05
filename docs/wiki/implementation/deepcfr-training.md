@@ -114,6 +114,7 @@ price = exploitability(Deep CFR's average) ÷ exploitability(LCFR's linear avera
 | [`pi_loss_sweep.py`](repo:scripts/deepcfr/pi_loss_sweep.py) | Π stalled while the exact average kept falling: memory or fit? It refits Π on one stored memory under other losses, heads and schedules (**`loss_fn`**, **`fit`**, **`freeze`**) and grades each. The answer was the fit; cross-entropy beat squared error |
 | [`pi_reach_weighted.py`](repo:scripts/deepcfr/pi_reach_weighted.py) | Which refit error tracks exploitability? Per refit, the reach-weighted mean absolute difference from the exact average (**`own_reach`**). That measure tracks it; a count of zeroed bluffs does not |
 | [`rule_sign_flips.py`](repo:scripts/deepcfr/rule_sign_flips.py) | How far does a per-sample rule bend the memory? **`seat_counts`** measures mass kept and bad actions turned good under DCFR and CFR+ |
+| [`distill_teacher.py`](repo:scripts/deepcfr/distill_teacher.py) | How much of the 0.068 plateau is the net's capacity? It fits the net straight to the LCFR table's average (**`distill.distill`**, reach-weighted cross-entropy over every infoset) at several sizes and grades each copy; see [Distilling the table into the net](wiki:research/distillation) |
 
 Every arm and its grades is in `docs/notes/rung4-run-log.md`; [Run log](wiki:research/run-log) summarises it.
 

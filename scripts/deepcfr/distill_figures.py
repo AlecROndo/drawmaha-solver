@@ -108,7 +108,7 @@ def by_size(results: dict, out: Path) -> None:
     ax.axhline(deep["exact"]["exploitability"], color=DEEP, linewidth=1.4, linestyle="-", label=f"Deep CFR {deep['depth']} × {deep['width']}, exact average at {deep['hands_per_seat'] / 1e6:.0f}M hands", zorder=3)
     ax.axhline(deep["pi"]["exploitability"], color=PI, linewidth=1.4, linestyle=":", label="Deep CFR, policy net Π", zorder=3)
     ax.plot([deep["parameters"]], [deep["exact"]["exploitability"]], marker="s", color=DEEP, markersize=7, markeredgecolor=SURFACE, markeredgewidth=1.5, zorder=5)
-    ax.annotate("Deep CFR, same net", (deep["parameters"], deep["exact"]["exploitability"]), textcoords="offset points", xytext=(-9, 0), ha="right", va="center", fontsize=8.5, color=INK)
+    ax.annotate("Deep CFR, same net", (deep["parameters"], deep["exact"]["exploitability"]), textcoords="offset points", xytext=(0, 8), ha="center", va="bottom", fontsize=8.5, color=INK)
     ax.margins(x=0.12, y=0.30)
     _plain_ticks(ax, "x", xs + [deep["parameters"]] if deep["parameters"] not in xs else xs, [_thousands(x) for x in (xs + [deep["parameters"]] if deep["parameters"] not in xs else xs)])
     _plain_ticks(ax, "y", [0.01, 0.02, 0.03, 0.05, 0.07, 0.1, 0.2, 0.3])

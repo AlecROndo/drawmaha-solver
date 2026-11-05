@@ -9,7 +9,7 @@ Mini-drawmaha's tabular solve keeps one ledger per infoset. That works for 6.2 m
 
 The walk already plays regret matching over `cumulative_regret`. So instead of changing the walk, **`materialise`** writes each net's outputs *into* the regret slots before every phase, and the walk plays the net through the ledger it always read. The table becomes a cache of the net's opinion, rewritten twice per iteration.
 
-## Eight modules, one concern each
+## Eight modules, one concern each, and one study beside them
 
 | Module | What it is for |
 | --- | --- |
@@ -21,6 +21,7 @@ The walk already plays regret matching over `cumulative_regret`. So instead of c
 | [`train.py`](repo:src/drawmaha_solver/deepcfr/train.py) | The loop that calls them in order, its resume state, marks and stop, behind a `Learner` seam |
 | [`average.py`](repo:src/drawmaha_solver/deepcfr/average.py) | The exact average strategy: own reach through a predecessor table, summed every phase |
 | [`policy.py`](repo:src/drawmaha_solver/deepcfr/policy.py) | Π, the average learned by regression on the policy memory: the only average a game without a table can keep |
+| [`distill.py`](repo:src/drawmaha_solver/deepcfr/distill.py) | Beside the loop, not in it: the net fitted straight to a known strategy by reach-weighted cross-entropy, so a copy's grade says what the net can hold |
 
 ## `net.py`: 136 → 64 → 64 → 64 → 7, linear head
 

@@ -163,6 +163,43 @@ finding 3 is real at this net size for the ÷ pot weighting too, lower than the 
 `/research` chapter 07, which this run did not change. One seed, one net; the open questions
 are in "Not yet run".
 
+**9. Distilling the table into the net splits the 0.068 plateau: at 4 × 256 about 44% is
+what the net cannot hold and 56% is what Deep CFR's training did not find; one doubling of the
+width removes almost all of the first part.** The experiment (`docs/superpowers/specs/2026-11-05-rung4-distillation-design.md`,
+`deepcfr/distill.py`, `scripts/deepcfr/distill_teacher.py`) takes Deep CFR out of the picture: the
+LCFR table's linear average at iteration 10,000,000 (100M hands per seat, graded 0.0157) is the
+teacher, and the rung-4 net is fitted straight to it by cross-entropy over every one of the 6.2M
+infosets, each row drawn in proportion to its own reach × deal multiplicity under the teacher,
+100,000 Adam steps of 16,384 rows under a cosine schedule from 1e-3, then frozen as the softmax at
+every key, reloaded and graded exactly. Every number below is `figures/rung4/distill/results.json`;
+`err` is the reach-weighted mean absolute error per column against the teacher.
+
+| arm | net | differs by | steps | err | exploitability | × teacher |
+|---|---|---|---|---|---|---|
+| `3x64` | 3 × 64 | size | 100,000 | 0.1147 | 0.1842 | 11.7× |
+| `3x128` | 3 × 128 | size | 100,000 | 0.0904 | 0.1015 | 6.5× |
+| `4x256` | 4 × 256 | **the Deep CFR net** | 100,000 | 0.0450 | 0.0389 | 2.5× |
+| `4x512` | 4 × 512 | size | 100,000 | 0.0061 | 0.0175 | 1.1× |
+| `4x256-25k` | 4 × 256 | fewer steps | 25,000 | 0.0615 | 0.0560 | 3.6× |
+| `4x256-unweighted` | 4 × 256 | rows drawn uniformly | 100,000 | 0.0826 | 0.0995 | 6.3× |
+| `4x256-f0.5` | 4 × 256 | trained on 50% of rows | 100,000 | 0.0707 | 0.1046 | 6.7× |
+| `4x256-f0.1` | 4 × 256 | trained on 10% of rows | 100,000 | 0.1356 | 0.3457 | 22.0× |
+
+The three gaps at the Deep CFR net's own size: teacher 0.0157 → copy 0.0389 is representation
+(+0.0233), copy → Deep CFR's exact average 0.0685 is training (+0.0295). Neither
+half is the whole story, and the representation half is a property of that size: the 4 × 512 copy
+grades 0.0175, within 0.0019 of the teacher, with its error against the teacher down
+from 0.0450 to 0.0061. The copy's grade is an upper bound on the net's floor (cross-entropy copies
+probabilities, it does not minimise exploitability), and part of the 4 × 256 bound is the fit's:
+25,000 steps grade 0.0560 against 100,000's 0.0389, and the headline's curve was still easing down
+when its schedule reached zero. Two more readings: drawing rows uniformly instead of by reach
+takes the same net from 0.0389 to 0.0995, so the weight is worth 2.6× in the grade; and a copy
+trained on half the rows grades 0.1046 (error 0.0228 on the rows it saw, 0.1185 on the rows it
+never saw), a tenth 0.3457: on these 136 features the net memorises infosets rather than inferring
+them, which is the number that matters for a game that cannot be enumerated. One seed of
+everything. The write-up is the preprint in `~/Desktop/Claude/poker/rung4-distill/` and the
+wiki page `docs/wiki/research/distillation.md`.
+
 ## The Modal main run: started, then stopped
 
 The Modal trainer's directory `deep/` on the volume `drawmaha-rung4` holds a 3 × 64 run with
@@ -267,6 +304,9 @@ catalogue edit and a re-export.
   regime it changes (finding 7's last caveat).
 - The √pot arm past t = 200: whether it flattens where the ÷ pot arm did (0.068) or elsewhere.
 - A bigger net, or the cross-entropy Π, run to t = 2,000 under ÷ pot: whether anything moves the
-  0.068 floor, now that the table is known to pass it.
+  0.068 floor, now that the table is known to pass it. Finding 9 says what to expect: at 4 × 256
+  the floor is about half capacity and half training, and a 4 × 512 copy of the table grades
+  0.0175, so a wider net trained the same way is capped near its own copy and the larger gain is
+  in the training.
 - A second seed for any arm. Every comparison above is one seed, so differences under ~10% are
   suggestive, not settled.

@@ -5,15 +5,24 @@
       "groups": [
         {
           "group": "Getting started",
-          "pages": ["overview/introduction", "overview/method"]
+          "pages": [
+            "overview/introduction",
+            "overview/method"
+          ]
         },
         {
           "group": "Dive deeper",
-          "pages": ["overview/architecture", "overview/quickstart"]
+          "pages": [
+            "overview/architecture",
+            "overview/quickstart"
+          ]
         },
         {
           "group": "Working in the repo",
-          "pages": ["overview/onboarding", "overview/reading-map"]
+          "pages": [
+            "overview/onboarding",
+            "overview/reading-map"
+          ]
         }
       ]
     },
@@ -22,11 +31,21 @@
       "groups": [
         {
           "group": "Equilibrium and regret",
-          "pages": ["theory/equilibrium", "theory/regret-matching", "theory/cfr", "theory/exploitability"]
+          "pages": [
+            "theory/equilibrium",
+            "theory/regret-matching",
+            "theory/cfr",
+            "theory/exploitability"
+          ]
         },
         {
           "group": "Scaling up",
-          "pages": ["theory/mccfr", "theory/regret-rules", "theory/deep-cfr", "theory/abstraction"]
+          "pages": [
+            "theory/mccfr",
+            "theory/regret-rules",
+            "theory/deep-cfr",
+            "theory/abstraction"
+          ]
         }
       ]
     },
@@ -35,19 +54,33 @@
       "groups": [
         {
           "group": "Shared",
-          "pages": ["implementation/package-map", "implementation/ledger"]
+          "pages": [
+            "implementation/package-map",
+            "implementation/ledger"
+          ]
         },
         {
           "group": "The graded games",
-          "pages": ["implementation/rps", "implementation/kuhn", "implementation/leduc"]
+          "pages": [
+            "implementation/rps",
+            "implementation/kuhn",
+            "implementation/leduc"
+          ]
         },
         {
           "group": "Mini-drawmaha",
-          "pages": ["implementation/minidrawmaha-rules", "implementation/minidrawmaha-solver", "implementation/minidrawmaha-answer"]
+          "pages": [
+            "implementation/minidrawmaha-rules",
+            "implementation/minidrawmaha-solver",
+            "implementation/minidrawmaha-answer"
+          ]
         },
         {
           "group": "Deep CFR",
-          "pages": ["implementation/deepcfr", "implementation/deepcfr-training"]
+          "pages": [
+            "implementation/deepcfr",
+            "implementation/deepcfr-training"
+          ]
         }
       ]
     },
@@ -56,11 +89,21 @@
       "groups": [
         {
           "group": "The site",
-          "pages": ["ops/site", "ops/static-pages", "ops/apps", "ops/design-standard"]
+          "pages": [
+            "ops/site",
+            "ops/static-pages",
+            "ops/apps",
+            "ops/design-standard"
+          ]
         },
         {
           "group": "Running things",
-          "pages": ["ops/testing", "ops/modal", "ops/releases", "ops/deploy"]
+          "pages": [
+            "ops/testing",
+            "ops/modal",
+            "ops/releases",
+            "ops/deploy"
+          ]
         }
       ]
     },
@@ -69,11 +112,19 @@
       "groups": [
         {
           "group": "Where it stands",
-          "pages": ["research/status", "research/run-log", "research/open-questions"]
+          "pages": [
+            "research/status",
+            "research/run-log",
+            "research/distillation",
+            "research/open-questions"
+          ]
         },
         {
           "group": "Literature",
-          "pages": ["research/literature", "research/full-drawmaha"]
+          "pages": [
+            "research/literature",
+            "research/full-drawmaha"
+          ]
         }
       ]
     },
@@ -82,7 +133,9 @@
       "groups": [
         {
           "group": "Updates",
-          "pages": ["changelog/changelog"]
+          "pages": [
+            "changelog/changelog"
+          ]
         }
       ]
     }
