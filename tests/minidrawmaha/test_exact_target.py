@@ -305,15 +305,22 @@ def test_build_is_one_object_per_deal_set_over_a_shared_description():
     full = ExactTargets.build()
     assert ExactTargets.build() is full  # the default is cached: the description takes seconds to build
     assert len(full.points) == 141
-    # The reach memo's bound, as the module states it: 29 level-1 points and
-    # 20 round-2 opening points (one per round-1 line and pair of draw counts).
+    # The reach memo's bound, as the module states it: every node with one
+    # board card out on the path from a decision to the root, and every
+    # round-2 opening decision (one per round-1 line and pair of draw counts).
     d = full.description
-    opening = [
-        node for node in d.decision_of_point
-        if node.level == 2 and d.parent[node.index][0].kind is NodeKind.CHANCE and d.parent[node.index][0].deals_board
-    ]
-    assert len(opening) == 20
-    assert sum(node.level <= 1 for node in d.decision_of_point) == 29
+    memoised = {}
+    for node in d.decision_of_point:
+        while node is not d.root:
+            above, _ = d.parent[node.index]
+            if node.level <= 1 or (above.kind is NodeKind.CHANCE and above.deals_board):
+                memoised[node.index] = node
+            node = above
+    level_one = [node for node in memoised.values() if node.level <= 1]
+    opening = [node for node in memoised.values() if node.level == 2]
+    assert len(level_one) == 66 and sum(node.kind is NodeKind.DECISION for node in level_one) == 29
+    assert len(opening) == 20 and all(node.kind is NodeKind.DECISION for node in opening)
+    assert len(level_one) * 15 + len(opening) * 210 == 5_190
     # Every physical state of the frame is one of (hole, nothing thrown | a card not in the hole).
     assert N_STATES == len(HOLES) * SLOTS == 455 * 16
     assert state_index(parse_cards("2c 2d 2h"), ()) == 0  # the deck is ordered by rank, then suit
@@ -503,8 +510,14 @@ def test_regret_and_arrival_match_the_sampled_walks_row_by_row_and_pooled():
     rows, counts = np.unique(offered.advantage_rows, return_counts=True)
     enough = counts >= 40
     rows, counts = rows[enough], counts[enough]
-    assert rows.size >= 8
     regret, arrival = exact.targets(sigma, seat=0, rows=rows)
+    # Rows are kept by their EXPECTED count, 80 or more, so the observed
+    # cutoff of 40 sits 4.5 standard errors below every kept row's mean and
+    # the selection cannot bias z: a row chosen by its observed count alone
+    # is there because it fluctuated high.
+    fair = walks * arrival >= 80
+    rows, counts, regret, arrival = rows[fair], counts[fair], regret[fair], arrival[fair]
+    assert rows.size >= 8
     widths = table.widths()[rows]
     z_regret, z_visits = [], []
     for row, count, width, exact_regret, exact_arrival in zip(rows, counts, widths, regret, arrival, strict=True):
@@ -522,7 +535,9 @@ def test_regret_and_arrival_match_the_sampled_walks_row_by_row_and_pooled():
         z_visits.append(zv)
     for z in (np.asarray(z_regret), np.asarray(z_visits)):
         assert z.size >= 8
-        assert 0.4 < np.mean(z**2) < 2.0, z
+        # The mean of n squared standard normals has mean 1 and standard
+        # deviation √(2/n); this is a 4-sd band on it, (0.4, 1.6) at n = 10.
+        assert abs(np.mean(z**2) - 1.0) < 4 * np.sqrt(2 / z.size), (z.size, np.mean(z**2))
 
 @pytest.mark.skipif(
     not FULL_TARGET, reason="200,000 whole-game walks on 8 workers, ~2 min; set MINIDRAWMAHA_FULL_TARGET=1"
@@ -537,18 +552,25 @@ def test_arrival_is_the_visit_rate_of_two_hundred_thousand_whole_game_walks(seat
         collector.table.cumulative_regret[:] = table.cumulative_regret
         offered = collector.collect(seat=seat, t=1, walks=walks)
     rows, counts = np.unique(offered.advantage_rows, return_counts=True)
-    enough = counts >= 100
+    enough = counts >= 40
     rows, counts = rows[enough], counts[enough]
-    assert rows.size >= 50
     arrival = exact.arrivals(sigma, seat=seat, rows=rows)
+    # Kept by EXPECTED count, 80 or more: the observed cutoff of 40 is then
+    # 4.5 standard errors below every kept row's mean, so the selection
+    # cannot bias z. (Selecting on the observed count alone put seat 1's
+    # draw rows, whose means sit near 80, at a mean z of +1.8 on two seeds:
+    # the rows that cleared the cutoff were the ones that fluctuated high.
+    # Seat 1's commonest rows, its two opening points, expect about 110.)
+    fair = walks * arrival >= 80
+    rows, counts, arrival = rows[fair], counts[fair], arrival[fair]
+    assert rows.size >= 50
     z = (counts - walks * arrival) / np.sqrt(walks * arrival * (1 - arrival))
-    # About 1,500 rows clear 100 visits, so the largest |z| of 1,500 fair
-    # draws passes 4 in about nine runs out of a hundred and 5 in one out
-    # of a thousand; the pooled mean of z² is the sharp test, 1 ± 0.04 at
-    # this many rows, and a bias of a quarter standard error in every row
-    # would read 1.06.
+    # Of about a thousand fair rows, the largest |z| passes 4 in about six
+    # runs out of a hundred and 5 in one out of a thousand; the pooled mean
+    # of z² is the sharp test (mean 1, standard deviation √(2/n)), and a
+    # bias of a quarter standard error in every row would read 1.06.
     assert (np.abs(z) < 5).all(), (np.abs(z).max(), rows[np.argmax(np.abs(z))])
-    assert 0.85 < np.mean(z**2) < 1.2, np.mean(z**2)
+    assert abs(np.mean(z**2) - 1.0) < 4 * np.sqrt(2 / z.size), (z.size, np.mean(z**2))
 
 # ---------------------------------------------------------------------------
 # Refusals and the unreachable row

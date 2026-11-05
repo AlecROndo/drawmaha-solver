@@ -41,10 +41,16 @@ the banked sample given a visit — `E[r | reach]`. Normalising by Σ w is what
 makes the exact row commensurable with the sampled ones: a sampled row's
 target is one draw of r, so its expectation is this ratio, and the boost's
 row weight, `K · arrival · t`, restores the total weight the K walks would
-have put there. Dropping the denominator, or weighting every target 1, is
-the biased "teleport" the plan rules out. The traverser's own σ enters
-only inside `v(I) = ⟨σ, v(·)⟩`, the regret's baseline, as it does in the
-walk.
+have put there. Dropping the denominator, or weighting every target 1,
+would be a "teleport" that over-weights the rare rows it lands on, which is
+the bias the targeted-sampling plan (kept, like the rung-3 plan, outside
+the repo on Alec's machine under `~/Desktop/Claude/poker/`) exists to
+avoid. The traverser's own σ enters only inside `v(I) = ⟨σ, v(·)⟩`, the
+regret's baseline, as it does in the walk. One caveat on "visits": a walk
+can bank a row twice (about one traversal in a thousand, through the suit
+relabelling), so `arrival` is the expected number of visits per walk, a
+probability but for those, and `regret` is the mean banked sample per
+visit.
 
 **Why every physical entry is summed.** A key is a suit orbit of one
 picture — up to six physical (board, state) pairs, fewer when the picture
@@ -96,11 +102,13 @@ row 0.2–0.6 s, because the value below them expands over the traverser's own
 replacements (36 states per throw) and the second board card (14 boards):
 the opponent's vector is carried once per board and shared by every hero
 state on it, which is what keeps those within a second. The opponent's reach
-is memoised per call at every level-1 point (29 of them, 15 boards each) and
-at every round-2 opening point (20: one per round-1 line and pair of draw
-counts, 210 boards each), 58 KB a (point, board) pair, so the memo is at
-most 29 × 15 + 20 × 210 = 4,635 vectors, about 270 MB; a call over 2,240
-round-2 rows peaked at about 260 MB. `tests/minidrawmaha/test_exact_target.py` prints the
+is memoised per call at every node with one board card out that lies on
+the path to a decision (66: the 29 level-1 decision points and 37 chance
+nodes, 15 boards each) and at every round-2 opening decision (20: one per
+round-1 line and pair of draw counts, 210 boards each), 58 KB a (node,
+board) pair, so the memo is at most 66 × 15 + 20 × 210 = 5,190 vectors,
+302 MB — a count `tests/minidrawmaha/test_exact_target.py` re-derives
+from the tree; a call over 2,240 round-2 rows peaked at about 260 MB. `tests/minidrawmaha/test_exact_target.py` prints the
 round-2 figure on every run.
 """
 
@@ -669,7 +677,8 @@ class ExactTargets:
         """
         if carried not in SEATS:
             raise ValueError(f"carried must be one of {SEATS}, got {carried!r}")
-        return self._reach(sigma, carried, self.description.decision_of_point[point], board, {})
+        # A copy: at the root the vector is the deal weight itself.
+        return self._reach(sigma, carried, self.description.decision_of_point[point], board, {}).copy()
 
     def _rows(self, seat: int, rows: np.ndarray) -> np.ndarray:
         if seat not in SEATS:
@@ -731,10 +740,11 @@ class ExactTargets:
                     out += played
                 else:
                     out += _push(played[None, :], draw, np.array([b]))[0]
-        # Memoised through the board-2 deal: the 29 level-1 points have 15
-        # boards each and the 20 round-2 opening points 210 each; the rest of
-        # round 2 is at most two opponent steps away and is recomputed, so a
-        # call's memo is at most 4,635 vectors whatever rows it is handed.
+        # Memoised through the board-2 deal: the 66 level-1 nodes on the
+        # paths (decisions and chance nodes) have 15 boards each and the 20
+        # round-2 opening decisions 210 each; the rest of round 2 is at most
+        # two opponent steps away and is recomputed, so a call's memo is at
+        # most 5,190 vectors whatever rows it is handed.
         if node.level <= 1 or (above.kind is NodeKind.CHANCE and above.deals_board):
             memo[key] = out
         return out
