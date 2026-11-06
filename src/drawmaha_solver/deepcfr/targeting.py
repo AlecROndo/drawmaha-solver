@@ -336,16 +336,23 @@ def choose(
     picked[chosen] = True
     return mine[picked[owned] & reached_row], chosen
 
+# A one-step gain is best − Σ mix · value, never negative in exact arithmetic;
+# in float64 a row whose mix already plays the best action can land a few
+# ulps under zero (on the LCFR-2M release, by a few times 1e-12 chips, where
+# the largest gains are near 1e-4). Values within 1e-9 of zero below are read
+# as zero; anything lower is a sign error, not rounding, and is refused.
+_ROUNDOFF = 1e-9
+
 def _per_row(name: str, values: np.ndarray | None) -> np.ndarray:
-    """A whole-game per-row array, finite and non-negative, as float64; refused by name otherwise."""
+    """A whole-game per-row array, finite and non-negative up to rounding, as float64; refused by name otherwise."""
     if values is None:
         raise ValueError(f"{name} is required to aim: one value per table row")
     values = np.asarray(values, dtype=np.float64)
     if values.shape != (n_rows(),):
         raise ValueError(f"{name} must hold one value per table row ({n_rows():,}), got shape {values.shape}")
-    if not (np.isfinite(values).all() and (values >= 0.0).all()):
+    if not (np.isfinite(values).all() and (values >= -_ROUNDOFF).all()):
         raise ValueError(f"{name} must be finite and non-negative at every row")
-    return values
+    return np.maximum(values, 0.0)
 
 # ---------------------------------------------------------------------------
 # The frozen set and its draws

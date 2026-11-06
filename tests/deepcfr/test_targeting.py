@@ -302,6 +302,19 @@ def test_choose_refuses_bad_inputs_by_name(leak, frequency, noise_value, match):
     with pytest.raises(ValueError, match=match):
         choose(spec, seat=0, leak=leak, frequency=frequency, noise_of_group=flat_noise("line", 0, noise_value))
 
+def test_a_gain_an_ulp_under_zero_reads_as_zero_and_a_real_negative_is_refused():
+    # The grader's best − Σ mix · value lands a few 1e-12 under zero where the mix plays the best action.
+    seat_rows = rows_of_point(A)
+    leak = everywhere(0.0)
+    leak[seat_rows[0]] = 1.0
+    leak[seat_rows[1]] = -6.8e-12
+    spec = TargetSpec(granularity="infoset", alpha=0.0, budget=2)
+    _, chosen = choose(spec, seat=0, leak=leak, frequency=everywhere(1.0), noise_of_group=flat_noise("infoset", 0))
+    assert chosen[0] == seat_rows[0]
+    leak[seat_rows[1]] = -1e-6
+    with pytest.raises(ValueError, match="leak"):
+        choose(spec, seat=0, leak=leak, frequency=everywhere(1.0), noise_of_group=flat_noise("infoset", 0))
+
 def test_choose_refuses_a_noise_array_of_another_granularity():
     spec = TargetSpec(granularity="line", alpha=0.0)
     with pytest.raises(ValueError, match="noise"):
