@@ -77,9 +77,21 @@ def test_the_spec_refuses_a_bad_field_by_name(fields, match):
 def test_the_layout_is_the_tables():
     from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 
+    from drawmaha_solver.minidrawmaha.rules.game import InfoSet
+
     assert targeting.n_rows() == N_ROWS == 6_220_050
-    # The packed table lays its rows out the same way: point by point, keys in order.
-    assert len(PackedTable.whole_game()) == N_ROWS
+    table = PackedTable.whole_game()
+    assert len(table) == N_ROWS
+    # Each point's first and last key sit where `row_offsets` says, by the table's own index.
+    offsets = targeting.row_offsets()
+    for p, point in enumerate(POINTS):
+        keys = private_keys(board_cards=point.board_cards, discards=point.discards)
+        for position in (0, len(keys) - 1):
+            hole, thrown, board = keys[position]
+            key = InfoSet(
+                player=point.player, hole=hole, discarded=thrown, board=board, draws=point.draws, betting=point.betting
+            )
+            assert table.row_of(key) == offsets[p] + position
 
 @pytest.mark.parametrize("seat", [0, 1])
 @pytest.mark.parametrize("granularity", ["random", "infoset", "line", "line_class"])
@@ -287,6 +299,17 @@ def test_line_takes_every_eligible_group_when_the_seat_is_smaller_than_the_pool(
     spec = TargetSpec(granularity="line", alpha=0.0, budget=100)
     pool, chosen = choose(spec, seat=0, leak=leak, frequency=frequency, noise_of_group=flat_noise("line", 0))
     assert chosen.tolist() == [A] and pool.tolist() == a[:3].tolist()
+
+def test_a_pool_that_lands_exactly_on_pool_times_b_takes_no_further_group():
+    a, c = rows_of_point(A), rows_of_point(C)
+    leak, frequency = everywhere(0.0), everywhere(0.0)
+    frequency[c[:6]] = 1.0  # C: 6 reached rows, the best per row
+    leak[c[:6]] = 10.0
+    frequency[a[:4]] = 1.0  # A: next best
+    leak[a[:4]] = 1.0
+    spec = TargetSpec(granularity="line", alpha=0.0, budget=2, pool=3)  # pool × B = 6, C alone fills it
+    pool, chosen = choose(spec, seat=0, leak=leak, frequency=frequency, noise_of_group=flat_noise("line", 0))
+    assert chosen.tolist() == [C] and pool.tolist() == c[:6].tolist()
 
 def test_line_class_pools_the_reached_rows_of_its_classes():
     group = groups("line_class", 0)
