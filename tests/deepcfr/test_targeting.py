@@ -167,10 +167,27 @@ def test_noise_is_one_walks_relative_error_at_the_largest_mean_column():
     memory = memory_of(entries)
     walks = 5  # K: walks per iteration; the memory's latest t is 2, so 10 walks fed it
     out = noise(memory, groups("line", 0), walks=walks, alpha=0.0, cap=1e9)
-    # p = (n_g / size) · offered / (K · t_last): 4/6 · 6/10 = 0.4 for A, 0.2 for B
-    assert out[A] == pytest.approx(np.sqrt(12.5 / 0.4) / 2.0, rel=1e-12)
-    assert out[B_] == pytest.approx(np.sqrt(17.0 / 0.2) / 4.0, rel=1e-12)
+    # p = (n_g / size) · offered / (K · t_last): 4/6 · 6/10 = 0.4 for A, 0.2 for B;
+    # noise = √(E[r²]/p − μ²)/|μ|, one walk's total read as one visit or none.
+    assert out[A] == pytest.approx(np.sqrt(12.5 / 0.4 - 2.0**2) / 2.0, rel=1e-12)
+    assert out[B_] == pytest.approx(np.sqrt(17.0 / 0.2 - 4.0**2) / 4.0, rel=1e-12)
     assert out.shape == (max(seat_points(0)) + 1,)  # one entry per id up to the seat's largest
+
+def test_p_reads_the_memorys_share_once_the_memory_is_full():
+    # Ten offers into four slots: the memory keeps 4 of 10, so n_g / size · offered
+    # = 4/4 · 10 and p = 10 / (K · t_last) = 10 / 20 = 0.5. Every row is the same
+    # sample, so σ = 0 and noise = √(μ²/p − μ²)/|μ| = √(1/p − 1) = 1. Reading
+    # n_g alone as the visits would give p = 4/20 and noise 2.
+    a = rows_of_point(A)[:1]
+    memory = memory_of([(a[0], 1, (3.0,), 1.0)] * 10, capacity=4)
+    assert (memory.size, memory.offered) == (4, 10)
+    assert noise(memory, groups("line", 0), walks=20, alpha=0.0, cap=1e9)[A] == pytest.approx(1.0, rel=1e-12)
+
+def test_a_line_every_walk_reaches_reads_as_the_scatter_of_one_visit():
+    # p = 1: every walk banks one sample, so the per-walk relative error is σ/|μ|.
+    a = rows_of_point(A)[:1]
+    memory = memory_of([(a[0], 1, (1.0,), 1.0), (a[0], 1, (3.0,), 1.0)])  # μ 2, σ 1
+    assert noise(memory, groups("line", 0), walks=2, alpha=0.0, cap=1e9)[A] == pytest.approx(0.5, rel=1e-12)
 
 def test_only_the_walks_own_rows_count():
     a = rows_of_point(A)[:1]
@@ -192,9 +209,10 @@ def test_too_few_rows_or_a_zero_mean_or_an_empty_memory_reads_as_the_cap():
         (c[0], 1, (1.0,), 1.0),
         (c[0], 1, (1.0,), 1.0),  # no scatter, frequent: well under the cap
     ]
-    out = noise(memory_of(entries), groups("line", 0), walks=1, alpha=0.0, cap=20.0)
+    out = noise(memory_of(entries), groups("line", 0), walks=4, alpha=0.0, cap=20.0)
     assert out[A] == 20.0 and out[B_] == 20.0
-    assert out[C] == pytest.approx(np.sqrt(1.0 / (2 / 5 * 5 / 1)), rel=1e-12)
+    # p = 2/5 · 5/4 = 0.5; √(1/0.5 − 1)/1 = 1
+    assert out[C] == pytest.approx(1.0, rel=1e-12)
     untouched = [p for p in seat_points(0) if p not in (A, B_, C)]
     assert (out[untouched] == 20.0).all()
     assert (noise(Reservoir(10), groups("line", 0), walks=1, alpha=0.0, cap=20.0) == 20.0).all()
@@ -533,17 +551,18 @@ def test_target_set_weighs_the_pool_by_arrival_and_asks_for_nothing_else():
     assert all(np.array_equal(rows, targets.rows[seat]) for seat, rows in arrival.asked)
 
 def test_target_set_reads_the_memory_for_noise():
-    # Two lines with equal leak per row; the walk's rows make B_ quiet and A noisy.
+    # Two lines with equal leak per row; the walk's rows make A quiet and B_ noisy. A has the lower id,
+    # so it wins a tie: only the noise can put B_ first.
     leak, frequency = leaky({A: 1.0, B_: 1.0})
     for p in (A, B_):
         frequency[rows_of_point(p)[10:]] = 0.0
     a, b = rows_of_point(A)[0], rows_of_point(B_)[0]
-    memory = memory_of([(a, 1, (1.0,), 1.0), (a, 1, (-0.8,), 1.0), (b, 1, (1.0,), 1.0), (b, 1, (1.0,), 1.0)])
+    memory = memory_of([(a, 1, (1.0,), 1.0), (a, 1, (1.0,), 1.0), (b, 1, (1.0,), 1.0), (b, 1, (-0.8,), 1.0)])
     spec = TargetSpec(granularity="line", alpha=0.0, budget=1, pool=1)
     targets = targeting.target_set(
-        spec, t=1, leak=leak, frequency=frequency, memories=(memory, Reservoir(4)), walks=1, arrival=FakeArrival()
+        spec, t=1, leak=leak, frequency=frequency, memories=(memory, Reservoir(4)), walks=4, arrival=FakeArrival()
     )
-    assert targets.groups[0].tolist() == [A]
+    assert targets.groups[0].tolist() == [B_]  # A: √(1/0.5 − 1) = 1; B_: √(0.82/0.5 − 0.01)/0.1 ≈ 12.8
 
 def test_an_infoset_set_never_asks_for_arrival():
     leak, frequency = leaky({A: 1.0, S1: 1.0})

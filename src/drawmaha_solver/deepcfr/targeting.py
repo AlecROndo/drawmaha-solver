@@ -41,14 +41,20 @@ clearly will be learned without help.
 
 **The noise of a group** is the relative standard error of what one walk banks
 there. A walk visits g with probability p (visits per walk) and banks a regret
-sample r each time; its per-walk total has mean p·μ and, for small p, variance
-p·E[r²] = p·(σ² + μ²). Their ratio,
+sample r each time; read as one visit or none, its per-walk total has mean p·μ
+and variance p·E[r²] − p²·μ² = p·σ² + p·(1 − p)·μ². Their ratio,
 
-    noise(g) = √(E[r²] / p) / |E[r]|,
+    noise(g) = √(E[r²] / p − μ²) / |μ|,      μ = E[r],
 
 grows as the samples scatter (E[r²] ≫ μ²), as the mean they estimate shrinks,
-and as visits get rarer (1/√p). It is read at a* = the column of largest |mean|,
-the action whose regret decides the strategy. Everything comes from the seat's
+and as visits get rarer (≈ 1/√p for small p). At p = 1 — seat 0's opening
+spot, which every walk reaches — it is σ/|μ|, the scatter of one visit. A
+line a walk can reach more than once (two throws to one point) has p > 1,
+where the one-visit reading is an approximation; a negative variance there
+reads as zero. It is read at a* = the column of largest |mean|, the action
+whose regret decides the strategy. At a coarse group the samples pool many
+hands whose regrets point different ways, so |μ| can sit near zero and the
+group reads as noisy — which it is, as an estimate of the group's mean. Everything comes from the seat's
 advantage memory: E[r] and E[r²] are means over g's resident rows, and p is
 g's share of the memory times the rows offered per walk,
 p = (n_g / size) · offered / (K · t_last), K the walks per iteration and
@@ -259,7 +265,7 @@ def groups(granularity: Granularity, seat: int) -> np.ndarray:
 def noise(
     memory: Reservoir, group_of_row: np.ndarray, *, walks: int, alpha: float, cap: float
 ) -> np.ndarray:
-    """min(√(E[r²] / p) / |E[r]|, cap) per group id, from one seat's advantage memory; the cap where unread.
+    """min(√(E[r²] / p − μ²) / |μ|, cap) per group id, μ = E[r], from one seat's advantage memory; the cap where unread.
 
     Indexed by group id, one entry per id up to the largest in
     `group_of_row` (a `groups(...)` array). Only the walk's own rows are read,
@@ -300,7 +306,7 @@ def noise(
         square = np.bincount(group, weights=at_best * at_best, minlength=n_groups)
         mu = mean[np.arange(n_groups), best]
         visits = count / memory.size * memory.offered / (walks * int(t.max()))
-        ratio = np.sqrt(square / count / visits) / np.abs(mu)
+        ratio = np.sqrt(np.maximum(square / count / visits - mu * mu, 0.0)) / np.abs(mu)
     readable = (count >= 2) & (mu != 0.0)
     out[readable] = np.minimum(ratio[readable], cap)
     return out
