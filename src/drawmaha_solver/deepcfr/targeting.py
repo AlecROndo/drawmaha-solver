@@ -54,15 +54,26 @@ where the one-visit reading is an approximation; a negative variance there
 reads as zero. It is read at a* = the column of largest |mean|, the action
 whose regret decides the strategy. At a coarse group the samples pool many
 hands whose regrets point different ways, so |μ| can sit near zero and the
-group reads as noisy — which it is, as an estimate of the group's mean. Everything comes from the seat's
-advantage memory: E[r] and E[r²] are means over g's resident rows, and p is
-g's share of the memory times the rows offered per walk,
-p = (n_g / size) · offered / (K · t_last), K the walks per iteration and
-t_last the latest iteration in the memory. Only the walk's OWN rows count —
-weight 1, or α where the boost turned them down — because an exact row is a
-mean, not a sample, and would read as no scatter at all. A group with fewer
-than two such rows, or a mean of exactly zero, gets the cap, so a rare
-infoset the walk has hardly seen ranks as noisy rather than silent.
+group reads as noisy, which it is as an estimate of the group's mean.
+
+Everything comes from the seat's advantage memory. Only the walk's OWN rows
+count — weight 1, or α where the boost turned them down — because an exact
+row is a mean, not a sample, and would read as no scatter at all. E[r] and
+E[r²] are means over g's resident walk rows, n_g of them. p is the count of
+walk visits to g per walk:
+
+    p = (n_g / size) · offered / (K · t_last),
+
+K the walks per iteration and t_last the latest iteration in the memory.
+`size` and `offered` both count every row the memory was given, exact rows
+included, and Algorithm R keeps a uniform sample of the offers, so
+n_g / size · offered estimates the walk rows ever offered at g whatever share
+the exact rows hold; K · t_last is the walks that offered them. A group with
+fewer than two walk rows, or a mean of exactly zero, gets the cap, so a rare
+infoset the walk has hardly seen ranks as noisy rather than silent. For
+`infoset`, where a group is one row, that is every row the memory holds
+fewer than two samples of: where the memory is thin, the infoset arm ranks
+by leak per row alone.
 
 **The pool and the draws.** `infoset` takes the B best rows outright. `line`
 and `line_class` take groups best first until their reached rows number at
@@ -450,6 +461,9 @@ class TargetSet:
                 raise ValueError(
                     f"an infoset set holds at most the budget, {self.spec.budget}, rows a seat; got {r.size}"
                 )
+            if self.spec.granularity == "infoset" and np.any(w != 1.0):
+                # Its rows are served, never drawn: a weight there would read as one that mattered.
+                raise ValueError(f"an infoset set's weights are all 1 (its rows are not drawn); seat {seat}'s are not")
             for array in (r, w, g):
                 array.setflags(write=False)
             rows.append(r)

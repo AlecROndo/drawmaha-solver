@@ -195,6 +195,28 @@ def test_p_reads_the_memorys_share_once_the_memory_is_full():
     assert (memory.size, memory.offered) == (4, 10)
     assert noise(memory, groups("line", 0), walks=20, alpha=0.0, cap=1e9)[A] == pytest.approx(1.0, rel=1e-12)
 
+def test_p_is_unbiased_when_exact_rows_share_a_full_memory():
+    # 30 walk rows at A and 30 exact rows (weight 0.37) at B, into 20 slots, one
+    # iteration of K = 60 walks: the walk visited A 30 times, so p = 0.5. The
+    # memory keeps a random 20, but `size` and `offered` both count the exact
+    # rows, so n_A / size · offered is unbiased for A's 30 walk offers. Every
+    # walk row is the same sample (σ = 0), so noise = √(1/p − 1) gives p back.
+    # Dividing by the resident walk rows instead of `size` would read p ≈ 1.
+    a, b = rows_of_point(A)[0], rows_of_point(B_)[0]
+    rows = np.array([a] * 30 + [b] * 30)
+    target = np.zeros((60, TARGET_WIDTH), dtype=np.float32)
+    target[:, 0] = 3.0
+    weight = np.array([1.0] * 30 + [0.37] * 30, dtype=np.float32)
+    estimates = []
+    for seed in range(400):
+        memory = Reservoir(20)
+        memory.merge(rows, target, t=1, rng=np.random.default_rng(seed), weight=weight)
+        value = noise(memory, groups("line", 0), walks=60, alpha=0.0, cap=1e9)[A]
+        estimates.append(1.0 / (value * value + 1.0))
+    # n_A is hypergeometric (60 offers, 30 at A, 20 kept): sd ≈ 1.84 rows, so the
+    # mean of 400 estimates of n_A / 20 has s.e. ≈ 0.0046.
+    assert abs(np.mean(estimates) - 0.5) < 4 * 0.0046
+
 def test_a_line_every_walk_reaches_reads_as_the_scatter_of_one_visit():
     # p = 1: every walk banks one sample, so the per-walk relative error is σ/|μ|.
     a = rows_of_point(A)[:1]
@@ -476,7 +498,7 @@ def test_the_draw_is_successive_sampling_proportional_to_the_weight():
     assert np.all(np.abs(seen / trials - exact) < 4 * se), (seen / trials, exact)
 
 def test_an_infoset_set_serves_its_rows_at_every_iteration():
-    targets = a_set([1.0, 1.0, 1.0], budget=3, granularity="infoset")
+    targets = a_set([1.0, 1.0, 1.0], budget=3, granularity="infoset", weight1=(1.0, 1.0))
     for t in range(26, 51):
         assert targets.rows_for(t, 0, t).tolist() == targets.rows[0].tolist()
 
@@ -513,9 +535,11 @@ def test_a_set_refuses_a_malformed_field_by_name(change, match):
     with pytest.raises(ValueError, match=match):
         TargetSet(**(fields | change))
 
-def test_an_infoset_set_holds_at_most_b_rows():
+def test_an_infoset_set_holds_at_most_b_rows_each_of_weight_one():
     with pytest.raises(ValueError, match="budget"):
         a_set([1.0, 1.0, 1.0], budget=2, granularity="infoset")
+    with pytest.raises(ValueError, match="weights are all 1"):
+        a_set([1.0, 0.5, 1.0], budget=3, granularity="infoset", weight1=(1.0, 1.0))
 
 def test_a_set_is_read_only():
     targets = a_set([1.0, 2.0], budget=1)
