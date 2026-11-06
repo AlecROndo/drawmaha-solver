@@ -17,7 +17,7 @@ import pytest
 
 from drawmaha_solver.deepcfr import targeting
 from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Reservoir
-from drawmaha_solver.deepcfr.targeting import TargetSpec, groups, noise
+from drawmaha_solver.deepcfr.targeting import TargetSpec, choose, groups, noise
 from drawmaha_solver.minidrawmaha.rules.enumeration import private_keys, public_decision_points
 
 POINTS = public_decision_points()
@@ -205,3 +205,100 @@ def test_a_memory_row_of_the_other_seat_is_refused():
 def test_noise_refuses_a_bad_walk_count():
     with pytest.raises(ValueError, match="walks"):
         noise(Reservoir(10), groups("line", 0), walks=0, alpha=0.0, cap=20.0)
+
+# ---------------------------------------------------------------------------
+# Scores and selection
+# ---------------------------------------------------------------------------
+
+def flat_noise(granularity: str, seat: int, value: float = 20.0) -> np.ndarray:
+    return np.full(int(groups(granularity, seat).max()) + 1, value)
+
+def everywhere(value: float) -> np.ndarray:
+    return np.full(N_ROWS, value)
+
+def test_infoset_takes_the_b_best_reached_rows_by_leak_times_noise():
+    seat_rows = rows_of_point(A)
+    leak, frequency = everywhere(0.0), everywhere(1.0)
+    leak[seat_rows[[5, 1, 7, 3]]] = [4.0, 3.0, 3.0, 9.0]
+    frequency[seat_rows[3]] = 0.0  # the leakiest row is never reached: not eligible
+    spec = TargetSpec(granularity="infoset", alpha=0.0, budget=3)
+    pool, chosen = choose(spec, seat=0, leak=leak, frequency=frequency, noise_of_group=flat_noise("infoset", 0))
+    # 4.0 first, then the 3.0 tie goes to the lower row
+    assert chosen.tolist() == [seat_rows[5], seat_rows[1], seat_rows[7]]
+    assert pool.tolist() == sorted(chosen.tolist())
+
+def test_noise_breaks_an_equal_leak():
+    seat_rows = rows_of_point(A)
+    leak = everywhere(0.0)
+    leak[seat_rows[[0, 1]]] = 1.0
+    noisy = flat_noise("infoset", 0, 2.0)
+    noisy[seat_rows[1]] = 3.0
+    spec = TargetSpec(granularity="infoset", alpha=0.0, budget=1)
+    _, chosen = choose(spec, seat=0, leak=leak, frequency=everywhere(1.0), noise_of_group=noisy)
+    assert chosen.tolist() == [seat_rows[1]]
+
+def test_line_takes_groups_by_leak_per_reached_row_until_the_pool_is_full():
+    a, b, c = rows_of_point(A), rows_of_point(B_), rows_of_point(C)
+    leak, frequency = everywhere(0.0), everywhere(0.0)
+    frequency[a[:13]] = 1.0  # A: 13 reached rows, leak 13 → 1 per reached row
+    leak[a[:13]] = 1.0
+    leak[a[20]] = 0.0  # an unreached row of A, not in the pool
+    frequency[b[:500]] = 1.0  # B: 500 reached rows, leak 100 → 0.2 per row
+    leak[b[:500]] = 0.2
+    frequency[c[:5]] = 1.0  # C: 5 reached rows, leak 50 → 10 per row
+    leak[c[:5]] = 10.0
+    spec = TargetSpec(granularity="line", alpha=0.0, budget=1, pool=12)
+    pool, chosen = choose(spec, seat=0, leak=leak, frequency=frequency, noise_of_group=flat_noise("line", 0))
+    # C brings 5 reached rows, A 13 more: 18 ≥ 12, so A is the group that crosses and is in.
+    assert chosen.tolist() == [C, A]
+    assert pool.tolist() == sorted(c[:5].tolist() + a[:13].tolist())
+
+def test_line_takes_every_eligible_group_when_the_seat_is_smaller_than_the_pool():
+    a = rows_of_point(A)
+    frequency = everywhere(0.0)
+    frequency[a[:3]] = 1.0
+    leak = everywhere(0.0)
+    leak[a[0]] = 1.0
+    spec = TargetSpec(granularity="line", alpha=0.0, budget=100)
+    pool, chosen = choose(spec, seat=0, leak=leak, frequency=frequency, noise_of_group=flat_noise("line", 0))
+    assert chosen.tolist() == [A] and pool.tolist() == a[:3].tolist()
+
+def test_line_class_pools_the_reached_rows_of_its_classes():
+    group = groups("line_class", 0)
+    a = rows_of_point(A)
+    target = group[a[0]]
+    members = a[group[a] == target]
+    leak, frequency = everywhere(0.0), everywhere(1.0)
+    leak[members] = 1.0
+    frequency[members[-1]] = 0.0
+    spec = TargetSpec(granularity="line_class", alpha=0.0, budget=1, pool=1)
+    pool, chosen = choose(spec, seat=0, leak=leak, frequency=frequency, noise_of_group=flat_noise("line_class", 0))
+    assert chosen.tolist() == [target]
+    assert pool.tolist() == members[:-1].tolist()
+
+def test_random_pools_the_whole_seat_and_reads_no_leak():
+    spec = TargetSpec(granularity="random", alpha=0.0)
+    pool, chosen = choose(spec, seat=1, leak=None, frequency=None, noise_of_group=None)
+    assert np.array_equal(pool, np.flatnonzero(groups("random", 1) >= 0)) and chosen.tolist() == [0]
+
+@pytest.mark.parametrize(
+    "leak, frequency, noise_value, match",
+    [
+        (None, everywhere(1.0), 20.0, "leak"),
+        (everywhere(0.0), None, 20.0, "frequency"),
+        (np.zeros(10), everywhere(1.0), 20.0, "leak"),
+        (everywhere(-1.0), everywhere(1.0), 20.0, "leak"),
+        (everywhere(np.nan), everywhere(1.0), 20.0, "leak"),
+        (everywhere(0.0), everywhere(np.inf), 20.0, "frequency"),
+        (everywhere(0.0), everywhere(1.0), np.nan, "noise"),
+    ],
+)
+def test_choose_refuses_bad_inputs_by_name(leak, frequency, noise_value, match):
+    spec = TargetSpec(granularity="line", alpha=0.0)
+    with pytest.raises(ValueError, match=match):
+        choose(spec, seat=0, leak=leak, frequency=frequency, noise_of_group=flat_noise("line", 0, noise_value))
+
+def test_choose_refuses_a_noise_array_of_another_granularity():
+    spec = TargetSpec(granularity="line", alpha=0.0)
+    with pytest.raises(ValueError, match="noise"):
+        choose(spec, seat=0, leak=everywhere(0.0), frequency=everywhere(1.0), noise_of_group=flat_noise("infoset", 0))

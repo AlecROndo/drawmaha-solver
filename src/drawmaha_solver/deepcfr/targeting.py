@@ -267,3 +267,67 @@ def noise(
     readable = (count >= 2) & (mu != 0.0)
     out[readable] = np.minimum(ratio[readable], cap)
     return out
+
+# ---------------------------------------------------------------------------
+# Scores and selection
+# ---------------------------------------------------------------------------
+
+def choose(
+    spec: TargetSpec,
+    *,
+    seat: int,
+    leak: np.ndarray | None,
+    frequency: np.ndarray | None,
+    noise_of_group: np.ndarray | None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """One seat's pool of rows and the groups it came from, best first.
+
+    `leak` and `frequency` are per table row (the seat's one-step gains and
+    play frequencies, from whatever meter the refresher runs) and
+    `noise_of_group` is `noise(...)` at the same granularity. A group is
+    eligible when one of its rows is reached (frequency > 0), and ranked by
+    leak · noise / reached, ties to the lower id. `infoset` returns the B best
+    rows as the pool; `line` and `line_class` take groups until their reached
+    rows number `pool × B`, the crossing group included, and pool those
+    reached rows; `random` pools every row of the seat and reads nothing.
+    """
+    group = groups(spec.granularity, seat)
+    mine = np.flatnonzero(group >= 0)
+    if spec.granularity == "random":
+        return mine, np.zeros(1, dtype=np.int64)
+    leak = _per_row("leak", leak)
+    frequency = _per_row("frequency", frequency)
+    owned = group[mine]
+    n_groups = int(owned.max()) + 1
+    if noise_of_group is None or np.shape(noise_of_group) != (n_groups,):
+        raise ValueError(
+            f"noise_of_group must hold one value per {spec.granularity} group id of seat {seat} "
+            f"({n_groups:,}), got shape {np.shape(noise_of_group)}"
+        )
+    if not (np.isfinite(noise_of_group).all() and (noise_of_group >= 0).all()):
+        raise ValueError("noise_of_group must be finite and non-negative")
+    reached_row = frequency[mine] > 0.0
+    reached = np.bincount(owned, weights=reached_row, minlength=n_groups)
+    total = np.bincount(owned, weights=leak[mine], minlength=n_groups)
+    eligible = np.flatnonzero(reached > 0)
+    score = total[eligible] * noise_of_group[eligible] / reached[eligible]
+    order = eligible[np.lexsort((eligible, -score))]
+    if spec.granularity == "infoset":
+        chosen = order[: spec.budget]
+        return np.sort(chosen), chosen
+    filled = np.cumsum(reached[order])
+    chosen = order[: int(np.searchsorted(filled, spec.pool * spec.budget)) + 1]
+    picked = np.zeros(n_groups, dtype=bool)
+    picked[chosen] = True
+    return mine[picked[owned] & reached_row], chosen
+
+def _per_row(name: str, values: np.ndarray | None) -> np.ndarray:
+    """A whole-game per-row array, finite and non-negative, as float64; refused by name otherwise."""
+    if values is None:
+        raise ValueError(f"{name} is required to aim: one value per table row")
+    values = np.asarray(values, dtype=np.float64)
+    if values.shape != (n_rows(),):
+        raise ValueError(f"{name} must hold one value per table row ({n_rows():,}), got shape {values.shape}")
+    if not (np.isfinite(values).all() and (values >= 0.0).all()):
+        raise ValueError(f"{name} must be finite and non-negative at every row")
+    return values
