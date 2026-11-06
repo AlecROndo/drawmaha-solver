@@ -13,9 +13,10 @@ Eight modules, one concern each:
 - `net`: the MLP, chunked prediction into NumPy, and the save file.
 - `materialise`: two seats' nets into `cumulative_regret`, Deep CFR's
   eq. (3) obtained by what is written rather than by changing the ledger.
-- `fit`: the from-scratch refit on (row, t, target) arrays.
+- `fit`: the from-scratch refit on (row, t, target, weight) arrays.
 - `reservoir`: the memories those arrays come from — Algorithm R over
-  (row, t, target) rows, a counter-based stream per phase, an exact resume.
+  (row, t, target, weight) rows, a counter-based stream per phase, an exact
+  resume.
 - `collect`: K lockstep walks for one seat on W spawned processes, returned
   as the rows a phase offers the memories.
 - `train`: the loop that calls them in order, iteration after iteration —

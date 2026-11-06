@@ -101,6 +101,91 @@ def test_later_iterations_weigh_more():
     )
     np.testing.assert_allclose(legal_prediction(net, row), 0.5, atol=0.05)
 
+def test_weight_one_is_the_loss_before_the_column_existed_bit_for_bit():
+    # The loss as it was written before the weight column — the squared
+    # error over the legal columns, each row scaled by t / mean(t) — restated
+    # here so the pin is against the formula, not against the code under
+    # test. t · 1.0 is t exactly in float32, so the two agree to the bit.
+    rows, t, targets = real_rows(300, seed=4)
+    torch.manual_seed(0)
+    net = Net()
+    built = layout()
+    point, _ = built.locate_rows(rows)
+    gather = torch.from_numpy(legal_gather()[point].astype(np.int64))
+    legal = gather != NO_ACTION
+    with torch.no_grad():
+        outputs = net(torch.from_numpy(built.features(rows)))
+        predicted = outputs.gather(1, gather.clamp(min=0))
+        target = torch.where(legal, torch.from_numpy(targets), 0.0)
+        error = torch.where(legal, (predicted - target) ** 2, 0.0).sum(dim=1)
+        t32 = torch.from_numpy(t.astype(np.float32))
+        before = ((t32 / t32.mean()) * error).mean()
+        now = batch_loss(net, rows, t, targets, np.ones(300, np.float32))
+        default = batch_loss(net, rows, t, targets)
+    assert torch.equal(now, before) and torch.equal(default, before)
+    # And through the whole fit: the weights a weight-one fit lands on are
+    # the ones a fit told nothing about weights lands on.
+    plain = fit_from_scratch(rows, t, targets, seed=(0, 1, 0), config=SMALL)
+    ones = fit_from_scratch(rows, t, targets, np.ones(300, np.float32), seed=(0, 1, 0), config=SMALL)
+    for a, b in zip(plain.parameters(), ones.parameters(), strict=True):
+        assert torch.equal(a, b)
+
+def test_a_row_of_weight_zero_is_inert():
+    # One row twice at t = 1: +1 at weight 0 and −1 at weight 1. The first
+    # row must leave no trace, so the fit lands on −1, not on the mean 0.
+    (row,), _, _ = real_rows(1, seed=3)
+    rows = np.array([row, row])
+    t = np.array([1, 1])
+    targets = np.array([[1, 1, 1, 1], [-1, -1, -1, -1]], dtype=np.float32)
+    net = fit_from_scratch(
+        rows, t, targets, np.array([0.0, 1.0]), seed=(0, 1, 0), config=FitConfig(steps=1_500, batch=64, threads=1)
+    )
+    np.testing.assert_allclose(legal_prediction(net, row), -1.0, atol=0.05)
+
+def test_the_loss_weighs_a_row_by_t_times_weight():
+    # The same two rows as `test_later_iterations_weigh_more`, +1 at t = 3 and
+    # −1 at t = 1, with weights (1, 3): t · w is 3 for both, so the weighted
+    # least-squares answer moves from +0.5 to the plain mean, 0.
+    (row,), _, _ = real_rows(1, seed=3)
+    rows = np.array([row, row])
+    t = np.array([3, 1])
+    targets = np.array([[1, 1, 1, 1], [-1, -1, -1, -1]], dtype=np.float32)
+    net = fit_from_scratch(
+        rows, t, targets, np.array([1.0, 3.0]), seed=(0, 1, 0), config=FitConfig(steps=1_500, batch=64, threads=1)
+    )
+    np.testing.assert_allclose(legal_prediction(net, row), 0.0, atol=0.05)
+
+def test_a_batch_of_weightless_rows_has_a_finite_loss():
+    # Every row of the batch at weight 0 (a tiny memory under the boost's α = 0):
+    # the normalising mean is 0, and 0/0 would make the loss NaN and the fit
+    # "diverged". The loss is 0 instead, and its gradient finite.
+    rows, t, targets = real_rows(16, seed=8)
+    torch.manual_seed(0)
+    net = Net()
+    loss = batch_loss(net, rows, t, targets, np.zeros(16, np.float32))
+    assert loss.item() == 0.0
+    loss.backward()
+    assert all(torch.isfinite(p.grad).all() for p in net.parameters())
+
+def test_fit_refuses_bad_weights():
+    rows, t, targets = real_rows(10, seed=3)
+    with pytest.raises(ValueError, match="weight"):
+        fit_from_scratch(rows, t, targets, np.r_[np.ones(9), -1.0], seed=(0,), config=SMALL)
+    with pytest.raises(ValueError, match="weight"):
+        fit_from_scratch(rows, t, targets, np.r_[np.ones(9), np.nan], seed=(0,), config=SMALL)
+    with pytest.raises(ValueError, match="length"):
+        fit_from_scratch(rows, t, targets, np.ones(9), seed=(0,), config=SMALL)
+    with pytest.raises(ValueError, match="1-D"):
+        fit_from_scratch(rows, t, targets, np.ones((10, 1)), seed=(0,), config=SMALL)
+    with pytest.raises(ValueError, match="nothing to fit"):
+        fit_from_scratch(rows, t, targets, np.zeros(10), seed=(0,), config=SMALL)
+    # Finite in float64, inf in the float32 the loss computes in.
+    with pytest.raises(ValueError, match="finite"):
+        fit_from_scratch(rows, t, targets, np.r_[np.ones(9), 1e300], seed=(0,), config=SMALL)
+    # Finite in float32 on its own; t × weight is not, and that is the scale.
+    with pytest.raises(ValueError, match="fit float32"):
+        fit_from_scratch(rows, np.full(10, 2), targets, np.r_[np.ones(9), 2e38], seed=(0,), config=SMALL)
+
 def test_loss_is_over_the_legal_columns_only():
     # A 2-wide betting row: its loss is the sum over its two columns, so a
     # target met exactly at both leaves zero whatever the padding says.
@@ -245,6 +330,9 @@ def test_fit_refuses_rows_or_t_that_are_not_one_dimensional_ints():
         fit_from_scratch(rows[:, None], t, targets, seed=(0,), config=SMALL)
     with pytest.raises(ValueError, match="integer"):
         fit_from_scratch(rows.astype(np.float64), t, targets, seed=(0,), config=SMALL)
+    # A scalar: the ones default for the weight must not trip over it first.
+    with pytest.raises(ValueError, match="1-D"):
+        fit_from_scratch(np.int64(rows[0]), t[:1], targets[:1], seed=(0,), config=SMALL)
 
 # ---------------------------------------------------------------------------
 # The GPU path
@@ -267,6 +355,7 @@ def test_the_device_loop_on_the_cpu_is_the_cpu_fit_bit_for_bit():
             rows.astype(np.int64),
             t,
             targets.astype(np.float32),
+            np.ones(len(rows), np.float32),
             fit_module._fold_seed((0, 2, 1)),
             SMALL,
             device="cpu",

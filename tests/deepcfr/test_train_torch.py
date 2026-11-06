@@ -107,15 +107,15 @@ def test_fit_reports_a_finite_loss_and_a_run_logs_it(tmp_path):
     run = new_run(TINY)
     with Collector(seed=9, workers=0) as collector:
         rows = collector.collect(seat=0, t=1, walks=5)
-    fitted = learner.fit(rows.advantage_rows, np.ones(len(rows.advantage_rows), np.int32), rows.advantage_targets, seed=(9, 1, 0))
+    ones = np.ones(len(rows.advantage_rows), np.int32)
+    fitted = learner.fit(rows.advantage_rows, ones, rows.advantage_targets, ones.astype(np.float32), seed=(9, 1, 0))
     assert isinstance(fitted.loss, float) and math.isfinite(fitted.loss)
-    again = learner.fit(rows.advantage_rows, np.ones(len(rows.advantage_rows), np.int32), rows.advantage_targets, seed=(9, 1, 0))
+    again = learner.fit(rows.advantage_rows, ones, rows.advantage_targets, ones.astype(np.float32), seed=(9, 1, 0))
     assert again.loss == fitted.loss  # the held batch is a function of the fit's seed
     # ... but not the fit's own first minibatch, which the net has just trained on.
     from drawmaha_solver.deepcfr.fit import _fold_seed, batch_loss
 
     first = torch.randint(len(rows.advantage_rows), (TINY.batch,), generator=torch.Generator().manual_seed(_fold_seed((9, 1, 0)))).numpy()
-    ones = np.ones(len(rows.advantage_rows), np.int32)
     with torch.inference_mode():
         trained_on = float(batch_loss(fitted.model, rows.advantage_rows[first], ones[first], rows.advantage_targets[first]).item())
     assert fitted.loss != trained_on
@@ -140,23 +140,29 @@ def test_the_targets_reaching_the_fit_are_the_pot_scaled_rule_targets(monkeypatc
     handed = {}
     real = fit.fit_from_scratch
 
-    def spy(rows, t, targets, *, seed, config):
-        handed.update(rows=rows, t=t, targets=targets)
-        return real(rows, t, targets, seed=seed, config=config)
+    def spy(rows, t, targets, weight, *, seed, config):
+        handed.update(rows=rows, t=t, targets=targets, weight=weight)
+        return real(rows, t, targets, weight, seed=seed, config=config)
 
     monkeypatch.setattr(fit, "fit_from_scratch", spy)
 
-    NetLearner(replace(TINY, pot_power=0.5)).fit(rows_, t, targets, seed=(9, 3, 0))
+    # Weights distinct per row, so a dropped or reordered column would show.
+    weight = np.linspace(0.5, 2.0, len(t)).astype(np.float32)
+    NetLearner(replace(TINY, pot_power=0.5)).fit(rows_, t, targets, weight, seed=(9, 3, 0))
     np.testing.assert_array_equal(handed["targets"], pot_scaled(rows_, targets, power=0.5))
     assert not np.array_equal(handed["targets"], targets)
     np.testing.assert_array_equal(handed["t"], t)
+    # The weight is a sample weight and never a divisor of the target: the
+    # pot scaling leaves it exactly as the memory held it.
+    assert handed["weight"] is weight
 
-    NetLearner(replace(TINY, pot_power=0.5, rule="dcfr")).fit(rows_, t, targets, seed=(9, 3, 0))
+    NetLearner(replace(TINY, pot_power=0.5, rule="dcfr")).fit(rows_, t, targets, weight, seed=(9, 3, 0))
     ruled = rule_targets(targets, t, now=3, rule="dcfr")
     np.testing.assert_array_equal(handed["targets"], pot_scaled(rows_, ruled, power=0.5))
     np.testing.assert_array_equal(handed["t"], np.ones(len(t), np.float32))
+    assert handed["weight"] is weight
 
-    NetLearner(replace(TINY, pot_power=0.0)).fit(rows_, t, targets, seed=(9, 3, 0))
+    NetLearner(replace(TINY, pot_power=0.0)).fit(rows_, t, targets, weight, seed=(9, 3, 0))
     assert handed["targets"] is targets  # power 0 hands the memory's own array through
 
 def test_pot_scaled_regrets_write_the_same_strategy_through_the_slot_rule_and_the_ledger():

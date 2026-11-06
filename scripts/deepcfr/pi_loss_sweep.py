@@ -222,7 +222,7 @@ def main() -> None:
             continue
         mark = mark_of(arm)
         if loaded is None or loaded[0] != mark:
-            rows, t, targets = Reservoir.load(run_dir / "marks" / f"t{mark:05d}" / f"policy-t{mark:05d}.npz").contents()
+            rows, t, targets, _ = Reservoir.load(run_dir / "marks" / f"t{mark:05d}" / f"policy-t{mark:05d}.npz").contents()
             exact = load_strategy(run_dir / "frozen" / f"t{mark:05d}-exact.npz")
             loaded = (mark,)
             print(f"mark t={mark}: memory {len(rows):,} rows", flush=True)
