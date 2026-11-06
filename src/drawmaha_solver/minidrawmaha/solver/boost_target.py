@@ -190,9 +190,10 @@ SEATS = (0, 1)
 TARGET_WIDTH = max(len(DRAW_ACTIONS), len(BETTING_ACTIONS))
 
 # The tail of a boost stream's seed, ASCII "BOOST": 39 bits, which
-# SeedSequence takes as two 32-bit words, so a row's stream has six words
-# and can never equal a walk's four-word stream or the reservoir's five-word
-# "RESV" one.
+# SeedSequence takes as two 32-bit words. For seed, t, seat and row below
+# 2³² a row's stream is six words, so it cannot equal a walk's four-word
+# stream or the reservoir's five-word "RESV" one, and its last two words
+# tell it from either at any size.
 _STREAM_TAG = int.from_bytes(b"BOOST", "big")
 
 # ---------------------------------------------------------------------------
@@ -200,6 +201,12 @@ _STREAM_TAG = int.from_bytes(b"BOOST", "big")
 # ---------------------------------------------------------------------------
 
 _SOURCES = ("opponent_range", "board_cards", "opponent_draws", "hero_draws", "opponent_actions")
+
+# The fans a chance count is read against: the second board card can be any
+# of the 14 cards the first left, and a throw's replacement any of the 12
+# cards not in the thrower's hole (dead ones pay zero below).
+_BOARD_FAN = len(DECK) - 1
+_REPLACEMENT_FAN = len(DECK) - HOLE_CARDS
 
 @dataclass(frozen=True, slots=True)
 class Sampling:
@@ -235,7 +242,7 @@ class Sampling:
             value = getattr(self, name)
             if value is None and name != "playouts":
                 continue
-            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            if isinstance(value, bool) or not isinstance(value, numbers.Integral) or value < 1:
                 allowed = "a positive int" if name == "playouts" else "a positive int, or None for all"
                 raise ValueError(f"Sampling.{name} must be {allowed}, got {value!r}")
         if self.is_exact and self.playouts != 1:
@@ -245,7 +252,19 @@ class Sampling:
 
     @property
     def is_exact(self) -> bool:
-        return all(getattr(self, name) is None for name in _SOURCES)
+        """Whether nothing is drawn: every count `None`, or a chance count at or above its fan."""
+        return (
+            self.opponent_range is None
+            and self.opponent_actions is None
+            and all(
+                k is None or k >= fan
+                for k, fan in (
+                    (self.board_cards, _BOARD_FAN),
+                    (self.opponent_draws, _REPLACEMENT_FAN),
+                    (self.hero_draws, _REPLACEMENT_FAN),
+                )
+            )
+        )
 
 EXACT = Sampling(
     playouts=1, opponent_range=None, board_cards=None, opponent_draws=None, hero_draws=None, opponent_actions=None
