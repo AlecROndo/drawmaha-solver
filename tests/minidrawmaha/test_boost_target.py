@@ -17,9 +17,13 @@ restricted game they match the mean and the visit count of thousands of
 b and c); rows of the wrong seat are refused and an unreachable row is zero;
 and the cost per round-2 row is recorded (test d, a benchmark). Then the
 sampled forms (e): counts that are not positive ints are refused by name; a
-count at or above its fan is enumeration, bit for bit; each source alone,
-and all of them together, is unbiased against the exact sum at a row where
-it is live, and actually moves the target there; a row's sample depends on
+count at or above its fan is enumeration, bit for bit; each chance source
+kept one branch at a time and averaged over its branches is the exact sum
+to 1e-10, in the full game and a restricted one, which pins every n/k scale
+with no noise; each source alone, and all of them together, is unbiased
+against the exact sum at a row where it is live, and actually moves the
+target there; the range draw is unbiased where a key's two physical entries
+face wide and different ranges, before and after a throw; a row's sample depends on
 (seed, t, seat, row) only; play-outs shrink the spread as 1/M; an
 unreachable row is zero under any sampling; and sampling a draw or round-1
 row costs a fraction of its exact sum.
@@ -712,9 +716,17 @@ def test_a_count_at_or_above_its_fan_is_enumeration_bit_for_bit(point):
 
 # Each source alone at a row where it is live, then all of them at once. The
 # draw-row cases walk the whole draw and round 2 below them, about 0.2 s a
-# call when nothing prunes, so they take fewer seeds.
+# call when nothing prunes, so they take fewer seeds. At these seeds the
+# smallest relative bias the 4.5-s.e. gate resolves (4.5 · s.e. / |mean|,
+# measured 2026-11-06 at these rows) is about 3% for the opponent's actions,
+# 8% for the range and 2–8% for the opponent's replacements; for the hero's
+# replacements, the board card and the mixed forms it is 13% to over 100%,
+# because those sources move the target by more than its size. Their scale
+# factors are pinned exactly instead, by the branch oracle below; these
+# cases check that the forms compose and that each one actually samples.
 UNBIASED = [
     ("opponent_range", only(opponent_range=1), 4, 0, 400),
+    ("opponent_range after a throw", only(opponent_range=1), 29, 0, 400),
     ("opponent_actions", only(opponent_actions=1), 4, 0, 400),
     ("board_cards", only(board_cards=1), 2, 0, 200),
     ("hero_draws, seat 0", only(hero_draws=1), 2, 0, 60),
@@ -736,15 +748,89 @@ def test_each_sampled_source_is_unbiased_and_actually_samples(sampling, point, s
     assert arrival[0] > 0.0
     draws = sampled(exact, sigma, seat, rows, sampling, range(n))
     spread = draws.std(axis=0, ddof=1)
-    live = spread > 0.0
+    live = spread > 1e-9  # above float rounding, which a z would blow up
     # Not vacuous: the source really varied the target at this row.
     assert live.any(), "the sampled source never moved the target here"
     z = (draws.mean(axis=0)[live] - want[0][live]) / (spread[live] / np.sqrt(n))
     assert (np.abs(z) < 4.5).all(), z
     # A column the sample never moves is the exact one, bit for bit or near.
-    np.testing.assert_allclose(draws[:, ~live], np.broadcast_to(want[0][~live], draws[:, ~live].shape), atol=1e-12)
+    np.testing.assert_allclose(draws[:, ~live], np.broadcast_to(want[0][~live], draws[:, ~live].shape), atol=1e-9)
     _, sampled_arrival = exact.targets(sigma, seat=seat, rows=rows, sampling=sampling, seed=0, t=0)
     assert sampled_arrival[0] == arrival[0] == exact.arrivals(sigma, seat=seat, rows=rows)[0]
+
+def small_draw_row(table: PackedTable, seat: int) -> np.ndarray:
+    """A draw row reachable from SMALL: seat 0's (both throws below it, two physical entries) or seat 1's."""
+    if seat == 1:
+        return rows_at(table, small_game_keys(1)[:1])
+    point = public_decision_points()[2]
+    return rows_at(table, [key_on(point, canonical_key((SMALL[0][0], (), parse_cards("4c"))))])
+
+# Each chance source crosses a path below a draw row once, and the target is
+# linear in it, so keeping branch j at every position, scaled n, and
+# averaging over j = 0 … n − 1 is the exact sum with no noise at all: a
+# scale factor off by one branch in twelve fails at 1e-10 instead of hiding
+# inside a standard error.
+ORACLE = [
+    ("board_cards", 14, None, 0), ("hero_draws", 12, None, 0), ("opponent_draws", 12, None, 0),
+    ("hero_draws", 12, None, 1),
+    ("board_cards", 14, SMALL, 0), ("hero_draws", 12, SMALL, 0), ("opponent_draws", 12, SMALL, 0),
+    ("board_cards", 14, SMALL, 1),
+]
+
+@pytest.mark.parametrize(("source", "fan", "holes", "seat"), ORACLE,
+                         ids=[f"{c[0]}, {'small' if c[2] else 'full'}, seat {c[3]}" for c in ORACLE])
+def test_a_chance_source_kept_one_branch_at_a_time_averages_to_the_exact_sum(source, fan, holes, seat, monkeypatch):
+    from drawmaha_solver.minidrawmaha.solver import boost_target
+    exact = BoostTargets.build(holes=holes)
+    table = positive_table(3)
+    sigma = exact.sigma(table)
+    if holes is None:
+        rows = row_on(table, 2 if seat == 0 else 3)
+    else:
+        rows = small_draw_row(table, seat)
+    want, arrival = exact.targets(sigma, seat=seat, rows=rows, sampling=EXACT)
+    assert arrival[0] > 0.0
+    branch = [0]
+    monkeypatch.setattr(
+        boost_target._Draws, "subset",
+        lambda self, k, n, shape: None if k is None or k >= n else np.full((*shape, 1), branch[0]),
+    )
+    total = np.zeros_like(want)
+    for j in range(fan):
+        branch[0] = j
+        total += exact.targets(sigma, seat=seat, rows=rows, sampling=only(**{source: 1}), seed=0, t=0)[0]
+    assert np.abs(want).max() > 0.0
+    np.testing.assert_allclose(total / fan, want, rtol=1e-10, atol=1e-13)
+
+# SMALL's seat-0 hole and its clubs ↔ diamonds relabelling against every
+# hole holding more clubs than diamonds: a set the relabelling maps onto its
+# complement, so the key's two physical entries face wide and different
+# ranges (SMALL's three opponent holes leave one live hand at these rows,
+# and a range draw there has nothing to vary).
+LOPSIDED = (
+    SMALL[0],
+    [hole for hole in HOLES if sum(c.suit == 0 for c in hole) > sum(c.suit == 1 for c in hole)],  # suit 0 = c, 1 = d
+)
+
+def test_the_range_draw_is_unbiased_where_two_entries_face_different_ranges():
+    # At a stood-pat row and at one after a throw (where the thrown card
+    # enters the clash mask): a draw that mixed one entry's total or mask
+    # into the other's would shift the mean.
+    exact = BoostTargets.build(holes=LOPSIDED)
+    table = positive_table(4)
+    sigma = exact.sigma(table)
+    rows = rows_at(table, small_game_keys(0))
+    want, arrival = exact.targets(sigma, seat=0, rows=rows, sampling=EXACT)
+    assert (arrival > 0.0).all()
+    n = 600
+    draws = np.stack([
+        exact.targets(sigma, seat=0, rows=rows, sampling=only(opponent_range=1), seed=0, t=s)[0] for s in range(n)
+    ])  # (n, rows, 4)
+    spread = draws.std(axis=0, ddof=1)
+    live = spread > 1e-9
+    assert live[0].any() and live[1].any(), spread
+    z = (draws.mean(axis=0)[live] - want[live]) / (spread[live] / np.sqrt(n))
+    assert (np.abs(z) < 4.5).all(), z
 
 def test_a_rows_sample_depends_on_seed_t_seat_and_row_only():
     exact = BoostTargets.build()

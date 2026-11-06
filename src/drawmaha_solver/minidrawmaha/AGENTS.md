@@ -15,9 +15,9 @@ Three subpackages, and one module that stays alone on purpose:
   frozen σ; the reference), `parallel` (the same in W processes over shared
   memory), `lockstep_run` (resume, grid checkpoints, progress), and
   `boost_target` (rung 4's boost target: extra samples of a high-noise row's
-  regret, each source below the row — board card, both seats' replacements,
-  the opponent's actions and range — sampled k of n or enumerated as a
-  `Sampling` names, unbiased, with `EXACT`, the sum over every opponent hand
+  regret, each source below the row — the board card and both seats'
+  replacements k of n, the opponent's actions and range k draws — or
+  enumerated, as a `Sampling` names, unbiased, with `EXACT`, the sum over every opponent hand
   and every physical entry of the key, as their limit; and the exact
   probability a walk arrives there; rules-only, and it must never import
   `exploitability.py`, which grades what it feeds).

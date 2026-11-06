@@ -1,12 +1,12 @@
-"""The boost target: extra, lower-noise samples of a high-noise row's regret, unbiased, with the exact sum as their limit.
+"""The boost target: extra samples of a high-noise row's regret, unbiased, with the exact sum as their limit.
 
 Rung 4 learns every infoset from the regret samples the walks bank there,
 `r = u − ⟨σ, u⟩` with one opponent hand and one line of opponent play drawn
 per visit (`mccfr.traverse`, `lockstep.walk`). At a rare round-2 row a visit
 comes once in thousands of iterations and its sample swings by chips, almost
 all of it the opponent's hidden hand. This module draws more samples of that
-same quantity at a chosen row, each with less noise than a walk's: it starts
-at the row, faces the opponent's whole range (or k hands of it), and plays
+same quantity at a chosen row: it starts at the row, faces the opponent's
+whole range (or k hands of it), and plays
 the hand out with each source of randomness below — the board card, both
 seats' replacements, the opponent's actions — sampled k of n or enumerated,
 as a `Sampling` names. With every source enumerated (`EXACT`) the target is
@@ -14,7 +14,13 @@ the exact conditional mean the walk's samples estimate, and that is what the
 tests pin the sampled forms to. A later stage (the "boost") banks the target
 at the weight the walk's samples would have carried there, so a targeted
 infoset is learned from a few good samples instead of a handful of noisy
-ones.
+ones. Against the whole range the opponent's hidden hand — nearly all of a
+walk sample's spread — is gone, but a low-k form is not lower-noise than a
+walk sample by construction: a k-of-n fan here is public, so it can keep a
+branch that is dead for the hand at hand (the board card among a throw's 12
+replacements, a held card among the 14 second-board cards) and scales the
+live ones up to pay for it, where the walk deals only live cards. Unbiased
+either way; how much noise a form leaves is measured, not assumed.
 
 **What is sampled, and why each stays unbiased.** Every sampled source
 replaces a sum over n branches by k of them, so that the expectation over
@@ -37,8 +43,8 @@ denominator below — is always exact. It is the cheap half (the opponent's
 reach, back-solved upward, never sampled), and an exact denominator under an
 unbiased numerator keeps the ratio unbiased; a sampled one would not, since
 the mean of a ratio is not the ratio of the means. Each row draws from
-`default_rng([seed, t, seat, row, "BOOST"])`, its own stream, independent of
-the walk's, so a row's target depends on (seed, t, seat, row) and never on
+`default_rng([seed, t, seat, row, _STREAM_TAG])`, its own stream, independent
+of the walk's, so a row's target depends on (seed, t, seat, row) and never on
 which rows share the call.
 
 **What is computed.** For a row standing for the key I of seat `seat`:
@@ -127,7 +133,8 @@ folded over the opponent's 455 holes. `sigma` over the whole table takes
 0.12 s. Exactly, a round-2 row costs about 2 ms, a draw row 160–230 ms and a
 round-1 row 0.5–0.75 s, because the value below the last two expands over
 the traverser's own replacements (36 states per throw) and the second board
-card (14 boards). Under the walk's own sampling (`Sampling()`) a draw row
+card (14 boards). Under the walk's own sampling against the whole range
+(`Sampling()`) a draw row
 costs about 25–32 ms and a round-1 row about 100–130 ms: the board card and
 the hero's replacements are what sampling cuts. A round-2 row costs more
 sampled than exact, about 3–4 ms: against a whole range the opponent's
@@ -147,6 +154,7 @@ re-derives from the tree; a call over 2,240 round-2 rows peaked at about
 
 from __future__ import annotations
 
+import numbers
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from functools import cache
@@ -181,8 +189,10 @@ SEATS = (0, 1)
 # The widest ledger: the draw's four throws. Regret rows are padded to it.
 TARGET_WIDTH = max(len(DRAW_ACTIONS), len(BETTING_ACTIONS))
 
-# The fifth word of a boost stream, ASCII "BOOST": a row's stream can never
-# equal a walk's four-word stream or the reservoir's "RESV" one.
+# The tail of a boost stream's seed, ASCII "BOOST": 39 bits, which
+# SeedSequence takes as two 32-bit words, so a row's stream has six words
+# and can never equal a walk's four-word stream or the reservoir's five-word
+# "RESV" one.
 _STREAM_TAG = int.from_bytes(b"BOOST", "big")
 
 # ---------------------------------------------------------------------------
@@ -789,8 +799,10 @@ class BoostTargets:
         The regret is exact under `EXACT` and an unbiased estimate of it
         otherwise; the arrival is exact under any `sampling`. A sampled call
         names `seed` and `t`, and row r draws from
-        `default_rng([seed, t, seat, r, "BOOST"])` alone, so its target does
-        not depend on which rows share the call or in what order. A row the
+        `default_rng([seed, t, seat, r, _STREAM_TAG])` alone, so its target
+        does not depend on which rows share the call or in what order — and
+        a row asked for twice gets the same sample twice: more samples of one
+        row are `playouts`, not repeats. A row the
         walk cannot reach (zero arrival) gets zero regret, not NaN; a row of
         the other seat raises, as does one outside the table.
         """
@@ -798,8 +810,9 @@ class BoostTargets:
             raise TypeError(f"sampling must be a Sampling (EXACT for the exact sum), got {sampling!r}")
         if not sampling.is_exact:
             for name, value in (("seed", seed), ("t", t)):
-                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                if isinstance(value, bool) or not isinstance(value, numbers.Integral) or value < 0:
                     raise ValueError(f"a sampled target needs a non-negative int {name}, got {value!r}")
+            seed, t = int(seed), int(t)
         rows = self._rows(seat, rows)
         d = self.description
         regret = np.zeros((rows.size, TARGET_WIDTH))
