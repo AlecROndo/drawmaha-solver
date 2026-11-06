@@ -10,11 +10,29 @@ collector, the train loop, the exact running average and the policy net Π
 as the `average` and `policy` modules) are merged, and so is PR 6: the
 Modal launcher `scripts/deepcfr/modal_rung4.py` (train, grade, smoke, sweep,
 status), the price figure in `minidrawmaha/answer/analysis.py`
-(`deep-analysis`, `figures/rung4/`) and the README section. The package
-itself is complete; what remains is the paid run and its grades.
+(`deep-analysis`, `figures/rung4/`) and the README section. The Deep CFR
+loop itself is complete. What is being added on top is the targeted-sampling
+plan's boost: `targeting` (which rows to boost) is here, and the boost stage
+that consumes it in `train.step` is the next PR.
 
 ## Rules
 
+- **No module here imports the grader.** `targeting` ranks rows by how
+  much the strategy leaks there, and the leak is measured by
+  `minidrawmaha/exploitability.py`, the meter that also grades the run. So
+  `targeting` takes the leak and the frequency as arrays and the draw weight
+  as a callable, and the one file that runs the meter for it is
+  `scripts/deepcfr/targeting_refresh.py`. `tests/deepcfr/test_targeting.py`
+  reads every import statement in this package for the grader's name or
+  `answer.analysis`, and imports `targeting` in a fresh interpreter to check
+  that neither loads. The name check is not transitive: `average`, `distill`,
+  `policy` and `train` reach `exploitability` through `answer.strategy`, which borrows
+  the grader's row-sum tolerance — a constant, not a walk.
+- **A target set never hands back a row twice in one draw**: a repeated row
+  would get two exact rows and double its expected weight. Draws are
+  exponential keys on their own stream (`targeting.target_stream`, fifth
+  word "TARG"), never the walk's, so they move neither the walk nor the
+  reservoir.
 - **torch is optional and stays optional.** The loop never names torch;
   `NetLearner` imports `fit`, `materialise` and `net` inside its methods.
   Every test that needs torch opens with `pytest.importorskip("torch")`, and
@@ -22,9 +40,10 @@ itself is complete; what remains is the paid run and its grades.
   game sit behind `MINIDRAWMAHA_FULL_DEEP=1`.
 - **The oracle pin is the correctness gate.** With `OracleLearner` the loop
   must reproduce rung 3's LCFR table bit for bit over three iterations. A
-  change to the loop's order, to the float32 cast in `collect.rows_of`, or to
-  `regret_rules.bank_rows` breaks that pin. If it breaks, the loop is wrong,
-  not the test.
+  change to the loop's order, to the float32 cast in `collect.rows_of`, to
+  `regret_rules.bank_rows`, or to where the row weight multiplies (it scales
+  each sample in float64 before LCFR's per-t′ sum, so weight one is exact)
+  breaks that pin. If it breaks, the loop is wrong, not the test.
 - **A learner's `write` assigns into `table.cumulative_regret` and never
   rebinds it.** The collector's workers read that array through a shared
   block; a rebound array leaves them walking stale regrets.
@@ -76,9 +95,14 @@ itself is complete; what remains is the paid run and its grades.
   `Net`'s seven-output linear head and the freeze is the softmax at each
   key. `net.predict_by_point` is the one whole-game read `materialise`,
   Π's freeze and the distillation freeze share.
-- A memory row is 24 bytes (`row: int32`, `t: int32`, `target: float32 × 4`);
-  the run's reservoirs are 50 million rows, 1.2 GB each. A capacity change is
-  a different run, not a resume.
+- A memory row is 28 bytes (`row: int32`, `t: int32`, `target: float32 × 4`,
+  `weight: float32`); the run's reservoirs are 50 million rows, 1.4 GB each. A
+  capacity change is a different run, not a resume. The weight is how many
+  sampled rows the row stands for: 1 for every row a walk offers (what `merge`
+  stamps when given none), and the targeted-sampling plan's exact rows carry
+  `(1 − α) · K · arrival`. The refit and the oracle weigh a row by t × weight,
+  so a memory of weight-one rows is today's run bit for bit, and a memory file
+  saved before the column existed loads with ones.
 
 ## Running it
 
