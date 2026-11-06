@@ -88,11 +88,16 @@ import os
 from dataclasses import asdict, dataclass
 from functools import cache
 from pathlib import Path
-from typing import Literal, get_args
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Literal, Protocol, get_args
 
 import numpy as np
 
 from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Reservoir
+
+if TYPE_CHECKING:
+    from drawmaha_solver.deepcfr.average import ExactAverage
+    from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.rules.enumeration import private_keys, public_decision_points
 from drawmaha_solver.minidrawmaha.rules.hands import inner_score, outer_score
 
@@ -478,3 +483,66 @@ class TargetSet:
             weight=(data["weight0"], data["weight1"]),
             groups=(data["groups0"], data["groups1"]),
         )
+
+# ---------------------------------------------------------------------------
+# The refresh
+# ---------------------------------------------------------------------------
+
+# (seat, pool rows) → each row's draw weight: the walk's arrival rate there.
+Arrival = Callable[[int, np.ndarray], np.ndarray]
+
+def target_set(
+    spec: TargetSpec,
+    *,
+    t: int,
+    leak: np.ndarray | None,
+    frequency: np.ndarray | None,
+    memories: tuple[Reservoir, Reservoir],
+    walks: int,
+    arrival: Arrival,
+) -> TargetSet:
+    """Both seats' choice for the R iterations from t on: noise from `memories`, groups by `choose`, weights from `arrival`.
+
+    `leak` and `frequency` are whole-game per-row arrays (each row carries its
+    own seat's gain and frequency); `random` reads neither and may be given
+    None. `memories` are the two seats' advantage memories and `walks` the
+    walks per iteration, K. `arrival(seat, rows)` is asked once per seat for
+    the pool's rows only, and never for `infoset`, whose rows are not drawn.
+    """
+    rows, weight, chosen = [], [], []
+    for seat in SEATS:
+        noisy = (
+            None
+            if spec.granularity == "random"
+            else noise(
+                memories[seat], groups(spec.granularity, seat), walks=walks, alpha=spec.alpha, cap=spec.noise_cap
+            )
+        )
+        pool, picked = choose(spec, seat=seat, leak=leak, frequency=frequency, noise_of_group=noisy)
+        if spec.granularity == "infoset":
+            drawn = np.ones(pool.size)
+        else:
+            drawn = np.asarray(arrival(seat, pool), dtype=np.float64)
+            if drawn.shape != pool.shape or not (np.isfinite(drawn).all() and (drawn >= 0.0).all()):
+                raise ValueError(
+                    f"arrival must give one finite, non-negative weight per pool row ({pool.size:,}) "
+                    f"for seat {seat}, got shape {drawn.shape}"
+                )
+        rows.append(pool)
+        weight.append(drawn)
+        chosen.append(picked)
+    return TargetSet(spec=spec, built_at=t, rows=tuple(rows), weight=tuple(weight), groups=tuple(chosen))
+
+class Refresher(Protocol):
+    """What the boost stage calls every R iterations for the set it draws from.
+
+    Called before iteration t's walks with the table as the walks will read
+    it, the exact average so far and the two seats' advantage memories. The
+    grader-backed one is `scripts/deepcfr/targeting_refresh.py`'s
+    `GraderRefresher`; the trainer is handed one and never builds it, so the
+    package stays clear of the meter.
+    """
+
+    def __call__(
+        self, *, t: int, table: PackedTable, average: ExactAverage, memories: tuple[Reservoir, Reservoir]
+    ) -> TargetSet: ...

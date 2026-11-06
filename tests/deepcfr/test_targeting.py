@@ -444,3 +444,84 @@ def test_load_refuses_a_file_that_is_not_a_target_set(tmp_path):
     Reservoir(4).save(path)
     with pytest.raises(ValueError, match="memory.npz"):
         TargetSet.load(path)
+
+# ---------------------------------------------------------------------------
+# The orchestrator
+# ---------------------------------------------------------------------------
+
+class FakeArrival:
+    """A stand-in for `BoostTargets.arrivals`: a weight per row from its number, and a log of what was asked."""
+
+    def __init__(self) -> None:
+        self.asked: list[tuple[int, np.ndarray]] = []
+
+    def __call__(self, seat: int, rows: np.ndarray) -> np.ndarray:
+        self.asked.append((seat, np.array(rows)))
+        return (rows % 7) * 0.25
+
+def leaky(points: dict[int, float]) -> tuple[np.ndarray, np.ndarray]:
+    """Leak and frequency over the whole game: every row reached, leak on the named lines' first ten rows."""
+    leak, frequency = everywhere(0.0), everywhere(1.0)
+    for p, value in points.items():
+        leak[rows_of_point(p)[:10]] = value
+    return leak, frequency
+
+def test_target_set_weighs_the_pool_by_arrival_and_asks_for_nothing_else():
+    leak, frequency = leaky({A: 1.0, S1: 2.0})
+    arrival = FakeArrival()
+    spec = TargetSpec(granularity="line", alpha=0.0, budget=1, pool=1)
+    targets = targeting.target_set(
+        spec, t=26, leak=leak, frequency=frequency, memories=(Reservoir(4), Reservoir(4)), walks=10, arrival=arrival
+    )
+    assert targets.built_at == 26 and targets.spec == spec
+    for seat, line in ((0, A), (1, S1)):
+        assert targets.groups[seat].tolist() == [line]
+        assert np.array_equal(targets.rows[seat], rows_of_point(line))
+        assert np.array_equal(targets.weight[seat], (rows_of_point(line) % 7) * 0.25)
+    assert [seat for seat, _ in arrival.asked] == [0, 1]
+    assert all(np.array_equal(rows, targets.rows[seat]) for seat, rows in arrival.asked)
+
+def test_target_set_reads_the_memory_for_noise():
+    # Two lines with equal leak per row; the walk's rows make B_ quiet and A noisy.
+    leak, frequency = leaky({A: 1.0, B_: 1.0})
+    for p in (A, B_):
+        frequency[rows_of_point(p)[10:]] = 0.0
+    a, b = rows_of_point(A)[0], rows_of_point(B_)[0]
+    memory = memory_of([(a, 1, (1.0,), 1.0), (a, 1, (-0.8,), 1.0), (b, 1, (1.0,), 1.0), (b, 1, (1.0,), 1.0)])
+    spec = TargetSpec(granularity="line", alpha=0.0, budget=1, pool=1)
+    targets = targeting.target_set(
+        spec, t=1, leak=leak, frequency=frequency, memories=(memory, Reservoir(4)), walks=1, arrival=FakeArrival()
+    )
+    assert targets.groups[0].tolist() == [A]
+
+def test_an_infoset_set_never_asks_for_arrival():
+    leak, frequency = leaky({A: 1.0, S1: 1.0})
+
+    def refuse(seat, rows):
+        raise AssertionError("an infoset set draws nothing, so it needs no arrival")
+
+    spec = TargetSpec(granularity="infoset", alpha=0.0, budget=3)
+    targets = targeting.target_set(
+        spec, t=1, leak=leak, frequency=frequency, memories=(Reservoir(4), Reservoir(4)), walks=10, arrival=refuse
+    )
+    assert targets.rows[0].tolist() == rows_of_point(A)[:3].tolist()
+    assert targets.rows_for(1, 0, 0).tolist() == rows_of_point(A)[:3].tolist()
+
+def test_a_random_set_needs_no_meter():
+    arrival = FakeArrival()
+    spec = TargetSpec(granularity="random", alpha=0.0)
+    targets = targeting.target_set(
+        spec, t=1, leak=None, frequency=None, memories=(Reservoir(4), Reservoir(4)), walks=10, arrival=arrival
+    )
+    for seat in (0, 1):
+        assert np.array_equal(targets.rows[seat], np.flatnonzero(groups("random", seat) >= 0))
+    assert targets.rows_for(1, 0, 0).size == 2_000
+
+def test_target_set_refuses_an_arrival_of_the_wrong_shape_or_sign():
+    leak, frequency = leaky({A: 1.0, S1: 1.0})
+    spec = TargetSpec(granularity="line", alpha=0.0, budget=1, pool=1)
+    for bad in (lambda seat, rows: np.ones(rows.size + 1), lambda seat, rows: -np.ones(rows.size)):
+        with pytest.raises(ValueError, match="arrival"):
+            targeting.target_set(
+                spec, t=1, leak=leak, frequency=frequency, memories=(Reservoir(4), Reservoir(4)), walks=1, arrival=bad
+            )
