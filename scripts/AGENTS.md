@@ -22,12 +22,16 @@ docstring opens with the exact command to run it.
   `figures/rung4/rule_sign_flips.json`); `distill_teacher.py`, the LCFR
   table's average distilled into the rung-4 net at several sizes, each
   copy graded exactly (writes `figures/rung4/distill/results.json`), and
-  `distill_figures.py`, the figures drawn from that file.
+  `distill_figures.py`, the figures drawn from that file;
+  `targeting_refresh.py`, the grader-backed refresher of the targeted-sampling
+  boost (`GraderRefresher`) — the one file on the trainer's side that runs
+  the exact meter — and, run directly, one refresh from a release, printed.
 
 ## Rules
 
 - **Tests find scripts by path.** `tests/minidrawmaha/test_modal_rung3.py`,
-  `tests/deepcfr/test_modal_rung4.py` and `tests/deepcfr/test_train.py` load
+  `tests/deepcfr/test_modal_rung4.py`, `tests/deepcfr/test_train.py` and
+  `tests/deepcfr/test_targeting_refresh.py` load
   a script with `importlib`, and
   `tests/test_vercel_config.py` reads the `rungs=(…)` list out of
   `site/vercel_build.sh`. Moving or renaming a script means updating them,

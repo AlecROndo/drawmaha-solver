@@ -15,6 +15,18 @@ itself is complete; what remains is the paid run and its grades.
 
 ## Rules
 
+- **No module here imports the grader.** `targeting` ranks rows by how
+  much the strategy leaks there, and the leak is measured by
+  `minidrawmaha/exploitability.py`, the meter that also grades the run. So
+  `targeting` takes the leak and the frequency as arrays and the draw weight
+  as a callable, and the one file that runs the meter for it is
+  `scripts/deepcfr/targeting_refresh.py`. `tests/deepcfr/test_targeting.py`
+  reads every import statement in this package to hold that.
+- **A target set never hands back a row twice in one draw**: a repeated row
+  would get two exact rows and double its expected weight. Draws are
+  exponential keys on their own stream (`targeting.target_stream`, fifth
+  word "TARG"), never the walk's, so they move neither the walk nor the
+  reservoir.
 - **torch is optional and stays optional.** The loop never names torch;
   `NetLearner` imports `fit`, `materialise` and `net` inside its methods.
   Every test that needs torch opens with `pytest.importorskip("torch")`, and
