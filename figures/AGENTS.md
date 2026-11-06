@@ -75,6 +75,18 @@ grades and answer sheet, these two, every `rung4/*.json` grade file —
 refreshed by hand after a regeneration and held byte for byte to the originals
 by `tests/test_rung3_page_data.py`.
 
+`rung4/distill/results.json` is the distillation experiment: the 10M-iteration
+LCFR table's linear average (100M hands per seat, graded 0.0157) fitted
+straight into the rung-4 net by reach-weighted cross-entropy over every
+infoset, at five sizes and with step, weighting and training-fraction
+ablations, each copy frozen, reloaded and graded exactly; `teacher` and
+`deep_cfr` hold what the copies are read against, labelled with hands per
+seat from their own files. Written by `scripts/deepcfr/distill_teacher.py`
+(the command is the file's `_command` and the script's docstring); the
+frozen copies live under the run directory `--out` names, not here. The figures beside it
+(`by_size.png`, `gaps.png`, `curves.png`, `fraction.png`) are drawn from the
+file by `scripts/deepcfr/distill_figures.py`.
+
 `rung4/rule_dcfr-256x4.json` and `rung4/rule_cfrplus-256x4.json` grade the
 regret-rule screen: the 256 × 4 net trained to 50 iterations on this machine
 by `run_deep_cfr.py --rule dcfr` and `--rule cfr+`, its marks graded by

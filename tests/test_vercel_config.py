@@ -57,6 +57,7 @@ def test_the_product_paths_reach_their_pages():
     rewrites = {r["source"]: r["destination"] for r in _vercel_config()["rewrites"]}
     assert rewrites.get("/benchmarks") == "/benchmarks.html"
     assert rewrites.get("/releases") == "/releases.html"
+    assert rewrites.get("/wiki") == "/wiki.html"
     for path in ("/research", "/learn", "/play"):
         assert rewrites.get(path) == "/rung3/index.html", f"{path} must open the rung-3 app"
 

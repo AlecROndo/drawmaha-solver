@@ -19,7 +19,7 @@ const HOME = 'https://drawmaha.app'
 const REPO = 'https://github.com/AlecROndo/drawmaha-solver'
 
 /** The surfaces the nav names, in order; `here` is the one the page is. */
-export type Surface = 'research' | 'solver' | 'benchmarks' | 'play' | 'rules' | 'home'
+export type Surface = 'research' | 'solver' | 'benchmarks' | 'play' | 'rules' | 'wiki' | 'home'
 
 const NAV: { id: Surface; label: string; href: string }[] = [
   { id: 'research', label: 'Research', href: `${HOME}/research` },
@@ -27,6 +27,7 @@ const NAV: { id: Surface; label: string; href: string }[] = [
   { id: 'benchmarks', label: 'Benchmarks', href: `${HOME}/benchmarks` },
   { id: 'play', label: 'Play', href: `${HOME}/play` },
   { id: 'rules', label: 'Rules', href: `${HOME}/rules` },
+  { id: 'wiki', label: 'Wiki', href: `${HOME}/wiki` },
 ]
 
 /**
@@ -122,6 +123,9 @@ export function Footer() {
           <div>
             <h4>Resources</h4>
             <ul>
+              <li>
+                <a href={`${HOME}/wiki`}>Wiki</a>
+              </li>
               <li>
                 <a href={REPO}>GitHub</a>
               </li>

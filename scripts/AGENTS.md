@@ -3,8 +3,10 @@
 Grouped by what they serve. Every script is run from the repo root, and its
 docstring opens with the exact command to run it.
 
-- `site/` — `vercel_build.sh`, the build command `vercel.json` names, and
-  `serve_site.py`, which serves `public/` with the same rewrites, stdlib only.
+- `site/` — `vercel_build.sh`, the build command `vercel.json` names;
+  `serve_site.py`, which serves `public/` with the same rewrites, stdlib only;
+  `make_static_pages.py`, which writes the static pages; and `wiki.py`, which
+  it imports to render `docs/wiki/` into `/wiki`.
 - `leduc/` — `generate_referee.py` regenerates `tests/leduc/referee.json`
   from OpenSpiel.
 - `minidrawmaha/` — rung 3's race and its outputs: `generate_census.py`
@@ -17,7 +19,10 @@ docstring opens with the exact command to run it.
   mark (`grade`, writes `figures/rung4/grades.json`), the `smoke`, the
   net-size `sweep` and `status`; `rule_sign_flips.py`, how much a
   per-sample regret rule bends a run's advantage memory (writes
-  `figures/rung4/rule_sign_flips.json`).
+  `figures/rung4/rule_sign_flips.json`); `distill_teacher.py`, the LCFR
+  table's average distilled into the rung-4 net at several sizes, each
+  copy graded exactly (writes `figures/rung4/distill/results.json`), and
+  `distill_figures.py`, the figures drawn from that file.
 
 ## Rules
 

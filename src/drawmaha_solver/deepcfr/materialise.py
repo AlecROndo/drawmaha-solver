@@ -24,8 +24,9 @@ each point's rows in its shape's `private_keys` order, and `features.layout()`
 holds the same arithmetic: a point's rows are a contiguous slice of the
 private table beside one public row, and its columns are one contiguous
 slice of `cumulative_regret`, `width[point]` per row. So materialise is 141
-batched forward passes, each gathered through the point's legal actions,
-each written with one slice assignment. No key is ever built.
+batched forward passes (`net.predict_by_point`), each gathered through the
+point's legal actions, each written with one slice assignment. No key is
+ever built.
 
 **Whose net.** Every row on a point is a decision of `point.player`, so the
 seat's net scores the whole point; the other seat's net never sees it.
@@ -49,8 +50,8 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from drawmaha_solver.deepcfr.net import Net, predict
-from drawmaha_solver.minidrawmaha.rules.features import layout, legal_gather
+from drawmaha_solver.deepcfr.net import Net, predict_by_point
+from drawmaha_solver.minidrawmaha.rules.features import layout
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 
 # ---------------------------------------------------------------------------
@@ -110,17 +111,13 @@ def materialise(table: PackedTable, nets: Sequence[Net | None]) -> None:
             "materialise writes the whole game's layout and was handed a table whose "
             "rows are not in the whole game's order"
         )
-    gather = legal_gather()
     slots = table.cumulative_regret
-    for p, point in enumerate(built.points):
-        columns = slice(built.column_offset[p], built.column_offset[p + 1])
-        net = nets[point.player]
+    for seat, net in enumerate(nets):
+        points = [p for p, point in enumerate(built.points) if point.player == seat]
         if net is None:
-            slots[columns] = 0.0
+            for p in points:
+                slots[built.column_offset[p] : built.column_offset[p + 1]] = 0.0
             continue
-        rows = built.row_offset[p + 1] - built.row_offset[p]
-        width = built.width[p]
-        private = built.private[built.private_offset[p] : built.private_offset[p] + rows]
-        public = np.broadcast_to(built.public[p], (rows, built.public.shape[1]))
-        outputs = predict(net, np.concatenate([private, public], axis=1))
-        slots[columns] = regret_slots_from_outputs(outputs[:, gather[p, :width]]).ravel()
+        for p, outputs in predict_by_point(net, points):
+            columns = slice(built.column_offset[p], built.column_offset[p + 1])
+            slots[columns] = regret_slots_from_outputs(outputs).ravel()

@@ -18,6 +18,14 @@ it as a missing file. Documents dated before 2026-10-28 also predate a third:
 the top-level `research/` and `writeups/` folders now live at `docs/research/`
 and `docs/writeups/`.
 
+## `wiki/` — the source of the site's `/wiki`
+
+One Markdown file per wiki page and `wiki/nav.json`, which orders them into
+tabs and groups; `wiki/README.md` documents the dialect. Kept current: when a
+change makes a wiki page wrong, fix the page in the same change and
+regenerate with `uv run python scripts/site/make_static_pages.py`. The wiki
+explains; the numbers it quotes come from `figures/` and the README, which win.
+
 ## `docs/research/` and `docs/writeups/` — finished reference material
 
 `docs/research/` holds the nine literature notes the survey in `paper/` was written

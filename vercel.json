@@ -40,6 +40,10 @@
       "destination": "/benchmarks.html"
     },
     {
+      "source": "/wiki",
+      "destination": "/wiki.html"
+    },
+    {
       "source": "/releases",
       "destination": "/releases.html"
     },

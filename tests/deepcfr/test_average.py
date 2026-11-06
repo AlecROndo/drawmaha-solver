@@ -24,6 +24,7 @@ from drawmaha_solver.deepcfr.average import (
     ExactAverage,
     current_strategy,
     own_reach,
+    reach_of_strategy,
     predecessors,
 )
 from drawmaha_solver.deepcfr.collect import Collector
@@ -325,6 +326,18 @@ def test_own_reach_equals_the_brute_force_walk(seat):
             # and every later row behind a throw inherits that.
             assert reach[rows].min() >= 0.0 and np.isfinite(reach[rows]).all()
             assert reach[rows].max() <= (3.0 if point.discards == 1 else 1.0)
+
+def test_reach_of_strategy_is_own_reach_from_the_flat_sigma():
+    # The σ-array core `own_reach` runs on: handed the table's own σ it is
+    # the same numbers, and it is what the distillation weights are built from.
+    table = random_table(4)
+    sigma = current_strategy(table)
+    for seat in (0, 1):
+        np.testing.assert_array_equal(reach_of_strategy(sigma, seat=seat), own_reach(table, seat=seat))
+    with pytest.raises(ValueError, match="per column"):
+        reach_of_strategy(sigma[:-1], seat=0)
+    with pytest.raises(ValueError, match="seat"):
+        reach_of_strategy(sigma, seat=2)
 
 def test_own_reach_refuses_a_listed_table_and_a_bad_seat():
     listed = PackedTable.listed(some_keys()[:5])

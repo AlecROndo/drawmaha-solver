@@ -70,6 +70,13 @@ itself is complete; what remains is the paid run and its grades.
   it must be importable by module name in a fresh process: a module-level
   function, never a lambda or a closure. The tests prepend the repo root to
   `sys.path` for exactly this reason.
+- **The distillation never touches the walk, the memories or the grader.**
+  Its weight is own reach × deal multiplicity under the teacher
+  (`distill.row_weights`), applied by drawing rows in proportion to it;
+  its loss is the softmax over the legal columns only, so the net keeps
+  `Net`'s seven-output linear head and the freeze is the softmax at each
+  key. `net.predict_by_point` is the one whole-game read `materialise`,
+  Π's freeze and the distillation freeze share.
 - A memory row is 28 bytes (`row: int32`, `t: int32`, `target: float32 × 4`,
   `weight: float32`); the run's reservoirs are 50 million rows, 1.4 GB each. A
   capacity change is a different run, not a resume. The weight is how many
