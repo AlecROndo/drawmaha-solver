@@ -687,6 +687,9 @@ def test_sampling_refuses_counts_that_are_not_positive_ints(bad):
     with pytest.raises(ValueError, match=f"Sampling.{field}"):
         Sampling(**bad)
 
+def test_sampling_counts_take_any_integer_type():
+    assert Sampling(board_cards=np.int64(2), playouts=np.int32(3)).board_cards == 2
+
 def test_exact_with_more_than_one_playout_is_refused():
     with pytest.raises(ValueError, match="playouts must be 1"):
         only(playouts=2)
@@ -710,6 +713,16 @@ def test_a_count_at_or_above_its_fan_is_enumeration_bit_for_bit(point):
     sigma = exact.sigma(table)
     rows = row_on(table, point)
     full = only(board_cards=14, opponent_draws=12, hero_draws=99)
+    # The fans `is_exact` reads are the description's own.
+    assert exact.description.levels[2].children_of.shape[1] == 14
+    assert all(
+        draw.targets.shape[-1] == 12
+        for node_edges in [n.edges for n in exact.description.decision_of_point if n.edges]
+        for edge in node_edges for draw in edge.draws if draw is not None
+    )
+    assert full.is_exact
+    with pytest.raises(ValueError, match="playouts must be 1"):
+        only(board_cards=14, playouts=2)
     want = exact.targets(sigma, seat=0, rows=rows, sampling=EXACT)
     got = exact.targets(sigma, seat=0, rows=rows, sampling=full, seed=0, t=0)
     assert np.array_equal(want[0], got[0]) and np.array_equal(want[1], got[1])
