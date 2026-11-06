@@ -27,8 +27,10 @@ softmax head copying a distribution better than squared error on a linear
 head, 0.136 → 0.109 at one mark. The net's head stays the seven signed
 outputs of `net.Net`; the softmax is taken at the row's legal columns with
 the others held at −1e9, so an illegal column gets no probability and no
-gradient. At the minimum the softmax IS the teacher's row and the loss is
-the row's entropy.
+gradient. The loss at a row is smallest where the softmax IS the teacher's
+row, and that minimum is the row's entropy; a net reaches it only where it
+can represent the row, and a teacher entry of exactly zero is approached,
+never reached, as its logit runs toward −∞.
 
 **Each row weighs what arrives at it.** Exploitability is measured on play
 that happens: a best response exploits a spot in proportion to how often
@@ -65,7 +67,11 @@ batch's features are gathered there, Adam under a cosine schedule from
 `lr`, the gradient's norm clipped. Every `eval_every` steps the student's
 distribution at every row is computed on the device and its reach-weighted
 mean absolute error against the teacher recorded, so the curve is of the
-quantity that tracks the grade, not only of the loss.
+quantity that tracks the grade, not only of the loss. The curve's error is
+summed in float32 on the device (mps has no float64), the recorded
+`reach_weighted_error` of the frozen file in float64 on the cpu; in every
+committed arm the curve's last entry and the file's error agree to about
+1e-8.
 
 **The freeze** is `net.predict_by_point` with a softmax per row, into a
 `FrozenStrategy` whose info names the teacher's rule, column, iteration
@@ -162,6 +168,8 @@ class DistillConfig:
     gradient's norm; `train_fraction` is the share of rows the fit may
     draw from (1.0 is every row); `weighted=False` draws rows uniformly
     instead of by reach, an ablation. `eval_every` is the curve's grain.
+    `device` defaults to the cpu, which every machine has, as `FitConfig`'s
+    does; `scripts/deepcfr/distill_teacher.py` asks for `mps`.
     """
 
     width: int = 256
@@ -171,7 +179,7 @@ class DistillConfig:
     lr: float = 1e-3
     clip: float = 1.0
     seed: int = 0
-    device: str = "mps"
+    device: str = "cpu"
     train_fraction: float = 1.0
     weighted: bool = True
     eval_every: int = 5_000

@@ -203,6 +203,9 @@ def test_the_readme_distillation_bullet_quotes_the_results_file():
     assert f"half the infosets grades {arms['4x256-f0.5']['exploitability']:.4f}" in bullet
     whole = deep - teacher
     share = (arms["4x256"]["exploitability"] - teacher) / whole
-    assert f"about {share:.0%} is what the net cannot hold and {1 - share:.0%} is what" in bullet
+    assert f"after 100,000 steps the split is about {share:.0%} / {1 - share:.0%}" in bullet
     long_share = (arms["4x256-400k"]["exploitability"] - teacher) / whole
+    # "at most about a third": the tightest copy's share, the bound the headline states
+    assert "at 4 × 256 at most about a third is what the net cannot hold" in bullet
+    assert long_share < 0.34
     assert f"takes the 4 × 256 copy to {arms['4x256-400k']['exploitability']:.4f} and the split to {long_share:.0%} / {1 - long_share:.0%}" in bullet

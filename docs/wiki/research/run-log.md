@@ -118,7 +118,7 @@ A grade takes several minutes and competes with a live trainer for cores, so gra
 
 ### 9. Distilling the table into the net splits the plateau into capacity and training
 
-The LCFR table's average at iteration 10,000,000 (graded 0.0157) fitted straight into the rung-4 net by reach-weighted cross-entropy grades 0.0389 at 4 × 256 and 0.0175 at 4 × 512, against Deep CFR's 0.0685. So at Deep CFR's size about 44% of the plateau is what the net cannot hold and 56% is what its training did not find, and one doubling of the width removes almost all of the first part. [Distilling the table into the net](wiki:research/distillation) has the method, the ablations and the caveats.
+The LCFR table's average at iteration 10,000,000 (graded 0.0157) fitted straight into the rung-4 net by reach-weighted cross-entropy grades 0.0389 at 4 × 256 and 0.0175 at 4 × 512, against Deep CFR's 0.0685. So at Deep CFR's size at most about a third of the plateau is what the net cannot hold (a 400,000-step copy grades 0.0331, 33%; the 100,000-step one 44%) and the rest is what its training did not find, and one doubling of the width removes almost all of the first part. [Distilling the table into the net](wiki:research/distillation) has the method, the ablations and the caveats.
 
 :::cards
 - [Where the project stands](wiki:research/status) The scoreboard in one page.

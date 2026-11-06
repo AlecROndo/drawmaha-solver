@@ -14,9 +14,15 @@ against. The gap from a dot down to the teacher is what that net cannot
 hold; the gap from Deep CFR's line down to the dot at its own size is what
 its training lost.
 
-**`gaps`** — the three gaps at the headline size on one log axis: teacher,
-its 4 × 256 copy, Deep CFR's 4 × 256 exact average, with each gap's size
-and its share of the whole plateau written on the bracket.
+**`gaps`** — the plateau at the headline size on one linear axis: teacher,
+the best-graded full-data copy at 4 × 256 (`best_copy`: the 400,000-step
+arm), Deep CFR's 4 × 256 exact average, with each gap's size and its share
+of the whole plateau written on the bracket. The copy's grade bounds what
+the net can hold from above, so the lower bracket is labelled "at most";
+the headline's 100,000-step copy is drawn thin beside it, so the reader
+sees that the share moved with the fit's length. The two shares are a
+reading of grades along one axis, not a decomposition of causes:
+exploitability is not additive in a strategy's errors.
 
 **`curves`** — two panels on one step axis: the training loss above, the
 reach-weighted error against the teacher below, one line per size arm,
@@ -122,11 +128,24 @@ def by_size(results: dict, out: Path) -> None:
 # gaps
 # ---------------------------------------------------------------------------
 
+def best_copy(results: dict, headline: str = "4x256") -> str:
+    """The lowest-graded arm at the headline's size trained on every row by reach: the tightest bound on what that net can hold."""
+    size = results["arms"][headline]
+    candidates = [
+        arm for arm, record in results["arms"].items()
+        if (record["width"], record["depth"]) == (size["width"], size["depth"])
+        and record["train_fraction"] == 1.0 and record["weighted"]
+    ]
+    return min(candidates, key=lambda arm: results["arms"][arm]["exploitability"])
+
 def gaps(results: dict, out: Path, headline: str = "4x256") -> None:
     teacher = results["teacher"]["exploitability"]
-    copy = results["arms"][headline]["exploitability"]
+    best = best_copy(results, headline)
+    copy = results["arms"][best]["exploitability"]
+    first = results["arms"][headline]["exploitability"]
     deep = results["deep_cfr"]["exact"]["exploitability"]
     whole = deep - teacher
+    size = size_label(headline)
     fig, ax = plt.subplots(figsize=(6.8, 4.4))
     _style(ax)
     ax.grid(False)
@@ -136,23 +155,35 @@ def gaps(results: dict, out: Path, headline: str = "4x256") -> None:
     ax.set_ylim(0, deep * 1.18)
     # A linear axis: the two gaps add up to the plateau, and the picture
     # must say so; a log axis would stretch the lower one.
+    steps = results["arms"][best]["steps"]
     marks = [
-        (teacher, INK, f"teacher, the LCFR table   {teacher:.4f}"),
-        (copy, COPY, f"its {size_label(headline)} copy   {copy:.4f}"),
-        (deep, DEEP, f"Deep CFR {size_label(headline)}   {deep:.4f}"),
+        (teacher, INK, 2.4, f"teacher, the LCFR table   {teacher:.4f}"),
+        (copy, COPY, 2.4, f"its {size} copy, {steps // 1000:,}k steps   {copy:.4f}"),
+        (deep, DEEP, 2.4, f"Deep CFR {size}   {deep:.4f}"),
     ]
-    for value, colour, label in marks:
-        ax.hlines(value, 0.04, 0.34, color=colour, linewidth=2.4)
-        ax.annotate(label, (0.34, value), textcoords="offset points", xytext=(8, 0), va="center", fontsize=9.5, color=INK)
+    if best != headline:
+        marks.append((
+            first, COPY, 0.9,
+            f"{results['arms'][headline]['steps'] // 1000:,}k steps   {first:.4f} ({(first - teacher) / whole:.0%})",
+        ))
+    for value, colour, linewidth, label in marks:
+        ax.hlines(value, 0.04, 0.34, color=colour, linewidth=linewidth)
+        ax.annotate(
+            label, (0.34, value), textcoords="offset points", xytext=(8, 0), va="center",
+            fontsize=9.5 if linewidth > 1 else 8.5, color=INK,
+        )
     def bracket(x, low, high, text, colour):
         ax.annotate("", (x, high), (x, low), arrowprops=dict(arrowstyle="<->", color=colour, linewidth=1.3, shrinkA=0, shrinkB=0))
         ax.annotate(text, (x, (low + high) / 2), textcoords="offset points", xytext=(8, 0), ha="left", va="center", fontsize=9, color=INK)
-    bracket(0.72, teacher, copy, f"representation: what the net cannot hold\n+{copy - teacher:.4f}, {(copy - teacher) / whole:.0%} of the plateau", COPY)
-    bracket(0.72, copy, deep, f"training: what Deep CFR did not find\n+{deep - copy:.4f}, {(deep - copy) / whole:.0%}", DEEP)
+    bracket(0.93, teacher, copy, f"what the net cannot hold, at most\n+{copy - teacher:.4f}, {(copy - teacher) / whole:.0%} of the plateau", COPY)
+    bracket(0.93, copy, deep, f"what Deep CFR's training did not find\n+{deep - copy:.4f}, {(deep - copy) / whole:.0%}", DEEP)
     ax.set_yticks([0, teacher, copy, deep])
     ax.set_yticklabels(["0", f"{teacher:.4f}", f"{copy:.4f}", f"{deep:.4f}"])
     ax.set_ylabel("exploitability, chips per hand", color=MUTED)
-    ax.set_title(f"The {size_label(headline)} plateau over the table, split into its two parts", loc="left", fontsize=10.5, color=INK, pad=10)
+    ax.set_title(
+        f"At {size}, at most {(copy - teacher) / whole:.0%} of the plateau is what the net cannot hold",
+        loc="left", fontsize=10.5, color=INK, pad=10,
+    )
     _save(fig, out / "gaps.png")
 
 # ---------------------------------------------------------------------------

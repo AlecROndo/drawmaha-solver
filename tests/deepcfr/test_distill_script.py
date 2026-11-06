@@ -87,3 +87,14 @@ def test_arm_record_carries_config_curve_and_grade_and_nothing_typed_in(script):
     assert record["curve"] == curve and record["exploitability"] == 0.01 and record["rw_error"] == 0.1
     assert record["strategy_sha256"] == "ab" * 32 and record["fit_s"] == 12.0
     assert set(np.unique(list(record))) >= {"steps", "batch", "lr", "train_fraction", "weighted", "seed", "device"}
+
+def test_a_resume_keeps_every_command_that_wrote_the_file(script):
+    # A file from before the list: its one `_command` moves to the head.
+    held = {"_command": "first", "arms": {}}
+    script.record_command(held, "second")
+    script.record_command(held, "third")
+    assert held["_commands"] == ["first", "second", "third"]
+    assert "_command" not in held
+    fresh = {}
+    script.record_command(fresh, "only")
+    assert fresh == {"_commands": ["only"]}

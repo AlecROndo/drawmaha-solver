@@ -163,9 +163,10 @@ finding 3 is real at this net size for the ÷ pot weighting too, lower than the 
 `/research` chapter 07, which this run did not change. One seed, one net; the open questions
 are in "Not yet run".
 
-**9. Distilling the table into the net splits the 0.068 plateau: at 4 × 256 about 44% is
-what the net cannot hold and 56% is what Deep CFR's training did not find; one doubling of the
-width removes almost all of the first part.** The experiment (`docs/superpowers/specs/2026-11-05-rung4-distillation-design.md`,
+**9. Distilling the table into the net splits the 0.068 plateau: at 4 × 256 at most about a
+third is what the net cannot hold (33% after a 400,000-step fit, 44% after 100,000) and the rest
+is what Deep CFR's training did not find; one doubling of the width removes almost all of the
+first part.** The experiment (`docs/superpowers/specs/2026-11-05-rung4-distillation-design.md`,
 `deepcfr/distill.py`, `scripts/deepcfr/distill_teacher.py`) takes Deep CFR out of the picture: the
 LCFR table's linear average at iteration 10,000,000 (100M hands per seat, graded 0.0157) is the
 teacher, and the rung-4 net is fitted straight to it by cross-entropy over every one of the 6.2M
@@ -195,14 +196,17 @@ from 0.0450 to 0.0061, and the 4 × 1024 copy grades 0.0158, the teacher to four
 (error 0.0010). The copy's grade is an upper bound on the net's floor (cross-entropy copies
 probabilities, it does not minimise exploitability), and part of the 4 × 256 bound is the fit's:
 25,000 steps grade 0.0560 against 100,000's 0.0389, the headline's curve was still easing down
-when its schedule reached zero, and 400,000 steps grade 0.0331 (error 0.0369), which moves the
-representation share of the plateau from 44% to 33% — so the split at this size is
-"about a third to a half capacity, the rest training", and the 4 × 512 copy reached 0.0061 in a
-quarter of those steps. Two more readings: drawing rows uniformly instead of by reach
-takes the same net from 0.0389 to 0.0995, so the weight is worth 2.6× in the grade; and a copy
-trained on half the rows grades 0.1046 (error 0.0228 on the rows it saw, 0.1185 on the rows it
-never saw), a tenth 0.3457: on these 136 features the net memorises infosets rather than inferring
-them, which is the number that matters for a game that cannot be enumerated. One seed of
+when its schedule ran out, and 400,000 steps grade 0.0331 (error 0.0369), which moves the
+representation share of the plateau from 44% to 33% — so at this size capacity is at most about
+a third, possibly less, and the 4 × 512 copy reached 0.0061 in a quarter of those steps. The
+shares are a reading of grades along one axis, not a decomposition of causes: exploitability is
+not additive in a strategy's errors. Two more readings: drawing rows uniformly instead of by reach
+takes the same net from 0.0389 to 0.0995, so the weight is worth 2.6× in the grade (which rows
+absorbed the uniform draw's steps was not measured); and a copy trained on half the rows grades
+0.1046 (error 0.0228 on the rows it saw, 0.1185 on the rows it never saw), a tenth 0.3457: this
+net on these 136 features does not transfer to a random half of the infosets, which is the number
+that matters for a game that cannot be enumerated. Whether the features, the architecture or the
+teacher's own irregularity at rarely visited rows is the limit, one split does not separate. One seed of
 everything. The write-up is the preprint in `~/Desktop/Claude/poker/rung4-distill/` and the
 wiki page `docs/wiki/research/distillation.md`.
 

@@ -227,6 +227,10 @@ def test_sampling_weights_follow_the_fraction_and_the_ablation():
     flat = sampling_weights(weights, DistillConfig(device="cpu", weighted=False, train_fraction=0.5, seed=3))
     assert (flat[rows] == 1.0).all() and not flat[unseen].any()
 
+def test_the_library_default_device_is_the_cpu_every_machine_has():
+    # `FitConfig`'s default too; the distillation script asks for mps itself.
+    assert DistillConfig().device == "cpu"
+
 def test_reach_weighted_error_is_the_column_formula():
     teacher = random_strategy(7)
     student = random_strategy(8)

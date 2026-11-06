@@ -1,14 +1,20 @@
 """Distil the LCFR table into the rung-4 net, arm by arm, and grade every copy exactly.
 
     caffeinate -i uv run --extra deep python scripts/deepcfr/distill_teacher.py \\
-        "/Users/alec/Claude Code/poker/drawmaha-solver-lcfr20m/runs/lcfr/iter-010000000.npz" \\
+        <lcfr-run>/runs/lcfr/iter-010000000.npz \\
         --out runs/distill --results figures/rung4/distill/results.json
 
-That is the command that wrote `figures/rung4/distill/results.json` on
-2026-11-05. `--arms a,b,c` runs a subset; an arm already in the file is
-skipped, so an interrupted pass resumes. `--steps N` overrides every arm's
-step count (a smoke run writes to a scratch `--results`, never the
-committed one).
+`<lcfr-run>` is the directory of the LCFR run whose iteration-10,000,000
+checkpoint is the teacher (`teacher.checkpoint` in the results file); it
+is not in the repository. That command, with resumes, wrote
+`figures/rung4/distill/results.json` on 2026-11-05; the last resume was
+the same command with `--arms 4x256-400k`. `--arms a,b,c` runs a subset; an arm
+already in the file is skipped, so an interrupted pass resumes.
+`--steps N` overrides every arm's step count (a smoke run writes to a
+scratch `--results`, never the committed one). Each invocation that writes
+the file is appended to its `_commands`, oldest first; the committed file
+predates that list and holds only the last one, the 400k resume, under
+`_command`, which a later run moves to the head of `_commands`.
 
 **The question** is `deepcfr/distill.py`'s: the ÷ pot Deep CFR arm, a
 4 × 256 net, flattens at exact-average exploitability 0.068 while the
@@ -24,8 +30,8 @@ differs from the headline `4x256`: `-25k` / `-400k` fewer or more steps,
 trained on a random tenth / half of the rows and graded on the whole game.
 Every arm is 100,000 Adam steps of 16,384 rows under a cosine schedule
 from 1e-3 unless its suffix says otherwise. The headline's error curve was
-still easing down when the schedule reached zero (0.0452 → 0.0450 over the
-last 10,000 steps), so the `-400k` arm asks how much of the copy's gap to
+still easing down when the schedule ran out (0.0452 → 0.0450 over the
+last 10,000 steps, the learning rate 2.5e-13 at the last one), so the `-400k` arm asks how much of the copy's gap to
 the teacher is optimisation rather than capacity, and `-25k` what fewer
 steps would have cost.
 
@@ -82,7 +88,7 @@ DEEP_T = 2_000
 HEADLINE = "4x256"
 RESULTS = Path("figures/rung4/distill/results.json")
 
-_HEADLINE = DistillConfig(width=256, depth=4)
+_HEADLINE = DistillConfig(width=256, depth=4, device="mps")
 ARMS: dict[str, DistillConfig] = {
     "3x64": replace(_HEADLINE, width=64, depth=3),
     "3x128": replace(_HEADLINE, width=128, depth=3),
@@ -171,6 +177,18 @@ def arm_record(
 # The run
 # ---------------------------------------------------------------------------
 
+def record_command(held: dict, command: str) -> None:
+    """Append `command` to the file's `_commands`, oldest first, so a resume keeps the provenance of every arm before it.
+
+    A file written before the list existed holds its last command alone
+    under `_command`; that one moves to the head of the list.
+    """
+    commands = held.pop("_commands", [])
+    if "_command" in held:
+        commands.insert(0, held.pop("_command"))
+    commands.append(command)
+    held["_commands"] = commands
+
 def _log(message: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}] {message}", flush=True)
 
@@ -203,7 +221,7 @@ def main(argv: list[str] | None = None) -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     args.results.parent.mkdir(parents=True, exist_ok=True)
     held = json.loads(args.results.read_text()) if args.results.exists() else {}
-    held["_command"] = " ".join(["uv run --extra deep python", "scripts/deepcfr/distill_teacher.py", *(argv or sys.argv[1:])])
+    record_command(held, " ".join(["uv run --extra deep python", "scripts/deepcfr/distill_teacher.py", *(argv or sys.argv[1:])]))
 
     started = time.perf_counter()
     teacher = from_checkpoint(args.teacher)
