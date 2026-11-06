@@ -16,7 +16,8 @@ import numpy as np
 import pytest
 
 from drawmaha_solver.deepcfr import targeting
-from drawmaha_solver.deepcfr.targeting import TargetSpec, groups
+from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Reservoir
+from drawmaha_solver.deepcfr.targeting import TargetSpec, groups, noise
 from drawmaha_solver.minidrawmaha.rules.enumeration import private_keys, public_decision_points
 
 POINTS = public_decision_points()
@@ -120,3 +121,87 @@ def test_line_class_ids_decode_and_never_collide():
                 assert gid not in seen
                 seen[gid] = (p, inner, outer)
                 assert targeting.decode_line_class(gid) == (p, inner, outer)
+
+# ---------------------------------------------------------------------------
+# The noise score
+# ---------------------------------------------------------------------------
+
+A, B_, C = seat_points(0)[:3]  # three of seat 0's lines
+
+def memory_of(entries, *, capacity=1_000) -> Reservoir:
+    """A memory holding `entries`, (row, t, target row, weight) each, offered in order at their t."""
+    memory = Reservoir(capacity)
+    for t in sorted({t for _, t, _, _ in entries}):
+        batch = [e for e in entries if e[1] == t]
+        target = np.zeros((len(batch), TARGET_WIDTH), dtype=np.float32)
+        for i, (_, _, values, _) in enumerate(batch):
+            target[i, : len(values)] = values
+        memory.merge(
+            np.array([row for row, _, _, _ in batch]),
+            target,
+            t=t,
+            rng=np.random.default_rng(t),
+            weight=np.array([w for _, _, _, w in batch], dtype=np.float32),
+        )
+    return memory
+
+def test_noise_is_one_walks_relative_error_at_the_largest_mean_column():
+    a, b = rows_of_point(A)[:2], rows_of_point(B_)[:1]
+    entries = [
+        # line A: column 0 has mean 2 and E[r²] = (1 + 9 + 4 + 36) / 4 = 12.5; column 1 has mean 0.5
+        (a[0], 1, (1.0, 0.5), 1.0),
+        (a[1], 1, (3.0, 0.5), 1.0),
+        (a[0], 2, (-2.0, 0.5), 1.0),
+        (a[1], 2, (6.0, 0.5), 1.0),
+        # line B: column 1 has the largest |mean|, −4; E[r²] there = (9 + 25) / 2 = 17
+        (b[0], 1, (1.0, -3.0), 1.0),
+        (b[0], 2, (1.0, -5.0), 1.0),
+    ]
+    memory = memory_of(entries)
+    walks = 5  # K: walks per iteration; the memory's latest t is 2, so 10 walks fed it
+    out = noise(memory, groups("line", 0), walks=walks, alpha=0.0, cap=1e9)
+    # p = (n_g / size) · offered / (K · t_last): 4/6 · 6/10 = 0.4 for A, 0.2 for B
+    assert out[A] == pytest.approx(np.sqrt(12.5 / 0.4) / 2.0, rel=1e-12)
+    assert out[B_] == pytest.approx(np.sqrt(17.0 / 0.2) / 4.0, rel=1e-12)
+    assert out.shape == (max(seat_points(0)) + 1,)  # one entry per id up to the seat's largest
+
+def test_only_the_walks_own_rows_count():
+    a = rows_of_point(A)[:1]
+    walk = [(a[0], 1, (1.0,), 1.0), (a[0], 1, (3.0,), 1.0), (a[0], 2, (-2.0,), 1.0), (a[0], 2, (6.0,), 1.0)]
+    alone = noise(memory_of(walk), groups("line", 0), walks=5, alpha=0.5, cap=1e9)[A]
+    # A walk row turned down to α is still a sample; an exact row (any other weight) is a mean, not a sample.
+    turned_down = [(row, t, v, 0.5 if i == 3 else w) for i, (row, t, v, w) in enumerate(walk)]
+    exact = [(a[0], 2, (100.0,), 0.37)]
+    mixed = noise(memory_of(turned_down + exact), groups("line", 0), walks=5, alpha=0.5, cap=1e9)[A]
+    # The exact row still takes a slot and an offer: p reads n_g / size · offered, 4/5 · 5/10 = 0.4 as before.
+    assert mixed == pytest.approx(alone, rel=1e-12)
+
+def test_too_few_rows_or_a_zero_mean_or_an_empty_memory_reads_as_the_cap():
+    a, b, c = rows_of_point(A)[:1], rows_of_point(B_)[:1], rows_of_point(C)[:1]
+    entries = [
+        (a[0], 1, (5.0,), 1.0),  # one row: no spread to read
+        (b[0], 1, (2.0, -2.0), 1.0),
+        (b[0], 1, (-2.0, 2.0), 1.0),  # every column's mean is zero
+        (c[0], 1, (1.0,), 1.0),
+        (c[0], 1, (1.0,), 1.0),  # no scatter, frequent: well under the cap
+    ]
+    out = noise(memory_of(entries), groups("line", 0), walks=1, alpha=0.0, cap=20.0)
+    assert out[A] == 20.0 and out[B_] == 20.0
+    assert out[C] == pytest.approx(np.sqrt(1.0 / (2 / 5 * 5 / 1)), rel=1e-12)
+    untouched = [p for p in seat_points(0) if p not in (A, B_, C)]
+    assert (out[untouched] == 20.0).all()
+    assert (noise(Reservoir(10), groups("line", 0), walks=1, alpha=0.0, cap=20.0) == 20.0).all()
+
+def test_the_score_is_capped():
+    a = rows_of_point(A)[:1]
+    rare = [(a[0], 1, (1.0,), 1.0), (a[0], 1, (-0.9,), 1.0)]  # mean 0.05 against spread ~1: far over 20
+    assert noise(memory_of(rare), groups("line", 0), walks=1_000, alpha=0.0, cap=20.0)[A] == 20.0
+
+def test_a_memory_row_of_the_other_seat_is_refused():
+    other = rows_of_point(seat_points(1)[0])[:1]
+    with pytest.raises(ValueError, match="seat"):
+        noise(memory_of([(other[0], 1, (1.0,), 1.0)]), groups("line", 0), walks=1, alpha=0.0, cap=20.0)
+
+def test_noise_refuses_a_bad_walk_count():
+    with pytest.raises(ValueError, match="walks"):
+        noise(Reservoir(10), groups("line", 0), walks=0, alpha=0.0, cap=20.0)

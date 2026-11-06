@@ -90,6 +90,7 @@ from typing import Literal, get_args
 
 import numpy as np
 
+from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Reservoir
 from drawmaha_solver.minidrawmaha.rules.enumeration import private_keys, public_decision_points
 from drawmaha_solver.minidrawmaha.rules.hands import inner_score, outer_score
 
@@ -212,4 +213,57 @@ def groups(granularity: Granularity, seat: int) -> np.ndarray:
             inner, outer = _classes(points[p].board_cards, points[p].discards)
             out[span] = line_class_id(p, 0, 0) | (inner << _CLASS_BITS) | outer
     out.setflags(write=False)
+    return out
+
+# ---------------------------------------------------------------------------
+# The noise score
+# ---------------------------------------------------------------------------
+
+def noise(
+    memory: Reservoir, group_of_row: np.ndarray, *, walks: int, alpha: float, cap: float
+) -> np.ndarray:
+    """min(√(E[r²] / p) / |E[r]|, cap) per group id, from one seat's advantage memory; the cap where unread.
+
+    Indexed by group id, one entry per id up to the largest in
+    `group_of_row` (a `groups(...)` array). Only the walk's own rows are read,
+    weight 1 or `alpha`. E[r] and E[r²] are at the column of largest |E[r]|;
+    p = (n_g / size) · offered / (walks · t_last) is visits per walk, with
+    `walks` the walks per iteration (K) and t_last the memory's latest t. A
+    group with fewer than two of the walk's rows, or a mean of exactly zero,
+    reads as `cap`, as does every group of an empty memory.
+    """
+    if not _is_int(walks) or walks < 1:
+        raise ValueError(f"walks must be a positive int (walks per iteration), got {walks!r}")
+    n_groups = int(group_of_row.max()) + 1
+    out = np.full(n_groups, float(cap))
+    rows, t, targets, weight = memory.contents()
+    if rows.size == 0:
+        return out
+    group = group_of_row[rows]
+    if (group < 0).any():
+        raise ValueError(
+            f"the memory holds row {int(rows[np.argmax(group < 0)])}, which is not this seat's: "
+            "a seat's noise reads that seat's advantage memory"
+        )
+    # Indices, not a boolean copy of the targets: a 50M-row memory's targets
+    # are 800 MB, and every column is gathered one at a time below.
+    natural = np.flatnonzero((weight == np.float32(1.0)) | (weight == np.float32(alpha)))
+    group = group[natural]
+    count = np.bincount(group, minlength=n_groups).astype(np.float64)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        mean = np.stack(
+            [
+                np.bincount(group, weights=targets[natural, a], minlength=n_groups)
+                for a in range(TARGET_WIDTH)
+            ],
+            axis=1,
+        ) / count[:, None]
+        best = np.argmax(np.abs(np.nan_to_num(mean)), axis=1)
+        at_best = targets[natural, best[group]].astype(np.float64)
+        square = np.bincount(group, weights=at_best * at_best, minlength=n_groups)
+        mu = mean[np.arange(n_groups), best]
+        visits = count / memory.size * memory.offered / (walks * int(t.max()))
+        ratio = np.sqrt(square / count / visits) / np.abs(mu)
+    readable = (count >= 2) & (mu != 0.0)
+    out[readable] = np.minimum(ratio[readable], cap)
     return out
