@@ -282,7 +282,8 @@ def noise(
     `group_of_row` (a `groups(...)` array). Only the walk's own rows are read,
     weight 1 or `alpha`. E[r] and E[r²] are at the column of largest |E[r]|;
     p = (n_g / size) · offered / (walks · t_last) is visits per walk, with
-    `walks` the walks per iteration (K) and t_last the memory's latest t. A
+    `walks` the walks per iteration (K) and t_last the memory's latest t;
+    `size` and `offered` both count exact rows, which cancel in the ratio. A
     group with fewer than two of the walk's rows, or a mean of exactly zero,
     reads as `cap`, as does every group of an empty memory.
     """
