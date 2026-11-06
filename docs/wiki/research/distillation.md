@@ -17,7 +17,7 @@ Three choices make the fit mean something:
 
 There is no held-out split for the headline: the exact grader scores every infoset, so the whole-game grade is the test and memorising is the goal.
 
-## The result: half capacity, half training, and the capacity half goes away one doubling later
+## The result: a third to a half is capacity, the rest training, and the capacity part goes away one doubling later
 
 Every arm is 100,000 Adam steps of 16,384 rows under a cosine schedule from 1e-3, one seed, on this Mac's GPU. `err` is the reach-weighted mean absolute error per column against the teacher, measured on the frozen file.
 
@@ -43,7 +43,7 @@ Every arm is 100,000 Adam steps of 16,384 rows under a cosine schedule from 1e-3
 
 ![Loss and reach-weighted error by step](fig:rung4/distill/curves.png)
 
-- **The 4 × 256 floor is partly the fit's.** 25,000 steps grade 0.0560 against 100,000's 0.0389, and the headline's error curve was still easing down when the schedule reached zero. The copy's grade is an *upper bound* on the net's floor for this reason and one more: cross-entropy copies the teacher's probabilities, it does not minimise exploitability, and another near-equilibrium may be easier to represent.
+- **The 4 × 256 floor is partly the fit's.** 25,000 steps grade 0.0560 against 100,000's 0.0389, the headline's error curve was still easing down when the schedule reached zero, and 400,000 steps grade 0.0331: the representation share of the plateau moves from 44% to 33% with a four-times longer fit, while the 4 × 512 copy got further in a quarter of the steps. The copy's grade is an *upper bound* on the net's floor for this reason and one more: cross-entropy copies the teacher's probabilities, it does not minimise exploitability, and another near-equilibrium may be easier to represent.
 - **The reach weight is worth 2.6× in the grade.** Rows drawn uniformly over the 6.2M infosets, everything else equal, grade 0.0995 against 0.0389: the uniform draw spends its steps on the millions of round-2 rows the strategy's own play never reaches, and the best response finds the rows it neglected.
 - **Trained on a share of the game, the net memorises rather than infers.** A copy trained on a random half of the rows grades 0.1046: its error on the rows it saw is 0.0228, *better* than the full copy's 0.0450, but on the rows it never saw 0.1185, and the best response goes there. A tenth grades 0.3457. For full Drawmaha, which cannot be enumerated and where every spot is in effect unseen, this is the number that matters: the features or the architecture, not the solver, are where the work is.
 

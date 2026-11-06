@@ -182,6 +182,7 @@ every key, reloaded and graded exactly. Every number below is `figures/rung4/dis
 | `4x512` | 4 × 512 | size | 100,000 | 0.0061 | 0.0175 | 1.1× |
 | `4x1024` | 4 × 1024 | size | 100,000 | 0.0010 | 0.0158 | 1.0× |
 | `4x256-25k` | 4 × 256 | fewer steps | 25,000 | 0.0615 | 0.0560 | 3.6× |
+| `4x256-400k` | 4 × 256 | more steps | 400,000 | 0.0369 | 0.0331 | 2.1× |
 | `4x256-unweighted` | 4 × 256 | rows drawn uniformly | 100,000 | 0.0826 | 0.0995 | 6.3× |
 | `4x256-f0.5` | 4 × 256 | trained on 50% of rows | 100,000 | 0.0707 | 0.1046 | 6.7× |
 | `4x256-f0.1` | 4 × 256 | trained on 10% of rows | 100,000 | 0.1356 | 0.3457 | 22.0× |
@@ -193,8 +194,11 @@ grades 0.0175, within 0.0019 of the teacher, with its error against the teacher 
 from 0.0450 to 0.0061, and the 4 × 1024 copy grades 0.0158, the teacher to four places
 (error 0.0010). The copy's grade is an upper bound on the net's floor (cross-entropy copies
 probabilities, it does not minimise exploitability), and part of the 4 × 256 bound is the fit's:
-25,000 steps grade 0.0560 against 100,000's 0.0389, and the headline's curve was still easing down
-when its schedule reached zero. Two more readings: drawing rows uniformly instead of by reach
+25,000 steps grade 0.0560 against 100,000's 0.0389, the headline's curve was still easing down
+when its schedule reached zero, and 400,000 steps grade 0.0331 (error 0.0369), which moves the
+representation share of the plateau from 44% to 33% — so the split at this size is
+"about a third to a half capacity, the rest training", and the 4 × 512 copy reached 0.0061 in a
+quarter of those steps. Two more readings: drawing rows uniformly instead of by reach
 takes the same net from 0.0389 to 0.0995, so the weight is worth 2.6× in the grade; and a copy
 trained on half the rows grades 0.1046 (error 0.0228 on the rows it saw, 0.1185 on the rows it
 never saw), a tenth 0.3457: on these 136 features the net memorises infosets rather than inferring

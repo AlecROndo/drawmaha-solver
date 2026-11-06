@@ -204,3 +204,5 @@ def test_the_readme_distillation_bullet_quotes_the_results_file():
     whole = deep - teacher
     share = (arms["4x256"]["exploitability"] - teacher) / whole
     assert f"about {share:.0%} is what the net cannot hold and {1 - share:.0%} is what" in bullet
+    long_share = (arms["4x256-400k"]["exploitability"] - teacher) / whole
+    assert f"takes the 4 × 256 copy to {arms['4x256-400k']['exploitability']:.4f} and the split to {long_share:.0%} / {1 - long_share:.0%}" in bullet
