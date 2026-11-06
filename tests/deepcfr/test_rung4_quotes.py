@@ -198,7 +198,7 @@ def test_the_readme_distillation_bullet_quotes_the_results_file():
     (bullet,) = [line for line in readme.splitlines() if line.startswith("- **Distilling the table into the net")]
     assert f"graded {teacher:.4f}" in bullet
     assert f"The 4 × 256 copy grades {arms['4x256']['exploitability']:.4f} against the table's {teacher:.4f} and Deep CFR's {deep:.4f}" in bullet
-    assert f"the 4 × 512 copy grades {arms['4x512']['exploitability']:.4f}" in bullet
+    assert f"the 4 × 512 copy grades {arms['4x512']['exploitability']:.4f} and the 4 × 1024 copy {arms['4x1024']['exploitability']:.4f}" in bullet
     assert f"({arms['4x256']['exploitability']:.4f} against {arms['4x256-unweighted']['exploitability']:.4f})" in bullet
     assert f"half the infosets grades {arms['4x256-f0.5']['exploitability']:.4f}" in bullet
     whole = deep - teacher

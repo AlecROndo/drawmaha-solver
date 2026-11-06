@@ -176,7 +176,7 @@ def curves(results: dict, out: Path) -> None:
     top.set_yscale("log")
     bottom.set_yscale("log")
     _plain_ticks(top, "y", [0.1, 0.15, 0.2, 0.3, 0.4])
-    _plain_ticks(bottom, "y", [0.02, 0.03, 0.05, 0.1, 0.15])
+    _plain_ticks(bottom, "y", [0.001, 0.003, 0.01, 0.03, 0.1])
     most = max(c["step"] for arm in sizes for c in arms[arm]["curve"])
     ticks = [t for t in range(0, most + 1, 20_000)]
     _plain_ticks(bottom, "x", ticks, [_thousands(t) if t else "0" for t in ticks])

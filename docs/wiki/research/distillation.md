@@ -28,6 +28,7 @@ Every arm is 100,000 Adam steps of 16,384 rows under a cosine schedule from 1e-3
 | `3x128` | 3 × 128 | size | 0.0904 | 0.1015 | 6.5× |
 | `4x256` | 4 × 256 | **the Deep CFR net** | 0.0450 | **0.0389** | 2.5× |
 | `4x512` | 4 × 512 | size | 0.0061 | **0.0175** | 1.1× |
+| `4x1024` | 4 × 1024 | size | 0.0010 | **0.0158** | 1.0× |
 | Deep CFR | 4 × 256 | trained by Deep CFR, 20M hands | — | 0.0685 | 4.4× |
 
 ![Each copy of the table against its parameter count](fig:rung4/distill/by_size.png)
@@ -36,7 +37,7 @@ Every arm is 100,000 Adam steps of 16,384 rows under a cosine schedule from 1e-3
 
 ![The plateau split into its two parts](fig:rung4/distill/gaps.png)
 
-**One doubling of the width removes almost all of the representation part.** The 4 × 512 copy grades 0.0175, within 0.0019 of the teacher, and its error against the teacher falls from 0.0450 to 0.0061. Every Deep CFR size that was ever run on this game (3 × 64 to 4 × 256) sits on the steep part of this curve.
+**One doubling of the width removes almost all of the representation part.** The 4 × 512 copy grades 0.0175, within 0.0019 of the teacher, and its error against the teacher falls from 0.0450 to 0.0061. At 4 × 1024 the copy grades 0.0158, the teacher to four places. Every Deep CFR size that was ever run on this game (3 × 64 to 4 × 256) sits on the steep part of this curve.
 
 ## What the ablations add
 

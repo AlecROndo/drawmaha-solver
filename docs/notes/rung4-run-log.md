@@ -180,6 +180,7 @@ every key, reloaded and graded exactly. Every number below is `figures/rung4/dis
 | `3x128` | 3 × 128 | size | 100,000 | 0.0904 | 0.1015 | 6.5× |
 | `4x256` | 4 × 256 | **the Deep CFR net** | 100,000 | 0.0450 | 0.0389 | 2.5× |
 | `4x512` | 4 × 512 | size | 100,000 | 0.0061 | 0.0175 | 1.1× |
+| `4x1024` | 4 × 1024 | size | 100,000 | 0.0010 | 0.0158 | 1.0× |
 | `4x256-25k` | 4 × 256 | fewer steps | 25,000 | 0.0615 | 0.0560 | 3.6× |
 | `4x256-unweighted` | 4 × 256 | rows drawn uniformly | 100,000 | 0.0826 | 0.0995 | 6.3× |
 | `4x256-f0.5` | 4 × 256 | trained on 50% of rows | 100,000 | 0.0707 | 0.1046 | 6.7× |
@@ -189,7 +190,8 @@ The three gaps at the Deep CFR net's own size: teacher 0.0157 → copy 0.0389 is
 (+0.0233), copy → Deep CFR's exact average 0.0685 is training (+0.0295). Neither
 half is the whole story, and the representation half is a property of that size: the 4 × 512 copy
 grades 0.0175, within 0.0019 of the teacher, with its error against the teacher down
-from 0.0450 to 0.0061. The copy's grade is an upper bound on the net's floor (cross-entropy copies
+from 0.0450 to 0.0061, and the 4 × 1024 copy grades 0.0158, the teacher to four places
+(error 0.0010). The copy's grade is an upper bound on the net's floor (cross-entropy copies
 probabilities, it does not minimise exploitability), and part of the 4 × 256 bound is the fit's:
 25,000 steps grade 0.0560 against 100,000's 0.0389, and the headline's curve was still easing down
 when its schedule reached zero. Two more readings: drawing rows uniformly instead of by reach
