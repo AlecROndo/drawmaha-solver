@@ -25,7 +25,8 @@ loop.
   them. Loosening one to make a test pass is a finding to report, not a fix.
 - **Slow and heavy work is gated by an environment variable named in the
   skip reason**: `MINIDRAWMAHA_FULL_TABLE`, `MINIDRAWMAHA_FULL_GRADE`,
-  `MINIDRAWMAHA_FULL_CALIBRATION`, `MINIDRAWMAHA_FULL_DEEP`. Tests that need
+  `MINIDRAWMAHA_FULL_CALIBRATION`, `MINIDRAWMAHA_FULL_DEEP`,
+  `MINIDRAWMAHA_FULL_TARGET`. Tests that need
   torch `importorskip` it. The default suite must keep passing without torch,
   Modal, OpenSpiel or a network download.
 - **Committed numbers are recomputed, not transcribed.** `minidrawmaha/test_play.py`
