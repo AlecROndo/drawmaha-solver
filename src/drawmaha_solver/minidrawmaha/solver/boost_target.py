@@ -1,17 +1,45 @@
-"""The exact target: what the walk's regret sample at a table row is worth on average, computed.
+"""The boost target: extra, lower-noise samples of a high-noise row's regret, unbiased, with the exact sum as their limit.
 
 Rung 4 learns every infoset from the regret samples the walks bank there,
 `r = u − ⟨σ, u⟩` with one opponent hand and one line of opponent play drawn
 per visit (`mccfr.traverse`, `lockstep.walk`). At a rare round-2 row a visit
 comes once in thousands of iterations and its sample swings by chips, almost
-all of it the opponent's hidden hand. This module computes, for any table
-row, the quantity those samples estimate — the regret averaged over every
-hand the opponent could hold, weighted by how often the deck and the
-opponent's own play bring exactly that hand there — and the probability that
-one walk arrives at the row at all. A later stage (the "boost") adds one row
-with that regret at the weight the walk's samples would have carried, so a
-targeted infoset is learned from an exact number instead of a handful of
-noisy ones.
+all of it the opponent's hidden hand. This module draws more samples of that
+same quantity at a chosen row, each with less noise than a walk's: it starts
+at the row, faces the opponent's whole range (or k hands of it), and plays
+the hand out with each source of randomness below — the board card, both
+seats' replacements, the opponent's actions — sampled k of n or enumerated,
+as a `Sampling` names. With every source enumerated (`EXACT`) the target is
+the exact conditional mean the walk's samples estimate, and that is what the
+tests pin the sampled forms to. A later stage (the "boost") banks the target
+at the weight the walk's samples would have carried there, so a targeted
+infoset is learned from a few good samples instead of a handful of noisy
+ones.
+
+**What is sampled, and why each stays unbiased.** Every sampled source
+replaces a sum over n branches by k of them, so that the expectation over
+the draw is the sum:
+
+- a chance fan (the second board card, 14 branches; a throw's replacement,
+  12 per hand, for either seat) keeps k of its n branches without
+  replacement, each scaled n/k: each branch is kept with probability k/n;
+- the opponent's actions send each opponent state's weight down k actions
+  drawn from its σ at 1/k each, instead of splitting it by σ: the expected
+  share of an action is σ(a);
+- the opponent range draws k states per physical entry in proportion to
+  their weight, among those sharing no card with the entry's own state, each
+  carrying 1/k of the entry's total;
+- `playouts` independent play-outs are averaged.
+
+The traverser's own actions are never sampled, as the walk never samples
+them: the regret is defined against each of them. The arrival — the ratio's
+denominator below — is always exact. It is the cheap half (the opponent's
+reach, back-solved upward, never sampled), and an exact denominator under an
+unbiased numerator keeps the ratio unbiased; a sampled one would not, since
+the mean of a ratio is not the ratio of the means. Each row draws from
+`default_rng([seed, t, seat, row, "BOOST"])`, its own stream, independent of
+the walk's, so a row's target depends on (seed, t, seat, row) and never on
+which rows share the call.
 
 **What is computed.** For a row standing for the key I of seat `seat`:
 
@@ -90,26 +118,31 @@ every board of every point to 1e-10, and the regret and arrival equal a
 world-by-world walk through `MiniState` and the mean of thousands of real
 walks.
 
-**Cost, measured on this Mac (2026-11-05, a random table).** The description
-is built once per process, 5–7 s — the key maps, the draw maps, the
-public tree with parent links, the showdown ranks — and holds no showdown
-matrix: shares and compatibility are computed per terminal from the holes'
-ranks and card sets, folded over the opponent's 455 holes. `sigma` over the
-whole table takes 0.12 s. A round-2 row costs 0.8 ms (1.5 ms when 2,240 rows
-are spread over every round-2 point, where the reach memo warms less per
-row), and the arrival alone 0.3 ms. A draw row costs 45–85 ms and a round-1
-row 0.2–0.6 s, because the value below them expands over the traverser's own
-replacements (36 states per throw) and the second board card (14 boards):
-the opponent's vector is carried once per board and shared by every hero
-state on it, which is what keeps those within a second. The opponent's reach
-is memoised per call at every node with one board card out that lies on
-the path to a decision (66: the 29 level-1 decision points and 37 chance
-nodes, 15 boards each) and at every round-2 opening decision (20: one per
-round-1 line and pair of draw counts, 210 boards each), 58 KB a (node,
-board) pair, so the memo is at most 66 × 15 + 20 × 210 = 5,190 vectors,
-302 MB — a count `tests/minidrawmaha/test_exact_target.py` re-derives
-from the tree; a call over 2,240 round-2 rows peaked at about 260 MB. `tests/minidrawmaha/test_exact_target.py` prints the
-round-2 figure on every run.
+**Cost, measured on this Mac (2026-11-06, a table with every action
+positive, so nothing below a row prunes).** The description is built once
+per process, 5–7 s — the key maps, the draw maps, the public tree with
+parent links, the showdown ranks — and holds no showdown matrix: shares and
+compatibility are computed per terminal from the holes' ranks and card sets,
+folded over the opponent's 455 holes. `sigma` over the whole table takes
+0.12 s. Exactly, a round-2 row costs about 2 ms, a draw row 160–230 ms and a
+round-1 row 0.5–0.75 s, because the value below the last two expands over
+the traverser's own replacements (36 states per throw) and the second board
+card (14 boards). Under the walk's own sampling (`Sampling()`) a draw row
+costs about 25–32 ms and a round-1 row about 100–130 ms: the board card and
+the hero's replacements are what sampling cuts. A round-2 row costs more
+sampled than exact, about 3–4 ms: against a whole range the opponent's
+actions are split by σ in one array operation, and drawing them per state
+only adds a draw and noise — action sampling earns its keep when
+`opponent_range` is a few hands, where most lines carry no weight and are
+skipped. `tests/minidrawmaha/test_boost_target.py` prints the three costs on
+every run. The opponent's reach is memoised per call at every node with one
+board card out that lies on the path to a decision (66: the 29 level-1
+decision points and 37 chance nodes, 15 boards each) and at every round-2
+opening decision (20: one per round-1 line and pair of draw counts, 210
+boards each), 58 KB a (node, board) pair, so the memo is at most
+66 × 15 + 20 × 210 = 5,190 vectors, 302 MB — a count the test file
+re-derives from the tree; a call over 2,240 round-2 rows peaked at about
+260 MB.
 """
 
 from __future__ import annotations
@@ -147,6 +180,109 @@ SEATS = (0, 1)
 
 # The widest ledger: the draw's four throws. Regret rows are padded to it.
 TARGET_WIDTH = max(len(DRAW_ACTIONS), len(BETTING_ACTIONS))
+
+# The fifth word of a boost stream, ASCII "BOOST": a row's stream can never
+# equal a walk's four-word stream or the reservoir's "RESV" one.
+_STREAM_TAG = int.from_bytes(b"BOOST", "big")
+
+# ---------------------------------------------------------------------------
+# What the play-out below a boosted row samples
+# ---------------------------------------------------------------------------
+
+_SOURCES = ("opponent_range", "board_cards", "opponent_draws", "hero_draws", "opponent_actions")
+
+@dataclass(frozen=True, slots=True)
+class Sampling:
+    """How many of each random thing below a boosted row one play-out takes; `None` takes all of them.
+
+    - `playouts` — independent play-outs from the row, averaged.
+    - `opponent_range` — `None` plays against the whole range; k draws k
+      opponent hands per physical entry, with replacement, in proportion to
+      their weight, each carrying 1/k of the entry's total.
+    - `board_cards` — k of the 14 cards the second board card can be,
+      without replacement, each scaled 14/k.
+    - `opponent_draws`, `hero_draws` — k of the 12 replacements a throw can
+      bring, per hand, without replacement, each scaled 12/k.
+    - `opponent_actions` — `None` splits every opponent hand's weight over its
+      actions by σ; k sends it down k actions drawn from σ, 1/k each.
+
+    A chance count at or above its fan is that source enumerated. The
+    defaults are the walk's own sampling below the row against the whole
+    opponent range; `EXACT` enumerates everything and is the oracle. The
+    traverser's own actions are never sampled — the walk enumerates them, and
+    the regret is defined against them — only the cards its throws bring.
+    """
+
+    playouts: int = 1
+    opponent_range: int | None = None
+    board_cards: int | None = 1
+    opponent_draws: int | None = 1
+    hero_draws: int | None = 1
+    opponent_actions: int | None = 1
+
+    def __post_init__(self) -> None:
+        for name in ("playouts", *_SOURCES):
+            value = getattr(self, name)
+            if value is None and name != "playouts":
+                continue
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                allowed = "a positive int" if name == "playouts" else "a positive int, or None for all"
+                raise ValueError(f"Sampling.{name} must be {allowed}, got {value!r}")
+        if self.is_exact and self.playouts != 1:
+            raise ValueError(
+                f"Sampling enumerates every source, so every play-out is the same; playouts must be 1, got {self.playouts}"
+            )
+
+    @property
+    def is_exact(self) -> bool:
+        return all(getattr(self, name) is None for name in _SOURCES)
+
+EXACT = Sampling(
+    playouts=1, opponent_range=None, board_cards=None, opponent_draws=None, hero_draws=None, opponent_actions=None
+)
+
+@dataclass(frozen=True, slots=True, eq=False)
+class _Draws:
+    """The play-out's one source of randomness: under `EXACT` every method hands back everything and the RNG is never touched."""
+
+    sampling: Sampling
+    rng: np.random.Generator | None
+
+    def subset(self, k: int | None, n: int, shape: tuple[int, ...]) -> np.ndarray | None:
+        """k of n positions for every index of `shape`, without replacement; `None` for all n."""
+        if k is None or k >= n:
+            return None
+        return np.argsort(self.rng.random((*shape, n)), axis=-1)[..., :k]
+
+    def actions(self, probs: np.ndarray) -> np.ndarray:
+        """Per opponent state, the share of its weight each action carries: σ itself, or k draws from σ at 1/k each."""
+        k = self.sampling.opponent_actions
+        if k is None:
+            return probs
+        cdf = np.cumsum(probs, axis=-1)
+        cdf[..., -1] = 1.0  # a row summing to 1 − ulp must still pick an action
+        columns = np.arange(probs.shape[-1])
+        counts = np.zeros_like(probs)
+        for _ in range(k):
+            pick = (self.rng.random(probs.shape[:-1])[..., None] < cdf).argmax(axis=-1)
+            counts += pick[..., None] == columns
+        return counts / k
+
+    def opponents(self, u: np.ndarray, clash: np.ndarray) -> np.ndarray:
+        """Per entry, the opponent's weighted vector, or k hands drawn from its live weight at 1/k of the total each."""
+        k = self.sampling.opponent_range
+        if k is None:
+            return u
+        live = np.where(clash, 0.0, u)
+        totals = live.sum(axis=1)
+        out = np.zeros_like(u)
+        for e, total in enumerate(totals):
+            if total > 0.0:
+                picks = self.rng.choice(u.shape[1], size=k, p=live[e] / total)
+                out[e] = np.bincount(picks, minlength=u.shape[1]) * (total / k)
+        return out
+
+_EXACT_DRAWS = _Draws(EXACT, None)
 
 # ---------------------------------------------------------------------------
 # The frame: physical states and board rows
@@ -556,18 +692,19 @@ def _own_deal(weight: np.ndarray) -> dict[tuple[int, int], np.ndarray]:
     return {(1, 0): weight, (2, 0): weight, (2, 1): post}
 
 # ---------------------------------------------------------------------------
-# The exact targets
+# The targets
 # ---------------------------------------------------------------------------
 
 _Sigma = Sequence[np.ndarray]
 
 @dataclass(frozen=True, eq=False)
-class ExactTargets:
-    """Exact regret and arrival for any table row, under a strategy read from the materialised table.
+class BoostTargets:
+    """Sampled (or exact) regret and exact arrival for any table row, under a strategy read from the materialised table.
 
-        exact = ExactTargets.build()                 # once per process
-        sigma = exact.sigma(table)                   # the walk's σ, per point
-        regret, arrival = exact.targets(sigma, seat=0, rows=rows)
+        boost = BoostTargets.build()                 # once per process
+        sigma = boost.sigma(table)                   # the walk's σ, per point
+        regret, arrival = boost.targets(sigma, seat=0, rows=rows, sampling=Sampling(), seed=seed, t=t)
+        regret, arrival = boost.targets(sigma, seat=0, rows=rows, sampling=EXACT)   # the oracle
 
     `regret` is `(n, 4)` float64, zero past each row's width; `arrival` is
     `(n,)`, the expected number of visits one walk with traverser `seat`
@@ -584,7 +721,7 @@ class ExactTargets:
     own_deal: tuple[dict[tuple[int, int], np.ndarray], dict[tuple[int, int], np.ndarray]]
 
     @classmethod
-    def build(cls, holes: tuple[Iterable[Hole], Iterable[Hole]] | None = None) -> ExactTargets:
+    def build(cls, holes: tuple[Iterable[Hole], Iterable[Hole]] | None = None) -> BoostTargets:
         """The description (shared, built once) with this deal set's weights. The default is cached."""
         if holes is None:
             return _full_game()
@@ -638,14 +775,33 @@ class ExactTargets:
     # -- the targets --------------------------------------------------------
 
     def targets(
-        self, sigma: _Sigma, *, seat: int, rows: np.ndarray
+        self,
+        sigma: _Sigma,
+        *,
+        seat: int,
+        rows: np.ndarray,
+        sampling: Sampling,
+        seed: int | None = None,
+        t: int | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Exact regret `(n, 4)` and arrival `(n,)` — expected visits per walk — for table `rows`, all of them `seat`'s, under `sigma`.
+        """Regret `(n, 4)` and arrival `(n,)` — expected visits per walk — for table `rows`, all of them `seat`'s, under `sigma`.
 
-        A row the walk cannot reach (zero arrival) gets zero regret, not NaN;
-        a row of the other seat raises, as does one outside the table.
+        The regret is exact under `EXACT` and an unbiased estimate of it
+        otherwise; the arrival is exact under any `sampling`. A sampled call
+        names `seed` and `t`, and row r draws from
+        `default_rng([seed, t, seat, r, "BOOST"])` alone, so its target does
+        not depend on which rows share the call or in what order. A row the
+        walk cannot reach (zero arrival) gets zero regret, not NaN; a row of
+        the other seat raises, as does one outside the table.
         """
+        if not isinstance(sampling, Sampling):
+            raise TypeError(f"sampling must be a Sampling (EXACT for the exact sum), got {sampling!r}")
+        if not sampling.is_exact:
+            for name, value in (("seed", seed), ("t", t)):
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"a sampled target needs a non-negative int {name}, got {value!r}")
         rows = self._rows(seat, rows)
+        d = self.description
         regret = np.zeros((rows.size, TARGET_WIDTH))
         arrival = np.zeros(rows.size)
         memo: dict[tuple[int, int, int], np.ndarray] = {}
@@ -655,10 +811,25 @@ class ExactTargets:
             arrival[i] = total
             if total <= 0.0:
                 continue
-            values = self._action_values(sigma, seat, node, u, states[:, None], boards)[:, 0, :]
+            draws = (
+                _EXACT_DRAWS
+                if sampling.is_exact
+                else _Draws(sampling, np.random.default_rng([seed, t, seat, int(rows[i]), _STREAM_TAG]))
+            )
+            # Opponent states sharing a card with the entry's hero state; only
+            # a range draw needs them, since the play-out's compat masks them.
+            clash = (
+                None
+                if sampling.opponent_range is None
+                else (d.holds.astype(np.uint8) @ d.holds[states].T.astype(np.uint8)).T > 0
+            )
             mix = sigma[node.point][position]
-            baseline = values @ mix
-            regret[i, : len(mix)] = (values - baseline[:, None]).sum(axis=0) / total
+            summed = np.zeros(len(mix))
+            for _ in range(sampling.playouts):
+                facing = u if clash is None else draws.opponents(u, clash)
+                values = self._action_values(sigma, seat, node, facing, states[:, None], boards, draws)[:, 0, :]
+                summed += (values - (values @ mix)[:, None]).sum(axis=0)
+            regret[i, : len(mix)] = summed / (sampling.playouts * total)
         return regret, arrival
 
     def arrivals(self, sigma: _Sigma, *, seat: int, rows: np.ndarray) -> np.ndarray:
@@ -761,7 +932,7 @@ class ExactTargets:
     # done once per board, not once per hero continuation.
 
     def _action_values(
-        self, sigma: _Sigma, hero: int, node: _Node, u: np.ndarray, h: np.ndarray, b: np.ndarray
+        self, sigma: _Sigma, hero: int, node: _Node, u: np.ndarray, h: np.ndarray, b: np.ndarray, draws: _Draws
     ) -> np.ndarray:
         """Hero's weighted value below each action of `node`: `(nb, nh, width)` for boards b, hero states h (nb, nh), opponent vectors u (nb, S)."""
         d = self.description
@@ -769,27 +940,36 @@ class ExactTargets:
         values = np.zeros((nb, nh, len(node.actions)))
         for edge in node.edges:
             if all(draw is None for draw in edge.draws):
-                below = self._value(sigma, hero, edge.child, u, h, b)
+                below = self._value(sigma, hero, edge.child, u, h, b, draws)
                 for column in edge.actions:
                     values[..., column] = below
                 continue
             # The throw edge: the three throws' replacement states, stacked,
             # walk the one subtree below in one pass and are split after.
+            # Under sampling each (board, hero state) keeps k of its twelve
+            # replacements per throw, scaled 12/k; hero's throws themselves
+            # are all walked.
             hole = d.hole_of[h]
             fan = edge.draws[0].targets.shape[-1]
-            stacked = np.concatenate(
-                [draw.targets[b[:, None], hole] for draw in edge.draws], axis=-1
-            )  # (nb, nh, 3 × 12)
-            below = self._value(sigma, hero, edge.child, u, stacked.reshape(nb, -1), b)
-            below = below.reshape(nb, nh, len(edge.draws), fan).sum(axis=-1)
+            parts = []
+            for draw in edge.draws:
+                replacements = draw.targets[b[:, None], hole]  # (nb, nh, 12)
+                pick = draws.subset(draws.sampling.hero_draws, fan, (nb, nh))
+                parts.append(replacements if pick is None else np.take_along_axis(replacements, pick, axis=-1))
+            kept = parts[0].shape[-1]
+            stacked = np.concatenate(parts, axis=-1)  # (nb, nh, 3 × kept)
+            below = self._value(sigma, hero, edge.child, u, stacked.reshape(nb, -1), b, draws)
+            below = below.reshape(nb, nh, len(edge.draws), kept).sum(axis=-1)
+            if kept < fan:
+                below *= fan / kept
             for j, column in enumerate(edge.actions):
                 values[..., column] = below[..., j]
         return values
 
     def _value(
-        self, sigma: _Sigma, hero: int, node: _Node, u: np.ndarray, h: np.ndarray, b: np.ndarray
+        self, sigma: _Sigma, hero: int, node: _Node, u: np.ndarray, h: np.ndarray, b: np.ndarray, draws: _Draws
     ) -> np.ndarray:
-        """Hero's weighted expected chips from `node`, `(nb, nh)`, both seats at σ, the deck averaged."""
+        """Hero's weighted expected chips from `node`, `(nb, nh)`, both seats at σ, the deck averaged (or sampled, by `draws`)."""
         d = self.description
         nb, nh = h.shape
         if node.kind is NodeKind.TERMINAL:
@@ -802,33 +982,46 @@ class ExactTargets:
             if node.deals_board:
                 level = d.levels[node.child.level]
                 kids = level.children_of[b]  # (nb, 14)
+                full = kids.shape[1]
+                pick = draws.subset(draws.sampling.board_cards, full, (nb,))
+                if pick is not None:
+                    kids = np.take_along_axis(kids, pick, axis=1)
                 fan = kids.shape[1]
                 spread = node.prob * u[:, None, :] * level.ok[kids]
+                if fan < full:
+                    spread *= full / fan
                 below = self._value(
                     sigma, hero, node.child,
-                    spread.reshape(-1, N_STATES), np.repeat(h, fan, axis=0), kids.ravel(),
+                    spread.reshape(-1, N_STATES), np.repeat(h, fan, axis=0), kids.ravel(), draws,
                 )
                 return below.reshape(nb, fan, nh).sum(axis=1)
-            return self._value(sigma, hero, node.child, node.prob * u * d.levels[node.level].ok[b], h, b)
+            return self._value(
+                sigma, hero, node.child, node.prob * u * d.levels[node.level].ok[b], h, b, draws
+            )
         if node.player == hero:
             index = d.keys[(node.level, node.discards[hero])].index[b[:, None], h]  # (nb, nh)
             valid = index >= 0
             mix = np.where(valid[..., None], sigma[node.point][np.where(valid, index, 0)], 0.0)
-            return (self._action_values(sigma, hero, node, u, h, b) * mix).sum(axis=-1)
+            return (self._action_values(sigma, hero, node, u, h, b, draws) * mix).sum(axis=-1)
         index = d.keys[(node.level, node.discards[node.player])].index[b]  # (nb, S)
         valid = index >= 0
         safe = np.where(valid, index, 0)
-        table = sigma[node.point]
+        share = draws.actions(sigma[node.point][safe])  # (nb, S, width)
         total = np.zeros((nb, nh))
         for edge in node.edges:
             pushed = np.zeros_like(u)
             for column, draw in zip(edge.actions, edge.draws, strict=True):
-                played = u * np.where(valid, table[safe, column], 0.0)
+                played = u * np.where(valid, share[..., column], 0.0)
                 if draw is None:
                     pushed += played
-                else:
-                    pushed += _push(played, draw, b)
-            total += self._value(sigma, hero, edge.child, pushed, h, b)
+                    continue
+                pick = draws.subset(draws.sampling.opponent_draws, draw.targets.shape[-1], (nb, len(HOLES)))
+                pushed += _push(played, draw, b, pick)
+            # A line no opponent state takes is worth nothing below; under
+            # action sampling most are, and walking them would cost the
+            # whole subtree for a zero.
+            if pushed.any():
+                total += self._value(sigma, hero, edge.child, pushed, h, b, draws)
         return total
 
     # -- the showdown and compatibility ------------------------------------
@@ -866,17 +1059,22 @@ class ExactTargets:
         share = 0.25 * (2.0 + inner + outer)
         return compat, (terms * share).sum(axis=1) * live
 
-def _push(played: np.ndarray, draw: _DrawMap, b: np.ndarray) -> np.ndarray:
-    """Each pair's vector through a throw on its level-1 board: every pre-draw hole spreads over its twelve replacements."""
+def _push(played: np.ndarray, draw: _DrawMap, b: np.ndarray, pick: np.ndarray | None = None) -> np.ndarray:
+    """Each pair's vector through a throw on its level-1 board: every pre-draw hole spreads over its twelve replacements, or over the k of them `pick` keeps, scaled 12/k."""
     m = played.shape[0]
     targets = draw.targets[b]  # (m, 455, 12)
+    full = targets.shape[2]
+    if pick is not None:
+        targets = np.take_along_axis(targets, pick, axis=2)
     offsets = (np.arange(m) * N_STATES)[:, None, None]
     weights = np.repeat(played[:, draw.source], targets.shape[2], axis=1).ravel()
+    if targets.shape[2] < full:
+        weights *= full / targets.shape[2]
     return np.bincount((offsets + targets).ravel(), weights=weights, minlength=m * N_STATES).reshape(
         m, N_STATES
     )
 
 @cache
-def _full_game() -> ExactTargets:
+def _full_game() -> BoostTargets:
     weights = _weights(None)
-    return ExactTargets(_description(), weights, (_own_deal(weights[0]), _own_deal(weights[1])))
+    return BoostTargets(_description(), weights, (_own_deal(weights[0]), _own_deal(weights[1])))

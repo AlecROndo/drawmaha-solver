@@ -1,8 +1,10 @@
-"""The exact target: what one sampled regret row is worth on average, computed instead of sampled.
+"""The boost target: extra samples of a row's regret, each unbiased for the exact sum the tests first pin down.
 
-The module under test is rung 4's boost oracle: for a table row it sums, over
-every physical entry of the key and every opponent hand, the regret the walk
-would bank there, weighted by how often the walk arrives. The claims, in
+The module under test is rung 4's boost target. Exactly (`EXACT`), for a
+table row it sums, over every physical entry of the key and every opponent
+hand, the regret the walk would bank there, weighted by how often the walk
+arrives; sampled, it estimates that sum from play-outs that keep k of n of
+each source below the row. The claims, in
 order: it imports the rules and never the grader; `sigma` is the ledger's
 own σ row by row; the back-solved opponent reach equals the grader's carried
 vector on every board of every public point, in the full game and in a
@@ -13,7 +15,14 @@ expectation walked through `MiniState` (test b, exact form); on a wider
 restricted game they match the mean and the visit count of thousands of
 `Collector` walks, row by row within four standard errors and pooled (tests
 b and c); rows of the wrong seat are refused and an unreachable row is zero;
-and the cost per round-2 row is recorded (test d, a benchmark).
+and the cost per round-2 row is recorded (test d, a benchmark). Then the
+sampled forms (e): counts that are not positive ints are refused by name; a
+count at or above its fan is enumeration, bit for bit; each source alone,
+and all of them together, is unbiased against the exact sum at a row where
+it is live, and actually moves the target there; a row's sample depends on
+(seed, t, seat, row) only; play-outs shrink the spread as 1/M; an
+unreachable row is zero under any sampling; and sampling a draw or round-1
+row costs a fraction of its exact sum.
 
 Helpers are restated rather than imported from other test modules, as the
 suite's rule has it.
@@ -46,18 +55,20 @@ from drawmaha_solver.minidrawmaha.rules.game import (
     canonical_picture,
     random_deal,
 )
-from drawmaha_solver.minidrawmaha.solver.exact_target import (
+from drawmaha_solver.minidrawmaha.solver.boost_target import (
     HOLES,
     N_STATES,
     SLOTS,
-    ExactTargets,
+    EXACT,
+    BoostTargets,
+    Sampling,
     board_row,
     state_index,
 )
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 
 REPO = Path(__file__).parents[2]
-MODULE = REPO / "src" / "drawmaha_solver" / "minidrawmaha" / "solver" / "exact_target.py"
+MODULE = REPO / "src" / "drawmaha_solver" / "minidrawmaha" / "solver" / "boost_target.py"
 FULL_TARGET = os.environ.get("MINIDRAWMAHA_FULL_TARGET") == "1"
 
 # ---------------------------------------------------------------------------
@@ -326,8 +337,8 @@ def test_the_module_imports_the_rules_and_never_the_grader_or_the_net():
 # ---------------------------------------------------------------------------
 
 def test_build_is_one_object_per_deal_set_over_a_shared_description():
-    full = ExactTargets.build()
-    assert ExactTargets.build() is full  # the default is cached: the description takes seconds to build
+    full = BoostTargets.build()
+    assert BoostTargets.build() is full  # the default is cached: the description takes seconds to build
     assert len(full.points) == 141
     # The reach memo's bound, as the module states it: every node with one
     # board card out on the path from a decision to the root, and every
@@ -367,7 +378,7 @@ def test_build_is_one_object_per_deal_set_over_a_shared_description():
         assert sizes <= {1, 2, 3, 6}
 
 def test_sigma_is_the_ledgers_strategy_row_by_row():
-    full = ExactTargets.build()
+    full = BoostTargets.build()
     table = random_table(1)
     sigma = full.sigma(table)
     assert len(sigma) == 141
@@ -392,7 +403,7 @@ RESTRICTED = (
 @pytest.mark.parametrize("holes", [None, RESTRICTED], ids=["full", "restricted"])
 @pytest.mark.parametrize("carried", [0, 1])
 def test_reach_equals_the_graders_carried_reach_on_every_board(holes, carried):
-    exact = ExactTargets.build(holes=holes)
+    exact = BoostTargets.build(holes=holes)
     game = grader.minidrawmaha_game(holes=holes)
     table = random_table(2)
     sigma = exact.sigma(table)
@@ -417,7 +428,7 @@ def test_arrival_at_a_seats_first_decision_is_the_graders_frequency_and_sums_to_
     # Before a seat has acted, own reach is the deal alone, so the grader's
     # `frequency` (own × compat) at its opening points is exactly the walk's
     # arrival; and every walk reaches one of them.
-    exact = ExactTargets.build()
+    exact = BoostTargets.build()
     game = grader.minidrawmaha_game()
     table = random_table(3)
     sigma = exact.sigma(table)
@@ -445,7 +456,7 @@ def test_arrival_at_a_seats_first_decision_is_the_graders_frequency_and_sums_to_
         # The full computation agrees with the arrival-only path (a round-1
         # row's value walks the whole game below it, so a handful of rows).
         some = rows[:: max(1, len(rows) // 4)]
-        regret, with_values = exact.targets(sigma, seat=seat, rows=some)
+        regret, with_values = exact.targets(sigma, seat=seat, rows=some, sampling=EXACT)
         assert regret.shape == (len(some), 4) and np.isfinite(regret).all()
         np.testing.assert_array_equal(with_values, arrival[:: max(1, len(rows) // 4)])
     assert total == pytest.approx(1.0, abs=1e-12)
@@ -486,12 +497,12 @@ def canonical_key(private):
 @pytest.mark.parametrize("seat", [0, 1])
 def test_regret_and_arrival_equal_a_world_by_world_expectation(seat):
     pairs = allowed_pairs(*SMALL)
-    exact = ExactTargets.build(holes=SMALL)
+    exact = BoostTargets.build(holes=SMALL)
     table = positive_table(4)
     sigma = exact.sigma(table)
     keys = small_game_keys(seat)
     rows = rows_at(table, keys)
-    regret, arrival = exact.targets(sigma, seat=seat, rows=rows)
+    regret, arrival = exact.targets(sigma, seat=seat, rows=rows, sampling=EXACT)
     for key, row_regret, row_arrival in zip(keys, regret, arrival, strict=True):
         expected, reach = world_by_world(table, key, pairs)
         assert reach > 0, str(key)
@@ -525,7 +536,7 @@ def test_regret_and_arrival_match_the_sampled_walks_row_by_row_and_pooled():
     # (swapped reach, a dropped entry, the wrong chance factor) far above.
     walks = 6_000
     _ALLOWED[:] = allowed_pairs(*WIDE)
-    exact = ExactTargets.build(holes=WIDE)
+    exact = BoostTargets.build(holes=WIDE)
     table = random_table(5)
     sigma = exact.sigma(table)
     with Collector(seed=11, workers=0, deal=restricted_deal) as collector:
@@ -534,7 +545,7 @@ def test_regret_and_arrival_match_the_sampled_walks_row_by_row_and_pooled():
     rows, counts = np.unique(offered.advantage_rows, return_counts=True)
     enough = counts >= 40
     rows, counts = rows[enough], counts[enough]
-    regret, arrival = exact.targets(sigma, seat=0, rows=rows)
+    regret, arrival = exact.targets(sigma, seat=0, rows=rows, sampling=EXACT)
     # Rows are kept by their EXPECTED count, 80 or more, so the observed
     # cutoff of 40 sits 4.5 standard errors below every kept row's mean and
     # the selection cannot bias z: a row chosen by its observed count alone
@@ -567,7 +578,7 @@ def test_regret_and_arrival_match_the_sampled_walks_row_by_row_and_pooled():
 @pytest.mark.parametrize("seat", [0, 1])
 def test_arrival_is_the_visit_rate_of_two_hundred_thousand_whole_game_walks(seat):
     walks = 200_000
-    exact = ExactTargets.build()
+    exact = BoostTargets.build()
     table = random_table(6)
     sigma = exact.sigma(table)
     with Collector(seed=12, workers=8, deal=random_deal) as collector:
@@ -602,24 +613,24 @@ def test_arrival_is_the_visit_rate_of_two_hundred_thousand_whole_game_walks(seat
 # ---------------------------------------------------------------------------
 
 def test_rows_of_the_other_seat_and_outside_the_table_are_refused():
-    exact = ExactTargets.build()
+    exact = BoostTargets.build()
     table = random_table(7)
     sigma = exact.sigma(table)
     points = public_decision_points()
     seat1 = next(i for i, point in enumerate(points) if point.player == 1)
     row_of_seat_1 = table.row_of(key_on(points[seat1], shape_of(points[seat1])[0]))
     with pytest.raises(ValueError, match="seat"):
-        exact.targets(sigma, seat=0, rows=np.array([row_of_seat_1]))
+        exact.targets(sigma, seat=0, rows=np.array([row_of_seat_1]), sampling=EXACT)
     with pytest.raises(ValueError, match="seat"):
-        exact.targets(sigma, seat=2, rows=np.array([0]))
+        exact.targets(sigma, seat=2, rows=np.array([0]), sampling=EXACT)
     for bad in (-1, len(table)):
         with pytest.raises(IndexError):
-            exact.targets(sigma, seat=0, rows=np.array([bad]))
+            exact.targets(sigma, seat=0, rows=np.array([bad]), sampling=EXACT)
 
 def test_an_unreachable_row_has_zero_arrival_and_zero_regret():
     # Seat 1 never bets or raises: every seat-0 round-1 row facing a bet is
     # unreachable, and the exact target says so with zeros rather than NaN.
-    exact = ExactTargets.build()
+    exact = BoostTargets.build()
     table = random_table(8)
     points = public_decision_points()
     for p, point in enumerate(points):
@@ -637,7 +648,149 @@ def test_an_unreachable_row_has_zero_arrival_and_zero_regret():
         and point.betting[0][-1:] == (Action.POT,)
     )
     rows = np.arange(len(shape_of(points[facing]))) + table.row_of(key_on(points[facing], shape_of(points[facing])[0]))
-    regret, arrival = exact.targets(sigma, seat=0, rows=rows)
+    regret, arrival = exact.targets(sigma, seat=0, rows=rows, sampling=EXACT)
+    assert not arrival.any() and not regret.any()
+    assert np.isfinite(regret).all()
+
+# ---------------------------------------------------------------------------
+# (e) sampling below the row: unbiased against the exact sum, seeded per row
+# ---------------------------------------------------------------------------
+
+def only(**sampled) -> Sampling:
+    """A Sampling that enumerates every source but the ones named."""
+    return Sampling(**{
+        "opponent_range": None, "board_cards": None, "opponent_draws": None,
+        "hero_draws": None, "opponent_actions": None, **sampled,
+    })
+
+def row_on(table: PackedTable, point: int, position: int = 7) -> np.ndarray:
+    points = public_decision_points()
+    return np.array([table.row_of(key_on(points[point], shape_of(points[point])[position]))])
+
+def sampled(exact, sigma, seat, rows, sampling, seeds) -> np.ndarray:
+    """One sampled target per seed, `(len(seeds), 4)`, t equal to the seed."""
+    return np.stack([
+        exact.targets(sigma, seat=seat, rows=rows, sampling=sampling, seed=0, t=s)[0][0] for s in seeds
+    ])
+
+@pytest.mark.parametrize(
+    "bad",
+    [dict(board_cards=0), dict(hero_draws=-1), dict(opponent_actions=True), dict(opponent_range=1.5), dict(playouts=0)],
+    ids=lambda d: next(iter(d)),
+)
+def test_sampling_refuses_counts_that_are_not_positive_ints(bad):
+    field = next(iter(bad))
+    with pytest.raises(ValueError, match=f"Sampling.{field}"):
+        Sampling(**bad)
+
+def test_exact_with_more_than_one_playout_is_refused():
+    with pytest.raises(ValueError, match="playouts must be 1"):
+        only(playouts=2)
+
+def test_a_sampled_call_names_its_seed_and_t():
+    exact = BoostTargets.build()
+    table = positive_table(3)
+    sigma = exact.sigma(table)
+    rows = row_on(table, 4)
+    with pytest.raises(ValueError, match="seed"):
+        exact.targets(sigma, seat=0, rows=rows, sampling=Sampling(), t=0)
+    with pytest.raises(ValueError, match="t,|non-negative int t"):
+        exact.targets(sigma, seat=0, rows=rows, sampling=Sampling(), seed=0)
+    with pytest.raises(TypeError, match="Sampling"):
+        exact.targets(sigma, seat=0, rows=rows, sampling=None)
+
+@pytest.mark.parametrize("point", [2, 0], ids=["draw row", "round-1 row"])
+def test_a_count_at_or_above_its_fan_is_enumeration_bit_for_bit(point):
+    exact = BoostTargets.build()
+    table = positive_table(3)
+    sigma = exact.sigma(table)
+    rows = row_on(table, point)
+    full = only(board_cards=14, opponent_draws=12, hero_draws=99)
+    want = exact.targets(sigma, seat=0, rows=rows, sampling=EXACT)
+    got = exact.targets(sigma, seat=0, rows=rows, sampling=full, seed=0, t=0)
+    assert np.array_equal(want[0], got[0]) and np.array_equal(want[1], got[1])
+
+# Each source alone at a row where it is live, then all of them at once. The
+# draw-row cases walk the whole draw and round 2 below them, about 0.2 s a
+# call when nothing prunes, so they take fewer seeds.
+UNBIASED = [
+    ("opponent_range", only(opponent_range=1), 4, 0, 400),
+    ("opponent_actions", only(opponent_actions=1), 4, 0, 400),
+    ("board_cards", only(board_cards=1), 2, 0, 200),
+    ("hero_draws, seat 0", only(hero_draws=1), 2, 0, 60),
+    ("hero_draws, seat 1", only(hero_draws=1), 3, 1, 60),
+    ("opponent_draws", only(opponent_draws=1), 2, 0, 60),
+    ("the walk's sampling, whole range", Sampling(), 2, 0, 200),
+    ("everything at one", Sampling(opponent_range=1), 2, 0, 200),
+    ("two of each, two play-outs", Sampling(playouts=2, opponent_range=2, board_cards=2, opponent_draws=2,
+                                            hero_draws=2, opponent_actions=2), 2, 0, 100),
+]
+
+@pytest.mark.parametrize(("sampling", "point", "seat", "n"), [c[1:] for c in UNBIASED], ids=[c[0] for c in UNBIASED])
+def test_each_sampled_source_is_unbiased_and_actually_samples(sampling, point, seat, n):
+    exact = BoostTargets.build()
+    table = positive_table(3)
+    sigma = exact.sigma(table)
+    rows = row_on(table, point)
+    want, arrival = exact.targets(sigma, seat=seat, rows=rows, sampling=EXACT)
+    assert arrival[0] > 0.0
+    draws = sampled(exact, sigma, seat, rows, sampling, range(n))
+    spread = draws.std(axis=0, ddof=1)
+    live = spread > 0.0
+    # Not vacuous: the source really varied the target at this row.
+    assert live.any(), "the sampled source never moved the target here"
+    z = (draws.mean(axis=0)[live] - want[0][live]) / (spread[live] / np.sqrt(n))
+    assert (np.abs(z) < 4.5).all(), z
+    # A column the sample never moves is the exact one, bit for bit or near.
+    np.testing.assert_allclose(draws[:, ~live], np.broadcast_to(want[0][~live], draws[:, ~live].shape), atol=1e-12)
+    _, sampled_arrival = exact.targets(sigma, seat=seat, rows=rows, sampling=sampling, seed=0, t=0)
+    assert sampled_arrival[0] == arrival[0] == exact.arrivals(sigma, seat=seat, rows=rows)[0]
+
+def test_a_rows_sample_depends_on_seed_t_seat_and_row_only():
+    exact = BoostTargets.build()
+    table = positive_table(3)
+    sigma = exact.sigma(table)
+    rows = np.concatenate([row_on(table, 4, 7), row_on(table, 2, 11), row_on(table, 4, 30)])
+    at = lambda r, t=5: exact.targets(sigma, seat=0, rows=r, sampling=Sampling(opponent_range=1), seed=1, t=t)[0]
+    together = at(rows)
+    assert np.array_equal(at(rows[::-1]), together[::-1])
+    assert np.array_equal(np.concatenate([at(rows[:1]), at(rows[1:])]), together)
+    assert np.array_equal(at(rows[[0, 0, 1, 2]]), together[[0, 0, 1, 2]])
+    assert not np.array_equal(at(rows, t=6), together)
+
+def test_more_playouts_shrink_the_spread_as_one_over_m():
+    exact = BoostTargets.build()
+    table = positive_table(3)
+    sigma = exact.sigma(table)
+    rows = row_on(table, 4)
+    one = sampled(exact, sigma, 0, rows, only(opponent_actions=1), range(200)).var(axis=0, ddof=1)
+    eight = sampled(exact, sigma, 0, rows, only(opponent_actions=1, playouts=8), range(200)).var(axis=0, ddof=1)
+    live = one > 0.0
+    ratio = eight[live] / one[live]
+    assert ((1 / 16 < ratio) & (ratio < 1 / 4)).all(), ratio
+
+def test_an_unreachable_row_is_zero_under_any_sampling():
+    # The same construction as the exact test above: seat 1 never bets, so a
+    # seat-0 round-1 row facing a bet has no weight to draw a range from.
+    exact = BoostTargets.build()
+    table = random_table(8)
+    points = public_decision_points()
+    for p, point in enumerate(points):
+        if point.player == 1 and not point.is_draw_decision and Action.POT in point.actions:
+            column = point.actions.index(Action.POT)
+            for position in range(len(shape_of(point))):
+                _, start, width = table.slot_of(key_on(point, shape_of(point)[position]))
+                table.cumulative_regret[start + column] = -1.0
+                if not (table.cumulative_regret[start : start + width] > 0).any():
+                    table.cumulative_regret[start + point.actions.index(Action.CHECK_CALL)] = 1.0
+    sigma = exact.sigma(table)
+    facing = next(
+        i for i, point in enumerate(points)
+        if point.player == 0 and point.board_cards == 1 and not point.is_draw_decision
+        and point.betting[0][-1:] == (Action.POT,)
+    )
+    rows = np.arange(4) + table.row_of(key_on(points[facing], shape_of(points[facing])[0]))
+    regret, arrival = exact.targets(sigma, seat=0, rows=rows, sampling=Sampling(opponent_range=1), seed=0, t=0)
     assert not arrival.any() and not regret.any()
     assert np.isfinite(regret).all()
 
@@ -646,7 +799,7 @@ def test_an_unreachable_row_has_zero_arrival_and_zero_regret():
 # ---------------------------------------------------------------------------
 
 def test_a_round_two_row_costs_a_few_milliseconds():
-    exact = ExactTargets.build()
+    exact = BoostTargets.build()
     table = random_table(9)
     sigma = exact.sigma(table)
     rng = np.random.default_rng(0)
@@ -656,9 +809,9 @@ def test_a_round_two_row_costs_a_few_milliseconds():
     rows = np.concatenate([
         offsets[p] + rng.choice(len(shape_of(points[p])), size=10, replace=False) for p in round_two
     ])
-    exact.targets(sigma, seat=0, rows=rows[:5])  # warm the description
+    exact.targets(sigma, seat=0, rows=rows[:5], sampling=EXACT)  # warm the description
     started = time.perf_counter()
-    exact.targets(sigma, seat=0, rows=rows)
+    exact.targets(sigma, seat=0, rows=rows, sampling=EXACT)
     per_row = (time.perf_counter() - started) / rows.size
     print(f"\nexact target: {per_row * 1e3:.2f} ms per round-2 row over {rows.size} rows")
     # The plan's figure is 1 ms a row and the measured one 0.8 ms. The
@@ -667,3 +820,25 @@ def test_a_round_two_row_costs_a_few_milliseconds():
     # cross it, narrow enough to catch a regression to the grader's
     # whole-board update, which is about a second a row.
     assert per_row < 0.050
+
+def test_sampling_below_a_draw_or_round_one_row_costs_a_fraction_of_the_exact_sum():
+    # The board card's fourteen branches and the hero's thirty-six
+    # replacements are what an exact draw or round-1 row pays for; the walk's
+    # sampling keeps one of each. Printed for the record; the assertion is a
+    # ratio, which a busy laptop slows on both sides alike.
+    exact = BoostTargets.build()
+    table = positive_table(3)
+    sigma = exact.sigma(table)
+    lines = []
+    for point, name in ((4, "round 2"), (2, "draw"), (0, "round 1")):
+        rows = np.concatenate([row_on(table, point, position) for position in (3, 7, 11)])
+        exact.targets(sigma, seat=0, rows=rows[:1], sampling=EXACT)  # warm
+        cost = {}
+        for label, sampling in (("exact", EXACT), ("walk's sampling", Sampling())):
+            started = time.perf_counter()
+            exact.targets(sigma, seat=0, rows=rows, sampling=sampling, seed=0, t=0)
+            cost[label] = (time.perf_counter() - started) / rows.size
+        lines.append(f"{name:>8}: exact {cost['exact'] * 1e3:7.1f} ms, walk's sampling {cost["walk's sampling"] * 1e3:6.1f} ms a row")
+        if point != 4:
+            assert cost["walk's sampling"] < cost["exact"] / 2, (name, cost)
+    print("\nboost target, a positive table:\n" + "\n".join(lines))
