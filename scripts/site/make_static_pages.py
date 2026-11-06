@@ -853,7 +853,7 @@ def home() -> str:
     best_col = max(range(5), key=lambda j: SPOT["cols"][j][1])
     hero_fig = figure(
         None,
-        f"Deep CFR leads the table to {hands(LEAD_HANDS)} hands, then flattens where the table keeps falling",
+        "Net vs table at equal hands",
         "Exploitability of the average strategy on mini-drawmaha, log scales",
         equal_hands_chart(568, 330),
         f"At {hands(LEAD_HANDS)} hands per seat the Deep CFR exact average grades {g3(net_lead)} chips per hand against "
@@ -875,7 +875,7 @@ def home() -> str:
 <section class="band split" id="results">
   <div class="split-aside">
     <p class="eyebrow">Results</p>
-    <h2>Four games solved, each graded by exploitability</h2>
+    <h2>Four games, solved and graded</h2>
     <p>Exploitability is what a best response wins per hand against the solver's average strategy. Zero is a Nash equilibrium. Every grader reads the game's rules and nothing from the solver it grades.</p>
     <p class="more-row"><a class="more" href="/benchmarks">All benchmarks →</a></p>
   </div>
@@ -885,7 +885,7 @@ def home() -> str:
 <section class="band split" id="explorer">
   <div class="split-aside">
     <p class="eyebrow">Range explorer</p>
-    <h2>Seat 0 opens with a bet {pct(SPOT["bet"])} of the time, most often when it {REACHING[best_col]}</h2>
+    <h2>The opening spot: a bet {pct(SPOT["bet"])} of the time</h2>
     <p>Rows are what the three held cards make on their own; columns are what they reach for with the board card. Each cell is its share of every opening hand and how often that share bets. The explorer opens any cell down to a single hand, at every spot of the game.</p>
     <p class="more-row"><a class="more" href="/solver">Open the range explorer →</a></p>
   </div>
@@ -905,15 +905,15 @@ def home() -> str:
 <section class="band split" id="research">
   <div class="split-aside">
     <p class="eyebrow">Research</p>
-    <h2>Keeping negative regret wins the race, and a network leads the table to {hands(LEAD_HANDS)} hands</h2>
+    <h2>Linear CFR wins; the net leads to {hands(LEAD_HANDS)} hands</h2>
     <p>One long write-up with its data and figures, a survey of the machine learning behind it, and the benchmarks every method was checked on first.</p>
   </div>
   <div class="split-main">
     <table class="hair index"><tbody>
       <tr><td class="when num">{RESEARCH_DATES["write-up"]}</td><td><a class="title" href="/research">Mini-drawmaha, solved</a><span>Linear CFR grades {g3(LCFR[-1][1])} at {hands(LCFR[-1][0])} hands per seat, against {g3(cfrplus)} and {g3(dcfr)} for the two rules that drop negative regret; a Deep CFR run leads the table to {hands(LEAD_HANDS)} hands per seat.</span></td><td class="kind">Write-up</td></tr>
-      <tr><td class="when num">{RESEARCH_DATES["endpoint"]}</td><td><a class="title" href="/research#ch-05">Run to the table's endpoint, the network flattens at {g3(net_lead)} and the table passes it</a><span>The ÷ pot network grades {g3(net_lead)} at {hands(LEAD_HANDS)} hands per seat and {g3(DEEP[-1][1])} at {hands(DEEP_HANDS)}; the table, at {g3(lcfr_lead)} and then {g3(LCFR[-1][1])}, passes it between the two marks. One seed.</span></td><td class="kind">Chapter</td></tr>
-      <tr><td class="when num">{RESEARCH_DATES["pot"]}</td><td><a class="title" href="/research#ch-06">Regret targets divided by √pot train a better network</a><span>{g3(SQRT[-1][1])} against {g3(raw_at_pot)} undivided at {hands(POT_HANDS)} hands per seat, same network, same steps; dividing by the whole pot gives {g3(pot_one_at_pot)}.</span></td><td class="kind">Chapter</td></tr>
-      <tr><td class="when num">{RESEARCH_DATES["survey"]}</td><td><a class="title" href="{REPO}/blob/main/paper/drawmaha-ml-survey.pdf">The machine learning behind the solver</a><span>A survey: regret matching, CFR and its sampled and discounted variants, Deep CFR, and how each is graded.</span></td><td class="kind">PDF</td></tr>
+      <tr><td class="when num">{RESEARCH_DATES["endpoint"]}</td><td><a class="title" href="/research#ch-05">The table passes the net</a><span>The ÷ pot network grades {g3(net_lead)} at {hands(LEAD_HANDS)} hands per seat and {g3(DEEP[-1][1])} at {hands(DEEP_HANDS)}; the table, at {g3(lcfr_lead)} and then {g3(LCFR[-1][1])}, passes it between the two marks. One seed.</span></td><td class="kind">Chapter</td></tr>
+      <tr><td class="when num">{RESEARCH_DATES["pot"]}</td><td><a class="title" href="/research#ch-06">√pot targets train a better net</a><span>{g3(SQRT[-1][1])} against {g3(raw_at_pot)} undivided at {hands(POT_HANDS)} hands per seat, same network, same steps; dividing by the whole pot gives {g3(pot_one_at_pot)}.</span></td><td class="kind">Chapter</td></tr>
+      <tr><td class="when num">{RESEARCH_DATES["survey"]}</td><td><a class="title" href="{REPO}/blob/main/paper/drawmaha-ml-survey.pdf">The ML survey</a><span>A survey: regret matching, CFR and its sampled and discounted variants, Deep CFR, and how each is graded.</span></td><td class="kind">PDF</td></tr>
       <tr><td class="when num">{RESEARCH_DATES["benchmarks"]}</td><td><a class="title" href="/benchmarks">Rock-paper-scissors, Kuhn and Leduc, graded</a><span>The three small games against a closed form and an OpenSpiel solve, each with a live demo.</span></td><td class="kind">Benchmarks</td></tr>
     </tbody></table>
   </div>
@@ -922,7 +922,7 @@ def home() -> str:
 <section class="band split" id="play">
   <div class="split-aside">
     <p class="eyebrow">Play</p>
-    <h2>Act against the solver, with its answer beside yours</h2>
+    <h2>Play the solver</h2>
     <p>A hand is dealt from a pack of {DEALT["of"]}. You act; the coach shows how the solver mixes at the same spot with the same cards. Settled hands go to a ledger.</p>
     <p class="more-row"><a class="more" href="/play">Play the solver →</a></p>
   </div>
@@ -950,8 +950,8 @@ def home() -> str:
 <section class="band" id="method">
   <p class="eyebrow">Method</p>
   <div class="method">
-    <div><h3>Graded by an exact best response</h3><p>Each game is solved, then a best response is computed exactly against the average strategy. What it wins per hand is the grade. A game is not called solved on a learning curve.</p></div>
-    <div><h3>A grader shares no code with its solver</h3><p>Every grader imports the game's rules and nothing else, so a bug cannot sit in both and cancel. Hidden cards are summed over before the responder takes a maximum.</p></div>
+    <div><h3>Exact best-response grading</h3><p>Each game is solved, then a best response is computed exactly against the average strategy. What it wins per hand is the grade. A game is not called solved on a learning curve.</p></div>
+    <div><h3>Grader and solver share no code</h3><p>Every grader imports the game's rules and nothing else, so a bug cannot sit in both and cancel. Hidden cards are summed over before the responder takes a maximum.</p></div>
     <div><h3>Every figure is regenerated</h3><p>Python, NumPy and torch; training runs on Modal and the site on Vercel. Every chart and table here is written from committed data by a named command, never edited by hand.</p></div>
   </div>
 </section>
@@ -1053,14 +1053,14 @@ def rules() -> str:
 <header class="page-head">
   <div class="page-head-copy">
     <p class="eyebrow">Rules</p>
-    <h1>Five cards, one draw, and a pot that pays twice.</h1>
+    <h1>Omaha meets five-card draw.</h1>
     <p class="lede">Drawmaha is a split-pot draw and Omaha hybrid, played here heads-up and pot-limit. Each player holds five cards, a board is dealt as in Omaha with one draw after the flop, and at showdown the same five cards are read twice: half the pot to the best Omaha hand, half to the best five-card draw hand.</p>
   </div>
 </header>
 
 <section class="band first" id="streets">
   <figure class="fig">
-    <div class="fig-head"><span class="fig-n">Figure 1</span><div class="fig-title">Five streets and three betting rounds, then a showdown read twice</div>
+    <div class="fig-head"><span class="fig-n">Figure 1</span><div class="fig-title">One hand, street by street</div>
     <div class="fig-sub">The order of one hand; the accent marks a betting round</div></div>
     <div class="fig-body"><ol class="ruler">{ruler}<li class="show"><span class="st-n num" aria-hidden="true">&#160;</span><span class="st-t">Showdown</span><span class="st-d">Half the pot to the best Omaha hand, half to the best draw hand. A tie for a half splits that half.</span></li></ol></div>
     <figcaption class="fig-cap">Pot-limit throughout: a bet is at most the pot. The draw is the street Omaha never has, and it is where the tree grows.</figcaption>
@@ -1070,7 +1070,7 @@ def rules() -> str:
 <section class="band split" id="hand">
   <div class="split-aside">
     <p class="eyebrow">One hand, read twice</p>
-    <h2>The same five cards make a king-high straight flush one way and a pair of sevens the other</h2>
+    <h2>One hand, two rankings</h2>
     <p>Dealt A♠ K♠ 7♥ 7♦ 3♣. The flop comes Q♠ J♠ 7♣; the 3♣ is thrown and the 10♠ drawn; the turn is the 4♦ and the river the 9♠.</p>
   </div>
   <div class="split-main">
@@ -1097,7 +1097,7 @@ def rules() -> str:
 
 <section class="band" id="size">
   <p class="eyebrow">Why it is unsolved</p>
-  <h2 class="size-h">Two rankings on one pot, and a draw that multiplies the tree</h2>
+  <h2 class="size-h">Two rankings and a draw</h2>
   <div class="tiles">
     <div><span class="v num">{holdings:,}</span><span class="l">five-card holdings a player can be dealt, against {holdem:,} in hold'em and {omaha:,} in Omaha</span></div>
     <div><span class="v num">{discards}</span><span class="l">ways to discard from each holding at the draw, each opening onto fresh cards off the deck</span></div>
@@ -1219,7 +1219,7 @@ def benchmarks() -> str:
 <header class="page-head">
   <div class="page-head-copy">
     <p class="eyebrow">Benchmarks</p>
-    <h1>Four games with known answers, and how far each solver is from them.</h1>
+    <h1>Four games with known answers.</h1>
     <p class="lede">Each solver is graded by exploitability: the chips per hand a best response wins against its average strategy. Zero is a Nash equilibrium. Each game was solved and graded before the next was started.</p>
   </div>
 </header>
@@ -1232,7 +1232,7 @@ def benchmarks() -> str:
 
   <section class="b" id="rps">
     <p class="eyebrow">Benchmark 1 · Rock-paper-scissors</p>
-    <h2>Regret matching finds the uniform Nash of rock-paper-scissors</h2>
+    <h2>Rock-paper-scissors</h2>
     <p class="sub">Two regret matchers play each other. Each keeps a ledger of how much better every throw would have done, and mixes in proportion to the positive part. The current strategy wanders; the average converges.</p>
     <div class="two">
       {figure(None, f"After {rps['iterations']} rounds the average throws each a third of the time", "Self-play average strategy, share of throws; the dashed line is the uniform Nash", rps_chart.replace("</svg>", _third_line(420, 90, 0.5, 3) + "</svg>"), f"Exploitable for {rps['grade']} chips a round. Against a 50%-rock opponent the same ledger settles on pure paper and earns +{rps['earned']} a round, where the best response earns +{rps['best']}.")}
@@ -1246,10 +1246,10 @@ def benchmarks() -> str:
 
   <section class="b" id="kuhn">
     <p class="eyebrow">Benchmark 2 · Kuhn poker</p>
-    <h2>Vanilla CFR on Kuhn poker reaches {avg[-1][1]:.5f} of the closed-form equilibrium</h2>
+    <h2>Kuhn poker: exploitable by {avg[-1][1]:.5f}</h2>
     <p class="sub">Three cards, one bet, twelve information sets. The equilibrium is a one-parameter family known in closed form, and the game is small enough that all 64 pure strategies are enumerated for the grade. The game value is −1/18 for the first player.</p>
     <div class="two">
-      {figure(None, "The average strategy falls steadily; the current one never settles", "Exploitability by iteration, vanilla CFR, log scales", kuhn_chart, "The current iterate cycles around 0.2 and is worse at 1,000 iterations than at 10. Only the average converges, which is why every strategy on this site is an average.")}
+      {figure(None, "The average strategy falls; the current one never settles", "Exploitability by iteration, vanilla CFR, log scales", kuhn_chart, "The current iterate cycles around 0.2 and is worse at 1,000 iterations than at 10. Only the average converges, which is why every strategy on this site is an average.")}
       <div>
         <table class="hair"><thead><tr><th>Iterations</th><th class="r">Average</th><th class="r">Current</th><th class="r">Game value</th></tr></thead><tbody>{kuhn_table}</tbody></table>
         <p class="note">Exploitability in chips per hand. At 100 iterations the game value is within 0.0009 of −1/18 and looks solved, while the strategy is still 15 times more exploitable than at 10,000.</p>
@@ -1260,7 +1260,7 @@ def benchmarks() -> str:
 
   <section class="b" id="leduc">
     <p class="eyebrow">Benchmark 3 · Leduc poker</p>
-    <h2>Vanilla CFR on Leduc poker grades {l_avg:.3f} against an OpenSpiel solve</h2>
+    <h2>Leduc poker: exploitable by {l_avg:.3f}</h2>
     <p class="sub">Six cards, two rounds, one community card, 288 information sets. There is no closed form, so the reference is OpenSpiel's solve of the same game, frozen in the repository as a fixture.</p>
     <div class="two">
       {figure(None, f"After {leduc['iterations']:,} iterations the average is {ratio:.0f} times less exploitable than the current strategy", "Exploitability in chips per hand, vanilla CFR, the committed solve", leduc_chart, "Both strategies come from the same run; only the average is the answer.")}
@@ -1278,21 +1278,21 @@ def benchmarks() -> str:
 
   <section class="b" id="mini">
     <p class="eyebrow">Benchmark 4 · Mini-drawmaha</p>
-    <h2>Linear CFR on mini-drawmaha grades {g3(LCFR[-1][1])} at {hands(LCFR[-1][0])} hands per seat</h2>
+    <h2>Mini-drawmaha: exploitable by {g3(LCFR[-1][1])}</h2>
     <p class="sub">6,220,050 information sets, sampled by lockstep MCCFR, four regret rules raced on one seed. The grader is an exact best-response walk; no outside engine plays this game.</p>
     {figure(None, f"Linear CFR is four times less exploitable than CFR+ and DCFR at {hands(LCFR[-1][0])} hands per seat", "Exploitability of the linear average by hands per seat, seed 0, log scales", race_chart(896, 360), f"Vanilla ends at {g3(vanilla)}, CFR+ at {g3(cfrplus)} and DCFR at {g3(dcfr)}; uniform random play is {UNIFORM:.2f}. The full write-up is <a href=\"/research\">on the research page</a>.")}
   </section>
 
   <section class="b" id="deep">
     <p class="eyebrow">Benchmark 5 · Deep CFR</p>
-    <h2>Deep CFR on mini-drawmaha grades {g3(net_lead)} at {hands(LEAD_HANDS)} hands per seat, and {g3(DEEP[-1][1])} at {hands(DEEP_HANDS)}</h2>
+    <h2>Deep CFR: exploitable by {g3(DEEP[-1][1])}</h2>
     <p class="sub">The same sampler and the same grader, with the regret table replaced by a 4 × 256 network per seat and its regret targets divided by the pot, run to the table's own endpoint. Graded at equal hands per seat against the table.</p>
-    {figure(None, f"Deep CFR leads the table to {hands(LEAD_HANDS)} hands, then flattens where the table keeps falling", "Exploitability at equal hands per seat, exact average against tabular LCFR, log scales", equal_hands_chart(896, 340), f"At {hands(LEAD_HANDS)} hands per seat the table grades {g3(lcfr_lead)} against the net's {g3(net_lead)}; at {hands(DEEP_HANDS)} it grades {g3(lcfr_at_deep)}, under the net for the first time, while the net's last ten million hands moved it from {g4(net_lead)} to {g4(DEEP[-1][1])}. The run's policy network Π grades {g3(pi_deep)} at the end; the chapter on the network is <a href=\"/research#ch-05\">on the research page</a>.")}
+    {figure(None, "Net vs table at equal hands", "Exploitability at equal hands per seat, exact average against tabular LCFR, log scales", equal_hands_chart(896, 340), f"At {hands(LEAD_HANDS)} hands per seat the table grades {g3(lcfr_lead)} against the net's {g3(net_lead)}; at {hands(DEEP_HANDS)} it grades {g3(lcfr_at_deep)}, under the net for the first time, while the net's last ten million hands moved it from {g4(net_lead)} to {g4(DEEP[-1][1])}. The run's policy network grades {g3(pi_deep)} at the end; the chapter on the network is <a href=\"/research#ch-05\">on the research page</a>.")}
   </section>
 
   <section class="b" id="full">
     <p class="eyebrow">Next · Full Drawmaha</p>
-    <h2>Full Drawmaha has not been started</h2>
+    <h2>Full Drawmaha: not started</h2>
     <p class="sub">2,598,960 holdings, 32 discards from each, two rankings on one pot. The plan is Deep CFR at scale, graded by head-to-head checkpoint matches and a trained exploiter, since no exact walk crosses the full tree. The range explorer runs the full game already, with an illustrative strategy that it labels as such.</p>
     <p><a class="more" href="/solver">Open the range explorer →</a></p>
   </section>
@@ -1378,7 +1378,7 @@ def releases_page() -> str:
 <header class="page-head">
   <div class="page-head-copy">
     <p class="eyebrow">Releases</p>
-    <h1>Every strategy the site ships, with its grade.</h1>
+    <h1>Every released strategy, graded.</h1>
     <p class="lede">Each release is a frozen strategy published as a GitHub release asset and fetched by its SHA-256. Its grade is the exact best response's verdict, read from the committed file the catalogue names.</p>
   </div>
 </header>

@@ -42,7 +42,7 @@ Rock-paper-scissors is the smallest game with a mixed-strategy equilibrium, the 
 
 ![The current strategy cycles; the average settles](fig:rung0/self_play_current_vs_average.png)
 
-## Where it is drawn
+## The app
 
 `web/rung0-viz`, served at [`/rung0`](/rung0). It is the one app that ports its ledger to TypeScript. The 63-line regret-matching rule is safe to transcribe, which the reach-weighted tree walk of the later games is not. The rung-0 writeup (Markdown, LaTeX and PDF) is under [`docs/writeups/rung0-rps/`](repo:docs/writeups/rung0-rps).
 

@@ -131,7 +131,7 @@ export function PlayPanel() {
     <Figure
       n="Figure 4"
       id="play"
-      title="You cannot beat it; the number is how fast you lose"
+      title="How fast you lose"
       sub={`The bot plays the solved average strategy, exploitable for ${SOLVE.exploitabilityAverage[FINAL].toFixed(5)} chips a hand, and never adapts to you.`}
       caption="Seats alternate because Kuhn is asymmetric: the first player's game value is −1/18, and a fixed seat would mix your mistakes with the seat's own edge."
       wide

@@ -19,7 +19,7 @@ export default function App() {
       <main className="wrap">
         <PageHead
           eyebrow="Benchmarks · rock-paper-scissors"
-          title="Regret matching, graded against the uniform Nash."
+          title="Regret matching on rock-paper-scissors."
           lede={
             <>
               Two regret matchers play each other in your browser. The current strategy chases last round's regret and

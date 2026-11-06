@@ -807,25 +807,29 @@ table.settled td.k {
   gap: 6px;
 }
 
+/* The coach's band bar. Learn's `.mixbar` sets a 2px gap between its bands;
+   this one has none, because it carries a tick at `left: roll%` and the bands
+   are the roll's own segments at their exact widths, summing to the bar — a
+   gap would shift every band right of it off the roll's scale. */
 .mixband {
   position: relative;
   display: flex;
-  gap: 2px;
   height: 8px;
 }
 
 .mixband i {
   display: block;
-  flex-basis: 0;
+  flex: none;
   height: 100%;
 }
 
+/* The tick's left edge is the roll; it extends right, into the segment the
+   roll prescribed, never back across the boundary into the one before. */
 .mixband .tick {
   position: absolute;
   top: -3px;
   bottom: -3px;
   width: 2px;
-  margin-left: -1px;
   background: var(--ink);
 }
 

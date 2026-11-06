@@ -5,7 +5,7 @@ description: Which document in the repository answers which question, and which 
 
 The repository keeps three kinds of writing, and knowing which is which saves reading the wrong one. **Living documents** are corrected in place when the code or a run changes them. **Dated records** say why the code looks the way it does on the day they were written and are never rewritten. **Instructions** tell an agent or a contributor what to do in a subtree.
 
-## Find the document for your question
+## Which file to read
 
 | When you want to… | Read |
 | --- | --- |
@@ -23,7 +23,7 @@ The repository keeps three kinds of writing, and knowing which is which saves re
 | Know what a committed figure is and which command writes it | `figures/AGENTS.md` and the rung's section of `README.md` |
 | Run something on Modal | the launcher's docstring under `scripts/`, and [Modal](wiki:ops/modal); it costs money |
 
-## Living documents and dated records
+## Living vs dated documents
 
 | Kind | Where | Rule |
 | --- | --- | --- |

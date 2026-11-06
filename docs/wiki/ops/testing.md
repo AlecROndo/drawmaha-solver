@@ -51,7 +51,7 @@ Tests that would take minutes or gigabytes are skipped by default. Each skip rea
 
 Tests that need torch call `pytest.importorskip("torch")`. Install it with `uv sync --extra deep` to run them.
 
-## Three rules that look odd until they bite
+## Three gotchas
 
 - **`--import-mode=importlib`** is set in `pyproject.toml`, because every game has its own `test_game.py` and identical basenames would collide at collection. So test modules never import one another (shared helpers are restated, and say so), and `tests/` holds no `__init__.py`.
 - **Spawned workers unpickle by module name.** A test that hands a job to the parallel collector defines that job at module level and puts the repo root on `sys.path` first, as `minidrawmaha/test_parallel.py` and `deepcfr/test_collect.py` do. A lambda or a closure cannot reach a worker process.
