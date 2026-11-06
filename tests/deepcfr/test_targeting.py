@@ -12,12 +12,14 @@ package can import the grader.
 
 from __future__ import annotations
 
+from itertools import permutations
+
 import numpy as np
 import pytest
 
 from drawmaha_solver.deepcfr import targeting
 from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Reservoir
-from drawmaha_solver.deepcfr.targeting import TargetSpec, choose, groups, noise
+from drawmaha_solver.deepcfr.targeting import TargetSet, TargetSpec, choose, groups, noise, target_stream
 from drawmaha_solver.minidrawmaha.rules.enumeration import private_keys, public_decision_points
 
 POINTS = public_decision_points()
@@ -302,3 +304,143 @@ def test_choose_refuses_a_noise_array_of_another_granularity():
     spec = TargetSpec(granularity="line", alpha=0.0)
     with pytest.raises(ValueError, match="noise"):
         choose(spec, seat=0, leak=everywhere(0.0), frequency=everywhere(1.0), noise_of_group=flat_noise("infoset", 0))
+
+# ---------------------------------------------------------------------------
+# The frozen set and its draws
+# ---------------------------------------------------------------------------
+
+S1 = seat_points(1)[0]  # one of seat 1's lines
+WIDE = max(seat_points(0), key=lambda p: SIZES[p])  # seat 0's widest line, 100,400 rows
+
+def a_set(weight0, *, budget, granularity="line", built_at=26, refresh=25, stream=0x7A52, weight1=(1.0, 2.0)) -> TargetSet:
+    """A set whose seat-0 pool is the first rows of line A, with the given weights; seat 1 a two-row pool."""
+    spec = TargetSpec(granularity=granularity, alpha=0.0, budget=budget, refresh=refresh, stream=stream)
+    rows0 = rows_of_point(WIDE)[: len(weight0)]
+    rows1 = rows_of_point(S1)[: len(weight1)]
+    return TargetSet(
+        spec=spec,
+        built_at=built_at,
+        rows=(rows0, rows1),
+        weight=(np.asarray(weight0, dtype=np.float64), np.asarray(weight1, dtype=np.float64)),
+        groups=(np.array([WIDE]), np.array([S1])),
+    )
+
+def test_a_draw_is_reproducible_and_moves_with_every_word_of_its_stream():
+    rng = np.random.default_rng(1)
+    targets = a_set(rng.random(1_000), budget=10)
+    first = targets.rows_for(30, 0, 7)
+    assert np.array_equal(first, targets.rows_for(30, 0, 7))
+    assert first.dtype == np.int64 and np.all(np.diff(first) > 0) and first.size == 10
+    assert not np.array_equal(first, targets.rows_for(31, 0, 7))
+    assert not np.array_equal(first, targets.rows_for(30, 0, 8))
+    other = a_set(targets.weight[0], budget=10, stream=0x7A53)
+    assert not np.array_equal(first, other.rows_for(30, 0, 7))
+    assert set(targets.rows_for(30, 1, 7)) <= set(targets.rows[1].tolist())
+
+def test_the_stream_is_its_own():
+    from drawmaha_solver.deepcfr.reservoir import Memory, reservoir_stream
+    from drawmaha_solver.minidrawmaha.solver import lockstep
+
+    words = dict(seed=3, t=40, seat=1)
+    ours = target_stream(**words, stream=0).random(4)
+    assert not np.array_equal(ours, reservoir_stream(**words, memory=Memory.ADVANTAGE).random(4))
+    assert not np.array_equal(ours, lockstep.stream(3, 40, 1, 0).random(4))
+    assert targeting._STREAM_TAG == int.from_bytes(b"TARG", "big")
+
+def test_a_draw_never_repeats_a_row():
+    rng = np.random.default_rng(2)
+    budget = 20
+    targets = a_set(rng.random(budget + 3) ** 4, budget=budget)  # skewed weights, a pool barely over B
+    for seed in range(200):
+        drawn = targets.rows_for(27, 0, seed)
+        assert drawn.size == budget == np.unique(drawn).size
+
+def test_a_short_pool_gives_every_positive_row_and_never_a_weightless_one():
+    targets = a_set([0.0, 3.0, 0.0, 1.0, 0.0], budget=4)
+    pool = targets.rows[0]
+    assert targets.rows_for(26, 0, 0).tolist() == [pool[1], pool[3]]
+    big = a_set([0.0] * 50 + [1.0] * 50, budget=10)
+    for seed in range(50):
+        assert set(big.rows_for(26, 0, seed)) <= set(big.rows[0][50:].tolist())
+
+def test_the_draw_is_successive_sampling_proportional_to_the_weight():
+    weight = np.array([1.0, 2.0, 3.0, 6.0])
+    total = weight.sum()
+    # Exact inclusion probability of each row when B = 2 rows are drawn one at a
+    # time ∝ weight, without replacement: every ordered pair, enumerated.
+    exact = np.zeros(4)
+    for first, second in permutations(range(4), 2):
+        p = weight[first] / total * weight[second] / (total - weight[first])
+        exact[[first, second]] += p
+    assert exact.sum() == pytest.approx(2.0)
+    targets = a_set(weight, budget=2)
+    pool = targets.rows[0].tolist()
+    trials = 20_000
+    seen = np.zeros(4)
+    for seed in range(trials):
+        for row in targets.rows_for(26, 0, seed).tolist():
+            seen[pool.index(row)] += 1
+    se = np.sqrt(exact * (1 - exact) / trials)
+    assert np.all(np.abs(seen / trials - exact) < 4 * se), (seen / trials, exact)
+
+def test_an_infoset_set_serves_its_rows_at_every_iteration():
+    targets = a_set([1.0, 1.0, 1.0], budget=3, granularity="infoset")
+    for t in range(26, 51):
+        assert targets.rows_for(t, 0, t).tolist() == targets.rows[0].tolist()
+
+@pytest.mark.parametrize("t", [25, 51, 100])
+def test_a_set_refuses_an_iteration_outside_its_window(t):
+    with pytest.raises(ValueError, match="iteration"):
+        a_set([1.0, 2.0], budget=1).rows_for(t, 0, 0)
+
+def test_a_set_refuses_a_seat_by_name():
+    with pytest.raises(ValueError, match="seat"):
+        a_set([1.0, 2.0], budget=1).rows_for(26, 2, 0)
+
+@pytest.mark.parametrize(
+    "change, match",
+    [
+        (dict(built_at=0), "built_at"),
+        (dict(rows=(rows_of_point(WIDE)[[3, 1]], rows_of_point(S1)[:2])), "sorted"),
+        (dict(rows=(rows_of_point(WIDE)[[1, 1]], rows_of_point(S1)[:2])), "sorted"),
+        (dict(rows=(rows_of_point(S1)[:2], rows_of_point(S1)[:2])), "seat"),
+        (dict(rows=(np.array([-1, 0]), rows_of_point(S1)[:2])), "outside"),
+        (dict(weight=(np.array([1.0]), np.array([1.0, 2.0]))), "weight"),
+        (dict(weight=(np.array([1.0, -1.0]), np.array([1.0, 2.0]))), "weight"),
+        (dict(weight=(np.array([1.0, np.nan]), np.array([1.0, 2.0]))), "weight"),
+    ],
+)
+def test_a_set_refuses_a_malformed_field_by_name(change, match):
+    good = a_set([1.0, 2.0], budget=1)
+    fields = dict(spec=good.spec, built_at=good.built_at, rows=good.rows, weight=good.weight, groups=good.groups)
+    with pytest.raises(ValueError, match=match):
+        TargetSet(**(fields | change))
+
+def test_an_infoset_set_holds_at_most_b_rows():
+    with pytest.raises(ValueError, match="budget"):
+        a_set([1.0, 1.0, 1.0], budget=2, granularity="infoset")
+
+def test_a_set_is_read_only():
+    targets = a_set([1.0, 2.0], budget=1)
+    with pytest.raises(ValueError):
+        targets.rows[0][0] = 5
+
+def test_a_saved_set_loads_as_the_same_set(tmp_path):
+    rng = np.random.default_rng(3)
+    targets = a_set(rng.random(300), budget=7, built_at=51, stream=99)
+    path = tmp_path / "t00051.npz"
+    targets.save(path)
+    loaded = TargetSet.load(path)
+    assert loaded.spec == targets.spec and loaded.built_at == 51
+    for seat in (0, 1):
+        assert np.array_equal(loaded.rows[seat], targets.rows[seat])
+        assert np.array_equal(loaded.weight[seat], targets.weight[seat])
+        assert np.array_equal(loaded.groups[seat], targets.groups[seat])
+        assert np.array_equal(loaded.rows_for(60, seat, 4), targets.rows_for(60, seat, 4))
+    assert not (tmp_path / "t00051.npz.tmp").exists()
+
+def test_load_refuses_a_file_that_is_not_a_target_set(tmp_path):
+    path = tmp_path / "memory.npz"
+    Reservoir(4).save(path)
+    with pytest.raises(ValueError, match="memory.npz"):
+        TargetSet.load(path)

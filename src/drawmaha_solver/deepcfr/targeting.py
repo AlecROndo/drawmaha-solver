@@ -84,8 +84,10 @@ by its own bug.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+import os
+from dataclasses import asdict, dataclass
 from functools import cache
+from pathlib import Path
 from typing import Literal, get_args
 
 import numpy as np
@@ -93,6 +95,10 @@ import numpy as np
 from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Reservoir
 from drawmaha_solver.minidrawmaha.rules.enumeration import private_keys, public_decision_points
 from drawmaha_solver.minidrawmaha.rules.hands import inner_score, outer_score
+
+# The fifth word of every draw's stream: "TARG" in ASCII. A walk's stream has
+# four words, a reservoir's ends in "RESV", a sampled boost row's in "BOOST".
+_STREAM_TAG = int.from_bytes(b"TARG", "big")
 
 Granularity = Literal["random", "infoset", "line", "line_class"]
 GRANULARITIES: tuple[str, ...] = get_args(Granularity)
@@ -331,3 +337,144 @@ def _per_row(name: str, values: np.ndarray | None) -> np.ndarray:
     if not (np.isfinite(values).all() and (values >= 0.0).all()):
         raise ValueError(f"{name} must be finite and non-negative at every row")
     return values
+
+# ---------------------------------------------------------------------------
+# The frozen set and its draws
+# ---------------------------------------------------------------------------
+
+def target_stream(*, seed: int, t: int, seat: int, stream: int) -> np.random.Generator:
+    """The random stream of seat `seat`'s draw at iteration t: five words, the last "TARG"."""
+    return np.random.default_rng([int(seed), int(t), int(seat), int(stream), _STREAM_TAG])
+
+# What a saved set holds; `built_at` beside `rows0` marks a file as a target set.
+_SPEC_KEYS = ("granularity", "alpha", "budget", "refresh", "noise_cap", "pool", "stream")
+_FILE_KEYS = ("built_at", *_SPEC_KEYS, "rows0", "rows1", "weight0", "weight1", "groups0", "groups1")
+
+# eq=False: the fields are arrays.
+@dataclass(frozen=True, eq=False)
+class TargetSet:
+    """One refresh's choice, frozen for the `spec.refresh` iterations from `built_at` on.
+
+    Per seat: `rows`, the pool (sorted table rows of that seat; for `infoset`,
+    the B rows themselves); `weight`, each pool row's draw weight — the walk's
+    arrival rate, so a row the walk cannot reach is never drawn; `groups`, the
+    group ids the pool came from, best first, kept for the record. Every array
+    is copied and made read-only.
+
+        rows = targets.rows_for(t, seat, seed)   # ≤ B distinct rows, sorted
+
+    `save` and `load` round-trip it through one `.npz`, so a resumed run
+    draws from the set the run drew from.
+    """
+
+    spec: TargetSpec
+    built_at: int
+    rows: tuple[np.ndarray, np.ndarray]
+    weight: tuple[np.ndarray, np.ndarray]
+    groups: tuple[np.ndarray, np.ndarray]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.spec, TargetSpec):
+            raise ValueError(f"spec must be a TargetSpec, got {type(self.spec).__name__}")
+        if not _is_int(self.built_at) or self.built_at < 1:
+            raise ValueError(f"built_at must be the first iteration served, a positive int, got {self.built_at!r}")
+        offset, player = _layout()
+        rows, weight, chosen = [], [], []
+        for seat in SEATS:
+            r = np.array(self.rows[seat], dtype=np.int64)
+            w = np.array(self.weight[seat], dtype=np.float64)
+            g = np.array(self.groups[seat], dtype=np.int64)
+            if r.ndim != 1 or (r.size and np.any(np.diff(r) <= 0)):
+                raise ValueError(f"seat {seat}'s rows must be sorted, distinct and 1-D")
+            if r.size and (r[0] < 0 or r[-1] >= offset[-1]):
+                raise ValueError(f"seat {seat} has a row outside the table's {int(offset[-1]):,} rows")
+            if r.size and np.any(player[np.searchsorted(offset, r, side="right") - 1] != seat):
+                raise ValueError(f"seat {seat}'s pool holds a row of the other seat")
+            if w.shape != r.shape or not (np.isfinite(w).all() and (w >= 0.0).all()):
+                raise ValueError(f"seat {seat}'s weight must be finite, non-negative, one per row")
+            if self.spec.granularity == "infoset" and r.size > self.spec.budget:
+                raise ValueError(
+                    f"an infoset set holds at most the budget, {self.spec.budget}, rows a seat; got {r.size}"
+                )
+            for array in (r, w, g):
+                array.setflags(write=False)
+            rows.append(r)
+            weight.append(w)
+            chosen.append(g)
+        object.__setattr__(self, "built_at", int(self.built_at))
+        object.__setattr__(self, "rows", tuple(rows))
+        object.__setattr__(self, "weight", tuple(weight))
+        object.__setattr__(self, "groups", tuple(chosen))
+
+    def rows_for(self, t: int, seat: int, seed: int) -> np.ndarray:
+        """The rows seat `seat` boosts at iteration t: B of the pool without replacement ∝ weight, sorted.
+
+        Fewer when the pool has fewer than B rows of positive weight (then
+        all of them). `infoset` serves its fixed rows. Deterministic in
+        (seed, t, seat, `spec.stream`). Refuses an iteration outside
+        [built_at, built_at + refresh): a stale set is a missed refresh.
+        """
+        if seat not in SEATS:
+            raise ValueError(f"seat must be one of {SEATS}, got {seat!r}")
+        if not (self.built_at <= t < self.built_at + self.spec.refresh):
+            raise ValueError(
+                f"this set serves iterations {self.built_at} to {self.built_at + self.spec.refresh - 1}, "
+                f"not iteration {t}: refresh it"
+            )
+        rows, weight = self.rows[seat], self.weight[seat]
+        if self.spec.granularity == "infoset":
+            return rows.copy()
+        positive = weight > 0.0
+        if np.count_nonzero(positive) <= self.spec.budget:
+            return rows[positive]
+        # Exponential keys: E / w with E ~ Exp(1), the B smallest. A weight of 0
+        # gives an infinite key, never among them. One key per pool row, so a
+        # row's key does not depend on which other rows have weight.
+        stream = target_stream(seed=seed, t=t, seat=seat, stream=self.spec.stream)
+        with np.errstate(divide="ignore"):
+            keys = stream.standard_exponential(rows.size) / weight
+        return np.sort(rows[np.argpartition(keys, self.spec.budget - 1)[: self.spec.budget]])
+
+    # -- the file ------------------------------------------------------------
+
+    def save(self, path: Path) -> None:
+        """Write the set to one `.npz`, atomically: a temp file renamed into place."""
+        path = Path(path)
+        temporary = path.with_name(path.name + ".tmp")
+        arrays = {key: np.asarray(value) for key, value in asdict(self.spec).items()}
+        for seat in SEATS:
+            arrays[f"rows{seat}"] = self.rows[seat]
+            arrays[f"weight{seat}"] = self.weight[seat]
+            arrays[f"groups{seat}"] = self.groups[seat]
+        # Through an open file, so NumPy does not append `.npz` to the name.
+        with temporary.open("wb") as file:
+            np.savez(file, built_at=np.asarray(self.built_at), **arrays)
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(temporary, path)
+
+    @classmethod
+    def load(cls, path: Path) -> TargetSet:
+        """Read a saved set; a file without every key is refused by name."""
+        path = Path(path)
+        with np.load(path, allow_pickle=False) as saved:
+            missing = [key for key in _FILE_KEYS if key not in saved.files]
+            if missing:
+                raise ValueError(f"{path} is not a target set (no {missing[0]!r})")
+            data = {key: saved[key] for key in _FILE_KEYS}
+        spec = TargetSpec(
+            granularity=str(data["granularity"]),
+            alpha=float(data["alpha"]),
+            budget=int(data["budget"]),
+            refresh=int(data["refresh"]),
+            noise_cap=float(data["noise_cap"]),
+            pool=int(data["pool"]),
+            stream=int(data["stream"]),
+        )
+        return cls(
+            spec=spec,
+            built_at=int(data["built_at"]),
+            rows=(data["rows0"], data["rows1"]),
+            weight=(data["weight0"], data["weight1"]),
+            groups=(data["groups0"], data["groups1"]),
+        )
