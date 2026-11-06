@@ -210,15 +210,16 @@ def fraction(results: dict, out: Path, headline: str = "4x256") -> None:
     seen = [arms[a].get("rw_error_seen", arms[a]["rw_error"]) for a in names]
     unseen = [arms[a].get("rw_error_unseen") for a in names]
     bottom.plot(xs, [arms[a]["rw_error"] for a in names], color=COPY, linewidth=2, marker="o", markersize=6, markeredgecolor=SURFACE, label="all rows")
-    bottom.plot(xs[:-1], seen[:-1], color=PI, linewidth=1.6, marker="o", markersize=6, markeredgecolor=SURFACE, label="rows trained on")
+    bottom.plot(xs, seen, color=PI, linewidth=1.6, marker="o", markersize=6, markeredgecolor=SURFACE, label="rows trained on (all of them at 100%)")
     bottom.plot(xs[:-1], unseen[:-1], color=DEEP, linewidth=1.6, marker="o", markersize=6, markeredgecolor=SURFACE, label="rows never seen")
     bottom.set_ylabel("reach-weighted error vs teacher", color=MUTED)
     bottom.set_xlabel("share of the 6.2M infosets trained on", color=MUTED)
     bottom.set_xscale("log")
     bottom.set_xticks(xs)
     bottom.set_xticklabels([f"{x:.0%}" for x in xs])
-    bottom.legend(frameon=False, fontsize=8.5, loc="upper right")
-    top.set_title(f"A {size_label(headline)} copy trained on a share of the rows, graded on all of them", loc="left", fontsize=10.5, color=INK)
+    bottom.legend(frameon=False, fontsize=8.5, loc="center right")
+    top.margins(y=0.2)
+    top.set_title(f"A {size_label(headline)} copy trained on a share of the rows, graded on all of them", loc="left", fontsize=10.5, color=INK, pad=12)
     _save(fig, out / "fraction.png")
 
 # ---------------------------------------------------------------------------
