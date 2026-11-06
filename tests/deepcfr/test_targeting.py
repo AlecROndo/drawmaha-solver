@@ -12,7 +12,9 @@ package can import the grader.
 
 from __future__ import annotations
 
+import ast
 from itertools import permutations
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -525,3 +527,31 @@ def test_target_set_refuses_an_arrival_of_the_wrong_shape_or_sign():
             targeting.target_set(
                 spec, t=1, leak=leak, frequency=frequency, memories=(Reservoir(4), Reservoir(4)), walks=1, arrival=bad
             )
+
+# ---------------------------------------------------------------------------
+# Layering
+# ---------------------------------------------------------------------------
+
+PACKAGE = Path(__file__).resolve().parents[2] / "src" / "drawmaha_solver" / "deepcfr"
+
+def imported_names(path: Path) -> set[str]:
+    names = set()
+    for node in ast.walk(ast.parse(path.read_text())):
+        if isinstance(node, ast.Import):
+            names |= {alias.name for alias in node.names}
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            names.add(module)
+            names |= {f"{module}.{alias.name}" for alias in node.names}
+    return names
+
+def test_no_module_of_the_trainer_imports_the_grader():
+    # The trainer feeds what the grader certifies; a bug they shared would
+    # cancel and pass. Only scripts/deepcfr/targeting_refresh.py runs the
+    # meter on the trainer's side. Every import statement in each file is
+    # read, those inside functions included, and `from ... import exploitability` too.
+    modules = sorted(PACKAGE.glob("*.py"))
+    assert PACKAGE / "targeting.py" in modules and len(modules) >= 9
+    for path in modules:
+        offending = {name for name in imported_names(path) if "exploitability" in name}
+        assert not offending, (path.name, offending)
