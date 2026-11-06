@@ -175,6 +175,10 @@ def n_rows() -> int:
     """How many rows the whole-game table has: 6,220,050."""
     return int(_layout()[0][-1])
 
+def row_offsets() -> np.ndarray:
+    """Where each public point's rows start in the whole-game table: 142 entries, the end last."""
+    return _layout()[0].copy()
+
 @cache
 def _classes(board_cards: int, discards: int) -> tuple[np.ndarray, np.ndarray]:
     """Inner and outer category of every key of one shape, in key order; outer 0 with one board card out."""
