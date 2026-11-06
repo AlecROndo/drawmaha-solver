@@ -247,7 +247,7 @@ class Sampling:
                 raise ValueError(f"Sampling.{name} must be {allowed}, got {value!r}")
         if self.is_exact and self.playouts != 1:
             raise ValueError(
-                f"Sampling enumerates every source, so every play-out is the same; playouts must be 1, got {self.playouts}"
+                f"Sampling draws nothing (every count None, or a chance count at its fan), so every play-out is the same; playouts must be 1, got {self.playouts}"
             )
 
     @property
