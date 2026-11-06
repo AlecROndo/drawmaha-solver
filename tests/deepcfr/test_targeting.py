@@ -485,9 +485,12 @@ def test_a_set_refuses_an_iteration_outside_its_window(t):
     with pytest.raises(ValueError, match="iteration"):
         a_set([1.0, 2.0], budget=1).rows_for(t, 0, 0)
 
-def test_a_set_refuses_a_seat_by_name():
-    with pytest.raises(ValueError, match="seat"):
-        a_set([1.0, 2.0], budget=1).rows_for(26, 2, 0)
+@pytest.mark.parametrize(
+    "t, seat, seed, match", [(26, 2, 0, "seat"), (26, True, 0, "seat"), (26.5, 0, 0, "t"), (26, 0, 1.5, "seed")]
+)
+def test_a_draw_refuses_a_seat_t_or_seed_that_is_not_an_int_by_name(t, seat, seed, match):
+    with pytest.raises(ValueError, match=match):
+        a_set([1.0, 2.0], budget=1).rows_for(t, seat, seed)
 
 @pytest.mark.parametrize(
     "change, match",
@@ -500,6 +503,8 @@ def test_a_set_refuses_a_seat_by_name():
         (dict(weight=(np.array([1.0]), np.array([1.0, 2.0]))), "weight"),
         (dict(weight=(np.array([1.0, -1.0]), np.array([1.0, 2.0]))), "weight"),
         (dict(weight=(np.array([1.0, np.nan]), np.array([1.0, 2.0]))), "weight"),
+        (dict(rows=(rows_of_point(WIDE)[:2] + 0.5, rows_of_point(S1)[:2])), "integers"),
+        (dict(groups=(np.array([1.5]), np.array([S1]))), "integers"),
     ],
 )
 def test_a_set_refuses_a_malformed_field_by_name(change, match):
@@ -530,6 +535,15 @@ def test_a_saved_set_loads_as_the_same_set(tmp_path):
         assert np.array_equal(loaded.groups[seat], targets.groups[seat])
         assert np.array_equal(loaded.rows_for(60, seat, 4), targets.rows_for(60, seat, 4))
     assert not (tmp_path / "t00051.npz.tmp").exists()
+
+def test_load_refuses_a_set_saved_without_a_spec_field(tmp_path):
+    path = tmp_path / "t00026.npz"
+    a_set([1.0, 2.0], budget=1).save(path)
+    with np.load(path) as saved:
+        kept = {key: saved[key] for key in saved.files if key != "round_two_only"}
+    np.savez(path, **kept)
+    with pytest.raises(ValueError, match="round_two_only"):
+        TargetSet.load(path)
 
 def test_load_refuses_a_file_that_is_not_a_target_set(tmp_path):
     path = tmp_path / "memory.npz"
@@ -641,8 +655,22 @@ def test_no_module_of_the_trainer_imports_the_grader():
     # cancel and pass. Only scripts/deepcfr/targeting_refresh.py runs the
     # meter on the trainer's side. Every import statement in each file is
     # read, those inside functions included, and `from ... import exploitability` too.
+    # `answer.analysis` is banned too: it is where the gains are laid on rows,
+    # and importing it would bring the meter in without the word.
     modules = sorted(PACKAGE.glob("*.py"))
     assert PACKAGE / "targeting.py" in modules and len(modules) >= 9
     for path in modules:
-        offending = {name for name in imported_names(path) if "exploitability" in name}
+        offending = {name for name in imported_names(path) if "exploitability" in name or "answer.analysis" in name}
         assert not offending, (path.name, offending)
+
+def test_importing_targeting_loads_neither_the_meter_nor_the_analysis():
+    # The name check above cannot see a transitive import; a fresh interpreter can.
+    import subprocess
+    import sys
+
+    probe = (
+        "import sys, drawmaha_solver.deepcfr.targeting; "
+        "print(sorted(m for m in sys.modules if m.endswith(('exploitability', 'answer.analysis'))))"
+    )
+    loaded = subprocess.run([sys.executable, "-c", probe], check=True, capture_output=True, text=True).stdout
+    assert loaded.strip() == "[]", loaded

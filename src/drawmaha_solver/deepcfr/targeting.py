@@ -91,7 +91,7 @@ from __future__ import annotations
 
 import math
 import os
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from functools import cache
 from pathlib import Path
 from collections.abc import Callable
@@ -395,7 +395,9 @@ def target_stream(*, seed: int, t: int, seat: int, stream: int) -> np.random.Gen
     return np.random.default_rng([int(seed), int(t), int(seat), int(stream), _STREAM_TAG])
 
 # What a saved set holds; `built_at` beside `rows0` marks a file as a target set.
-_SPEC_KEYS = ("granularity", "alpha", "budget", "refresh", "noise_cap", "pool", "stream", "round_two_only")
+# Every spec field, read off the dataclass, so a field added later is saved
+# and a file without it is refused rather than loaded at today's default.
+_SPEC_KEYS = tuple(field.name for field in fields(TargetSpec))
 _FILE_KEYS = ("built_at", *_SPEC_KEYS, "rows0", "rows1", "weight0", "weight1", "groups0", "groups1")
 
 # eq=False: the fields are arrays.
@@ -429,6 +431,10 @@ class TargetSet:
         offset, player = _layout()
         rows, weight, chosen = [], [], []
         for seat in SEATS:
+            for name, given in (("rows", self.rows[seat]), ("groups", self.groups[seat])):
+                given = np.asarray(given)
+                if given.size and given.dtype.kind not in "iu":
+                    raise ValueError(f"seat {seat}'s {name} must be integers, got {given.dtype}")
             r = np.array(self.rows[seat], dtype=np.int64)
             w = np.array(self.weight[seat], dtype=np.float64)
             g = np.array(self.groups[seat], dtype=np.int64)
@@ -462,8 +468,11 @@ class TargetSet:
         (seed, t, seat, `spec.stream`). Refuses an iteration outside
         [built_at, built_at + refresh): a stale set is a missed refresh.
         """
-        if seat not in SEATS:
+        if not _is_int(seat) or seat not in SEATS:
             raise ValueError(f"seat must be one of {SEATS}, got {seat!r}")
+        for name, value in (("t", t), ("seed", seed)):
+            if not _is_int(value):
+                raise ValueError(f"{name} must be an int, got {value!r}")
         if not (self.built_at <= t < self.built_at + self.spec.refresh):
             raise ValueError(
                 f"this set serves iterations {self.built_at} to {self.built_at + self.spec.refresh - 1}, "
@@ -510,16 +519,9 @@ class TargetSet:
             if missing:
                 raise ValueError(f"{path} is not a target set (no {missing[0]!r})")
             data = {key: saved[key] for key in _FILE_KEYS}
-        spec = TargetSpec(
-            granularity=str(data["granularity"]),
-            alpha=float(data["alpha"]),
-            budget=int(data["budget"]),
-            refresh=int(data["refresh"]),
-            noise_cap=float(data["noise_cap"]),
-            pool=int(data["pool"]),
-            stream=int(data["stream"]),
-            round_two_only=bool(data["round_two_only"]),
-        )
+        # `.item()` turns each 0-d array back into the Python scalar it was
+        # saved from (str, int, float or bool), which the spec then checks.
+        spec = TargetSpec(**{key: data[key].item() for key in _SPEC_KEYS})
         return cls(
             spec=spec,
             built_at=int(data["built_at"]),

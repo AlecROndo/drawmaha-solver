@@ -67,6 +67,31 @@ def test_an_unknown_leak_source_is_refused(refresh):
     with pytest.raises(ValueError, match="leak"):
         refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0), walks=10, leak="policy")
 
+@pytest.mark.parametrize("walks", [0, 2.5, True, None])
+def test_a_bad_walk_count_is_refused_before_any_grader_walk(refresh, walks):
+    with pytest.raises(ValueError, match="walks"):
+        refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0), walks=walks)
+
+def test_a_spec_that_is_not_a_spec_is_refused(refresh):
+    with pytest.raises(ValueError, match="spec"):
+        refresh.GraderRefresher({"granularity": "line"}, walks=10)
+
+def test_an_infoset_refresh_never_reads_sigma(refresh, table, monkeypatch):
+    class NoSigma(FakeExact):
+        def sigma(self, table):
+            raise AssertionError("an infoset set draws nothing, so it needs no arrival and no σ")
+
+    def fake_gains(profile, *, game=None):
+        leak = np.zeros(n_rows())
+        leak[first_line(0)[:3]] = 1.0
+        leak[first_line(1)[:3]] = 1.0
+        return leak, np.ones(n_rows())
+
+    monkeypatch.setattr(refresh, "gains_by_row", fake_gains)
+    refresher = refresh.GraderRefresher(TargetSpec(granularity="infoset", alpha=0.0, budget=3), walks=10, exact=NoSigma())
+    targets = refresher(t=1, table=table, average=FakeAverage(), memories=(Reservoir(4), Reservoir(4)))
+    assert targets.rows[0].tolist() == first_line(0)[:3].tolist()
+
 def test_the_default_leak_is_the_exact_average(refresh, table):
     refresher = refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0), walks=10, seed=4)
     average = FakeAverage()

@@ -7,8 +7,9 @@
 exactly, from a leak, a frequency and a draw weight per row, and never runs
 the meter that measures the leak: the trainer must not share code with what
 grades it. This script is the one place on the trainer's side where the two
-meet. `GraderRefresher` is a `targeting.Refresher`; the run script builds one
-and hands it to the loop, every R iterations:
+meet. `GraderRefresher` is a `targeting.Refresher`; the boost stage (the
+plan's next PR) will have the run script build one and hand it to the loop,
+which calls it every R iterations:
 
 1. **The profile it grades.** `leak="average"` (the default) grades the
    frozen exact average, `ExactAverage.frozen` — the object the run is
@@ -21,9 +22,11 @@ and hands it to the loop, every R iterations:
    gain and play frequency laid on the table's rows. About 100 s on this Mac.
 3. **The draw weight.** `BoostTargets.arrivals` under `BoostTargets.sigma`
    of the table: how often one walk with the table's current strategy
-   arrives at each pool row, asked only for the pool (a few seconds for a
-   line pool; about 190 s a seat for the random arm, whose pool is the
-   whole seat).
+   arrives at each pool row, asked only for the pool and never for
+   `infoset`, which draws nothing. Measured on this Mac under the LCFR-2M
+   release's σ: a few seconds for a line pool (about 45,000 rows a seat),
+   about eight minutes a seat for the random arm, whose pool is the whole
+   seat (16 min 52 s for the whole refresh).
 4. **The set.** `targeting.target_set`, which reads the two advantage
    memories for the noise score.
 
@@ -39,6 +42,7 @@ each stage.
 from __future__ import annotations
 
 import argparse
+import numbers
 from pathlib import Path
 from typing import Literal
 
@@ -84,6 +88,11 @@ class GraderRefresher:
     ) -> None:
         if leak not in LEAK_SOURCES:
             raise ValueError(f"leak must be one of {LEAK_SOURCES}, got {leak!r}")
+        if not isinstance(spec, TargetSpec):
+            raise ValueError(f"spec must be a TargetSpec, got {type(spec).__name__}")
+        # Checked here, not first inside the noise score after two minutes of grader walks.
+        if isinstance(walks, bool) or not isinstance(walks, numbers.Integral) or walks < 1:
+            raise ValueError(f"walks must be a positive int (walks per seat per iteration, K), got {walks!r}")
         self.spec = spec
         self.walks = walks
         self.leak = leak
@@ -100,11 +109,14 @@ class GraderRefresher:
     def __call__(
         self, *, t: int, table: PackedTable, average: ExactAverage, memories: tuple[Reservoir, Reservoir]
     ) -> TargetSet:
-        exact = self._exact if self._exact is not None else BoostTargets.build()
-        sigma = exact.sigma(table)
+        sigma: list = []  # read from the table on the first arrival asked for; `infoset` asks none
 
         def arrival(seat: int, rows: np.ndarray) -> np.ndarray:
-            return exact.arrivals(sigma, seat=seat, rows=rows)
+            if self._exact is None:
+                self._exact = BoostTargets.build()
+            if not sigma:
+                sigma.append(self._exact.sigma(table))
+            return self._exact.arrivals(sigma[0], seat=seat, rows=rows)
 
         leak = frequency = None
         if self.spec.granularity != "random":
