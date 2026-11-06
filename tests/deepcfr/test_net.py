@@ -9,6 +9,10 @@ What is pinned here, and why:
   NumPy — the shape `materialise` writes from.
 - The wrong feature width is refused by name, not left to a matmul error.
 - A saved net comes back with the same size and the same outputs.
+- `predict_by_point` walks the 141 public points in walk order and yields
+  each point's outputs at its legal columns: the one loop `materialise`,
+  Π's freeze and the distillation freeze share, checked key by key against
+  the reference encoder.
 
 Every test here skips without torch: the default suite runs without the
 `deep` extra.
@@ -22,7 +26,19 @@ import pytest
 torch = pytest.importorskip("torch")
 
 from drawmaha_solver.deepcfr import net as net_module  # noqa: E402
-from drawmaha_solver.deepcfr.net import Net, load_net, predict, save_net  # noqa: E402
+from drawmaha_solver.deepcfr.net import (  # noqa: E402
+    Net,
+    load_net,
+    predict,
+    predict_by_point,
+    save_net,
+)
+from drawmaha_solver.minidrawmaha.rules.enumeration import (  # noqa: E402
+    private_keys,
+    public_decision_points,
+)
+from drawmaha_solver.minidrawmaha.rules.features import encode, layout  # noqa: E402
+from drawmaha_solver.minidrawmaha.rules.game import InfoSet  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # The shape
@@ -81,6 +97,34 @@ def test_predict_refuses_the_wrong_width():
         predict(Net(), np.zeros((3, 92), dtype=np.float32))
     with pytest.raises(ValueError, match="136"):
         predict(Net(), np.zeros(136, dtype=np.float32))
+
+# ---------------------------------------------------------------------------
+# One forward pass per public point
+# ---------------------------------------------------------------------------
+
+def test_predict_by_point_matches_encode_key_by_key():
+    # Two keys on every public point: the first and the middle of its shape
+    # (restated from test_policy.py: test modules never import one another).
+    net = Net(width=16, depth=2)
+    built = layout()
+    points = public_decision_points()
+    yielded = list(predict_by_point(net))
+    assert [p for p, _ in yielded] == list(range(len(points)))
+    for p, outputs in yielded:
+        point = points[p]
+        shape = private_keys(board_cards=point.board_cards, discards=point.discards)
+        rows = built.row_offset[p + 1] - built.row_offset[p]
+        assert outputs.shape == (rows, built.width[p]) and outputs.dtype == np.float32
+        for position in (0, len(shape) // 2):
+            hole, thrown, board = shape[position]
+            key = InfoSet(
+                player=point.player, hole=hole, discarded=thrown, board=board,
+                draws=point.draws, betting=point.betting,
+            )
+            expected = predict(net, encode(key)[None])[0][[int(a) for a in key.legal_actions()]]
+            # A one-row and a batched matmul round differently in the last
+            # float32 bit (about 1e-8 here); the values, not the bits, are pinned.
+            np.testing.assert_allclose(outputs[position], expected, rtol=1e-5, atol=1e-6)
 
 # ---------------------------------------------------------------------------
 # The save file

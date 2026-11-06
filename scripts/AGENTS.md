@@ -19,7 +19,10 @@ docstring opens with the exact command to run it.
   mark (`grade`, writes `figures/rung4/grades.json`), the `smoke`, the
   net-size `sweep` and `status`; `rule_sign_flips.py`, how much a
   per-sample regret rule bends a run's advantage memory (writes
-  `figures/rung4/rule_sign_flips.json`).
+  `figures/rung4/rule_sign_flips.json`); `distill_teacher.py`, the LCFR
+  table's average distilled into the rung-4 net at several sizes, each
+  copy graded exactly (writes `figures/rung4/distill/results.json`), and
+  `distill_figures.py`, the figures drawn from that file.
 
 ## Rules
 

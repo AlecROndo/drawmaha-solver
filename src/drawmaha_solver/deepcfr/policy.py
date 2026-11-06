@@ -41,8 +41,9 @@ read `current_iterate` makes of the table, and the same arithmetic the
 ledger's regret matching does — but it means something else here: the
 targets were already distributions, so a perfect net would output rows
 that need no clipping, and the clip only repairs the fit's error. The run
-over every key is `materialise`'s per-point batching, restated: one
-forward pass per public point over the layout's contiguous rows.
+over every key is `net.predict_by_point`, the per-point batching
+`materialise` writes by: one forward pass per public point over the
+layout's contiguous rows.
 
 torch is imported inside the functions, so the package's default import
 and the default test suite stay torch-free.
@@ -127,19 +128,13 @@ def policy_strategy(net: Net, *, iteration: int, seed: int) -> FrozenStrategy:
 
     `iteration` and `seed` only label the file.
     """
-    from drawmaha_solver.deepcfr.net import predict
+    from drawmaha_solver.deepcfr.net import predict_by_point
 
     built = layout()
-    gather = legal_gather()
     clipped = np.empty(int(built.column_offset[-1]))
-    for p in range(len(built.points)):
-        rows = built.row_offset[p + 1] - built.row_offset[p]
-        width = built.width[p]
-        private = built.private[built.private_offset[p] : built.private_offset[p] + rows]
-        public = np.broadcast_to(built.public[p], (rows, built.public.shape[1]))
-        outputs = predict(net, np.concatenate([private, public], axis=1))
+    for p, outputs in predict_by_point(net):
         columns = slice(built.column_offset[p], built.column_offset[p + 1])
-        clipped[columns] = np.maximum(outputs[:, gather[p, :width]], 0.0).ravel()
+        clipped[columns] = np.maximum(outputs, 0.0).ravel()
     widths = np.repeat(built.width, np.diff(built.row_offset))
     info = StrategyInfo(rule="deep", column="pi", iteration=iteration, seed=seed, workers=0)
     return FrozenStrategy(average_rows(clipped, widths), widths, info)

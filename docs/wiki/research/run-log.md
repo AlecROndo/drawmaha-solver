@@ -1,6 +1,6 @@
 ---
 title: The Deep CFR run log, digested
-description: Every Deep CFR arm trained on mini-drawmaha, its settings, its grades, and the eight findings they add up to.
+description: Every Deep CFR arm trained on mini-drawmaha, its settings, its grades, and the nine findings they add up to.
 ---
 
 The lab notebook for Deep CFR is [`docs/notes/rung4-run-log.md`](repo:docs/notes/rung4-run-log.md): every arm, where it ran, with which net and refit, what the exact grader said. This page is a reader's digest of it. When the two disagree, the notebook wins — and the notebook itself loses to the files under `figures/rung4/`, which `tests/deepcfr/test_rung4_quotes.py` checks it against.
@@ -36,7 +36,7 @@ Net is depth × width; "÷ pot^k" is how the regret targets were scaled before t
 
 Each arm's file under `figures/rung4/` also holds Π, the current iterate, each seat's best response, the training clock and the full config. The JSON names spell nets width × depth: `sweep_256x4` is four hidden layers of 256.
 
-## The eight findings
+## The nine findings
 
 ### 1. Width was the lever that mattered
 
@@ -115,6 +115,10 @@ uv run --extra deep --with modal modal run scripts/deepcfr/modal_rung4.py::grade
 ```
 
 A grade takes several minutes and competes with a live trainer for cores, so grade one mark at a time. Add the arm's row to the notebook when it is graded. Running on Modal itself is covered in [Modal](wiki:ops/modal).
+
+### 9. Distilling the table into the net splits the plateau into capacity and training
+
+The LCFR table's average at iteration 10,000,000 (graded 0.0157) fitted straight into the rung-4 net by reach-weighted cross-entropy grades 0.0389 at 4 × 256 and 0.0175 at 4 × 512, against Deep CFR's 0.0685. So at Deep CFR's size at most about a third of the plateau is what the net cannot hold (a 400,000-step copy grades 0.0331, 33%; the 100,000-step one 44%) and the rest is what its training did not find, and one doubling of the width removes almost all of the first part. [Distilling the table into the net](wiki:research/distillation) has the method, the ablations and the caveats.
 
 :::cards
 - [Where the project stands](wiki:research/status) The scoreboard in one page.

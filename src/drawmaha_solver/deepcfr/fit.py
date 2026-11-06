@@ -305,6 +305,12 @@ def _fit_on_device(
     return net
 
 def _fold_seed(seed: tuple[int, ...]) -> int:
-    """One 63-bit integer from a tuple of ints, so (1, 2) and (2, 1) seed differently."""
+    """One 63-bit integer from a tuple of ints, so (1, 2) and (2, 1) seed differently.
+
+    Private to the package but shared on purpose: `train.py`'s held-out
+    draw, `distill.py`'s fit and `scripts/deepcfr/pi_loss_sweep.py` fold
+    their seeds through this one function, so a run's seed means the same
+    thing in every fit of rung 4. Changing it re-seeds all of them.
+    """
     high, low = (int(word) for word in np.random.SeedSequence(seed).generate_state(2, np.uint32))
     return ((high & 0x7FFF_FFFF) << 32) | low

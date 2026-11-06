@@ -168,3 +168,44 @@ def test_the_final_arm_hours_quoted_in_prose_are_the_committed_wall_clock():
     assert f"{hours[2_000]:.1f} hours of training clock in all" in log
     (clock_row,) = [row for row in rows(log, "| hands per seat | 1M |") if row[0] == "training clock, hours"]
     assert clock_row[1:] == [f"{hours[t]:.1f}" for t in (100, 200, 500, 1_000, 2_000)]
+
+
+def test_the_run_log_distillation_table_quotes_the_results_file():
+    # Finding 9's table: each row names its arm in the results file, and quotes its error and grade to four places.
+    log = (ROOT / "docs" / "notes" / "rung4-run-log.md").read_text()
+    results = load("figures/rung4/distill/results.json")
+    table = rows(log, "| arm | net | differs by |")
+    teacher = results["teacher"]["exploitability"]
+    assert len(table) >= 8
+    for arm, _net, _what, steps, err, grade, ratio in table:
+        record = results["arms"][arm.strip("`")]
+        assert int(steps.replace(",", "")) == record["steps"], arm
+        assert float(err) == round(record["rw_error"], 4), arm
+        assert float(grade) == round(record["exploitability"], 4), arm
+        assert ratio == f"{record['exploitability'] / teacher:.1f}×", arm
+    # the three numbers the finding's prose and the README lean on
+    assert f"graded {teacher:.4f}" in log
+    headline = results["arms"]["4x256"]["exploitability"]
+    deep = results["deep_cfr"]["exact"]["exploitability"]
+    assert f"teacher {teacher:.4f} → copy {headline:.4f}" in log
+    assert f"exact average {deep:.4f}" in log
+
+
+def test_the_readme_distillation_bullet_quotes_the_results_file():
+    readme = (ROOT / "README.md").read_text()
+    results = load("figures/rung4/distill/results.json")
+    arms, teacher, deep = results["arms"], results["teacher"]["exploitability"], results["deep_cfr"]["exact"]["exploitability"]
+    (bullet,) = [line for line in readme.splitlines() if line.startswith("- **Distilling the table into the net")]
+    assert f"graded {teacher:.4f}" in bullet
+    assert f"The 4 × 256 copy grades {arms['4x256']['exploitability']:.4f} against the table's {teacher:.4f} and Deep CFR's {deep:.4f}" in bullet
+    assert f"the 4 × 512 copy grades {arms['4x512']['exploitability']:.4f} and the 4 × 1024 copy {arms['4x1024']['exploitability']:.4f}" in bullet
+    assert f"({arms['4x256']['exploitability']:.4f} against {arms['4x256-unweighted']['exploitability']:.4f})" in bullet
+    assert f"half the infosets grades {arms['4x256-f0.5']['exploitability']:.4f}" in bullet
+    whole = deep - teacher
+    share = (arms["4x256"]["exploitability"] - teacher) / whole
+    assert f"after 100,000 steps the split is about {share:.0%} / {1 - share:.0%}" in bullet
+    long_share = (arms["4x256-400k"]["exploitability"] - teacher) / whole
+    # "at most about a third": the tightest copy's share, the bound the headline states
+    assert "at 4 × 256 at most about a third is what the net cannot hold" in bullet
+    assert long_share < 0.34
+    assert f"takes the 4 × 256 copy to {arms['4x256-400k']['exploitability']:.4f} and the split to {long_share:.0%} / {1 - long_share:.0%}" in bullet

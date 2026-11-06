@@ -69,7 +69,7 @@
       "groups": [
         {
           "group": "Where it stands",
-          "pages": ["research/status", "research/run-log", "research/open-questions"]
+          "pages": ["research/status", "research/run-log", "research/distillation", "research/open-questions"]
         },
         {
           "group": "Literature",

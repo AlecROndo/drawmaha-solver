@@ -305,11 +305,27 @@ def own_reach(table: PackedTable, *, seat: int) -> np.ndarray:
     `tests/deepcfr/test_average.py` pins it against a walk through
     `MiniState` in every suit frame.
     """
+    _require_whole_game(table)
+    return reach_of_strategy(current_strategy(table), seat=seat)
+
+def reach_of_strategy(sigma: np.ndarray, *, seat: int) -> np.ndarray:
+    """`own_reach` from a flat σ over the whole game's columns, in column order.
+
+    The core `own_reach` runs after reading σ off a table, split out so a
+    strategy that never sat in a table — a frozen file's `probabilities`,
+    the distillation teacher — gets the same pass. Refuses a σ that is not
+    one float per column of the whole game, and a seat that is not 0 or 1.
+    """
     if seat not in SEATS:
         raise ValueError(f"seat must be one of {SEATS}, got {seat!r}")
-    built = _require_whole_game(table)
-    sigma = current_strategy(table)
-    reach = np.zeros(len(table))
+    built = layout()
+    sigma = np.asarray(sigma, dtype=np.float64)
+    if sigma.shape != (int(built.column_offset[-1]),):
+        raise ValueError(
+            f"σ must be one float per column of the whole game, {int(built.column_offset[-1]):,}, "
+            f"got shape {sigma.shape}"
+        )
+    reach = np.zeros(int(built.row_offset[-1]))
     for p, point in enumerate(built.points):
         if point.player != seat:
             continue
