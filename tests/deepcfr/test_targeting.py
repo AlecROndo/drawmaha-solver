@@ -42,6 +42,7 @@ def seat_points(seat: int) -> list[int]:
 def test_the_spec_carries_the_plans_proposals_and_no_alpha_default():
     spec = TargetSpec(granularity="line", alpha=0.0)
     assert (spec.budget, spec.refresh, spec.noise_cap, spec.pool) == (2_000, 25, 20.0, 20)
+    assert spec.round_two_only is False  # the plan's rule: every row eligible
     with pytest.raises(TypeError):
         TargetSpec(granularity="line")  # α is PR 4's to settle: every caller states it
 
@@ -57,10 +58,12 @@ def test_the_spec_carries_the_plans_proposals_and_no_alpha_default():
         ({"alpha": -0.1}, "alpha"),
         ({"alpha": 1.5}, "alpha"),
         ({"alpha": float("nan")}, "alpha"),
+        ({"alpha": True}, "alpha"),
         ({"noise_cap": 0.0}, "noise_cap"),
         ({"noise_cap": float("inf")}, "noise_cap"),
         ({"pool": 0}, "pool"),
         ({"stream": -1}, "stream"),
+        ({"round_two_only": 1}, "round_two_only"),
     ],
 )
 def test_the_spec_refuses_a_bad_field_by_name(fields, match):
@@ -280,6 +283,34 @@ def test_line_class_pools_the_reached_rows_of_its_classes():
     assert chosen.tolist() == [target]
     assert pool.tolist() == members[:-1].tolist()
 
+ROUND_TWO = np.zeros(N_ROWS, dtype=bool)
+for _p, _point in enumerate(POINTS):
+    if _point.board_cards == 2:
+        ROUND_TWO[OFFSET[_p] : OFFSET[_p + 1]] = True
+
+def test_round_two_only_leaves_the_one_card_rows_out_of_every_arm():
+    # Round 1 and the draw are the leakiest lines and the dearest exact rows
+    # (a round-1 row's exact target costs ~100× a round-2 row's), so the
+    # opt-in keeps the budget where the sampling is sparsest and the rows cheap.
+    one_card = next(p for p in seat_points(0) if POINTS[p].board_cards == 1)
+    two_card = next(p for p in seat_points(0) if POINTS[p].board_cards == 2)
+    leak, frequency = everywhere(0.0), everywhere(1.0)
+    leak[rows_of_point(one_card)[:10]] = 100.0
+    leak[rows_of_point(two_card)[:10]] = 1.0
+    for granularity in ("infoset", "line", "line_class"):
+        spec = TargetSpec(granularity=granularity, alpha=0.0, budget=5, pool=1, round_two_only=True)
+        pool, _ = choose(
+            spec, seat=0, leak=leak, frequency=frequency, noise_of_group=flat_noise(granularity, 0)
+        )
+        assert pool.size and ROUND_TWO[pool].all(), granularity
+        assert set(pool.tolist()) & set(rows_of_point(two_card)[:10].tolist()), granularity
+        plan = TargetSpec(granularity=granularity, alpha=0.0, budget=5, pool=1)
+        pool, _ = choose(plan, seat=0, leak=leak, frequency=frequency, noise_of_group=flat_noise(granularity, 0))
+        assert not ROUND_TWO[pool].all(), granularity  # off by default: the plan's rule picks round 1 first
+    spec = TargetSpec(granularity="random", alpha=0.0, round_two_only=True)
+    pool, _ = choose(spec, seat=1, leak=None, frequency=None, noise_of_group=None)
+    assert np.array_equal(pool, np.flatnonzero((groups("random", 1) >= 0) & ROUND_TWO))
+
 def test_random_pools_the_whole_seat_and_reads_no_leak():
     spec = TargetSpec(granularity="random", alpha=0.0)
     pool, chosen = choose(spec, seat=1, leak=None, frequency=None, noise_of_group=None)
@@ -327,9 +358,14 @@ def test_choose_refuses_a_noise_array_of_another_granularity():
 S1 = seat_points(1)[0]  # one of seat 1's lines
 WIDE = max(seat_points(0), key=lambda p: SIZES[p])  # seat 0's widest line, 100,400 rows
 
-def a_set(weight0, *, budget, granularity="line", built_at=26, refresh=25, stream=0x7A52, weight1=(1.0, 2.0)) -> TargetSet:
-    """A set whose seat-0 pool is the first rows of line A, with the given weights; seat 1 a two-row pool."""
-    spec = TargetSpec(granularity=granularity, alpha=0.0, budget=budget, refresh=refresh, stream=stream)
+def a_set(
+    weight0, *, budget, granularity="line", built_at=26, refresh=25, stream=0x7A52, weight1=(1.0, 2.0), alpha=0.0,
+    **spec_fields,
+) -> TargetSet:
+    """A set whose seat-0 pool is the first rows of seat 0's widest line, with the given weights; seat 1 a two-row pool."""
+    spec = TargetSpec(
+        granularity=granularity, alpha=alpha, budget=budget, refresh=refresh, stream=stream, **spec_fields
+    )
     rows0 = rows_of_point(WIDE)[: len(weight0)]
     rows1 = rows_of_point(S1)[: len(weight1)]
     return TargetSet(
@@ -442,7 +478,7 @@ def test_a_set_is_read_only():
 
 def test_a_saved_set_loads_as_the_same_set(tmp_path):
     rng = np.random.default_rng(3)
-    targets = a_set(rng.random(300), budget=7, built_at=51, stream=99)
+    targets = a_set(rng.random(300), budget=7, built_at=51, stream=99, alpha=0.25, round_two_only=True, noise_cap=7.5)
     path = tmp_path / "t00051.npz"
     targets.save(path)
     loaded = TargetSet.load(path)

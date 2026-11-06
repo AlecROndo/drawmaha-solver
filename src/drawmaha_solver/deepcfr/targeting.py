@@ -118,11 +118,16 @@ class TargetSpec:
     """How one arm aims: the granularity, the budget, the refresh, and the draw's stream.
 
     `budget` (B) and `refresh` (R) default to the plan's proposals, 2,000
-    rows per seat per iteration (about 1.5% of an iteration's time) and 25
-    iterations between refreshes. `alpha` is the weight the boost leaves on
-    the walk's own rows at a targeted infoset; it has no default because PR 4
-    settles it, and this module reads it only to tell the walk's rows from
-    exact ones in the noise score.
+    rows per seat per iteration and 25 iterations between refreshes. B counts
+    rows, not cost, and an exact row's cost depends on its stage: about a
+    millisecond in round 2, a hundred times that in round 1 and the draw,
+    where the value below the row expands over the second board card and the
+    replacements. `round_two_only` (off by default, so every row is eligible
+    as the plan has it) leaves the one-board-card rows out of every arm.
+    `alpha` is the weight the boost leaves on the walk's own rows at a
+    targeted infoset; it has no default because PR 4 settles it, and this
+    module reads it only to tell the walk's rows from exact ones in the noise
+    score.
     """
 
     granularity: Granularity
@@ -132,6 +137,7 @@ class TargetSpec:
     noise_cap: float = 20.0
     pool: int = 20
     stream: int = 0x7A52
+    round_two_only: bool = False
 
     def __post_init__(self) -> None:
         if self.granularity not in GRANULARITIES:
@@ -145,10 +151,15 @@ class TargetSpec:
                 raise ValueError(f"{name} must be a positive int, got {value!r}")
         if not _is_int(self.stream) or self.stream < 0:
             raise ValueError(f"stream must be a non-negative int, got {self.stream!r}")
-        if not (isinstance(self.alpha, (int, float)) and 0.0 <= self.alpha <= 1.0):
+        if not (_is_number(self.alpha) and 0.0 <= self.alpha <= 1.0):
             raise ValueError(f"alpha must be a number in [0, 1], got {self.alpha!r}")
-        if not (isinstance(self.noise_cap, (int, float)) and 0.0 < self.noise_cap < math.inf):
+        if not (_is_number(self.noise_cap) and 0.0 < self.noise_cap < math.inf):
             raise ValueError(f"noise_cap must be positive and finite, got {self.noise_cap!r}")
+        if not isinstance(self.round_two_only, (bool, np.bool_)):
+            raise ValueError(f"round_two_only must be a bool, got {self.round_two_only!r}")
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, (bool, np.bool_))
 
 def _is_int(value: object) -> bool:
     return isinstance(value, (int, np.integer)) and not isinstance(value, (bool, np.bool_))
@@ -188,6 +199,17 @@ def _classes(board_cards: int, discards: int) -> tuple[np.ndarray, np.ndarray]:
         return inner, np.zeros_like(inner)
     outer = np.array([int(outer_score(hole, board).category) for hole, _, board in keys], dtype=np.int64)
     return inner, outer
+
+@cache
+def _round_two() -> np.ndarray:
+    """True at every row with both board cards out (round 2), read-only."""
+    offset, _ = _layout()
+    out = np.zeros(n_rows(), dtype=bool)
+    for p, point in enumerate(public_decision_points()):
+        if point.board_cards == 2:
+            out[offset[p] : offset[p + 1]] = True
+    out.setflags(write=False)
+    return out
 
 # Three bits each: InnerCategory runs 1–6 and OuterCategory 1–7, with 0 for "no outer hand".
 _CLASS_BITS = 3
@@ -305,11 +327,15 @@ def choose(
     rows as the pool; `line` and `line_class` take groups until their reached
     rows number `pool × B`, the crossing group included, and pool those
     reached rows; `random` pools every row of the seat and reads nothing.
+    With `spec.round_two_only` a row with one board card out is never
+    eligible, so a group made only of them (a round-1 or draw line) is never
+    chosen.
     """
     group = groups(spec.granularity, seat)
     mine = np.flatnonzero(group >= 0)
+    allowed = _round_two()[mine] if spec.round_two_only else np.ones(mine.size, dtype=bool)
     if spec.granularity == "random":
-        return mine, np.zeros(1, dtype=np.int64)
+        return mine[allowed], np.zeros(1, dtype=np.int64)
     leak = _per_row("leak", leak)
     frequency = _per_row("frequency", frequency)
     owned = group[mine]
@@ -321,9 +347,9 @@ def choose(
         )
     if not (np.isfinite(noise_of_group).all() and (noise_of_group >= 0).all()):
         raise ValueError("noise_of_group must be finite and non-negative")
-    reached_row = frequency[mine] > 0.0
+    reached_row = (frequency[mine] > 0.0) & allowed
     reached = np.bincount(owned, weights=reached_row, minlength=n_groups)
-    total = np.bincount(owned, weights=leak[mine], minlength=n_groups)
+    total = np.bincount(owned, weights=np.where(allowed, leak[mine], 0.0), minlength=n_groups)
     eligible = np.flatnonzero(reached > 0)
     score = total[eligible] * noise_of_group[eligible] / reached[eligible]
     order = eligible[np.lexsort((eligible, -score))]
@@ -363,7 +389,7 @@ def target_stream(*, seed: int, t: int, seat: int, stream: int) -> np.random.Gen
     return np.random.default_rng([int(seed), int(t), int(seat), int(stream), _STREAM_TAG])
 
 # What a saved set holds; `built_at` beside `rows0` marks a file as a target set.
-_SPEC_KEYS = ("granularity", "alpha", "budget", "refresh", "noise_cap", "pool", "stream")
+_SPEC_KEYS = ("granularity", "alpha", "budget", "refresh", "noise_cap", "pool", "stream", "round_two_only")
 _FILE_KEYS = ("built_at", *_SPEC_KEYS, "rows0", "rows1", "weight0", "weight1", "groups0", "groups1")
 
 # eq=False: the fields are arrays.
@@ -486,6 +512,7 @@ class TargetSet:
             noise_cap=float(data["noise_cap"]),
             pool=int(data["pool"]),
             stream=int(data["stream"]),
+            round_two_only=bool(data["round_two_only"]),
         )
         return cls(
             spec=spec,

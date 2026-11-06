@@ -137,6 +137,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--granularity", choices=GRANULARITIES, default="line")
     parser.add_argument("--budget", type=int, default=TargetSpec.__dataclass_fields__["budget"].default)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--round-two-only", action="store_true", help="leave round-1 and draw rows out of the arm")
     parser.add_argument("--out", type=Path, help="save the set here (.npz)")
     args = parser.parse_args(argv)
 
@@ -145,7 +146,9 @@ def main(argv: list[str] | None = None) -> None:
     table = PackedTable.whole_game()
     table.cumulative_regret[:] = strategy.probabilities
     # α only tells the walk's rows from exact ones in a memory; these memories are empty.
-    spec = TargetSpec(granularity=args.granularity, alpha=0.0, budget=args.budget)
+    spec = TargetSpec(
+        granularity=args.granularity, alpha=0.0, budget=args.budget, round_two_only=args.round_two_only
+    )
     refresher = GraderRefresher(spec, walks=1, leak="current", seed=args.seed)
     targets = refresher(t=1, table=table, average=None, memories=(Reservoir(1), Reservoir(1)))
     for seat in (0, 1):
