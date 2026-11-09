@@ -43,8 +43,11 @@ row for row (and to t = 200 at the run's capacity nothing is evicted, so
 every offer of either run is resident). Only a run without an aim is
 today's run bit for bit. The inert rows have a price once eviction starts:
 at α = 0 a targeted infoset's natural rows hold reservoir slots at weight
-0, so the memory's effective capacity is smaller by their share — about
-B · t of the offers at most, under 1% of a 50M-row memory at t = 2,000.
+0, so the memory's effective capacity is smaller by their share. How many
+there are is the walk's visits to the drawn rows, about K · Σp over them
+per phase, which depends on where the aim lands; `Injected.turned_down`
+counts them and the progress line reports them (`rows.turned_down`), so
+the race reads the share rather than this docstring guessing it.
 
 **Why a row is treated all or nothing.** A targeted row's natural rows at α
 and its boosted row at (1 − α) · K · arrival are one unit: either alone
@@ -110,7 +113,9 @@ class Injected:
     natural row of a treated infoset, 1 at every other natural row, and
     (1 − α) · K · arrival at a boosted row. `boosted` is b; `skipped` counts
     the drawn rows left untreated (zero arrival, or a weight that would read
-    as a walk row's).
+    as a walk row's); `turned_down` the natural rows at treated infosets,
+    the ones now at weight α — the memory slots the boost makes inert at
+    α = 0.
     """
 
     rows: np.ndarray  # int32 (a + b,)
@@ -118,6 +123,7 @@ class Injected:
     weight: np.ndarray  # float32 (a + b,)
     boosted: int
     skipped: int
+    turned_down: int
 
 # ---------------------------------------------------------------------------
 # The weight
@@ -184,18 +190,20 @@ def inject(
     # Treated: reachable, and never at a weight the noise score reads as a walk row's.
     treated = (arrival > 0.0) & (weight != np.float32(1.0)) & (weight != np.float32(alpha))
 
+    at_treated = np.isin(rows, drawn[treated])
     natural_weight = np.ones(rows.shape[0], dtype=np.float32)
-    natural_weight[np.isin(rows, drawn[treated])] = np.float32(alpha)
+    natural_weight[at_treated] = np.float32(alpha)
     return Injected(
         rows=np.concatenate([rows, drawn[treated].astype(np.int32)]),
         targets=np.concatenate([targets, np.asarray(regret, dtype=np.float32)[treated]]),
         weight=np.concatenate([natural_weight, weight[treated]]),
         boosted=int(treated.sum()),
         skipped=int(drawn.size - treated.sum()),
+        turned_down=int(at_treated.sum()),
     )
 
 def _drawn_rows(drawn: np.ndarray) -> np.ndarray:
-    """`drawn` as a 1-D int64 array, strictly increasing — a repeat would give one row two boosted rows and double its expected weight."""
+    """`drawn` as a 1-D int64 array, strictly increasing: a repeat would give one row two boosted rows."""
     drawn = np.asarray(drawn)
     if drawn.ndim != 1 or (drawn.size and drawn.dtype.kind not in "iu"):
         raise ValueError(f"drawn must be a 1-D integer array of table rows, got {drawn.dtype} {drawn.shape}")
@@ -268,7 +276,7 @@ class Boost:
         alpha: float,
         walks: int,
     ) -> Injected:
-        """One seat's advantage offer with this iteration's boosted rows: σ read from `table` now, rows drawn for (t, seat, seed).
+        """One seat's advantage offer with this iteration's boosted rows: σ read from `table` now, rows drawn for (t, seat).
 
         `offered` is the walk's `Collected`; `table` the collector's table
         after this phase's `learner.write`, so σ is what the walks read.

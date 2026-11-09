@@ -12,7 +12,7 @@ order. This module is that order — one iteration is
         if p == 0 and boost.due(targets, t):           # every R iterations, before any walk
             targets = boost.refresh(t, table, advantage)
         rows = collector.collect(seat=p, t=t, walks=K)
-        rows = boost.phase(targets, rows, ...)         # B sampled boosted rows after the walk's, at (1 − α)·K·arrival
+        rows = boost.phase(targets, rows, ...)         # B boosted rows after the walk's, at (1 − α)·K·arrival
         advantage[p].merge(rows.rows, rows.targets, t=t, rng=stream(ADVANTAGE), weight=rows.weight)
         policy.merge(rows.policy_rows, rows.policy_targets, t=t, rng=stream(POLICY))
         nets[p] = learner.fit(*advantage[p].contents(), seed=(seed, t, p)).model  # rows, t, targets, weight
@@ -292,7 +292,8 @@ class DeepConfig:
         if self.boost_sampling.is_exact:
             raise ValueError(
                 "boost_sampling must sample: the boost stage is extra sampling at high-variance nodes, never the "
-                f"exact sum over the tree below a row, and {self.boost_sampling!r} draws nothing (EXACT is the tests' oracle)"
+                f"exact sum over the tree below a row, and {self.boost_sampling!r} draws nothing "
+                "(EXACT is the tests' oracle)"
             )
 
 # Fields added after runs had been saved, each with the value those runs had.
@@ -453,9 +454,10 @@ class StepStats:
     """What one iteration took: seconds per stage per seat, the refits' losses, the rows offered, the boost's counts.
 
     `rows` counts the walks' own rows per seat; `boosted` the boosted rows
-    added after them and `skipped` the drawn rows left untreated; `refresh`
-    is the one refresh's seconds (0.0 when none ran) and `boost` each
-    seat's boost seconds. All zero for a run without an aim.
+    added after them, `skipped` the drawn rows left untreated and
+    `turned_down` the walks' rows turned to α at treated infosets;
+    `refresh` is the one refresh's seconds (0.0 when none ran) and `boost`
+    each seat's boost seconds. All zero for a run without an aim.
     """
 
     t: int
@@ -470,6 +472,7 @@ class StepStats:
     boost: tuple[float, float] = (0.0, 0.0)
     boosted: tuple[int, int] = (0, 0)
     skipped: tuple[int, int] = (0, 0)
+    turned_down: tuple[int, int] = (0, 0)
 
 def step(
     run: DeepRun,
@@ -498,7 +501,7 @@ def step(
         raise ValueError("a boost was given but run.config.target is None: the run has no aim for it to serve")
     table = collector.table
     materialise, collect, merge, fit, loss, rows = [], [], [], [], [], []
-    refresh, boosting, boosted, skipped = [], [], [], []
+    refresh, boosting, boosted, skipped, turned_down = [], [], [], [], []
     started = time.perf_counter()
     for p in SEATS:
         with _timed(materialise):
@@ -517,6 +520,7 @@ def step(
             boosting.append(0.0)
             boosted.append(0)
             skipped.append(0)
+            turned_down.append(0)
         else:
             with _timed(boosting):
                 injected = boost.phase(
@@ -533,6 +537,7 @@ def step(
             advantage_rows, advantage_targets, weight = injected.rows, injected.targets, injected.weight
             boosted.append(injected.boosted)
             skipped.append(injected.skipped)
+            turned_down.append(injected.turned_down)
         with _timed(merge):
             run.advantage[p].merge(
                 advantage_rows,
@@ -566,6 +571,7 @@ def step(
         boost=tuple(boosting),
         boosted=tuple(boosted),
         skipped=tuple(skipped),
+        turned_down=tuple(turned_down),
     )
 
 @contextmanager
@@ -587,7 +593,7 @@ STATE = "state.json"
 def save_run(
     run: DeepRun, directory: Path, *, learner: Learner, observers: Sequence[Observer] = ()
 ) -> None:
-    """Write the run's three memories, its nets, its target set, its stateful observers and `state.json` into `directory`; the state last.
+    """Write the run's memories, nets, target set, stateful observers and `state.json` into `directory`; the state last.
 
     Every file carries the iteration in its name, so the files of the
     previous save stand untouched until the new `state.json` is in place;
@@ -1050,6 +1056,7 @@ class _Saves:
                 "policy": run.policy.offered,
                 "boosted": list(stats.boosted),
                 "skipped": list(stats.skipped),
+                "turned_down": list(stats.turned_down),
                 "resident": {
                     "advantage": [memory.size for memory in run.advantage],
                     "policy": run.policy.size,

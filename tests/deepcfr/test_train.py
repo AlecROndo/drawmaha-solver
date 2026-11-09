@@ -271,7 +271,7 @@ def test_one_iteration_runs_both_phases_in_the_specs_order(collector):
     assert stats.rows == (run.advantage[0].offered, run.advantage[1].offered)
     # No aim: the boost's stages took no time and added nothing.
     assert stats.refresh == 0.0 and stats.boost == (0.0, 0.0)
-    assert stats.boosted == (0, 0) and stats.skipped == (0, 0)
+    assert stats.boosted == (0, 0) and stats.skipped == (0, 0) and stats.turned_down == (0, 0)
 
 def test_the_second_iteration_writes_both_nets_and_the_fresh_one_before_seat_one(collector):
     spy = Spy(collector)
@@ -774,6 +774,9 @@ def test_boosted_rows_land_after_the_natural_rows_and_the_policy_memory_is_untou
         assert (weight[a:] > 0).all() and not np.isin(weight[a:], [np.float32(1.0)]).any()
     assert same_memory(run_plain.policy, run_boosted.policy)
     assert stats.boosted == (3, 3) and stats.skipped == (0, 0)
+    assert stats.turned_down == tuple(
+        int(np.isin(run_plain.advantage[seat].contents()[0], drawn[seat]).sum()) for seat in SEATS
+    )
     assert all(s > 0 for s in stats.boost) and stats.refresh > 0
 
 class Stamping(Spy):
@@ -811,10 +814,11 @@ def test_stats_and_the_progress_line_carry_the_boost(tmp_path):
     for line in log:
         assert len(line["seconds"]["boost"]) == 2 and all(s >= 0 for s in line["seconds"]["boost"])
         assert line["rows"]["boosted"] == [3, 3] and line["rows"]["skipped"] == [0, 0]
+        assert len(line["rows"]["turned_down"]) == 2 and all(n >= 0 for n in line["rows"]["turned_down"])
     drive(tmp_path / "plain", 1)
     line = lines(tmp_path / "plain")[0]
     assert line["seconds"]["refresh"] == 0.0 and line["seconds"]["boost"] == [0.0, 0.0]
-    assert line["rows"]["boosted"] == [0, 0] and line["rows"]["skipped"] == [0, 0]
+    assert line["rows"]["boosted"] == [0, 0] and line["rows"]["skipped"] == [0, 0] and line["rows"]["turned_down"] == [0, 0]
 
 def test_the_target_set_rides_the_resume_state_and_is_not_regraded(tmp_path):
     spec = replace(BOOST_SPEC, refresh=4)

@@ -89,6 +89,7 @@ def test_boosted_rows_follow_the_natural_rows_at_the_settled_weight():
     np.testing.assert_array_equal(out.targets[4], np.float32([1.5, -0.5, 0, 0]))
     np.testing.assert_array_equal(out.targets[5], np.float32([0.25, 0.75, -1.0, 0]))
     assert (out.boosted, out.skipped) == (2, 0)
+    assert out.turned_down == 3  # the three natural rows at infosets 5 and 12
     assert out.rows.dtype == np.int32 and out.targets.dtype == np.float32 and out.weight.dtype == np.float32
     assert fake.calls == [("σ", 0, [5, 12], Sampling(), 7, 3)]
 
@@ -109,7 +110,7 @@ def test_a_zero_arrival_row_is_skipped_and_its_natural_rows_keep_weight_one():
     out = injected(a_fake(arrival_12=0.0))
     np.testing.assert_array_equal(out.rows, [5, 9, 5, 12, 5])
     np.testing.assert_array_equal(out.weight, np.float32([0, 1, 0, 1, 2.0]))
-    assert (out.boosted, out.skipped) == (1, 1)
+    assert (out.boosted, out.skipped, out.turned_down) == (1, 1, 2)
 
 @pytest.mark.parametrize("alpha", [0.0, 0.5])
 def test_a_row_whose_weight_would_read_as_a_walk_row_is_left_untreated(alpha):
