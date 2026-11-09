@@ -85,7 +85,9 @@ import numpy as np
 from matplotlib.colors import to_hex, to_rgb
 from matplotlib.ticker import FormatStrFormatter
 
+from drawmaha_solver.deepcfr.targeting import groups, n_rows, row_offsets
 from drawmaha_solver.minidrawmaha.rules.cards import DECK, Card
+from drawmaha_solver.minidrawmaha.rules.enumeration import PublicPoint, public_decision_points
 from drawmaha_solver.minidrawmaha.exploitability import (
     best_response_value,
     expected_value,
@@ -775,11 +777,14 @@ def reach_main(argv: list[str] | None = None) -> None:
         uv run minidraw-exploit-by-reach --release tabular        # figures/rung3/exploit_by_reach.json
         uv run minidraw-exploit-by-reach --release deep-exact     # figures/rung4/exploit_by_reach_deep-exact.json
         uv run minidraw-exploit-by-reach --release deep-pi        # figures/rung4/exploit_by_reach_deep-pi.json
+        uv run minidraw-exploit-by-reach --release tabular --by-line   # figures/rung3/exploit_by_line.json
 
     Steps:
       1. Fetch the release asset by digest (`range_export.RELEASES`) or take `--strategy`.
       2. `reach_profile` it: four walks of the whole game, about five minutes.
-      3. Write `--out` (default by release) and the bar figure beside it.
+         With `--by-line`, `gains_by_row` and `line_profile` instead: two walks,
+         the gains split by the 141 betting lines the targeting arms rank.
+      3. Write `--out` (default by release and mode) and the bar figure beside it.
     `--replot FILE.json` redraws the figure beside an existing JSON without the walk.
     """
     from drawmaha_solver.minidrawmaha.answer.range_export import RELEASES
@@ -789,28 +794,31 @@ def reach_main(argv: list[str] | None = None) -> None:
     parser.add_argument("--strategy", type=Path, help="a frozen strategy .npz instead of the release")
     parser.add_argument("--out", type=Path, help="the JSON to write; the figure lands beside it")
     parser.add_argument("--replot", type=Path, help="redraw the figure beside this JSON and stop; no walk")
+    parser.add_argument("--by-line", action="store_true", help="split by betting line instead of by reach")
     args = parser.parse_args(argv)
+    draw = fig_by_line if args.by_line else fig_reach
     if args.replot is not None:
-        fig_reach(json.loads(args.replot.read_text()), args.replot.with_suffix(".png"))
+        draw(json.loads(args.replot.read_text()), args.replot.with_suffix(".png"))
         print(f"redrew {args.replot.with_suffix('.png').resolve()}")
         return
     release = RELEASES[args.release]
     if args.out is None:
-        args.out = (
-            FIGURES / "exploit_by_reach.json"
-            if args.release == "tabular"
-            else RUNG4 / f"exploit_by_reach_{args.release}.json"
-        )
+        name = "exploit_by_line" if args.by_line else "exploit_by_reach"
+        args.out = FIGURES / f"{name}.json" if args.release == "tabular" else RUNG4 / f"{name}_{args.release}.json"
     path = args.strategy or fetch_strategy(url=release.url, sha256=release.sha256)
     strategy = load_strategy(path)
-    print(f"binning {args.release} by reach...", flush=True)
-    profile = reach_profile(strategy)
+    if args.by_line:
+        print(f"splitting {args.release} by betting line...", flush=True)
+        profile = line_profile(*gains_by_row(strategy))
+    else:
+        print(f"binning {args.release} by reach...", flush=True)
+        profile = reach_profile(strategy)
     profile = {"release": args.release, "strategy": asdict(strategy.info) | {"sha256": sha256_of(path)}, **profile}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(profile, indent=2) + "\n")
-    fig_reach(profile, args.out.with_suffix(".png"))
+    draw(profile, args.out.with_suffix(".png"))
     print(f"wrote {args.out.resolve()}")
-    print_reach(profile)
+    (print_by_line if args.by_line else print_reach)(profile)
 
 def _reach_label(row: Mapping) -> str:
     if row["ceiling"] is None:
@@ -867,6 +875,176 @@ def print_reach(profile: Mapping) -> None:
             print(f"  {_reach_label(row):>34}  {row['infosets']:>9,} infosets  "
                   f"{100 * row['exploitability'] / profile['exploitability']:5.1f}% of exploitability  "
                   f"{100 * per_visit(row):7.2f} chips per 100 visits")
+
+# ---------------------------------------------------------------------------
+# The leak by betting line, in the trainer's groups
+# ---------------------------------------------------------------------------
+
+# How many of the leakiest lines the figure draws; the JSON keeps all 141.
+TOP_LINES = 20
+
+def gains_by_row(strategy: Mapping, *, game=None) -> tuple[np.ndarray, np.ndarray]:
+    """Every table row's one-step gain and play frequency, both seats: two `gains_by_infoset` walks, on the table's rows.
+
+    Each row carries its own seat's numbers (the seat that acts there), so
+    the two seats' arrays add without overlap. The targeting refresher
+    (`scripts/deepcfr/targeting_refresh.py`) hands exactly these two arrays
+    to the trainer's `targeting.target_set`; the leak-by-line figure sums them
+    by the same groups.
+    """
+    game = game or minidrawmaha_game()
+    gain, frequency = np.zeros(n_rows()), np.zeros(n_rows())
+    for seat in (0, 1):
+        g, f = scatter_by_row(gains_by_infoset(strategy, responder=seat, game=game), game, seat=seat)
+        gain += g
+        frequency += f
+    return gain, frequency
+
+def scatter_by_row(per_node: Mapping[int, tuple[np.ndarray, np.ndarray]], game, *, seat: int) -> tuple[np.ndarray, np.ndarray]:
+    """`gains_by_infoset`'s per-node arrays laid onto the whole-game table's rows; zero on the other seat's rows.
+
+    The grader keys its output by its own node index and lists a node's keys
+    in `private_keys` order; the table lays a public point's keys out in the
+    same order from the point's first row. So a node's array lands, whole, at
+    the rows of the public point with the same signature — board cards out,
+    draws and betting — which is how `PackedTable` names a point too.
+    """
+    offsets = row_offsets()
+    point_of = {
+        (point.board_cards, point.draws, point.betting): p
+        for p, point in enumerate(public_decision_points())
+    }
+    gain, frequency = np.zeros(n_rows()), np.zeros(n_rows())
+    for node in game.decisions:
+        if node.player != seat:
+            continue
+        draws, betting = node.public
+        p = point_of[(node.level, draws, betting)]
+        span = slice(offsets[p], offsets[p + 1])
+        g, f = per_node[node.index]
+        if len(g) != offsets[p + 1] - offsets[p] or len(f) != len(g):
+            raise ValueError(
+                f"node {node.index} reports {len(g):,} keys where public point {p} has "
+                f"{offsets[p + 1] - offsets[p]:,} rows"
+            )
+        gain[span] = g
+        frequency[span] = f
+    return gain, frequency
+
+def _betting(line: Sequence[Action]) -> str:
+    """A betting line in letters: X check, B bet, C call, R raise, F fold; "open" before anyone acts."""
+    out, owed = [], False
+    for action in line:
+        if action is Action.POT:
+            out.append("R" if owed else "B")
+            owed = True
+        elif action is Action.CHECK_CALL:
+            out.append("C" if owed else "X")
+            owed = False
+        else:
+            out.append("F")
+    return "-".join(out) if out else "open"
+
+def _point_stage(point: PublicPoint) -> str:
+    if point.board_cards == 2:
+        return "round 2"
+    return "draw" if point.is_draw_decision else "round 1"
+
+def line_label(point: PublicPoint) -> str:
+    """A public point as a reader names it: the stage's own betting, what came before, and who acts.
+
+    "R1 X → P1" is P1 facing a check in round 1; "draw | R1 B-C, 1 drawn → P1"
+    is P1 drawing after a bet and a call and P0's one-card draw; "R2 X-B | R1
+    X-X, draws 0-1 → P0" is P0 facing a round-2 bet after a checked round 1,
+    P0 standing pat and P1 drawing one.
+    """
+    first = _betting(point.betting[0])
+    stage = _point_stage(point)
+    if stage == "round 1":
+        return f"R1 {first} → P{point.player}"
+    if stage == "draw":
+        drawn = f", {point.draws[0].count} drawn" if point.draws else ""
+        return f"draw | R1 {first}{drawn} → P{point.player}"
+    draws = "-".join(str(signal.count) for signal in point.draws)
+    return f"R2 {_betting(point.betting[1])} | R1 {first}, draws {draws} → P{point.player}"
+
+def line_profile(gain: np.ndarray, frequency: np.ndarray) -> dict:
+    """The exploitability split by the 141 betting lines, each with its count of line × hand classes.
+
+    A line is a public point, the trainer's `line` group; its classes are the
+    `line_class` groups (inner × outer category) its rows fall in. A line's
+    share of the exploitability is half its gains, as in `reach_profile`, so
+    the lines sum to the graded number. `reached` counts rows with positive
+    play frequency, the targeting score's denominator.
+    """
+    offsets = row_offsets()
+    lines = []
+    classes_total = 0
+    for p, point in enumerate(public_decision_points()):
+        span = slice(offsets[p], offsets[p + 1])
+        classes = int(np.unique(groups("line_class", point.player)[span]).size)
+        classes_total += classes
+        lines.append({
+            "point": p,
+            "seat": point.player,
+            "stage": _point_stage(point),
+            "line": line_label(point),
+            "infosets": int(offsets[p + 1] - offsets[p]),
+            "reached": int((frequency[span] > 0).sum()),
+            "exploitability": float(gain[span].sum()) / 2.0,
+            "frequency": float(frequency[span].sum()),
+            "classes": classes,
+        })
+    return {
+        "exploitability": float(gain.sum()) / 2.0,
+        "gain": [float(gain[groups("line", seat) >= 0].sum()) for seat in (0, 1)],
+        "infosets": n_rows(),
+        "reached": int((frequency > 0).sum()),
+        "groups": {"line": len(lines), "line_class": classes_total},
+        "lines": lines,
+    }
+
+def _leakiest(profile: Mapping) -> list[Mapping]:
+    return sorted(profile["lines"], key=lambda line: -line["exploitability"])[:TOP_LINES]
+
+def fig_by_line(profile: Mapping, out: Path) -> None:
+    """The leakiest lines' shares of the exploitability and of the reached infosets, one pair of bars a line.
+
+    The title reads off the data how much of the whole the top lines hold and
+    on how small a share of the rows: how much aim a betting line alone buys.
+    """
+    top = _leakiest(profile)
+    total, reached = profile["exploitability"], profile["reached"]
+    expl = [100 * line["exploitability"] / total for line in top]
+    count = [100 * line["reached"] / reached for line in top]
+    fig, ax = new_axes(
+        f"The {len(top)} leakiest of {profile['groups']['line']} betting lines hold {sum(expl):.0f}% of the "
+        f"exploitability on {sum(count):.1f}% of the reached infosets;\n"
+        f"the leakiest, {top[0]['line']}, holds {expl[0]:.1f}% on {count[0]:.2f}%",
+        figsize=(9.0, 7.6),
+    )
+    y = np.arange(len(top))
+    ax.barh(y - 0.2, expl, height=0.38, color=CATEGORICAL[0], label="share of exploitability")
+    ax.barh(y + 0.2, count, height=0.38, color=BASELINE, label="share of reached infosets")
+    for yy, (e, c) in enumerate(zip(expl, count)):
+        ax.text(e + 0.15, yy - 0.2, f"{e:.1f}%", va="center", color=SECONDARY, fontsize=7)
+        ax.text(c + 0.15, yy + 0.2, f"{c:.1f}%" if c >= 0.1 else f"{c:.2f}%", va="center", color=MUTED, fontsize=7)
+    ax.set_yticks(y, [line["line"] for line in top], fontsize=8)
+    ax.invert_yaxis()
+    ax.set_xlim(0, max(max(expl), max(count)) * 1.15)
+    ax.grid(axis="y", visible=False)
+    ax.grid(axis="x", color=BASELINE, linewidth=0.5)
+    ax.set_xlabel("percent · a line is a public point (betting and draws) with the seat to act; "
+                  "X check, B bet, C call, R raise, F fold", color=MUTED, fontsize=9)
+    legend(ax, loc="lower right")
+    save(fig, out)
+
+def print_by_line(profile: Mapping) -> None:
+    print(f"\n{profile['release']}: exploitability {profile['exploitability']:.6f} over "
+          f"{profile['groups']['line']} lines and {profile['groups']['line_class']:,} line × hand classes")
+    for line in _leakiest(profile)[:10]:
+        print(f"  {line['line']:>40}  {100 * line['exploitability'] / profile['exploitability']:5.1f}% "
+              f"of exploitability  {line['reached']:>9,} reached infosets  {line['classes']:>3} classes")
 
 # ---------------------------------------------------------------------------
 # Rung 4: the price of the net at equal hands

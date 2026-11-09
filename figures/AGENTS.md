@@ -61,7 +61,12 @@ written by `uv run minidraw-exploit-by-reach --release tabular`;
 `rung4/exploit_by_reach_deep-exact.json` and `exploit_by_reach_deep-pi.json` are
 the same for the two released Deep CFR averages (`--release deep-exact`,
 `--release deep-pi`). Each carries the check that the gains sum to each seat's
-best-response edge.
+best-response edge. `rung3/exploit_by_line.json` (and its `.png`) splits the
+same gains by the 141 betting lines the targeting arms rank, each line with
+its count of line × hand-class groups (3,870 in all), written by
+`uv run minidraw-exploit-by-reach --release tabular --by-line`;
+`tests/minidrawmaha/test_exploit_by_line.py` holds its total to
+`exploit_by_reach.json`'s.
 
 `rung4/pi_sweep/results.json` is the policy-net loss sweep: 22 refits of Π on
 the stored policy memory of the 4 × 256, 16,000-step arm (loss, head, steps,
