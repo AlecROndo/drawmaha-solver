@@ -328,12 +328,13 @@ def test_every_surface_renders_one_main_and_one_footer() -> None:
     A tripwire over the source text, not a render: comments stripped, each
     surface's shell (an app's `App.tsx` with its `ui/site.tsx`; a static
     page) opens exactly one `<main` and one `<footer`, the `<main` carries no
-    `key=`, and the line that opens it is not a conditional. That is what the
-    text can show. A second `main`, or a `main` inside a `footer`, would
-    compound two fades; a keyed or conditional `main` would replay the fade
-    on a view change. A `<main>` rendered by a child component would escape
-    this test, and so would a conditional broken across lines; the arrival
-    test's docstring states the premise so a reader knows to keep it.
+    `key=`, and no conditional operator (`&&`, `?`, `:`) stands right before
+    it on its line, which is how JSX renders a tag conditionally. That is
+    what the text can show. A second `main`, or a `main` inside a `footer`,
+    would compound two fades; a keyed or conditional `main` would replay the
+    fade on a view change. A `<main>` rendered by a child component would
+    escape this test, and so would a conditional broken across lines; the
+    arrival test's docstring states the premise so a reader knows to keep it.
     """
     comments = re.compile(r"<!--.*?-->|/\*.*?\*/", re.DOTALL)
     shells = {page: (WEB / "cover" / page).read_text() for page in PAGES}
@@ -349,8 +350,8 @@ def test_every_surface_renders_one_main_and_one_footer() -> None:
             f"{name}: <main> is keyed, so React would remount it and replay the arrival"
         )
         opening = next(line for line in text.splitlines() if "<main" in line)
-        assert not re.search(r"&&|\?[^.]|\bif\b", opening), (
-            f"{name}: <main> opens on a conditional line (`{opening.strip()}`); it mounts once, always"
+        assert not re.search(r"(&&|\?|:)\s*\(?\s*<main\b", opening), (
+            f"{name}: <main> is rendered conditionally (`{opening.strip()}`); it mounts once, always"
         )
 
 
