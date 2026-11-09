@@ -117,7 +117,10 @@ themselves; PR 3's collector does not, and this module does not edit it.
 **The log.** `progress.jsonl` gets one line per iteration, and one more
 when a stop is noticed before an iteration starts. A run that crashed and
 resumed re-appends the iterations since its last resume save, so a reader
-takes the LAST line per t.
+takes the LAST line per t. `rows.advantage` is each seat's memory's count
+of offers ever made, boosted rows included; the walk's own rows of the
+iteration are `rows`' complement, `rows.boosted` beside it, so a reader
+does not subtract the boosted rows twice.
 
 Measured on this Mac (2026-10-20, W = 8, the default 3 × 64 net and
 4,000 × 10,000 refit, iteration 2 of a run): at K = 1,000, 25.9 s per
