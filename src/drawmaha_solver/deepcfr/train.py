@@ -120,6 +120,7 @@ import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
+from dataclasses import fields as dataclass_fields
 from functools import cache
 from pathlib import Path
 from typing import Protocol, runtime_checkable
@@ -134,8 +135,10 @@ from drawmaha_solver.deepcfr.reservoir import (
     _is_int,
     reservoir_stream,
 )
+from drawmaha_solver.deepcfr.targeting import TargetSpec
 from drawmaha_solver.minidrawmaha.rules.features import layout
 from drawmaha_solver.minidrawmaha.rules.game import chip_state
+from drawmaha_solver.minidrawmaha.solver.boost_target import Sampling
 from drawmaha_solver.minidrawmaha.solver.lockstep import SEATS, _columns
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.answer.strategy import FrozenStrategy, StrategyInfo, average_rows
@@ -165,7 +168,9 @@ class DeepConfig:
     torch at its top and this module must not; `NetLearner` builds the
     `FitConfig` when it is asked to. A `state.json` written before a field
     existed loads with the value that run had, not today's default
-    (`ADDED_LATER`): "cpu" for the device, 0 for the pot power.
+    (`ADDED_LATER`): "cpu" for the device, 0 for the pot power, no aim for
+    the targeted-sampling boost. `target` and `boost` are dataclasses and
+    travel as nested dicts in the JSON; `config_from_saved` rebuilds them.
     """
 
     seed: int = 0
@@ -203,6 +208,18 @@ class DeepConfig:
     # 7). That arm ran at half this config's `lr`: √pot with lr 1e-3 has not
     # been run, so the quarter is the 5e-4 pairing's, not this default's.
     pot_power: float = 0.5
+    # The targeted-sampling boost's aim (`deepcfr.targeting.TargetSpec`: the
+    # arm, α, B, R, whose leak), or None for a run without the boost — today's
+    # run, bit for bit. Set, it needs a `Boost` handed to `run_deep`.
+    target: TargetSpec | None = None
+    # What one boosted row samples below its row (`boost_target.Sampling`):
+    # by default the walk's own sampling against the whole opponent range.
+    # Never exact: the boost is extra sampling at high-variance nodes, not a
+    # sum over the tree below a node, so a `Sampling` that draws nothing is
+    # refused here and again in `boost.inject`. Read only when `target` is
+    # set, and a sample field all the same, so a resume that changes it is
+    # refused even on a run without an aim — conservative, and said here.
+    boost: Sampling = Sampling()
     grid: tuple[int, ...] = GRID
     # The resume state carries 3.6 GB of memories at the run's C, so 30
     # minutes rather than rung 3's 10.
@@ -236,6 +253,15 @@ class DeepConfig:
         # Written as `not (0 <= x <= 1)` so a NaN, which is in no interval, is refused too.
         if not 0 <= self.pot_power <= 1:
             raise ValueError(f"pot_power must be in [0, 1], got {self.pot_power!r}")
+        if self.target is not None and not isinstance(self.target, TargetSpec):
+            raise ValueError(f"target must be a TargetSpec or None, got {type(self.target).__name__}")
+        if not isinstance(self.boost, Sampling):
+            raise ValueError(f"boost must be a Sampling, got {type(self.boost).__name__}")
+        if self.boost.is_exact:
+            raise ValueError(
+                "boost must sample: the boost stage is extra sampling at high-variance nodes, never the "
+                f"exact sum over the tree below a row, and {self.boost!r} draws nothing (EXACT is the tests' oracle)"
+            )
 
 # Fields added after runs had been saved, each with the value those runs had.
 # A saved config that lacks one is from before the field existed, and must
@@ -243,7 +269,12 @@ class DeepConfig:
 # raw chips, and resuming it under today's default would change its weighting
 # half-way with nothing in the log. `config_from_saved` applies these; a
 # resume then refuses the mismatch by name, as it refuses any sample field.
-ADDED_LATER: Mapping[str, object] = {"device": "cpu", "pot_power": 0.0}
+ADDED_LATER: Mapping[str, object] = {"device": "cpu", "pot_power": 0.0, "target": None, "boost": Sampling()}
+
+# The fields that are dataclasses themselves, flattened to dicts by `asdict`
+# on the way into `state.json` and rebuilt by `config_from_saved` on the way
+# back; a dict missing a field or carrying an unknown one is refused by name.
+_NESTED: Mapping[str, type] = {"target": TargetSpec, "boost": Sampling}
 
 # The fields a resume may not change: each one changes the sample or the
 # fit, so a run continued under a different value would be a different run.
@@ -263,6 +294,8 @@ SAMPLE_FIELDS = (
     "threads",
     "rule",
     "pot_power",
+    "target",
+    "boost",
 )
 
 def require_same_run(saved: DeepConfig, asked: DeepConfig) -> None:
@@ -577,7 +610,25 @@ def config_from_saved(record: Mapping) -> DeepConfig:
         )
     saved = {**ADDED_LATER, **record}
     saved["grid"] = tuple(saved["grid"])
+    for name, kind in _NESTED.items():
+        if isinstance(saved[name], Mapping):
+            saved[name] = _rebuilt(name, kind, saved[name])
     return DeepConfig(**saved)
+
+def _rebuilt(name: str, kind: type, record: Mapping) -> object:
+    """`kind(**record)`, with a missing or unknown field refused by name rather than as a bare TypeError."""
+    known = {field.name for field in dataclass_fields(kind)}
+    unknown = sorted(set(record) - known)
+    missing = sorted(known - set(record))
+    if unknown or missing:
+        raise ValueError(
+            f"the saved config's {name} "
+            + (f"has fields this code does not know: {', '.join(unknown)}" if unknown else "")
+            + ("; " if unknown and missing else "")
+            + (f"lacks {', '.join(missing)}" if missing else "")
+            + "; it was written by other code, and only that code can continue the run"
+        )
+    return kind(**record)
 
 def _config_of(state: dict) -> DeepConfig:
     return config_from_saved(state["config"])

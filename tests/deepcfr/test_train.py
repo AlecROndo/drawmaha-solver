@@ -26,7 +26,9 @@ import pytest
 from drawmaha_solver.deepcfr.collect import Collector
 from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Memory, Reservoir, reservoir_stream
 import drawmaha_solver.deepcfr.train as train
+from drawmaha_solver.deepcfr.targeting import TargetSpec
 from drawmaha_solver.deepcfr.train import (
+    ADDED_LATER,
     GRID,
     MARKS,
     NETS,
@@ -39,6 +41,7 @@ from drawmaha_solver.deepcfr.train import (
     Fitted,
     OracleLearner,
     OracleModel,
+    config_from_saved,
     current_iterate,
     load_run,
     mark_name,
@@ -61,6 +64,7 @@ from drawmaha_solver.minidrawmaha.solver.lockstep import (
     train_lockstep,
     walk,
 )
+from drawmaha_solver.minidrawmaha.solver.boost_target import EXACT, Sampling
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.solver.regret_rules import Average, RegretRule
 from drawmaha_solver.minidrawmaha.answer.strategy import StrategyInfo
@@ -150,6 +154,8 @@ def test_config_defaults_are_the_specs():
     # The one departure from the 2026-10-07 spec: targets divided by √pot
     # before the refit, chosen 2026-10-27 from the pot arms in the run log.
     assert config.pot_power == 0.5
+    # No aim, so no boost; what a boosted row would sample is the walk's own sampling.
+    assert config.target is None and config.boost == Sampling()
 
 @pytest.mark.parametrize(
     ("field", "value"),
@@ -174,11 +180,46 @@ def test_config_defaults_are_the_specs():
         ("pot_power", -0.1),
         ("pot_power", 1.5),
         ("pot_power", float("nan")),
+        ("target", "line"),
+        ("target", {"granularity": "line", "alpha": 0.0}),
+        ("boost", EXACT),
+        ("boost", Sampling(opponent_actions=None, board_cards=14, opponent_draws=12, hero_draws=12)),
+        ("boost", "walk"),
     ],
 )
 def test_config_refuses_bad_values_by_name(field, value):
     with pytest.raises(ValueError, match=field):
         DeepConfig(**{field: value})
+
+LINE = TargetSpec(granularity="line", alpha=0.0)
+
+def test_the_boost_fields_are_sample_fields_added_later():
+    # A run saved before the fields existed had no aim; its sampling is the
+    # default so a resume under today's defaults is not refused.
+    assert ADDED_LATER["target"] is None and ADDED_LATER["boost"] == Sampling()
+    assert {"target", "boost"} <= set(SAMPLE_FIELDS)
+    with pytest.raises(ValueError, match="target"):
+        require_same_run(DeepConfig(), DeepConfig(target=LINE))
+    with pytest.raises(ValueError, match="boost"):
+        require_same_run(DeepConfig(), DeepConfig(boost=Sampling(playouts=2)))
+
+def test_a_config_with_a_target_and_a_sampling_round_trips_through_json():
+    config = DeepConfig(
+        target=TargetSpec(granularity="line_class", alpha=0.0, budget=7, leak="current"),
+        boost=Sampling(opponent_range=3, playouts=2),
+    )
+    assert config_from_saved(json.loads(json.dumps(asdict(config)))) == config
+    assert config_from_saved(json.loads(json.dumps(asdict(DeepConfig())))) == DeepConfig()
+
+def test_a_saved_aim_missing_or_carrying_an_unknown_field_is_refused_by_name():
+    carried = json.loads(json.dumps(asdict(DeepConfig(target=LINE))))
+    del carried["target"]["leak"]
+    with pytest.raises(ValueError, match="leak"):
+        config_from_saved(carried)
+    carried = json.loads(json.dumps(asdict(DeepConfig(target=LINE))))
+    carried["boost"]["coinage"] = 3
+    with pytest.raises(ValueError, match="coinage"):
+        config_from_saved(carried)
 
 def test_require_same_run_names_every_changed_sample_field():
     asked = DeepConfig(seed=1, walks=5, width=32, workers=2, grid=(1,), save_every_s=0.0)
@@ -751,6 +792,17 @@ def test_a_state_written_before_pot_scaling_existed_was_a_raw_run_and_resumes_as
     with pytest.raises(ValueError, match="pot_power: 0.0 → 0.5"):
         drive(tmp_path, 2)
     assert drive(tmp_path, 2, replace(DRIVEN, pot_power=0.0)).t == 2
+
+def test_a_state_written_before_the_boost_existed_resumes_without_one(tmp_path):
+    drive(tmp_path, 1)
+    state_path = tmp_path / RESUME / STATE
+    state = json.loads(state_path.read_text())
+    del state["config"]["target"]
+    del state["config"]["boost"]
+    state_path.write_text(json.dumps(state))
+    assert saved_config(tmp_path / RESUME).target is None
+    assert saved_config(tmp_path / RESUME).boost == Sampling()
+    assert drive(tmp_path, 2).t == 2
 
 def test_a_saved_config_with_a_field_this_code_does_not_know_is_refused_by_name():
     # The mirror case of `ADDED_LATER`: a record from newer code. It is a
