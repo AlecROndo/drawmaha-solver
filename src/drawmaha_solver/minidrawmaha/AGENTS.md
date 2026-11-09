@@ -13,7 +13,14 @@ Three subpackages, and one module that stays alone on purpose:
   arrays), `infoset_table` (a ledger window over it), `mccfr` (external
   sampling, one hand per seat), `lockstep` (W hands per seat against one
   frozen σ; the reference), `parallel` (the same in W processes over shared
-  memory), `lockstep_run` (resume, grid checkpoints, progress).
+  memory), `lockstep_run` (resume, grid checkpoints, progress), and
+  `boost_target` (rung 4's boost target: extra samples of a high-noise row's
+  regret, each source below the row — the board card and both seats'
+  replacements k of n, the opponent's actions and range k draws — or
+  enumerated, as a `Sampling` names, unbiased, with `EXACT`, the sum over every opponent hand
+  and every physical entry of the key, as their limit; and the exact
+  probability a walk arrives there; rules-only, and it must never import
+  `exploitability.py`, which grades what it feeds).
 - `answer/` — everything built on the solved game. `strategy` (the frozen
   LCFR average, a release asset pinned by SHA-256), `analysis`
   (`minidraw-analysis`, writes `figures/rung3/`), `play` (`minidraw-play`),
