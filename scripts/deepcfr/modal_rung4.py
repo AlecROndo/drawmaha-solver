@@ -152,7 +152,7 @@ image = (
 )
 TRAINER = {"image": image, "cpu": WORKERS + 1, "memory": MEMORY_GIB * 1024}
 # The grader holds the compiled game (1.5 GB), a table, a policy memory of
-# up to 1.2 GB and Π's fit; eight threads for that fit.
+# up to 1.4 GB and Π's fit; eight threads for that fit.
 GRADER = {"image": image, "cpu": GRADER_CPU, "memory": GRADER_GIB * 1024}
 
 def _run_dir(name: str) -> Path:
