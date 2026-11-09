@@ -11,16 +11,27 @@ at every targeted row as plain sampling does.
 from __future__ import annotations
 
 import ast
+import os
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from drawmaha_solver.deepcfr.boost import Boost, Injected, boosted_weight, inject
-from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH
+from drawmaha_solver.deepcfr.collect import Collector
+from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Reservoir
 from drawmaha_solver.deepcfr.targeting import TargetSet, TargetSpec, row_offsets
+from drawmaha_solver.deepcfr.train import DeepConfig, OracleLearner, new_run, step
+from drawmaha_solver.minidrawmaha.rules.cards import parse_cards
 from drawmaha_solver.minidrawmaha.rules.enumeration import public_decision_points
-from drawmaha_solver.minidrawmaha.solver.boost_target import EXACT, Sampling
+from drawmaha_solver.minidrawmaha.rules.game import MiniState
+from drawmaha_solver.minidrawmaha.solver.boost_target import EXACT, HOLES, BoostTargets, Sampling
+
+@pytest.fixture(autouse=True)
+def importable_tests(monkeypatch):
+    # The collector's spawned workers would unpickle `restricted_deal` by module name; at
+    # workers=0 nothing is spawned, but the rule is kept so the test runs under either.
+    monkeypatch.syspath_prepend(str(Path(__file__).parents[2]))
 
 # ---------------------------------------------------------------------------
 # A stand-in for the boost oracle
@@ -255,3 +266,118 @@ def test_the_boost_builds_the_whole_games_oracle_only_when_first_asked():
     from drawmaha_solver.minidrawmaha.solver.boost_target import BoostTargets
 
     assert isinstance(boost.exact, BoostTargets) and boost.exact is BoostTargets.build()
+
+# ---------------------------------------------------------------------------
+# The gate: the stage is unbiased end to end
+# ---------------------------------------------------------------------------
+#
+# A restricted deal the walks can sample and the boost oracle can be built
+# for, restated from tests/minidrawmaha/test_boost_target.py (test modules
+# never import one another). Seat 0 holds one hole, so its rows are reached
+# often enough to compare over a few dozen seeds: the opening row every walk,
+# the draw rows a few percent of walks.
+
+WIDE = ([parse_cards("2c 3c 5d")], list(HOLES))
+_ALLOWED: list[tuple[tuple, tuple]] = []
+
+def restricted_deal(rng: np.random.Generator) -> MiniState:
+    """Uniform over `_ALLOWED` (seat-0 hole, seat-1 hole) pairs; module-level so the collector may pickle it."""
+    return MiniState(holes=_ALLOWED[int(rng.integers(len(_ALLOWED)))])
+
+def allowed_pairs(seat0, seat1) -> list[tuple[tuple, tuple]]:
+    return [(tuple(sorted(a)), tuple(sorted(b))) for a in seat0 for b in seat1 if not set(a) & set(b)]
+
+class FixedRefresher:
+    """The same `infoset` set of seat-0 rows at every call."""
+
+    def __init__(self, spec: TargetSpec, rows: np.ndarray) -> None:
+        self.spec, self.rows = spec, rows
+
+    def __call__(self, *, t, table, memories):
+        empty = np.zeros(0, dtype=np.int64)
+        return TargetSet(
+            spec=self.spec, built_at=t, rows=(self.rows, empty), weight=(np.ones(self.rows.size), np.zeros(0)), groups=(self.rows, empty)
+        )
+
+def banked_at(memory: Reservoir, row: int) -> tuple[np.ndarray, float]:
+    """(Σ t · weight · target over the memory's rows at `row`, Σ t · weight there): what the oracle banks, and the weight it banks it with."""
+    rows, t, targets, weight = memory.contents()
+    at = rows == row
+    scale = t[at].astype(np.float64) * weight[at].astype(np.float64)
+    return (targets[at].astype(np.float64) * scale[:, None]).sum(axis=0), float(scale.sum())
+
+def walked(seed: int, *, walks: int, spec: TargetSpec | None, rows: np.ndarray, exact: BoostTargets) -> Reservoir:
+    """Seat 0's advantage memory after one oracle iteration at `seed`, boosted at `rows` when `spec` is given."""
+    config = DeepConfig(seed=seed, walks=walks, workers=0, capacity=100_000, target=spec)
+    run = new_run(config)
+    boost = None if spec is None else Boost(FixedRefresher(spec, rows), exact=exact)
+    with Collector(seed=seed, workers=0, deal=restricted_deal) as collector:
+        stats = step(run, collector, OracleLearner(), boost=boost)
+    if spec is not None:
+        assert stats.boosted == (rows.size, 0) and stats.skipped == (0, 0)
+    return run.advantage[0]
+
+SEEDS = 50 if os.environ.get("MINIDRAWMAHA_FULL_TARGET") == "1" else 24
+
+def test_the_boost_leaves_expected_banked_regret_and_weight_unchanged_at_every_targeted_row():
+    # Plain sampling at seat 0's row r banks, per iteration, about K · arrival(r) rows of weight 1,
+    # each one sample of the regret. The boost turns those down to 0 and adds one sampled row of
+    # weight K · arrival(r). Over seeds, with the SAME walks in both runs (the boost draws on its
+    # own stream), the paired difference of what the oracle banks must average zero at every legal
+    # column, and so must the difference in banked weight. The boosted rows' own mean is checked
+    # against EXACT too — the oracle, used here only — which catches a boost computed under the
+    # wrong σ, seat or rows even if it happened to be unbiased for something else.
+    #
+    # 24 seeds take about 30 s on this Mac (50 under MINIDRAWMAHA_FULL_TARGET=1); a boosted
+    # iteration costs ~0.8 s, most of it the two opening rows' play-outs. The 4 s.e. gate at
+    # 24 seeds resolves a bias of about 0.8 standard deviations of one iteration's banked regret;
+    # the weight itself is deterministic at α = 0 (the natural rows weigh 0) and is pinned exactly,
+    # which is what catches a wrong factor in it — a 2.5% weight bias is far below the 4 s.e. gate.
+    _ALLOWED[:] = allowed_pairs(*WIDE)
+    exact = BoostTargets.build(holes=WIDE)
+    walks = 40
+    # The targeted rows, under the uniform σ of the first iteration: two of seat 0's opening rows
+    # (one key per live first board card, arrival 1/12 each) and the four busiest later rows.
+    with Collector(seed=99, workers=0, deal=restricted_deal) as pilot:
+        sigma = exact.sigma(pilot.table)
+        seen = np.unique(pilot.collect(seat=0, t=1, walks=400).advantage_rows).astype(np.int64)
+        widths_of = pilot.table.widths()
+    arrival = exact.arrivals(sigma, seat=0, rows=seen)
+    busiest = seen[np.argsort(-arrival, kind="stable")]
+    opening = busiest < row_offsets()[1]
+    rows = np.sort(np.concatenate([busiest[opening][:2], busiest[~opening][:4]]))
+    arrival = exact.arrivals(sigma, seat=0, rows=rows)
+    assert rows.size == 6 and arrival.max() == pytest.approx(1 / 12) and arrival.min() > 0.0
+    spec = TargetSpec(granularity="infoset", alpha=0.0, budget=rows.size, refresh=100)
+    exact_regret, _ = exact.targets(sigma, seat=0, rows=rows, sampling=EXACT)
+
+    plain = [walked(seed, walks=walks, spec=None, rows=rows, exact=exact) for seed in range(SEEDS)]
+    boosted = [walked(seed, walks=walks, spec=spec, rows=rows, exact=exact) for seed in range(SEEDS)]
+    widths = widths_of[rows]
+    for row, width, expected in zip(rows.tolist(), widths.tolist(), exact_regret, strict=True):
+        banked_plain = np.array([banked_at(memory, row)[0][:width] for memory in plain])
+        weight_plain = np.array([banked_at(memory, row)[1] for memory in plain])
+        banked_boost = np.array([banked_at(memory, row)[0][:width] for memory in boosted])
+        weight_boost = np.array([banked_at(memory, row)[1] for memory in boosted])
+        # The boosted weight is K · arrival every seed, exactly (float32); the plain one is the visit
+        # count, whose mean is K · arrival, so the difference averages zero within 4 s.e.
+        np.testing.assert_allclose(weight_boost, np.float32(walks * arrival[rows.tolist().index(row)]), rtol=1e-6)
+        d_weight = weight_boost - weight_plain
+        se = d_weight.std(ddof=1) / np.sqrt(SEEDS)
+        assert abs(d_weight.mean()) <= 4 * se + 1e-9, (row, d_weight.mean(), se)
+        # The regret: paired difference per column within 4 s.e. of zero.
+        d = banked_boost - banked_plain
+        se = d.std(axis=0, ddof=1) / np.sqrt(SEEDS)
+        live = se > 0
+        assert live.any(), row
+        z = d.mean(axis=0)[live] / se[live]
+        assert (np.abs(z) < 4).all(), (row, d.mean(axis=0), se)
+        # The boosted rows alone, against the exact regret: their banked total over K · arrival is
+        # one sample of the regret per seed.
+        samples = banked_boost / (walks * arrival[rows.tolist().index(row)])
+        se = samples.std(axis=0, ddof=1) / np.sqrt(SEEDS)
+        live = se > 0
+        z = (samples.mean(axis=0) - expected[:width])[live] / se[live]
+        assert (np.abs(z) < 4).all(), (row, samples.mean(axis=0), expected[:width], se)
+        # Not vacuous: the boosted row is a sample, not the exact value, and differs from the walk's sum.
+        assert (d != 0).any()
