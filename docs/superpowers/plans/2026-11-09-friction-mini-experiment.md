@@ -43,3 +43,14 @@ strategy; regret totals are kept (the paper: resetting them stops convergence).
    - save and parallel refuse friction by name;
    - Leduc gate (slow): friction + CFR+ drives the current strategy's exploitability
      below no-friction CFR+'s current strategy.
+
+## As run (9 Nov 2026)
+
+The machine could not hold nine 1M-hand runs at once (12 concurrent runs land on the
+efficiency cores at about 35 hands per seat per second), so the grid ran in waves:
+μ ∈ {0, 10} for all three rules to 1M; μ = 0.1 stopped at 50k (indistinguishable
+from μ = 0); μ ∈ {1, 100} for CFR+ and LCFR at W = 10 to 500k. The record is
+`figures/rung3/friction_mini.jsonl`. Outcome: μ = 10 ends 2–4% below its control at
+1M in all three pairs and is 5–11% worse at 50k; μ = 100 is 20–56% worse; the
+current strategy beats the linear average at every mark of every arm; LCFR beats
+CFR+ by 30%; W = 100 tracks W = 10 within 1.6%.

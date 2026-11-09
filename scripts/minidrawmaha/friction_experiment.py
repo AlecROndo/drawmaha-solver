@@ -24,6 +24,8 @@ import json
 import time
 from pathlib import Path
 
+import numpy as np
+
 from drawmaha_solver.minidrawmaha.exploitability import exploitability, minidrawmaha_game
 from drawmaha_solver.minidrawmaha.solver.friction import Friction
 from drawmaha_solver.minidrawmaha.solver.infoset_table import (
@@ -66,6 +68,27 @@ def main() -> None:
             with args.out.open("a") as file:
                 file.write(json.dumps(line) + "\n")
             print(json.dumps(line), flush=True)
+    if args.save_table is not None:
+        _save_table(solve, args.save_table)
+
+def _save_table(solve, path: Path) -> None:
+    """The finished run's regrets, strategy sums and reference, for the row-level analysis.
+
+    In: the trained run and a `.npz` path. Out: nothing; writes the packed table's
+    `cumulative_regret` and `strategy_sum` (one entry per column), its row widths
+    and, under friction, the last reference. Purpose: which rows were never
+    sampled, which sit uniform, and how far play sits from the reference are read
+    from these arrays after the run; this is not a resumable checkpoint.
+    """
+    arrays = {
+        "cumulative_regret": solve.table.cumulative_regret,
+        "strategy_sum": solve.table.strategy_sum,
+        "widths": solve.table.widths(),
+    }
+    if solve.friction is not None:
+        arrays["reference"] = solve.friction.reference
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(path, **arrays)
 
 def _events(reset_every: int, marks: list[int]) -> list[int]:
     """Every iteration at which training must pause: each reset and each mark, in order.
@@ -99,6 +122,8 @@ def _parse() -> argparse.Namespace:
                         help="hands per seat at which to grade")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--save-table", type=Path, default=None,
+                        help="write the final table's arrays here (.npz) for row-level analysis")
     return parser.parse_args()
 
 if __name__ == "__main__":
