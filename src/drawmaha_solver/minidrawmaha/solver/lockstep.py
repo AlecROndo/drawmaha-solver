@@ -49,6 +49,7 @@ from pathlib import Path
 import numpy as np
 
 from drawmaha_solver.minidrawmaha.rules.game import random_deal
+from drawmaha_solver.minidrawmaha.solver.friction import Friction
 from drawmaha_solver.minidrawmaha.solver.mccfr import (
     RootSampler,
     Table,
@@ -99,6 +100,9 @@ class LockstepSolve:
     iteration: int = 0
     rule: RegretRule = RegretRule.VANILLA
     averages: tuple[Average, ...] = ()
+    # RTCFR+-style friction toward a reference (`friction.py`); None is plain MCCFR.
+    # Set by the caller after `new_lockstep`; never checkpointed or parallelised.
+    friction: Friction | None = None
 
 def new_lockstep(
     seed: int,
@@ -138,7 +142,16 @@ def train_lockstep(solve: LockstepSolve, iterations: int) -> LockstepSolve:
         t = solve.iteration + 1
         for seat in SEATS:
             recorded = [
-                walk(solve.table, solve.deal, solve.seed, t, seat, worker, solve.averages)
+                walk(
+                    solve.table,
+                    solve.deal,
+                    solve.seed,
+                    t,
+                    seat,
+                    worker,
+                    solve.averages,
+                    friction=solve.friction,
+                )
                 for worker in range(solve.workers)
             ]
             apply(solve.table, recorded, solve.rule, t)
@@ -169,8 +182,14 @@ def walk(
     seat: int,
     worker: int,
     averages: tuple[Average, ...],
+    *,
+    friction: Friction | None = None,
 ) -> Recorded:
-    """Worker `worker`'s walk for `seat` at iteration t, reading σₜ and writing nothing."""
+    """Worker `worker`'s walk for `seat` at iteration t, reading σₜ and writing nothing.
+
+    `friction` taxes the traverser's values toward its reference (`friction.py`);
+    it reads the reference only, so the walk still writes nothing.
+    """
     rng = stream(seed, t, seat, worker)
     recorder = _Recorder(table, len(averages))
     traverse(
@@ -181,6 +200,7 @@ def walk(
         t,
         bank=recorder.bank,
         column_weights=extra_weights(averages, t),
+        friction=friction,
     )
     return recorder.recorded()
 
@@ -371,6 +391,10 @@ def save_lockstep(solve: LockstepSolve, path: Path) -> None:
     """
     if not solve.table:
         raise ValueError("the table is empty; there is nothing to checkpoint")
+    if solve.friction is not None:
+        # The reference and μ are not in the file, so a resume would silently
+        # train a different game.
+        raise ValueError("a run with friction is not checkpointed: its reference is not saved")
     path = Path(path)
     regret, strategy_sum, extra_sums, stamps = _flat_slots(solve.table)
     temporary = path.with_name(path.name + ".tmp")

@@ -98,6 +98,7 @@ from typing import Any, Protocol
 import numpy as np
 
 from drawmaha_solver.minidrawmaha.rules.game import random_deal
+from drawmaha_solver.minidrawmaha.solver.friction import Friction, friction_adjustment
 from drawmaha_solver.minidrawmaha.solver.infoset_table import new_infoset_table
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.solver.regret_rules import (
@@ -281,6 +282,9 @@ def traverse(
     *,
     bank: BankRegret = bank_vanilla,
     column_weights: np.ndarray | None = None,
+    friction: Friction | None = None,
+    own_reach: float = 1.0,
+    reference_reach: float = 1.0,
 ) -> float:
     """Chips to `traverser` from `state` along one sampled path, banking on the way up.
 
@@ -297,6 +301,11 @@ def traverse(
     than through `RegretMatcher.update`, which would re-derive σ and re-check
     its inputs at every visit; under vanilla it does the same arithmetic, and
     `test_mccfr.py` holds the two to identical bytes.
+
+    `friction` (see `friction.py`) taxes the traverser's action values by how far
+    its own play out-reaches a reference; `own_reach` and `reference_reach` are
+    the chances that the traverser's own play, and the reference's, lead here.
+    None is today's walk, bit for bit, and the reaches are then never read.
     """
     if state.is_terminal():
         return state.returns()[traverser]
@@ -315,6 +324,9 @@ def traverse(
             t,
             bank=bank,
             column_weights=column_weights,
+            friction=friction,
+            own_reach=own_reach,
+            reference_reach=reference_reach,
         )
 
     ledger = table[state.infoset()]
@@ -326,20 +338,46 @@ def traverse(
     # was read before the subtree ran and is still this ledger's strategy:
     # perfect recall keeps the subtree from reaching this spot again.
     if state.current_player == traverser:
-        utilities = np.array(
-            [
-                traverse(
-                    state.apply(action),
-                    table,
-                    traverser,
-                    rng,
-                    t,
-                    bank=bank,
-                    column_weights=column_weights,
-                )
-                for action in actions
-            ]
-        )
+        if friction is None:
+            utilities = np.array(
+                [
+                    traverse(
+                        state.apply(action),
+                        table,
+                        traverser,
+                        rng,
+                        t,
+                        bank=bank,
+                        column_weights=column_weights,
+                    )
+                    for action in actions
+                ]
+            )
+        else:
+            reference = friction.of(state.infoset())
+            utilities = np.array(
+                [
+                    traverse(
+                        state.apply(action),
+                        table,
+                        traverser,
+                        rng,
+                        t,
+                        bank=bank,
+                        column_weights=column_weights,
+                        friction=friction,
+                        own_reach=own_reach * sigma[k],
+                        reference_reach=reference_reach * reference[k],
+                    )
+                    for k, action in enumerate(actions)
+                ]
+            ) - friction_adjustment(
+                sigma,
+                reference,
+                own_reach=own_reach,
+                reference_reach=reference_reach,
+                mu=friction.mu,
+            )
         value = sigma @ utilities
         bank(ledger, utilities - value, t)
         return float(value)
@@ -359,6 +397,9 @@ def traverse(
         t,
         bank=bank,
         column_weights=column_weights,
+        friction=friction,
+        own_reach=own_reach,
+        reference_reach=reference_reach,
     )
 
 def _pick(rng: np.random.Generator, probabilities: Sequence[float]) -> int:

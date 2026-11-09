@@ -218,6 +218,10 @@ class ParallelLockstep:
     def __init__(self, solve: LockstepSolve, *, keys: Sequence[InfoSet] | None = None):
         if not isinstance(solve.table, PackedTable):
             raise TypeError("a parallel run needs a PackedTable")
+        if solve.friction is not None:
+            # The workers would need the reference in shared memory, and a reset
+            # between phases; the friction experiment runs in one process instead.
+            raise ValueError("a run with friction is not parallelised; train it with train_lockstep")
         self.solve = solve
         self._keys = None if keys is None else tuple(keys)
         # The caller's table, set aside while the shared one stands in for it.
