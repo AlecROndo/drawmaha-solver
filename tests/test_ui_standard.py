@@ -54,15 +54,19 @@ PRESS_RANGE = (0.95, 0.98)
 # Selectors whose motion is explanatory rather than chrome: a figure drawing
 # itself, a section arriving on scroll, a status pulse. Each is allowed to
 # exceed 300 ms, to own a curve, or to animate a layout property — and each
-# says why. Matched inside the rule's selector at a selector boundary, so
-# `.sweep` covers `.sweep.from-you` but not `.sweeper`, and `main` not `.split-main`. An entry must still
-# match a rule that moves; the first test below refuses a ghost.
+# says why. A key is found inside the rule's selector at a selector boundary
+# on both sides, so `.sweep` covers `.sweep.from-you` but not `.sweeper`. A
+# key that is itself a selector list (`main, footer`) exempts only the rule
+# whose selector is exactly that list, not `main .panel` and not a bare
+# `main`: a tag name found anywhere would exempt everything under it. An
+# entry must still match a rule that moves; the first test below refuses a
+# ghost.
 EXPLANATORY = {
     ".live i": "the archived Cover's live dot, a 2 s constant pulse",
     ".st::before": "the archived Cover's in-progress dot pulse on its ladder",
     ".sweep": "rungs 2 and 3's chips crossing 58 px of felt to the pot, one-shot, 400 ms",
     ".rungs-menu": "the old chrome's Rungs menu animates width on purpose; only the archived Cover still inlines it",
-    "main": "the page's content and footer fading in once on arrival, opacity only, 500 ms (`test_the_page_fades_in_once_on_arrival`)",
+    "main, footer": "the arrival, the page's content and footer fading in once, opacity only, 500 ms (`test_the_page_fades_in_once_on_arrival`)",
 }
 
 # The arrival: the one entrance every page plays. Opacity only, so the chip
@@ -134,6 +138,19 @@ def _sheets() -> dict[str, str]:
 SHEETS = _sheets()
 
 
+def _exempts(key: str, selector: str) -> bool:
+    """Whether an `EXPLANATORY` key reaches a rule's selector.
+
+    A key that lists selectors (`main, footer`) reaches exactly that list and
+    nothing else; any other key is found inside the selector at a selector
+    boundary on both sides, so `.sweep` reaches `.sweep.from-you`, not
+    `.sweeper`.
+    """
+    if "," in key:
+        return _parts(key) == _parts(selector)
+    return re.search(rf"(?<![\w-]){re.escape(key)}(?![\w-])", selector) is not None
+
+
 class Rule:
     def __init__(self, media: str | None, selector: str, body: str) -> None:
         self.media = media
@@ -152,9 +169,7 @@ class Rule:
 
     @property
     def explanatory(self) -> bool:
-        return any(
-            re.search(rf"(?<![\w-]){re.escape(key)}(?![\w-])", self.selector) for key in EXPLANATORY
-        )
+        return any(_exempts(key, self.selector) for key in EXPLANATORY)
 
 
 def _rules(css: str, keyframes: dict[str, str] | None = None) -> list[Rule]:
@@ -224,12 +239,11 @@ def _motion_values(rule: Rule) -> list[str]:
 @pytest.mark.parametrize("key", sorted(EXPLANATORY))
 def test_every_allowlisted_selector_names_a_rule_that_moves(key: str) -> None:
     """An entry that exempts nothing is a ghost, and a ghost hides the next real exception."""
-    pattern = rf"(?<![\w-]){re.escape(key)}(?![\w-])"
     moving = [
         f"{name}: {rule!r}"
         for name, rules in RULES.items()
         for rule in rules
-        if re.search(pattern, rule.selector) and _motion_values(rule)
+        if _exempts(key, rule.selector) and _motion_values(rule)
     ]
     assert moving, f"EXPLANATORY names {key!r}, which matches no rule that moves; delete the entry"
 
@@ -255,8 +269,11 @@ def test_the_page_fades_in_once_on_arrival() -> None:
     shell and the five apps' `App.tsx`), so the rule reaches the whole site
     from the theme. It is opacity only, so the chip stays the one thing that
     *moves* on load; it is one-shot, on the ease-out token, `ARRIVAL_MS` long;
-    and under reduced motion the same selectors keep a fade-only keyframe
-    rather than going dark, because a fade is the gentler variant.
+    it fills `backwards`, never forwards, because `to` is the page's own state
+    and an animation left filling keeps a layer and a stacking context the
+    page never asked for; and under reduced motion the same selectors keep a
+    fade-only keyframe rather than going dark, because a fade is the gentler
+    variant.
     """
     frames = KEYFRAMES["theme"]
     moving = "|".join(MOVING_IN_KEYFRAMES)
@@ -272,12 +289,67 @@ def test_the_page_fades_in_once_on_arrival() -> None:
                 assert _durations_ms(value) == [ARRIVAL_MS], (
                     f"theme: {rule!r} runs `{value}`; the arrival is {ARRIVAL_MS} ms with no delay"
                 )
+                assert not re.search(r"\b(forwards|both)\b", value), (
+                    f"theme: {rule!r} fills forwards; `to` is the page's own state, so the arrival "
+                    "ends and lets go (`backwards`)"
+                )
                 body = frames.get(keyframe)
                 assert body is not None, f"theme: @keyframes {keyframe} is not defined in the theme"
                 assert "opacity" in body, f"theme: @keyframes {keyframe} does not fade"
                 assert not re.search(rf"(?:^|[;{{\s])({moving})\s*:", body), (
                     f"theme: @keyframes {keyframe} moves something; the arrival is opacity only"
                 )
+
+
+@pytest.mark.parametrize("name", sorted(SHEETS))
+def test_no_sheet_quiets_the_arrival(name: str) -> None:
+    """No rule on `main` or `footer`, in any sheet or media block, sets the animation to `none`.
+
+    The arrival test above finds a rule that animates and stops there; a later
+    `animation: none` on the same selector, in the theme's reduced-motion
+    block or in an app's own sheet (which loads after the theme and wins),
+    would cut the fade without failing it. The fade is already the gentler
+    variant, so nothing is allowed to switch it off.
+    """
+    for rule in RULES[name]:
+        if not _parts(rule.selector) & set(ARRIVAL):
+            continue
+        for prop in ("animation", "animation-name"):
+            for value in rule.declarations(prop):
+                assert value.strip() != "none", (
+                    f"{name}: {rule!r} sets `{prop}: none`; the arrival is kept, not quieted"
+                )
+
+
+def test_every_surface_renders_one_main_and_one_footer() -> None:
+    """The premise of one theme rule: every surface has exactly one `main` and one `footer`.
+
+    Read from the source, not a browser: each app's `App.tsx` writes its one
+    `<main>` unconditionally and unkeyed, so it mounts once and a tab change
+    inside it does not replay the fade; each app's `site.tsx` writes the one
+    `<footer>`; each static page carries one of each from the generator's
+    shell. A second `main`, or a `main` nested in a `footer`, would compound
+    two fades; a keyed `main` would replay it on every view change.
+    """
+    tag = {t: re.compile(rf"<{t}\b") for t in ARRIVAL}
+    shells = {page: (WEB / "cover" / page).read_text() for page in PAGES}
+    for app in APPS:
+        src = WEB / app / "src"
+        shells[app] = (src / "App.tsx").read_text() + (src / "ui" / "site.tsx").read_text()
+    for name, text in shells.items():
+        for t, pattern in tag.items():
+            found = pattern.findall(text)
+            assert len(found) == 1, f"{name}: {len(found)} <{t}> tags; the arrival expects exactly one"
+        assert not re.search(r"<main\b[^>]*\bkey=", text), (
+            f"{name}: <main> is keyed, so React would remount it and replay the arrival"
+        )
+    for app in APPS:
+        lines = (WEB / app / "src" / "App.tsx").read_text().splitlines()
+        at = next(i for i, line in enumerate(lines) if "<main" in line)
+        above = "\n".join(lines[max(0, at - 5) : at])
+        assert "return (" in above and "<>" in above, (
+            f"{app}: <main> is not the first thing App returns; it must mount once, unconditionally"
+        )
 
 
 # -------------------------------------------------------------- the tokens

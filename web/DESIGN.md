@@ -149,10 +149,14 @@ fails on an entry that exempts nothing):
 
 - `.sweep`: rungs 2 and 3's chips crossing 58 px of felt to the pot,
   one-shot, 400 ms;
-- `main`: the arrival, `main` and `footer` fading in once per page, opacity
-  only, 500 ms (`test_the_page_fades_in_once_on_arrival` holds its shape:
-  one-shot, the ease-out token, a keyframe that moves nothing, the same
-  fade kept under reduced motion);
+- `main, footer`: the arrival, the page's content and footer fading in once
+  per page, opacity only, 500 ms. The key is the whole selector list, so it
+  exempts that one rule and nothing under `main`
+  (`test_the_page_fades_in_once_on_arrival` holds its shape: one-shot, the
+  ease-out token, a keyframe that moves nothing, a `backwards` fill that lets
+  go when the fade ends, the same fade kept under reduced motion and quieted
+  by no sheet; `test_every_surface_renders_one_main_and_one_footer` holds
+  the premise that one theme rule reaches every page);
 - `.rungs-menu`, `.live i`, `.st::before`: the archived Cover's menu
   width, live dot and in-progress pulse, kept as they were.
 

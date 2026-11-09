@@ -312,13 +312,17 @@ main {
    fast and lets the last of the fade settle slowly. Every surface renders one
    `main` and one `footer` (the generator's shell, the five apps' App.tsx), so
    this one rule is the whole site's arrival; in an app it plays when React
-   mounts `main`, which is the first moment there is anything to see. It runs
-   past the chrome's 300 ms on purpose and is allowlisted as `main` in
+   mounts `main`, which is the first moment there is anything to see. The
+   fill is `backwards`, not `both`: `to` is the page's own state, so there is
+   nothing to hold after the fade ends, and an animation left filling
+   forwards keeps the element a layer of its own in some engines, with a
+   stacking context the page never asked for. It runs past the chrome's
+   300 ms on purpose and is allowlisted as `main, footer` in
    tests/test_ui_standard.py; a tab or view changing inside a page does not
    replay it, because `main` stays mounted. */
 main,
 footer {
-  animation: arrive 500ms var(--ease-out) both;
+  animation: arrive 500ms var(--ease-out) backwards;
 }
 
 @keyframes arrive {
@@ -1253,6 +1257,6 @@ footer a:hover {
      it stays, restated so the standard's test can see it was kept on purpose */
   main,
   footer {
-    animation: arrive 500ms var(--ease-out) both;
+    animation: arrive 500ms var(--ease-out) backwards;
   }
 }
