@@ -276,7 +276,7 @@ class Boost:
         alpha: float,
         walks: int,
     ) -> Injected:
-        """One seat's advantage offer with this iteration's boosted rows: σ read from `table` now, rows drawn for (t, seat).
+        """One seat's advantage offer with this iteration's boosted rows: σ read from `table` now, rows drawn for t.
 
         `offered` is the walk's `Collected`; `table` the collector's table
         after this phase's `learner.write`, so σ is what the walks read.
