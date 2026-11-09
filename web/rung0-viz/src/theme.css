@@ -15,7 +15,8 @@
  *      commands; it is never a prose or UI voice.
  *   3. The chip is the mark: the ASCII chip turning in the top bar, a red
  *      chip with black indents, and again where the footer closes
- *      the page. Nothing else moves on load.
+ *      the page. Nothing else moves on load: the page's content fades in
+ *      once under the still top bar, opacity only, and that is all.
  *   4. Figures are titled blocks, not windows: a number, a bold title that
  *      states the finding, a one-line sub-title naming the measure and the
  *      run, the figure, a caption of at most two sentences, on a top hairline.
@@ -301,6 +302,33 @@ button {
 
 main {
   padding-bottom: 40px;
+}
+
+/* ---------- the arrival -------------------------------------------------- */
+
+/* The page's content and its footer fade in once, from the paper, under a top
+   bar that is already there: opacity only, so the chip stays the one thing
+   that moves on load, 500 ms on the ease-out curve, which brings the words up
+   fast and lets the last of the fade settle slowly. Every surface renders one
+   `main` and one `footer` (the generator's shell, the five apps' App.tsx), so
+   this one rule is the whole site's arrival; in an app it plays when React
+   mounts `main`, which is the first moment there is anything to see. It runs
+   past the chrome's 300 ms on purpose and is allowlisted as `main` in
+   tests/test_ui_standard.py; a tab or view changing inside a page does not
+   replay it, because `main` stays mounted. */
+main,
+footer {
+  animation: arrive 500ms var(--ease-out) both;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 h1,
@@ -1219,5 +1247,12 @@ footer a:hover {
   .radios label:active,
   .rail a:active {
     transform: none;
+  }
+
+  /* the arrival is already the gentler variant, a fade with nothing moving;
+     it stays, restated so the standard's test can see it was kept on purpose */
+  main,
+  footer {
+    animation: arrive 500ms var(--ease-out) both;
   }
 }

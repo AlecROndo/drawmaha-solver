@@ -55,14 +55,22 @@ PRESS_RANGE = (0.95, 0.98)
 # itself, a section arriving on scroll, a status pulse. Each is allowed to
 # exceed 300 ms, to own a curve, or to animate a layout property — and each
 # says why. Matched inside the rule's selector at a selector boundary, so
-# `.sweep` covers `.sweep.from-you` but not `.sweeper`. An entry must still
+# `.sweep` covers `.sweep.from-you` but not `.sweeper`, and `main` not `.split-main`. An entry must still
 # match a rule that moves; the first test below refuses a ghost.
 EXPLANATORY = {
     ".live i": "the archived Cover's live dot, a 2 s constant pulse",
     ".st::before": "the archived Cover's in-progress dot pulse on its ladder",
     ".sweep": "rungs 2 and 3's chips crossing 58 px of felt to the pot, one-shot, 400 ms",
     ".rungs-menu": "the old chrome's Rungs menu animates width on purpose; only the archived Cover still inlines it",
+    "main": "the page's content and footer fading in once on arrival, opacity only, 500 ms (`test_the_page_fades_in_once_on_arrival`)",
 }
+
+# The arrival: the one entrance every page plays. Opacity only, so the chip
+# stays the one thing that moves on load; one-shot; the ease-out token; and
+# the same fade under reduced motion, because a fade is the gentler variant,
+# not the thing to remove.
+ARRIVAL = ("main", "footer")
+ARRIVAL_MS = 500
 
 # Every pressable thing, per stylesheet. A pressable has `.x:active` with a
 # scale in range and `transform` in its base transition list.
@@ -145,7 +153,7 @@ class Rule:
     @property
     def explanatory(self) -> bool:
         return any(
-            re.search(rf"{re.escape(key)}(?![\w-])", self.selector) for key in EXPLANATORY
+            re.search(rf"(?<![\w-]){re.escape(key)}(?![\w-])", self.selector) for key in EXPLANATORY
         )
 
 
@@ -216,7 +224,7 @@ def _motion_values(rule: Rule) -> list[str]:
 @pytest.mark.parametrize("key", sorted(EXPLANATORY))
 def test_every_allowlisted_selector_names_a_rule_that_moves(key: str) -> None:
     """An entry that exempts nothing is a ghost, and a ghost hides the next real exception."""
-    pattern = rf"{re.escape(key)}(?![\w-])"
+    pattern = rf"(?<![\w-]){re.escape(key)}(?![\w-])"
     moving = [
         f"{name}: {rule!r}"
         for name, rules in RULES.items()
@@ -224,6 +232,52 @@ def test_every_allowlisted_selector_names_a_rule_that_moves(key: str) -> None:
         if re.search(pattern, rule.selector) and _motion_values(rule)
     ]
     assert moving, f"EXPLANATORY names {key!r}, which matches no rule that moves; delete the entry"
+
+
+# ------------------------------------------------------------- the arrival
+
+
+def _arrival_rules(name: str, reduced: bool) -> list[Rule]:
+    """The rules of a sheet that name every `ARRIVAL` selector and animate."""
+    return [
+        r
+        for r in RULES[name]
+        if _reduced(r) is reduced
+        and set(ARRIVAL) <= _parts(r.selector)
+        and any(v.strip() != "none" for v in r.declarations("animation"))
+    ]
+
+
+def test_the_page_fades_in_once_on_arrival() -> None:
+    """One theme rule fades `main` and `footer` in on arrival, and only fades them.
+
+    Every surface renders one `main` under the still top bar (the generator's
+    shell and the five apps' `App.tsx`), so the rule reaches the whole site
+    from the theme. It is opacity only, so the chip stays the one thing that
+    *moves* on load; it is one-shot, on the ease-out token, `ARRIVAL_MS` long;
+    and under reduced motion the same selectors keep a fade-only keyframe
+    rather than going dark, because a fade is the gentler variant.
+    """
+    frames = KEYFRAMES["theme"]
+    moving = "|".join(MOVING_IN_KEYFRAMES)
+    for reduced in (False, True):
+        rules = _arrival_rules("theme", reduced)
+        where = "under reduced motion" if reduced else "in the chrome"
+        assert rules, f"theme: no rule animates {ARRIVAL} {where}"
+        for rule in rules:
+            for value in rule.declarations("animation"):
+                keyframe, loops = _animation_name_and_loops(value)
+                assert not loops, f"theme: {rule!r} loops; the arrival plays once"
+                assert "var(--ease-out)" in value, f"theme: {rule!r} does not read var(--ease-out)"
+                assert _durations_ms(value) == [ARRIVAL_MS], (
+                    f"theme: {rule!r} runs `{value}`; the arrival is {ARRIVAL_MS} ms with no delay"
+                )
+                body = frames.get(keyframe)
+                assert body is not None, f"theme: @keyframes {keyframe} is not defined in the theme"
+                assert "opacity" in body, f"theme: @keyframes {keyframe} does not fade"
+                assert not re.search(rf"(?:^|[;{{\s])({moving})\s*:", body), (
+                    f"theme: @keyframes {keyframe} moves something; the arrival is opacity only"
+                )
 
 
 # -------------------------------------------------------------- the tokens
