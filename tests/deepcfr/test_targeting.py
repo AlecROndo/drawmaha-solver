@@ -41,7 +41,7 @@ def seat_points(seat: int) -> list[int]:
 
 def test_the_spec_carries_the_settled_defaults_and_no_alpha_default():
     spec = TargetSpec(granularity="line", alpha=0.0)
-    # B = 500 and R = 25, settled 2026-11-09 (the plan proposed B = 2,000; under sampling that costs five table iterations).
+    # B = 500 and R = 25, settled 2026-11-09 (the plan proposed B = 2,000; under sampling 500 measured 35 s an iteration, 2,000 would be ~140 s).
     assert (spec.budget, spec.refresh, spec.noise_cap, spec.pool) == (500, 25, 20.0, 20)
     assert spec.round_two_only is False  # the plan's rule: every row eligible
     assert spec.leak == "average"  # the frozen exact average, what the run is graded on

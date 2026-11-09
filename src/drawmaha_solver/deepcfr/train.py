@@ -21,7 +21,7 @@ order. This module is that order — one iteration is
 saves, a progress line per iteration, and a graceful stop on a signal or a
 deadline. There is no new math here; the exact average and the policy net Π
 are PR 5 (`average`, `policy`), which plug into `observers` without
-touching the loop, and the two `boost` lines are the targeted-sampling
+touching the loop, and the three `boost` lines are the targeted-sampling
 plan's stage, absent (`boost=None`, `config.target=None`) in a run without
 an aim.
 
@@ -131,9 +131,10 @@ The boost, measured on this Mac (2026-11-09, the whole-game smoke behind
 learner, so σ is uniform at t = 1 and LCFR's first iterate at t = 2): the
 refresh 99 s (two grader walks and the pool's arrivals), the boost 22.7 s
 for seat 0 and 12.3 s for seat 1 at t = 1, 21.7 + 11.9 s at t = 2, 500 rows
-a seat boosted and none skipped. About 35 s per iteration, a little over a
-table iteration, and 4 s per iteration for the refresh at R = 25; the
-plan's B = 2,000 would be about 140 s. Seat 0 costs more because its draw
+a seat boosted and none skipped. About 35 s per iteration — one and a half
+of the plan's 23 s table iterations, and half again over the 23 s the plan's
+per-row costs predicted for B = 500 — and 4 s per iteration for the refresh
+at R = 25; the plan's B = 2,000 would be about 140 s. Seat 0 costs more because its draw
 lands more often on round-1 rows, whose play-out crosses the second board
 card and the draws.
 """

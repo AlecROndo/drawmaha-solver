@@ -146,8 +146,10 @@ class TargetSpec:
     refreshes. B counts rows, not cost, and a boosted row's cost depends on
     its stage: a few milliseconds in round 2, ten times that in round 1 and
     the draw, where the play-out below the row crosses the second board card
-    and the replacements; 500 rows drawn by the plan's rule cost about one
-    table iteration. (The plan proposed 2,000, which costs five.)
+    and the replacements; 500 rows a seat drawn by the plan's rule measured
+    about 35 s an iteration on the whole game (22.7 s for seat 0 and 12.3 s
+    for seat 1, `train.py`'s timings), about one and a half table
+    iterations. (The plan proposed 2,000, about 140 s.)
     `round_two_only` (off by default, so every row is eligible as the plan
     has it) leaves the one-board-card rows out of every arm. `leak` names
     whose leak the refresher measures: `"average"`, the frozen exact average

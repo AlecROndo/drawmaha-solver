@@ -46,6 +46,16 @@ def _sibling(name: str):
 
 GraderRefresher = _sibling("targeting_refresh").GraderRefresher
 
+# The flags that describe the aim (`TargetSpec`); each is refused without `--boost <arm>`.
+# The `--boost-*` sampling flags are not among them: they describe `DeepConfig.boost`, which every run carries.
+AIM_FLAGS = (
+    "--boost-budget", "--boost-refresh", "--boost-alpha", "--boost-leak", "--boost-pool", "--boost-noise-cap", "--boost-round-two-only",
+)
+
+def _dest(flag: str) -> str:
+    """argparse's attribute name for a flag: `--boost-noise-cap` → `boost_noise_cap`."""
+    return flag.removeprefix("--").replace("-", "_")
+
 def int_or_all(text: str) -> int | None:
     """A `Sampling` count from the command line: a positive int, or `all` for every branch."""
     if text == "all":
@@ -133,6 +143,11 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.device == "mps" and not mps_available():
         parser.error("--device mps needs an Apple GPU that torch can use; this machine has none")
+    # An aim flag with no arm named would be today's run with nothing in the log.
+    if args.boost == "none":
+        aimed = [flag for flag in AIM_FLAGS if getattr(args, _dest(flag)) != parser.get_default(_dest(flag))]
+        if aimed:
+            parser.error(f"{', '.join(aimed)} describe an aim, but --boost is none: name the arm")
     # A bad count or an exact sampling is refused at the command line, before a run is loaded.
     try:
         sampling = boost_sampling(args)

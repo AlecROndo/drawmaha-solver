@@ -3,10 +3,10 @@
     uv run python scripts/deepcfr/targeting_refresh.py --granularity line          # inspect one refresh
     uv run python scripts/deepcfr/targeting_refresh.py --granularity random --out /tmp/t00001.npz
 
-`deepcfr/targeting.py` decides which table rows the boost stage computes
-exactly, from a leak, a frequency and a draw weight per row, and never runs
-the meter that measures the leak: the trainer must not share code with what
-grades it. This script is the one place on the trainer's side where the two
+`deepcfr/targeting.py` decides which table rows the boost stage boosts — one
+sampled play-out per row, `deepcfr.boost` — from a leak, a frequency and a
+draw weight per row, and never runs the meter that measures the leak: the
+trainer must not share code with what grades it. This script is the one place on the trainer's side where the two
 meet. `GraderRefresher` is a `targeting.Refresher`: `run_deep_cfr.py` builds
 one and hands it to the loop (`deepcfr.boost.Boost`), which calls it every R
 iterations:

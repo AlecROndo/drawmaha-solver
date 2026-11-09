@@ -1008,6 +1008,20 @@ def test_cli_refuses_an_exact_boost_at_the_command_line():
     with pytest.raises(SystemExit):
         cli.parse(["--out", "y", "--boost", "hand"])
 
+@pytest.mark.parametrize(
+    "flags",
+    [["--boost-budget", "100"], ["--boost-refresh", "9"], ["--boost-alpha", "0.5"], ["--boost-leak", "current"],
+     ["--boost-pool", "3"], ["--boost-noise-cap", "5"], ["--boost-round-two-only"]],
+)
+def test_cli_refuses_an_aim_flag_without_an_arm(flags):
+    # `--boost-budget 100` with `--boost` left at none would be today's run with nothing in the log.
+    cli = load_cli()
+    with pytest.raises(SystemExit):
+        cli.parse(["--out", "y", *flags])
+    cli.parse(["--out", "y", "--boost", "line", *flags])  # with an arm the same flags are fine
+    # The sampling flags describe `DeepConfig.boost`, a field every run carries, so they stand alone.
+    cli.parse(["--out", "y", "--boost-playouts", "2"])
+
 def test_main_hands_the_loop_a_boost_only_when_an_arm_is_named(monkeypatch):
     cli = load_cli()
     handed = []
