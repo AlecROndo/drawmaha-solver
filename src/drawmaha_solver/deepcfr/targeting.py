@@ -1,9 +1,10 @@
-"""Targeting: which table rows the boost stage computes exactly, and how they are drawn.
+"""Targeting: which table rows the boost stage boosts, and how they are drawn.
 
-The boost stage (the targeted-sampling plan's PR 4) adds, at a chosen infoset,
-one row holding the EXACT regret under the current strategy, at the weight the
-walk's own noisy samples would have carried there in expectation. It can
-afford that at B infosets per seat per iteration. This module decides which B:
+The boost stage (`deepcfr.boost`) adds, at a chosen infoset, one boosted row —
+a sampled play-out against the opponent's whole range, far quieter than a
+walk's sample — at the weight the walk's own samples would have carried there
+in expectation, and turns those samples down to α. It can afford that at B
+infosets per seat per iteration. This module decides which B:
 it turns "where does the strategy leak, and how noisy are the walk's samples
 there" into a frozen list, refreshed every R iterations, and draws from it.
 
@@ -20,8 +21,8 @@ that differ only in the GROUP they rank:
   groups). Where only one board card is out (round 1 and the draw) there is no
   outer hand, and the class is the inner category alone.
 - `random` — one group per seat: B rows drawn from the whole seat by how often
-  the walk arrives there. Same exact rows, no aim; without it a win could just
-  mean "exact rows help anywhere".
+  the walk arrives there. Same boosted rows, no aim; without it a win could
+  just mean "boosted rows help anywhere".
 
 "Off" is not a fifth granularity: a run without targeting has no `TargetSpec`.
 
@@ -36,7 +37,7 @@ samples at g estimate their own mean (below). Dividing by reached(g) makes it
 a density — the leak a budget of one infoset buys inside g — so a line that
 leaks a lot only because it holds a hundred thousand infosets does not outrank
 a small one that leaks more per row. Multiplying by noise sends the budget
-where an exact row removes the most error: a leak the samples already see
+where a boosted row removes the most error: a leak the samples already see
 clearly will be learned without help.
 
 **The noise of a group** is the relative standard error of what one walk banks
@@ -57,18 +58,19 @@ hands whose regrets point different ways, so |μ| can sit near zero and the
 group reads as noisy, which it is as an estimate of the group's mean.
 
 Everything comes from the seat's advantage memory. Only the walk's OWN rows
-count — weight 1, or α where the boost turned them down — because an exact
-row is a mean, not a sample, and would read as no scatter at all. E[r] and
+count — weight 1, or α where the boost turned them down — because a boosted
+row stands for many samples at once and would read as far less scatter than
+the walk sees. E[r] and
 E[r²] are means over g's resident walk rows, n_g of them. p is the count of
 walk visits to g per walk:
 
     p = (n_g / size) · offered / (K · t_last),
 
 K the walks per iteration and t_last the latest iteration in the memory.
-`size` and `offered` both count every row the memory was given, exact rows
+`size` and `offered` both count every row the memory was given, boosted rows
 included, and Algorithm R keeps a uniform sample of the offers, so
 n_g / size · offered estimates the walk rows ever offered at g whatever share
-the exact rows hold; K · t_last is the walks that offered them. A group with
+the boosted rows hold; K · t_last is the walks that offered them. A group with
 fewer than two walk rows, or a mean of exactly zero, gets the cap, so a rare
 infoset the walk has hardly seen ranks as noisy rather than silent. For
 `infoset`, where a group is one row, that is every row the memory holds
@@ -82,7 +84,7 @@ line is in), so a refresh spreads the budget over the best groups without
 collapsing onto the top few infosets; `random` pools the whole seat. Each
 iteration then draws B rows of the pool WITHOUT replacement, with probability
 ∝ each row's weight — the walk's arrival rate, `BoostTargets.arrivals`. A
-repeated row would get two exact rows and double its expected weight, which
+repeated row would get two boosted rows and double its expected weight, which
 is the one bias the boost exists to avoid. The draw uses exponential keys
 (Efraimidis and Spirakis, 2006): each row gets E / w with E ~ Exp(1), and the B
 smallest win, which is the same law as drawing one row at a time ∝ w and
@@ -295,7 +297,7 @@ def noise(
     weight 1 or `alpha`. E[r] and E[r²] are at the column of largest |E[r]|;
     p = (n_g / size) · offered / (walks · t_last) is visits per walk, with
     `walks` the walks per iteration (K) and t_last the memory's latest t;
-    `size` and `offered` both count exact rows, which cancel in the ratio. A
+    `size` and `offered` both count boosted rows, which cancel in the ratio. A
     group with fewer than two of the walk's rows, or a mean of exactly zero,
     reads as `cap`, as does every group of an empty memory.
     """

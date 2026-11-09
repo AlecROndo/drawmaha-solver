@@ -11,9 +11,11 @@ as the `average` and `policy` modules) are merged, and so is PR 6: the
 Modal launcher `scripts/deepcfr/modal_rung4.py` (train, grade, smoke, sweep,
 status), the price figure in `minidrawmaha/answer/analysis.py`
 (`deep-analysis`, `figures/rung4/`) and the README section. The Deep CFR
-loop itself is complete. What is being added on top is the targeted-sampling
-plan's boost: `targeting` (which rows to boost) is here, and the boost stage
-that consumes it in `train.step` is the next PR.
+loop itself is complete. On top of it sits the targeted-sampling plan's
+boost: `targeting` decides which rows to boost, and `boost` is the stage
+`train.step` runs between each seat's walks and the merge — one sampled
+boosted row per target, at the weight the walk's samples would have
+carried. What remains of that plan is the race (its PR 5).
 
 ## Rules
 
@@ -29,10 +31,25 @@ that consumes it in `train.step` is the next PR.
   `policy` and `train` reach `exploitability` through `answer.strategy`, which borrows
   the grader's row-sum tolerance — a constant, not a walk.
 - **A target set never hands back a row twice in one draw**: a repeated row
-  would get two exact rows and double its expected weight. Draws are
+  would get two boosted rows and double its expected weight. Draws are
   exponential keys on their own stream (`targeting.target_stream`, fifth
   word "TARG"), never the walk's, so they move neither the walk nor the
-  reservoir.
+  reservoir; `boost.inject` refuses a repeat a second time.
+- **The boost never computes the exact sum.** A boosted row is a sampled
+  play-out from its row (`boost_target.Sampling`; by default the walk's own
+  sampling against the whole opponent range), offered at
+  (1 − α) · K · arrival — the sampled weight it stands in for — AFTER the
+  walk's rows, which are turned down to α and still offered, so the
+  reservoir sees the same offers as a run without the boost and a run with
+  `target=None` is today's run bit for bit. `DeepConfig` refuses an exact
+  `Sampling` and `inject` refuses it again; `EXACT` is the tests' oracle.
+  Alec's rule: boosting is extra sampling at high-variance nodes, never
+  brute-forcing the tree from a node. A drawn row whose float32 weight would
+  equal 1 or α, or whose arrival is 0, is left untreated (natural rows at
+  weight 1, no boosted row) and counted as skipped: `targeting.noise` tells
+  walk rows from boosted rows by weight alone, and half a treatment would
+  bias the row. σ for the boost is read from the collector's table right
+  after the phase's `learner.write`, the same array the walks read.
 - **torch is optional and stays optional.** The loop never names torch;
   `NetLearner` imports `fit`, `materialise` and `net` inside its methods.
   Every test that needs torch opens with `pytest.importorskip("torch")`, and
@@ -50,21 +67,26 @@ that consumes it in `train.step` is the next PR.
 - **Materialise runs before every phase, twice per iteration**, because seat
   1's walks sample seat 0's freshly refit net. Observers are told which seat's
   σ is about to be sampled as the opponent.
-- **The resume state** is the three memories, the two latest nets, and a
-  `state.json` written last and atomically as the commit point, every file
-  named by its iteration. A resume may change the worker count, which
+- **The resume state** is the three memories, the two latest nets, the
+  current target set when the run has an aim (`targets-t{t:05d}.npz`, so a
+  resume draws from the set the run drew from rather than grading again),
+  and a `state.json` written last and atomically as the commit point, every
+  file named by its iteration. A resume may change the worker count, which
   changes nothing, and the refit's device (cpu or mps), which changes the
   nets from the move on and is let through on purpose so a run can move to
   the GPU; a moved run is no longer reproducible from its seed and config.
   The seed, the walks, the capacity, the net's size, the other refit fields
-  (the pot power among them) and the thread count are refused by name,
-  because each changes the sample or the fit.
+  (the pot power among them), the thread count, the aim (`target`) and the
+  boost's sampling (`boost`) are refused by name, because each changes the
+  sample or the fit.
 - **A field added to `DeepConfig` after runs were saved goes in
   `ADDED_LATER`** with the value those runs had, so a `state.json` that lacks
   it reads as the run it was and never as today's default. `pot_power` is
   the case that made the rule: its default is ½, every run saved before it
   existed fitted raw chips, and `DeepConfig(**saved)` alone would have
-  resumed them under ½ with nothing in the log.
+  resumed them under ½ with nothing in the log. `target` (None) and `boost`
+  (the default sampling) followed the same rule; both are dataclasses that
+  travel as nested dicts in `state.json`, rebuilt by `config_from_saved`.
 - **The refit's targets are each regret sample over its spot's pot^k**
   (`pot_scaled`, k = `pot_power`, ½ by default). The divisor is the spot's,
   never the sampled outcome's, so regret matching plays the same σ from the
@@ -99,7 +121,7 @@ that consumes it in `train.step` is the next PR.
   `weight: float32`); the run's reservoirs are 50 million rows, 1.4 GB each. A
   capacity change is a different run, not a resume. The weight is how many
   sampled rows the row stands for: 1 for every row a walk offers (what `merge`
-  stamps when given none), and the targeted-sampling plan's exact rows carry
+  stamps when given none), and the targeted-sampling plan's boosted rows carry
   `(1 − α) · K · arrival`. The refit and the oracle weigh a row by t × weight,
   so a memory of weight-one rows is today's run bit for bit, and a memory file
   saved before the column existed loads with ones.
@@ -108,8 +130,12 @@ that consumes it in `train.step` is the next PR.
 
 `scripts/deepcfr/run_deep_cfr.py` is argparse over `DeepConfig`; its
 docstring opens with the smoke command, and re-running the same `--out`
-resumes. Ctrl-C or SIGTERM finishes the iteration and saves. Measured
-per-iteration timings are in `train.py`'s docstring, not here. On Modal the
+resumes. `--boost <arm>` turns the targeted-sampling boost on; the script
+then builds the grader-backed refresher around the run's exact average and
+hands the loop a `boost.Boost`, which the loop requires whenever
+`config.target` is set and refuses when it is not. Ctrl-C or SIGTERM
+finishes the iteration and saves. Measured per-iteration timings are in
+`train.py`'s docstring, not here. On Modal the
 same loop is `scripts/deepcfr/modal_rung4.py`; a grid mark is graded three
 ways by its `grade_mark_dir` — the exact average's sums, Π fit fresh on the
 mark's policy memory, and the current iterate over the mark's nets — into

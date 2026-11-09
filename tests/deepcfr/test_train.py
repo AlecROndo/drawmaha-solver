@@ -860,6 +860,42 @@ def test_an_old_state_without_a_target_file_loads_with_none(tmp_path):
     assert state["files"]["targets"] is None
     assert loaded(tmp_path, RESUME).targets is None
 
+@pytest.mark.skipif(
+    not os.environ.get("MINIDRAWMAHA_FULL_DEEP"),
+    reason="a real refresh (two grader walks, ~2 min) and two boosted iterations on the whole game; set MINIDRAWMAHA_FULL_DEEP=1",
+)
+def test_two_boosted_iterations_on_the_whole_game_record_their_cost(tmp_path):
+    # The line arm at the settled B = 500 with the real grader-backed refresher
+    # (leak="current", so no exact average is needed) and the real boost oracle.
+    # Prints the refresh and boost seconds so the run log and `train.py`'s
+    # timings paragraph can quote them.
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "targeting_refresh", Path(__file__).parents[2] / "scripts" / "deepcfr" / "targeting_refresh.py"
+    )
+    refresh = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(refresh)
+    aim = TargetSpec(granularity="line", alpha=0.0, budget=500, refresh=25, leak="current")
+    config = DeepConfig(seed=1, walks=200, workers=0, capacity=1_000_000, target=aim, grid=())
+    boost = Boost(refresh.GraderRefresher(aim, walks=config.walks, seed=config.seed))
+    run = run_deep(tmp_path, config, target=2, learner=OracleLearner(), log=lambda _: None, boost=boost)
+    assert run.t == 2 and run.targets.built_at == 1
+    log = lines(tmp_path)
+    assert len(log) == 2
+    assert log[0]["seconds"]["refresh"] > 0 and log[1]["seconds"]["refresh"] == 0.0
+    for line in log:
+        assert all(s > 0 for s in line["seconds"]["boost"])
+        # B rows a seat, less the rare row whose weight would read as a walk row's.
+        assert sum(line["rows"]["boosted"]) >= 2 * aim.budget - 10
+        assert sum(line["rows"]["skipped"]) <= 10
+    print(
+        f"\nwhole-game smoke, line arm, B = {aim.budget}, K = {config.walks}: "
+        f"refresh {log[0]['seconds']['refresh']} s; boost per seat "
+        f"{log[0]['seconds']['boost']} s at t = 1, {log[1]['seconds']['boost']} s at t = 2; "
+        f"boosted {log[0]['rows']['boosted']} / {log[1]['rows']['boosted']}, skipped {log[0]['rows']['skipped']} / {log[1]['rows']['skipped']}"
+    )
+
 # ---------------------------------------------------------------------------
 # The current iterate
 # ---------------------------------------------------------------------------

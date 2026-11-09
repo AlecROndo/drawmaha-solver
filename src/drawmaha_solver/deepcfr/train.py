@@ -9,8 +9,11 @@ order. This module is that order — one iteration is
     for p in (0, 1):                                   # alternating, as lockstep does
         learner.write(table, nets)                     # both seats' current nets into the slots
         for observe in observers: observe(table, t, 1 - p)
+        if p == 0 and boost.due(targets, t):           # every R iterations, before any walk
+            targets = boost.refresh(t, table, advantage)
         rows = collector.collect(seat=p, t=t, walks=K)
-        advantage[p].merge(rows.advantage_rows, rows.advantage_targets, t=t, rng=stream(ADVANTAGE))
+        rows = boost.phase(targets, rows, ...)         # B sampled boosted rows after the walk's, at (1 − α)·K·arrival
+        advantage[p].merge(rows.rows, rows.targets, t=t, rng=stream(ADVANTAGE), weight=rows.weight)
         policy.merge(rows.policy_rows, rows.policy_targets, t=t, rng=stream(POLICY))
         nets[p] = learner.fit(*advantage[p].contents(), seed=(seed, t, p)).model  # rows, t, targets, weight
 
@@ -18,7 +21,20 @@ order. This module is that order — one iteration is
 saves, a progress line per iteration, and a graceful stop on a signal or a
 deadline. There is no new math here; the exact average and the policy net Π
 are PR 5 (`average`, `policy`), which plug into `observers` without
-touching the loop.
+touching the loop, and the two `boost` lines are the targeted-sampling
+plan's stage, absent (`boost=None`, `config.target=None`) in a run without
+an aim.
+
+**The boost.** With an aim (`DeepConfig.target`), `boost.Boost` refreshes
+its target set before seat 0's walks whenever the set's R-iteration window
+has ended, reading the table as those walks will; and after each seat's
+walks it reads σ from the same table, draws this iteration's B rows for the
+seat, and offers one sampled boosted row per row after the natural ones, at
+(1 − α) · K · arrival, with the natural rows at those infosets turned down
+to α. The natural rows come first so they keep their reservoir stream
+positions; the policy memory never sees a boosted row; the set is resume
+state (`DeepRun.targets`, `targets-t{t:05d}.npz`). `boost.py`'s docstring
+carries the why of each of those.
 
 **Why materialise runs before every phase, not once per iteration.** Seat
 1's walks at iteration t sample seat 0's FRESHLY refit net — that is what
@@ -109,6 +125,17 @@ iteration — materialise 0.46 + 0.47, collect 0.33 + 0.26, merge 0.001 ×2,
 fit 12.4 + 12.0; at K = 10,000, 35.0 s — materialise 0.46 + 0.46, collect
 3.95 + 2.97, merge 0.007 + 0.006, fit 13.7 + 13.4. The refits are the cost
 at either K; the spec budgeted ~26 s per iteration on 33 Modal cores.
+
+The boost, measured on this Mac (2026-11-09, the whole-game smoke behind
+`MINIDRAWMAHA_FULL_DEEP=1`: the line arm at B = 500, K = 200, the oracle
+learner, so σ is uniform at t = 1 and LCFR's first iterate at t = 2): the
+refresh 99 s (two grader walks and the pool's arrivals), the boost 22.7 s
+for seat 0 and 12.3 s for seat 1 at t = 1, 21.7 + 11.9 s at t = 2, 500 rows
+a seat boosted and none skipped. About 35 s per iteration, a little over a
+table iteration, and 4 s per iteration for the refresh at R = 25; the
+plan's B = 2,000 would be about 140 s. Seat 0 costs more because its draw
+lands more often on round-1 rows, whose play-out crosses the second board
+card and the draws.
 """
 
 from __future__ import annotations
