@@ -1,4 +1,4 @@
-"""The boost stage: one sampled boosted row per targeted infoset, at the weight the walk's samples would have carried.
+"""The boost stage: one sampled boosted row per targeted infoset, at the walk's own weight there.
 
 Deep CFR learns each infoset's regret from the samples the walks bank
 there, one noisy draw per visit. The targeted-sampling plan's boost adds,
@@ -6,9 +6,10 @@ at B chosen infosets per seat per iteration, one extra row that is another
 sample of the same regret with the opponent's hidden hand summed out — a
 play-out from the row against the opponent's whole range
 (`boost_target.BoostTargets.targets` under a `Sampling`) — and turns the
-walk's own rows at those infosets down to weight α. `targeting` decides WHICH rows; `boost_target` computes WHAT a
-boosted row says; this module is the stage between the walks and the
-memory that joins the two inside `train.step`.
+walk's own rows at those infosets down to weight α. `targeting` decides
+WHICH rows; `boost_target` computes WHAT a boosted row says; this module is
+the stage between the walks and the memory that joins the two inside
+`train.step`.
 
 **The weight, and why it is (1 − α) · K · arrival.** Plain sampling
 reaches an infoset K · p times per iteration in expectation, p its arrival
@@ -40,7 +41,10 @@ from a plain one: each phase adds up to B offers, so later phases' draws
 and the resident set differ; the two memories agree in expectation, not
 row for row (and to t = 200 at the run's capacity nothing is evicted, so
 every offer of either run is resident). Only a run without an aim is
-today's run bit for bit.
+today's run bit for bit. The inert rows have a price once eviction starts:
+at α = 0 a targeted infoset's natural rows hold reservoir slots at weight
+0, so the memory's effective capacity is smaller by their share — about
+B · t of the offers at most, under 1% of a 50M-row memory at t = 2,000.
 
 **Why a row is treated all or nothing.** A targeted row's natural rows at α
 and its boosted row at (1 − α) · K · arrival are one unit: either alone
@@ -61,17 +65,17 @@ B play-outs paid for rows the fit ignores.
 
 **Why EXACT is refused.** `Sampling` has an exact form, the sum over every
 branch below the row, which the tests use as the oracle for the sampled
-forms. The boost stage never runs it, by the project's rule (settled
-2026-11-06, restated 2026-11-09): boosting is extra sampling at
+forms. The boost stage never runs it: boosting is extra sampling at
 high-variance nodes, never brute-forcing the tree from a node, because the
 exact subtree sum is a hundred times a sampled play-out's cost at a round-1
 row and, as a census of the tree, sets aside what the network is for —
 learning a row from samples. `DeepConfig` refuses an exact sampling and
-`inject` refuses it again, so the rule holds whoever builds the config. The default, `Sampling()`, is the walk's own sampling
-below the row against the whole opponent range: one second board card, one
-replacement per throw, one opponent action line. The opponent-range count
-stays a knob, so one dealt hand per play-out — the walk's sampling
-exactly, M play-outs averaged — is one argument away.
+`inject` refuses it again, so the rule holds whoever builds the config. The
+default, `Sampling()`, is the walk's own sampling below the row against the
+whole opponent range: one second board card, one replacement per throw,
+one opponent action line. The opponent-range count stays a knob, so one
+dealt hand per play-out — the walk's sampling exactly, M play-outs
+averaged — is one argument away.
 
 **Where σ comes from.** The boosted row must be computed under the σ the
 walks of this phase read, or its sample is of a different regret. `Boost.phase`
@@ -155,8 +159,9 @@ def inject(
     the walks read; `sampling` what one boosted row samples, refused if
     exact; `alpha` in [0, 1) and `walks` ≥ 1 the run's. Row r's boosted
     target draws from `[seed, t, seat, r, "BOOST"]`, so it depends on
-    nothing but those. A drawn row with zero arrival, or whose float32
-    weight would equal 1 or α, is left untreated and counted in `skipped`.
+    nothing but those. A drawn row with zero arrival (`BoostTargets.targets`
+    skips its play-out, so it costs only its reach), or whose float32 weight
+    would equal 1 or α, is left untreated and counted in `skipped`.
     """
     if not isinstance(sampling, Sampling):
         raise ValueError(f"sampling must be a Sampling, got {type(sampling).__name__}")
