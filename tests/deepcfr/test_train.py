@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import signal
+import sys
 from dataclasses import asdict, replace
 from pathlib import Path
 
@@ -927,6 +928,75 @@ def test_cli_parses_the_flags_into_a_config():
     assert cli.config_from_args(cli.parse(["--out", "y"])).pot_power == DeepConfig().pot_power == 0.5
     with pytest.raises(ValueError, match="pot_power"):
         cli.config_from_args(cli.parse(["--out", "y", "--pot-power", "2"]))
+
+def load_cli():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "run_deep_cfr", Path(__file__).parents[2] / "scripts" / "deepcfr" / "run_deep_cfr.py"
+    )
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    return cli
+
+def test_cli_parses_the_boost_flags_into_the_aim_and_the_sampling():
+    cli = load_cli()
+    args = cli.parse(
+        ["--out", "y", "--boost", "line", "--boost-budget", "7", "--boost-alpha", "0", "--boost-leak", "current",
+         "--boost-opponent-range", "3", "--boost-playouts", "2"]
+    )
+    config = cli.config_from_args(args)
+    assert config.target == TargetSpec(granularity="line", alpha=0.0, budget=7, leak="current")
+    assert config.boost == Sampling(opponent_range=3, playouts=2)
+    plain = cli.config_from_args(cli.parse(["--out", "y"]))
+    assert plain.target is None and plain.boost == Sampling()
+    assert cli.config_from_args(cli.parse(["--out", "y", "--boost-opponent-range", "all"])).boost.opponent_range is None
+    assert cli.config_from_args(cli.parse(["--out", "y", "--boost", "none"])).target is None
+    full = cli.config_from_args(
+        cli.parse(["--out", "y", "--boost", "random", "--boost-refresh", "9", "--boost-pool", "5", "--boost-noise-cap", "3.5",
+                   "--boost-round-two-only", "--boost-board-cards", "2", "--boost-opponent-draws", "3", "--boost-hero-draws", "4",
+                   "--boost-opponent-actions", "all"])
+    )
+    assert full.target == TargetSpec(granularity="random", alpha=0.0, refresh=9, pool=5, noise_cap=3.5, round_two_only=True)
+    assert full.boost == Sampling(board_cards=2, opponent_draws=3, hero_draws=4, opponent_actions=None)
+    # The default α is the settled 0; the settled B and R are TargetSpec's own defaults.
+    assert cli.config_from_args(cli.parse(["--out", "y", "--boost", "line"])).target == TargetSpec(granularity="line", alpha=0.0)
+
+def test_cli_refuses_an_exact_boost_at_the_command_line():
+    cli = load_cli()
+    with pytest.raises(SystemExit):
+        cli.parse(["--out", "y", "--boost", "line", "--boost-board-cards", "all", "--boost-opponent-draws", "all",
+                   "--boost-hero-draws", "all", "--boost-opponent-actions", "all"])
+    with pytest.raises(SystemExit):
+        cli.parse(["--out", "y", "--boost-playouts", "0"])
+    with pytest.raises(SystemExit):
+        cli.parse(["--out", "y", "--boost", "hand"])
+
+def test_main_hands_the_loop_a_boost_only_when_an_arm_is_named(monkeypatch):
+    cli = load_cli()
+    handed = []
+    built = []
+
+    def fake_run_deep(out, config, *, target, observers, boost=None, **kw):
+        handed.append((out, config, target, observers, boost))
+
+    class FakeRefresher:
+        def __init__(self, spec, *, walks, average=None, seed=0, exact=None):
+            built.append((spec, walks, average, seed))
+
+    monkeypatch.setattr(cli, "run_deep", fake_run_deep)
+    monkeypatch.setattr(cli, "GraderRefresher", FakeRefresher)
+    monkeypatch.setattr(sys, "argv", ["run_deep_cfr.py", "--out", "runs/plain", "--target", "3"])
+    cli.main()
+    _, config, target, observers, boost = handed[-1]
+    assert target == 3 and config.target is None and boost is None and built == []
+    assert len(observers) == 1 and observers[0].name == "exact"
+    monkeypatch.setattr(sys, "argv", ["run_deep_cfr.py", "--out", "runs/aimed", "--boost", "line_class", "--seed", "4", "--walks", "20"])
+    cli.main()
+    _, config, _, observers, boost = handed[-1]
+    assert isinstance(boost, Boost) and isinstance(boost.refresher, FakeRefresher)
+    assert built == [(config.target, 20, observers[0], 4)]
+    assert config.target.granularity == "line_class"
 
 def test_cli_passes_the_device_through():
     import importlib.util
