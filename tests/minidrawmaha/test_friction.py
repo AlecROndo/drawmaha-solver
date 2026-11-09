@@ -65,6 +65,23 @@ def test_friction_moves_regrets_once_play_leaves_the_reference():
     pulled = leduc_run("lcfr", 4, mu=5.0, iterations=20)
     assert regrets(plain) != regrets(pulled)
 
+def test_strong_friction_toward_a_fixed_uniform_reference_keeps_play_nearer_uniform():
+    # Pins the sign and the reach plumbing end to end: with the reference held at
+    # uniform (no resets) a large μ must leave the current strategy closer to
+    # uniform than plain play does. A flipped sign or a dropped reach would push
+    # play away from the reference, or not at all.
+    def distance_to_uniform(table: dict) -> float:
+        return sum(np.abs(ledger.strategy() - 1.0 / ledger.n_actions).sum() for ledger in table.values())
+
+    plain = leduc_run("lcfr", 8, mu=None, iterations=300)
+    pulled = leduc_run("lcfr", 8, mu=50.0, iterations=300)
+    assert distance_to_uniform(pulled) < 0.8 * distance_to_uniform(plain)
+
+@pytest.mark.parametrize("mu", [-1.0, float("nan"), float("inf")])
+def test_a_negative_or_non_finite_mu_is_refused(mu):
+    with pytest.raises(ValueError, match="mu"):
+        Friction.new(fresh_leduc(), mu)
+
 def test_the_adjustment_at_one_spot_by_hand():
     sigma = np.array([0.5, 0.25, 0.25])
     reference = np.array([0.2, 0.2, 0.6])
@@ -84,7 +101,8 @@ def test_the_reset_copies_every_rows_current_strategy():
     # Equal to the last bit on most rows; `np.add.reduceat` sums a 3- or 4-wide row
     # in a different order than `ndarray.sum`, which moves ~2% of rows by one ulp.
     # A reference only sets where the pull points, so one ulp is immaterial.
-    for key in keys[::37]:
+    # every 37th row, plus every row touching the all-negative columns (the uniform branch)
+    for key in sorted(set(keys[::37]) | set(keys[:20]), key=keys.index):
         np.testing.assert_allclose(friction.of(key), table[key].strategy(), rtol=0, atol=1e-15)
 
 def test_a_dict_reset_tracks_play():
@@ -121,6 +139,10 @@ def test_leduc_friction_makes_cfr_plus_current_strategy_converge():
     solve = new_lockstep(0, workers=32, table=plain, deal=leduc_deal, rule="cfr+")
     train_lockstep(solve, 3000)
 
+    # μ = 0.05 with resets every 100 iterations: Leduc payoffs are a few chips, so
+    # this tax is small against them, so the bias toward each reference stays small
+    # while the pull still damps CFR+'s overshoot. Seed 0;
+    # the strict < is the claim itself: friction's current strategy beats plain's.
     pulled = fresh_leduc()
     solve = new_lockstep(0, workers=32, table=pulled, deal=leduc_deal, rule="cfr+")
     solve.friction = Friction.new(pulled, 0.05)

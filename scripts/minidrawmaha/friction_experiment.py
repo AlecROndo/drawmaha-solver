@@ -3,8 +3,8 @@
     uv run python scripts/minidrawmaha/friction_experiment.py --rule cfr+ --workers 10 --mu 0.1 \
         --out runs/friction-mini/cfrplus-w10-mu0.1.jsonl
 
-Trains one run in this process (`train_lockstep`; friction is not parallelised) to
-`--hands` hands per seat. Every `--reset-hands` hands per seat it moves the friction's
+Trains one run in this process (`train_lockstep`; friction is not parallelised) up
+to the last of `--marks` hands per seat, where it stops. Every `--reset-hands` hands per seat it moves the friction's
 reference to the current strategy (RTCFR+'s r ← x̂; see `solver/friction.py`). At each
 mark it grades BOTH the current strategy (what the friction is meant to make converge)
 and the linear average (what plain CFR ships) with the exact meter, and appends one

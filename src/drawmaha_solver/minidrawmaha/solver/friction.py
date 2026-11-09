@@ -1,7 +1,7 @@
 """Friction toward a reference strategy: RTCFR+'s reward transformation, under sampling.
 
-Why it exists. A CFR run's CURRENT strategy circles the equilibrium forever; only
-its average converges. RTCFR+ (Meng et al. 2023, arXiv 2308.11256, Eq. 7–8) changes
+Why it exists. A CFR run's CURRENT strategy need not converge (in the worst case
+it circles the equilibrium); only its average is guaranteed to. RTCFR+ (Meng et al. 2023, arXiv 2308.11256, Eq. 7–8) changes
 the game the regrets are learning so that the current strategy itself settles: each
 player's loss gains μ·(x̂ − r̂), where x̂(I, a) is the player's own reach of the
 sequence "arrive at I, then play a" and r̂(I, a) is the same for a REFERENCE
@@ -9,8 +9,8 @@ strategy. Playing a sequence more than the reference does is taxed; playing it l
 earns a bonus. That pull makes the taxed game's equilibrium unique and the current
 strategy spiral into it. The equilibrium is biased toward the reference, so every
 so often the reference is reset to the current strategy (`Friction.reset`), and the
-biased equilibria walk toward the real one. Regret totals are kept across a reset;
-the paper reports that zeroing them stops convergence.
+biased equilibria walk toward the real one. Regret totals are kept across a reset,
+as in the paper's algorithm.
 
 What the walk does with it. At each of the traverser's spots `mccfr.traverse`
 subtracts `friction_adjustment(...)` from the action values before the regret is
@@ -21,11 +21,13 @@ friction, as the paper's counterfactual-value recursion does.
 One departure from the paper, forced by sampling. In the paper the friction enters
 every infoset's value with full weight, every iteration. External sampling banks a
 row only when it is visited, and the payoff part of what it banks is weighted, in
-expectation, by the chance-and-opponent reach of the row. The friction here is added
-undivided on each visit, so it carries the same reach weight: at every row the tax
-and the payoff keep the ratio they have in the paper, but the tax is reach-weighted.
-Dividing by the visit probability instead would recover the paper's weighting and
-hand rare rows enormous, noisy shoves. The paper's γ (a 1e-10 mix toward uniform)
+expectation, by the chance-and-opponent reach π₋ᵢ(I) of the row; in the paper the
+payoff is weighted the same way but the friction is not. The friction here is added
+undivided on each visit, so in expectation it is scaled by π₋ᵢ(I) too: relative to
+the paper the tax at row I is down-weighted by π₋ᵢ(I), i.e. μ acts as an effective
+μ·π₋ᵢ(I), and the tax-to-payoff ratio is the same at every row instead of growing
+as 1/π₋ᵢ at rare rows. Dividing by the visit probability would recover the paper's
+weighting and hand rare rows enormous, noisy shoves. The paper's γ (a 1e-10 mix toward uniform)
 is numerically inert at this scale and is left out.
 """
 
