@@ -114,8 +114,8 @@ class Injected:
     (1 − α) · K · arrival at a boosted row. `boosted` is b; `skipped` counts
     the drawn rows left untreated (zero arrival, or a weight that would read
     as a walk row's); `turned_down` the natural rows at treated infosets,
-    the ones now at weight α — the memory slots the boost makes inert at
-    α = 0.
+    the ones now at weight α — memory slots made inert at α = 0, merely
+    down-weighted at α > 0.
     """
 
     rows: np.ndarray  # int32 (a + b,)
@@ -276,8 +276,10 @@ class Boost:
         alpha: float,
         walks: int,
     ) -> Injected:
-        """One seat's advantage offer with this iteration's boosted rows: σ read from `table` now, rows drawn for t.
+        """One seat's advantage offer with this iteration's boosted rows.
 
+        σ is read from `table` now, and the rows are `targets.rows_for(t,
+        seat, seed)`: seat 0 and seat 1 draw different rows at the same t.
         `offered` is the walk's `Collected`; `table` the collector's table
         after this phase's `learner.write`, so σ is what the walks read.
         """
