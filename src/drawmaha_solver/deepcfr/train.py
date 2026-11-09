@@ -127,6 +127,7 @@ from typing import Protocol, runtime_checkable
 
 import numpy as np
 
+from drawmaha_solver.deepcfr.boost import Boost
 from drawmaha_solver.deepcfr.collect import Collector
 from drawmaha_solver.deepcfr.reservoir import (
     TARGET_WIDTH,
@@ -135,7 +136,7 @@ from drawmaha_solver.deepcfr.reservoir import (
     _is_int,
     reservoir_stream,
 )
-from drawmaha_solver.deepcfr.targeting import TargetSpec
+from drawmaha_solver.deepcfr.targeting import TargetSet, TargetSpec
 from drawmaha_solver.minidrawmaha.rules.features import layout
 from drawmaha_solver.minidrawmaha.rules.game import chip_state
 from drawmaha_solver.minidrawmaha.solver.boost_target import Sampling
@@ -317,7 +318,10 @@ class DeepRun:
     """The mutable state of a run: the last completed iteration, two nets, three memories.
 
     `nets[seat]` is whatever the learner's `fit` returned, or None for a seat
-    not yet trained, which `write` must play as uniform.
+    not yet trained, which `write` must play as uniform. `targets` is the
+    boost's current target set, None until the first refresh and always None
+    for a run without an aim; it is resume state, since a resumed run must
+    draw from the set the run drew from rather than grade again.
     """
 
     config: DeepConfig
@@ -325,6 +329,7 @@ class DeepRun:
     nets: list[object | None]
     advantage: tuple[Reservoir, Reservoir]
     policy: Reservoir
+    targets: TargetSet | None = None
 
 def new_run(config: DeepConfig) -> DeepRun:
     """A fresh run at iteration 0: no nets, three empty memories of the run's capacity."""
@@ -414,7 +419,13 @@ def _stateful(observers: Sequence[Observer]) -> list[StatefulObserver]:
 
 @dataclass(frozen=True, slots=True)
 class StepStats:
-    """What one iteration took: seconds per stage per seat, the refits' losses, the rows offered."""
+    """What one iteration took: seconds per stage per seat, the refits' losses, the rows offered, the boost's counts.
+
+    `rows` counts the walks' own rows per seat; `boosted` the boosted rows
+    added after them and `skipped` the drawn rows left untreated; `refresh`
+    is the one refresh's seconds (0.0 when none ran) and `boost` each
+    seat's boost seconds. All zero for a run without an aim.
+    """
 
     t: int
     materialise: tuple[float, float]
@@ -424,41 +435,78 @@ class StepStats:
     seconds: float
     loss: tuple[float | None, float | None]
     rows: tuple[int, int]
+    refresh: float = 0.0
+    boost: tuple[float, float] = (0.0, 0.0)
+    boosted: tuple[int, int] = (0, 0)
+    skipped: tuple[int, int] = (0, 0)
 
 def step(
     run: DeepRun,
     collector,
     learner: Learner,
     observers: Sequence[Observer] = (),
+    boost: Boost | None = None,
 ) -> StepStats:
     """One iteration, both seats' phases in the spec's order, timed stage by stage.
 
     `collector` is a `Collector` (or anything with its `table` and
     `collect`); the iteration is `run.t + 1`, and `run.t` advances once both
     phases are done. A raise mid-way leaves `run` half-advanced (seat 0's
-    net and memories updated, `t` not), which `run_deep` never saves. The
-    walks' rows are merged without a weight and so weigh one each; the
-    targeted-sampling plan's boost stage is what will offer rows that weigh
-    otherwise, after the natural rows so these keep their stream positions.
+    net and memories updated, `t` not), which `run_deep` never saves.
+
+    Without `boost` the walks' rows are merged without a weight and so weigh
+    one each: today's run. With it (`run.config.target` set), the boost
+    refreshes its target set before seat 0's walks when the set's window has
+    ended, and after each seat's walks offers that seat's boosted rows after
+    the natural ones (`boost.Boost.phase`), so the natural rows keep their
+    stream positions; the policy memory never sees a boosted row.
     """
     t = run.t + 1
     config = run.config
     table = collector.table
     materialise, collect, merge, fit, loss, rows = [], [], [], [], [], []
+    refresh, boosting, boosted, skipped = [], [], [], []
     started = time.perf_counter()
     for p in SEATS:
         with _timed(materialise):
             learner.write(table, tuple(run.nets))
         for observe in observers:
             observe(table, t, 1 - p)
+        # The refresh reads the table as seat 0's walks will: both seats'
+        # current nets written, before any of this iteration's walks.
+        if boost is not None and p == 0 and boost.due(run.targets, t):
+            with _timed(refresh):
+                run.targets = boost.refresh(t=t, table=table, memories=run.advantage, spec=config.target)
         with _timed(collect):
             offered = collector.collect(seat=p, t=t, walks=config.walks)
+        if boost is None:
+            advantage_rows, advantage_targets, weight = offered.advantage_rows, offered.advantage_targets, None
+            boosting.append(0.0)
+            boosted.append(0)
+            skipped.append(0)
+        else:
+            with _timed(boosting):
+                injected = boost.phase(
+                    run.targets,
+                    offered,
+                    table=table,
+                    seat=p,
+                    t=t,
+                    seed=config.seed,
+                    sampling=config.boost,
+                    alpha=config.target.alpha,
+                    walks=config.walks,
+                )
+            advantage_rows, advantage_targets, weight = injected.rows, injected.targets, injected.weight
+            boosted.append(injected.boosted)
+            skipped.append(injected.skipped)
         with _timed(merge):
             run.advantage[p].merge(
-                offered.advantage_rows,
-                offered.advantage_targets,
+                advantage_rows,
+                advantage_targets,
                 t=t,
                 rng=reservoir_stream(seed=config.seed, t=t, seat=p, memory=Memory.ADVANTAGE),
+                weight=weight,
             )
             run.policy.merge(
                 offered.policy_rows,
@@ -481,6 +529,10 @@ def step(
         seconds=time.perf_counter() - started,
         loss=tuple(loss),
         rows=tuple(rows),
+        refresh=refresh[0] if refresh else 0.0,
+        boost=tuple(boosting),
+        boosted=tuple(boosted),
+        skipped=tuple(skipped),
     )
 
 @contextmanager
@@ -502,7 +554,7 @@ STATE = "state.json"
 def save_run(
     run: DeepRun, directory: Path, *, learner: Learner, observers: Sequence[Observer] = ()
 ) -> None:
-    """Write the run's three memories, its nets, its stateful observers and `state.json` into `directory`; the state last.
+    """Write the run's three memories, its nets, its target set, its stateful observers and `state.json` into `directory`; the state last.
 
     Every file carries the iteration in its name, so the files of the
     previous save stand untouched until the new `state.json` is in place;
@@ -517,21 +569,26 @@ def save_run(
     nets = [None if net is None else _net_name(seat, t) for seat, net in enumerate(run.nets)]
     stateful = _stateful(observers)
     extras = {observer.name: _observer_name(observer.name, t) for observer in stateful}
+    targets = None if run.targets is None else _targets_name(t)
     for seat in SEATS:
         run.advantage[seat].save(directory / advantage[seat])
     run.policy.save(directory / policy)
     for seat, name in enumerate(nets):
         if name is not None:
             _atomically(learner.save, run.nets[seat], directory / name)
+    if targets is not None:
+        run.targets.save(directory / targets)
     for observer in stateful:
         observer.save(directory / extras[observer.name])
     state = {
         "t": t,
         "config": asdict(run.config),
-        "files": {"advantage": advantage, "policy": policy, "nets": nets, "observers": extras},
+        "files": {"advantage": advantage, "policy": policy, "nets": nets, "targets": targets, "observers": extras},
     }
     _write_state(directory, state)
     keep = {STATE, *advantage, policy, *(name for name in nets if name is not None), *extras.values()}
+    if targets is not None:
+        keep.add(targets)
     for stale in directory.iterdir():
         if stale.is_file() and stale.name not in keep:
             stale.unlink()
@@ -542,7 +599,9 @@ def load_run(
     """The run as `save_run` left it in `directory`, ready for the next `step`.
 
     Each stateful observer given is loaded from the file the state names
-    for it. Refuses, by name, a directory with no `state.json`, a state
+    for it, and the target set from its file when the state names one (a
+    state from before the boost names none, and loads with `targets=None`).
+    Refuses, by name, a directory with no `state.json`, a state
     naming a file that is not there, and a stateful observer the state has
     no file for (a save made without it), rather than continuing from a
     memory or a sum it does not have. A state that names an observer NOT
@@ -554,6 +613,9 @@ def load_run(
     state = _read_state(directory)
     files = state["files"]
     named = [*files["advantage"], files["policy"], *(n for n in files["nets"] if n is not None)]
+    targets = files.get("targets")
+    if targets is not None:
+        named.append(targets)
     saved = files.get("observers", {})
     stateful = _stateful(observers)
     for observer in stateful:
@@ -572,6 +634,7 @@ def load_run(
         nets=[None if name is None else learner.load(directory / name) for name in files["nets"]],
         advantage=tuple(Reservoir.load(directory / name) for name in files["advantage"]),
         policy=Reservoir.load(directory / files["policy"]),
+        targets=None if targets is None else TargetSet.load(directory / targets),
     )
     # Last, so a refused config or memory leaves the caller's observers as
     # they were.
@@ -642,6 +705,9 @@ def _net_name(seat: int, t: int) -> str:
 
 def _observer_name(name: str, t: int) -> str:
     return f"{name}-t{t:05d}.npz"
+
+def _targets_name(t: int) -> str:
+    return f"targets-t{t:05d}.npz"
 
 def _write_state(directory: Path, state: dict) -> None:
     """`state.json`, written as a temp file, fsynced and renamed into place."""
@@ -716,11 +782,16 @@ def run_deep(
     commit: Callable[[], None] = lambda: None,
     log: Callable[[str], None] = print,
     observers: Sequence[Observer] = (),
+    boost: Boost | None = None,
 ) -> DeepRun:
     """Train `out`'s run up to `target` iterations, or until `deadline_s` or a signal.
 
     Returns the run as it stands; `run.t == target` means done. `learner`
-    defaults to `NetLearner(config)`, the real one. The deadline counts from
+    defaults to `NetLearner(config)`, the real one. `boost` is the
+    targeted-sampling stage (`boost.Boost`, built by the script layer with
+    the grader-backed refresher), required when `config.target` is set and
+    refused when it is not, so an aim is never silently unserved and a
+    boost never silently idle. The deadline counts from
     once the run is open, worker startup included, and is read before each
     iteration and after it, as a signal is. Raises whatever the collector or
     the learner raises, without saving: the last commit stands.
@@ -743,6 +814,10 @@ def run_deep(
     # Two stateful observers with one name are refused here, before an
     # iteration is paid for, not at the first save.
     _stateful(observers)
+    if config.target is not None and boost is None:
+        raise ValueError("config.target names an aim but no boost was given: pass boost=Boost(refresher)")
+    if config.target is None and boost is not None:
+        raise ValueError("a boost was given but config.target is None: the run has no aim for it to serve")
 
     # Step 1: open the run
     resumed_on = saved_config(out / RESUME).device if (out / RESUME / STATE).exists() else None
@@ -792,6 +867,7 @@ def run_deep(
                 deadline=deadline,
                 stop=stop,
                 saves=saves,
+                boost=boost,
             )
     return run
 
@@ -852,6 +928,7 @@ def _train(
     deadline: float | None,
     stop: _StopRequest,
     saves: _Saves,
+    boost: Boost | None = None,
 ) -> str:
     """Step until `target`, the deadline or a signal; return why it stopped.
 
@@ -867,7 +944,7 @@ def _train(
         if why:
             saves.stopped(run, why=why)
             return why
-        stats = step(run, collector, learner, observers)
+        stats = step(run, collector, learner, observers, boost=boost)
         why = "done" if run.t >= target else _why_stop(stop, deadline)
         kept = bool(marks) and run.t == marks[0]
         if kept:
@@ -931,11 +1008,15 @@ class _Saves:
                 "collect": [round(s, 3) for s in stats.collect],
                 "merge": [round(s, 3) for s in stats.merge],
                 "fit": [round(s, 3) for s in stats.fit],
+                "refresh": round(stats.refresh, 3),
+                "boost": [round(s, 3) for s in stats.boost],
                 "iteration": round(stats.seconds, 3),
             },
             "rows": {
                 "advantage": [memory.offered for memory in run.advantage],
                 "policy": run.policy.offered,
+                "boosted": list(stats.boosted),
+                "skipped": list(stats.skipped),
                 "resident": {
                     "advantage": [memory.size for memory in run.advantage],
                     "policy": run.policy.size,

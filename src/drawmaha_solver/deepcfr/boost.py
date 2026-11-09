@@ -73,7 +73,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from drawmaha_solver.minidrawmaha.solver.boost_target import Sampling
+from drawmaha_solver.deepcfr.targeting import Refresher, TargetSet, TargetSpec
+from drawmaha_solver.minidrawmaha.solver.boost_target import BoostTargets, Sampling
 
 # ---------------------------------------------------------------------------
 # What one phase's boost adds
@@ -187,3 +188,82 @@ def _is_number(value: object) -> bool:
 
 def _is_int(value: object) -> bool:
     return isinstance(value, (numbers.Integral, np.integer)) and not isinstance(value, (bool, np.bool_))
+
+# ---------------------------------------------------------------------------
+# A run's boost: the refresher and the oracle, built once
+# ---------------------------------------------------------------------------
+
+class Boost:
+    """The stage's fixed parts for one run: who picks the rows, and what computes them.
+
+    `refresher` is the `targeting.Refresher` the script layer built (the
+    grader-backed `GraderRefresher`, or a test's stand-in); `exact` the
+    `BoostTargets` the boosted rows and σ come from — the whole game's,
+    built on first use, unless a restricted one is given. `train.step` asks
+    `due`, calls `refresh` every R iterations before seat 0's walks, and
+    `phase` after each seat's walks; the set itself lives on the run
+    (`DeepRun.targets`), since it is resume state.
+    """
+
+    def __init__(self, refresher: Refresher, *, exact: BoostTargets | None = None) -> None:
+        self.refresher = refresher
+        self._exact = exact
+
+    @property
+    def exact(self) -> BoostTargets:
+        """The boost oracle, the whole game's when none was given; ~5 s to build, cached per process."""
+        if self._exact is None:
+            self._exact = BoostTargets.build()
+        return self._exact
+
+    def due(self, targets: TargetSet | None, t: int) -> bool:
+        """Whether iteration t needs a refresh: no set yet, or the set's R-iteration window has ended."""
+        return targets is None or t >= targets.built_at + targets.spec.refresh
+
+    def refresh(self, *, t: int, table, memories, spec: TargetSpec) -> TargetSet:
+        """The refresher's set for iteration t, refused by name if it was built for another t or another spec."""
+        targets = self.refresher(t=t, table=table, memories=memories)
+        if not isinstance(targets, TargetSet):
+            raise ValueError(f"the refresher must return a TargetSet, got {type(targets).__name__}")
+        if targets.built_at != t:
+            raise ValueError(f"the refresher returned a set with built_at {targets.built_at}, asked for iteration {t}")
+        if targets.spec != spec:
+            raise ValueError(
+                f"the refresher's set follows the spec {targets.spec!r}, not the run's {spec!r}: "
+                "the two must be one object"
+            )
+        return targets
+
+    def phase(
+        self,
+        targets: TargetSet,
+        offered,
+        *,
+        table,
+        seat: int,
+        t: int,
+        seed: int,
+        sampling: Sampling,
+        alpha: float,
+        walks: int,
+    ) -> Injected:
+        """One seat's advantage offer with this iteration's boosted rows: σ read from `table` now, rows drawn for (t, seat, seed).
+
+        `offered` is the walk's `Collected`; `table` the collector's table
+        after this phase's `learner.write`, so σ is what the walks read.
+        """
+        sigma = self.exact.sigma(table)
+        drawn = targets.rows_for(t, seat, seed)
+        return inject(
+            offered.advantage_rows,
+            offered.advantage_targets,
+            drawn=drawn,
+            exact=self.exact,
+            sigma=sigma,
+            seat=seat,
+            t=t,
+            seed=seed,
+            sampling=sampling,
+            alpha=alpha,
+            walks=walks,
+        )

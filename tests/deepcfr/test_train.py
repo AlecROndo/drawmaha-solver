@@ -26,7 +26,8 @@ import pytest
 from drawmaha_solver.deepcfr.collect import Collector
 from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Memory, Reservoir, reservoir_stream
 import drawmaha_solver.deepcfr.train as train
-from drawmaha_solver.deepcfr.targeting import TargetSpec
+from drawmaha_solver.deepcfr.boost import Boost
+from drawmaha_solver.deepcfr.targeting import TargetSet, TargetSpec, row_offsets
 from drawmaha_solver.deepcfr.train import (
     ADDED_LATER,
     GRID,
@@ -64,7 +65,7 @@ from drawmaha_solver.minidrawmaha.solver.lockstep import (
     train_lockstep,
     walk,
 )
-from drawmaha_solver.minidrawmaha.solver.boost_target import EXACT, Sampling
+from drawmaha_solver.minidrawmaha.solver.boost_target import EXACT, BoostTargets, Sampling
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.solver.regret_rules import Average, RegretRule
 from drawmaha_solver.minidrawmaha.answer.strategy import StrategyInfo
@@ -267,6 +268,9 @@ def test_one_iteration_runs_both_phases_in_the_specs_order(collector):
         assert len(stage) == 2 and all(s >= 0 for s in stage)
     assert stats.loss == (None, None)
     assert stats.rows == (run.advantage[0].offered, run.advantage[1].offered)
+    # No aim: the boost's stages took no time and added nothing.
+    assert stats.refresh == 0.0 and stats.boost == (0.0, 0.0)
+    assert stats.boosted == (0, 0) and stats.skipped == (0, 0)
 
 def test_the_second_iteration_writes_both_nets_and_the_fresh_one_before_seat_one(collector):
     spy = Spy(collector)
@@ -478,9 +482,20 @@ def test_the_oracle_keeps_each_weight_on_its_own_row_across_widths():
 # The resume state
 # ---------------------------------------------------------------------------
 
+def same_targets(first: TargetSet | None, second: TargetSet | None) -> bool:
+    if (first is None) != (second is None):
+        return False
+    if first is None:
+        return True
+    return (
+        first.built_at == second.built_at
+        and first.spec == second.spec
+        and all(np.array_equal(first.rows[s], second.rows[s]) and np.array_equal(first.weight[s], second.weight[s]) for s in SEATS)
+    )
+
 def same_run(first: DeepRun, second: DeepRun) -> bool:
-    """t, config, the three memories and the oracle models, all bytewise."""
-    if first.t != second.t or first.config != second.config:
+    """t, config, the three memories, the oracle models and the target set, all bytewise."""
+    if first.t != second.t or first.config != second.config or not same_targets(first.targets, second.targets):
         return False
     if not all(same_memory(a, b) for a, b in zip((*first.advantage, first.policy), (*second.advantage, second.policy), strict=True)):
         return False
@@ -671,6 +686,178 @@ def test_the_resume_file_is_rewritten_on_the_clock_and_at_the_end_only_once(tmp_
     assert [RESUME in line["wrote"] for line in lines(tmp_path)] == [False, False, True]
     drive(tmp_path, 5, replace(DRIVEN, grid=(), save_every_s=0.0))
     assert [RESUME in line["wrote"] for line in lines(tmp_path)[3:]] == [True, True]
+
+# ---------------------------------------------------------------------------
+# The boost inside the loop
+# ---------------------------------------------------------------------------
+
+def round_two_rows(seat: int, count: int = 3) -> np.ndarray:
+    """The first `count` rows of `seat`'s first round-2 point: real rows of the right seat, cheap to boost."""
+    points = public_decision_points()
+    offsets = row_offsets()
+    p = next(i for i, point in enumerate(points) if point.player == seat and point.board_cards == 2)
+    return np.arange(offsets[p], offsets[p] + count)
+
+class FixedRefresher:
+    """An `infoset` set of fixed rows built at every call; records each call's t and what the memories had been offered."""
+
+    def __init__(self, spec: TargetSpec, rows: tuple[np.ndarray, np.ndarray] | None = None) -> None:
+        self.spec = spec
+        self.rows = rows if rows is not None else (round_two_rows(0), round_two_rows(1))
+        self.calls: list[tuple[int, tuple[int, int]]] = []
+
+    def __call__(self, *, t, table, memories):
+        self.calls.append((t, tuple(memory.offered for memory in memories)))
+        weight = tuple(np.ones(rows.size) for rows in self.rows)
+        return TargetSet(spec=self.spec, built_at=t, rows=self.rows, weight=weight, groups=self.rows)
+
+class FakeExact:
+    """σ is the table's first regret slot as it stands when read; every drawn row arrives at 0.3 with a zero regret."""
+
+    def __init__(self) -> None:
+        self.sigmas: list[float] = []
+
+    def sigma(self, table):
+        self.sigmas.append(float(table.cumulative_regret[0]))
+        return "σ"
+
+    def targets(self, sigma, *, seat, rows, sampling, seed, t):
+        return np.zeros((len(rows), TARGET_WIDTH)), np.full(len(rows), 0.3)
+
+BOOST_SPEC = TargetSpec(granularity="infoset", alpha=0.0, budget=3, refresh=2)
+BOOSTED = replace(DRIVEN, target=BOOST_SPEC)
+
+def a_boost(spec: TargetSpec = BOOST_SPEC) -> tuple[Boost, FixedRefresher]:
+    refresher = FixedRefresher(spec)
+    return Boost(refresher, exact=FakeExact()), refresher
+
+def straight_boosted(config: DeepConfig, iterations: int) -> DeepRun:
+    run = new_run(config)
+    with Collector(seed=config.seed, workers=config.workers) as collector:
+        for _ in range(iterations):
+            step(run, collector, OracleLearner(), boost=a_boost(config.target)[0])
+    return run
+
+def test_the_refresh_runs_at_the_first_iteration_and_every_r_after(tmp_path):
+    boost, refresher = a_boost()
+    run = drive(tmp_path, 5, BOOSTED, boost=boost)
+    assert [t for t, _ in refresher.calls] == [1, 3, 5]
+    assert run.targets.built_at == 5
+
+def test_boosted_rows_land_after_the_natural_rows_and_the_policy_memory_is_untouched(collector):
+    exact = BoostTargets.build()
+    collector.table.cumulative_regret[:] = 0.0  # uniform σ, so every round-2 row the deck allows is reachable
+    sigma = exact.sigma(collector.table)
+    drawn = tuple(
+        rows[exact.arrivals(sigma, seat=seat, rows=rows) > 0][:3] for seat, rows in ((0, round_two_rows(0, 8)), (1, round_two_rows(1, 8)))
+    )
+    assert all(rows.size == 3 for rows in drawn)
+    spec = replace(BOOST_SPEC, refresh=25)
+    plain, boosted = Spy(collector), Spy(collector)
+    run_plain = new_run(SMALL)
+    step(run_plain, plain, plain)
+    run_boosted = new_run(replace(SMALL, target=spec))
+    stats = step(run_boosted, boosted, boosted, boost=Boost(FixedRefresher(spec, drawn), exact=exact))
+    for seat in SEATS:
+        rows, t, targets, weight = run_boosted.advantage[seat].contents()
+        natural_rows, natural_t, natural_targets, natural_weight = run_plain.advantage[seat].contents()
+        a = natural_rows.size
+        np.testing.assert_array_equal(rows[:a], natural_rows)
+        np.testing.assert_array_equal(t, np.ones(a + 3, dtype=np.int32))
+        np.testing.assert_array_equal(targets[:a], natural_targets)
+        np.testing.assert_array_equal(natural_weight, np.ones(a, dtype=np.float32))
+        np.testing.assert_array_equal(weight[:a], np.where(np.isin(natural_rows, drawn[seat]), 0, 1).astype(np.float32))
+        np.testing.assert_array_equal(rows[a:], drawn[seat])
+        expected = (SMALL.walks * exact.arrivals(sigma, seat=seat, rows=drawn[seat])).astype(np.float32)
+        np.testing.assert_array_equal(weight[a:], expected)
+        assert (weight[a:] > 0).all() and not np.isin(weight[a:], [np.float32(1.0)]).any()
+    assert same_memory(run_plain.policy, run_boosted.policy)
+    assert stats.boosted == (3, 3) and stats.skipped == (0, 0)
+    assert all(s > 0 for s in stats.boost) and stats.refresh > 0
+
+class Stamping(Spy):
+    """A Spy whose `write` stamps the table's first slot with how many writes there have been."""
+
+    def __init__(self, inner: Collector) -> None:
+        super().__init__(inner)
+        self.writes = 0
+
+    def write(self, table, models) -> None:
+        self.writes += 1
+        table.cumulative_regret[0] = self.writes
+        super().write(table, models)
+
+def test_the_boost_reads_sigma_after_this_phases_write(collector):
+    spy = Stamping(collector)
+    boost, _ = a_boost(replace(BOOST_SPEC, refresh=25))
+    run = new_run(replace(SMALL, target=replace(BOOST_SPEC, refresh=25)))
+    try:
+        step(run, spy, spy, boost=boost)
+        step(run, spy, spy, boost=boost)
+    finally:
+        collector.table.cumulative_regret[0] = 0.0
+    # Four phases, four writes, and the σ of each phase read after its own write — never the previous phase's.
+    assert boost.exact.sigmas == [1.0, 2.0, 3.0, 4.0]
+
+def test_stats_and_the_progress_line_carry_the_boost(tmp_path):
+    boost, _ = a_boost()
+    drive(tmp_path, 2, BOOSTED, boost=boost)
+    log = lines(tmp_path)
+    # The fake refresher and oracle are instant, so the rounded seconds read 0.0; the keys and
+    # the counts are what this pins (the real costs are read unrounded in the σ test above and
+    # measured in the whole-game smoke).
+    assert log[0]["seconds"]["refresh"] >= 0.0 and log[1]["seconds"]["refresh"] == 0.0
+    for line in log:
+        assert len(line["seconds"]["boost"]) == 2 and all(s >= 0 for s in line["seconds"]["boost"])
+        assert line["rows"]["boosted"] == [3, 3] and line["rows"]["skipped"] == [0, 0]
+    drive(tmp_path / "plain", 1)
+    line = lines(tmp_path / "plain")[0]
+    assert line["seconds"]["refresh"] == 0.0 and line["seconds"]["boost"] == [0.0, 0.0]
+    assert line["rows"]["boosted"] == [0, 0] and line["rows"]["skipped"] == [0, 0]
+
+def test_the_target_set_rides_the_resume_state_and_is_not_regraded(tmp_path):
+    spec = replace(BOOST_SPEC, refresh=4)
+    config = replace(DRIVEN, target=spec)
+    boost, refresher = a_boost(spec)
+    drive(tmp_path, 3, config, boost=boost)
+    assert [t for t, _ in refresher.calls] == [1]
+    state = json.loads((tmp_path / RESUME / STATE).read_text())
+    assert state["files"]["targets"] == "targets-t00003.npz"
+    assert (tmp_path / RESUME / "targets-t00003.npz").exists()
+    assert loaded(tmp_path, RESUME).targets.built_at == 1
+    boost, refresher = a_boost(spec)
+    run = drive(tmp_path, 6, config, boost=boost)
+    assert [t for t, _ in refresher.calls] == [5]  # the saved set served iteration 4
+    assert (tmp_path / MARKS / mark_name(4) / "targets-t00004.npz").exists()
+    assert same_run(run, straight_boosted(config, 6))
+    assert same_run(loaded(tmp_path, MARKS, mark_name(4)), straight_boosted(config, 4))
+
+def test_a_resume_whose_saved_set_has_expired_refreshes_before_its_first_walks(tmp_path):
+    boost, _ = a_boost()
+    drive(tmp_path, 2, BOOSTED, boost=boost)  # the set built at 1 served iterations 1 and 2
+    offered_at_save = tuple(memory.offered for memory in loaded(tmp_path, RESUME).advantage)
+    boost, refresher = a_boost()
+    drive(tmp_path, 3, BOOSTED, boost=boost)
+    assert refresher.calls == [(3, offered_at_save)]
+
+def test_a_run_stopped_and_restarted_with_the_boost_equals_one_straight_run(tmp_path):
+    assert drive(tmp_path, 6, BOOSTED, boost=a_boost()[0]).t == 6
+    run = drive(tmp_path, 10, BOOSTED, boost=a_boost()[0])
+    assert same_run(run, straight_boosted(BOOSTED, 10))
+    np.testing.assert_array_equal(written_by(run), written_by(straight_boosted(BOOSTED, 10)))
+
+def test_run_deep_refuses_a_target_without_a_boost_and_a_boost_without_a_target(tmp_path):
+    with pytest.raises(ValueError, match="boost"):
+        drive(tmp_path, 1, BOOSTED)
+    with pytest.raises(ValueError, match="target"):
+        drive(tmp_path, 1, DRIVEN, boost=a_boost()[0])
+    assert not (tmp_path / NETS).exists()
+
+def test_an_old_state_without_a_target_file_loads_with_none(tmp_path):
+    drive(tmp_path, 1)
+    state = json.loads((tmp_path / RESUME / STATE).read_text())
+    assert state["files"]["targets"] is None
+    assert loaded(tmp_path, RESUME).targets is None
 
 # ---------------------------------------------------------------------------
 # The current iterate

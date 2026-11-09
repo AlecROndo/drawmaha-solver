@@ -16,8 +16,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from drawmaha_solver.deepcfr.boost import Injected, boosted_weight, inject
+from drawmaha_solver.deepcfr.boost import Boost, Injected, boosted_weight, inject
 from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH
+from drawmaha_solver.deepcfr.targeting import TargetSet, TargetSpec, row_offsets
+from drawmaha_solver.minidrawmaha.rules.enumeration import public_decision_points
 from drawmaha_solver.minidrawmaha.solver.boost_target import EXACT, Sampling
 
 # ---------------------------------------------------------------------------
@@ -164,3 +166,92 @@ def test_the_module_imports_no_grader():
         elif isinstance(node, ast.ImportFrom):
             names.add(node.module or "")
     assert not {name for name in names if "exploitability" in name or "answer.analysis" in name}
+
+# ---------------------------------------------------------------------------
+# The stage's fixed parts: Boost
+# ---------------------------------------------------------------------------
+
+def round_two_rows(seat: int, count: int = 3) -> np.ndarray:
+    """The first `count` rows of `seat`'s first round-2 point: real rows of the right seat, cheap to boost."""
+    points = public_decision_points()
+    offsets = row_offsets()
+    p = next(i for i, point in enumerate(points) if point.player == seat and point.board_cards == 2)
+    return np.arange(offsets[p], offsets[p] + count)
+
+SPEC = TargetSpec(granularity="infoset", alpha=0.0, budget=3, refresh=25)
+
+def infoset_set(spec: TargetSpec = SPEC, *, built_at: int) -> TargetSet:
+    rows = (round_two_rows(0), round_two_rows(1))
+    return TargetSet(spec=spec, built_at=built_at, rows=rows, weight=tuple(np.ones(r.size) for r in rows), groups=rows)
+
+class RecordingRefresher:
+    def __init__(self, make):
+        self.make = make
+        self.calls = []
+
+    def __call__(self, *, t, table, memories):
+        self.calls.append((t, table, memories))
+        return self.make(t)
+
+class SigmaFake:
+    """σ is the identity of the table it was read from; `targets` records its rows and arrives everywhere at 0.3."""
+
+    def __init__(self) -> None:
+        self.sigmas = []
+        self.calls = []
+
+    def sigma(self, table):
+        self.sigmas.append(id(table))
+        return ("σ of", id(table))
+
+    def targets(self, sigma, *, seat, rows, sampling, seed, t):
+        self.calls.append((sigma, seat, [int(r) for r in rows], sampling, seed, t))
+        return np.zeros((len(rows), TARGET_WIDTH)), np.full(len(rows), 0.3)
+
+class Offered:
+    def __init__(self, rows, targets):
+        self.advantage_rows = np.asarray(rows, dtype=np.int32)
+        self.advantage_targets = np.asarray(targets, dtype=np.float32)
+
+def test_due_when_there_is_no_set_or_its_window_has_ended():
+    boost = Boost(RecordingRefresher(lambda t: infoset_set(built_at=t)), exact=SigmaFake())
+    assert boost.due(None, 1)
+    targets = infoset_set(built_at=1)
+    assert not any(boost.due(targets, t) for t in range(1, 26))
+    assert boost.due(targets, 26) and boost.due(targets, 40)
+
+def test_refresh_hands_the_refresher_the_table_and_the_memories_and_keeps_its_set():
+    refresher = RecordingRefresher(lambda t: infoset_set(built_at=t))
+    boost = Boost(refresher, exact=SigmaFake())
+    targets = boost.refresh(t=3, table="the table", memories=("m0", "m1"), spec=SPEC)
+    assert targets.built_at == 3 and refresher.calls == [(3, "the table", ("m0", "m1"))]
+
+def test_refresh_refuses_a_set_built_for_another_iteration_or_another_spec():
+    boost = Boost(RecordingRefresher(lambda t: infoset_set(built_at=3)), exact=SigmaFake())
+    with pytest.raises(ValueError, match="built_at"):
+        boost.refresh(t=4, table=None, memories=(None, None), spec=SPEC)
+    other = TargetSpec(granularity="infoset", alpha=0.0, budget=4, refresh=25)
+    boost = Boost(RecordingRefresher(lambda t: infoset_set(other, built_at=t)), exact=SigmaFake())
+    with pytest.raises(ValueError, match="spec"):
+        boost.refresh(t=3, table=None, memories=(None, None), spec=SPEC)
+
+def test_phase_reads_sigma_from_the_table_it_is_handed_and_draws_this_iterations_rows():
+    fake = SigmaFake()
+    boost = Boost(RecordingRefresher(lambda t: infoset_set(built_at=t)), exact=fake)
+    table = object()
+    offered = Offered([round_two_rows(1)[0], 14_060], np.zeros((2, TARGET_WIDTH)))
+    out = boost.phase(
+        infoset_set(built_at=1), offered, table=table, seat=1, t=2, seed=9, sampling=Sampling(playouts=2), alpha=0.0, walks=10
+    )
+    assert fake.sigmas == [id(table)]
+    assert fake.calls == [(("σ of", id(table)), 1, round_two_rows(1).tolist(), Sampling(playouts=2), 9, 2)]
+    np.testing.assert_array_equal(out.rows, [*offered.advantage_rows, *round_two_rows(1)])
+    np.testing.assert_array_equal(out.weight, np.float32([0, 1, 3.0, 3.0, 3.0]))
+    assert (out.boosted, out.skipped) == (3, 0)
+
+def test_the_boost_builds_the_whole_games_oracle_only_when_first_asked():
+    boost = Boost(RecordingRefresher(lambda t: infoset_set(built_at=t)))
+    assert boost._exact is None
+    from drawmaha_solver.minidrawmaha.solver.boost_target import BoostTargets
+
+    assert isinstance(boost.exact, BoostTargets) and boost.exact is BoostTargets.build()
