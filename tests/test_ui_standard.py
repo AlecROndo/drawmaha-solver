@@ -75,6 +75,12 @@ EXPLANATORY = {
 # not the thing to remove.
 ARRIVAL = ("main", "footer")
 ARRIVAL_MS = 500
+# A conditional operator right before `<main`, across lines: how JSX renders a
+# tag only sometimes (`{open && (` newline `<main`, `{x ? <main`, `: <main`).
+# A `?` or `:` inside the tag's own attributes is after `<main` and does not
+# match; `test_the_conditional_main_pattern_reads_jsx_conditionals` pins both
+# sides.
+CONDITIONAL_MAIN = re.compile(r"(&&|\?|:)\s*\(?\s*<main\b")
 
 # Every pressable thing, per stylesheet. A pressable has `.x:active` with a
 # scale in range and `transform` in its base transition list.
@@ -329,12 +335,12 @@ def test_every_surface_renders_one_main_and_one_footer() -> None:
     surface's shell (an app's `App.tsx` with its `ui/site.tsx`; a static
     page) opens exactly one `<main` and one `<footer`, the `<main` carries no
     `key=`, and no conditional operator (`&&`, `?`, `:`) stands right before
-    it on its line, which is how JSX renders a tag conditionally. That is
+    it, across lines, which is how JSX renders a tag conditionally. That is
     what the text can show. A second `main`, or a `main` inside a `footer`,
     would compound two fades; a keyed or conditional `main` would replay the
     fade on a view change. A `<main>` rendered by a child component would
-    escape this test, and so would a conditional broken across lines; the
-    arrival test's docstring states the premise so a reader knows to keep it.
+    escape this test; the arrival test's docstring states the premise so a
+    reader knows to keep it.
     """
     comments = re.compile(r"<!--.*?-->|/\*.*?\*/", re.DOTALL)
     shells = {page: (WEB / "cover" / page).read_text() for page in PAGES}
@@ -349,10 +355,31 @@ def test_every_surface_renders_one_main_and_one_footer() -> None:
         assert not re.search(r"<main\b[^>]*\bkey=", text), (
             f"{name}: <main> is keyed, so React would remount it and replay the arrival"
         )
-        opening = next(line for line in text.splitlines() if "<main" in line)
-        assert not re.search(r"(&&|\?|:)\s*\(?\s*<main\b", opening), (
-            f"{name}: <main> is rendered conditionally (`{opening.strip()}`); it mounts once, always"
+        hit = CONDITIONAL_MAIN.search(text)
+        assert hit is None, (
+            f"{name}: <main> is rendered conditionally (`{' '.join(hit.group(0).split())}`); "
+            "it mounts once, always"
         )
+
+
+@pytest.mark.parametrize(
+    ("text", "conditional"),
+    [
+        ('{open && <main className="wrap">', True),
+        ("{open && (\n        <main className=\"wrap\">", True),
+        ("{ready ? (<main>", True),
+        ("{x ? <main> : null}", True),
+        (": <main>}", True),
+        ('<main className="wrap">', False),
+        ('<main data-q="a?b" href="/x?y=1">', False),
+        ("<main className={`wrap rung3 on-${tab}`}>", False),
+        ('<main className={tab === "play" ? "a" : "b"}>', False),
+        ("return (\n    <>\n      <TopBar />\n\n      <main className=\"wrap\">", False),
+    ],
+)
+def test_the_conditional_main_pattern_reads_jsx_conditionals(text: str, conditional: bool) -> None:
+    """The probes behind `CONDITIONAL_MAIN`, kept so a later edit cannot loosen it unnoticed."""
+    assert bool(CONDITIONAL_MAIN.search(text)) is conditional
 
 
 # -------------------------------------------------------------- the tokens
