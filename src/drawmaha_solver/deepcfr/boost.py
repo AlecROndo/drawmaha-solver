@@ -2,11 +2,11 @@
 
 Deep CFR learns each infoset's regret from the samples the walks bank
 there, one noisy draw per visit. The targeted-sampling plan's boost adds,
-at B chosen infosets per seat per iteration, one extra row that is a much
-quieter sample of the same regret — a play-out from the row against the
-opponent's whole range (`boost_target.BoostTargets.targets` under a
-`Sampling`) — and turns the walk's own rows at those infosets down to
-weight α. `targeting` decides WHICH rows; `boost_target` computes WHAT a
+at B chosen infosets per seat per iteration, one extra row that is another
+sample of the same regret with the opponent's hidden hand summed out — a
+play-out from the row against the opponent's whole range
+(`boost_target.BoostTargets.targets` under a `Sampling`) — and turns the
+walk's own rows at those infosets down to weight α. `targeting` decides WHICH rows; `boost_target` computes WHAT a
 boosted row says; this module is the stage between the walks and the
 memory that joins the two inside `train.step`.
 
@@ -18,19 +18,29 @@ weighs by t. The boosted row stands in for those rows: at weight
 infoset's expected banked weight is α · K · p + (1 − α) · K · p = K · p,
 what it was, and its expected banked regret is unchanged too, because the
 boosted row is an unbiased sample of the same conditional mean the walk's
-rows are drawn from. That is the whole contract: the boost removes noise
-and never adds emphasis, so the target list may change between refreshes
-and the run stays an unbiased estimate of the same thing. The fit's t is
-left to the fit, as every row's is.
+rows are drawn from. That is the whole contract: the boost never adds
+emphasis, so the target list may change between refreshes and the run
+stays an unbiased estimate of the same thing. Whether it REMOVES noise is
+a measured fact, not a guarantee: the boosted row enters the fit at weight
+W = (1 − α) · K · p with variance W² · σ_b², against the K · p walk rows'
+K · p · σ_w², so the infoset is quieter only where σ_b² < σ_w² / (K · p)
+(σ_b² the spread of one play-out, σ_w² of one walk sample) — a condition
+hardest to meet at the busiest rows, and one the race (the plan's PR 5)
+measures rather than this module assuming it. The fit's t is left to the
+fit, as every row's is.
 
 **Why the natural rows are turned down, not dropped.** The reservoir keeps
 a uniform sample of the rows ever OFFERED (Algorithm R), and its draws
 depend on the count of offers. Dropping a row would shift every later
-offer's draw and make a boosted run's memory a different sample of the
-walks from the plain run's. So the natural rows are all offered, in their
-order, at weight α — 0 means inert, kept for the count — and the boosted
-rows are offered AFTER them, so the natural rows keep their stream
-positions. A run without an aim is today's run bit for bit.
+offer's draw within the phase. So the natural rows are all offered, in
+their order, at weight α — 0 means inert, kept for the count — and the
+boosted rows are offered AFTER them, so within a phase the natural rows
+keep their stream positions. Across phases a boosted run still differs
+from a plain one: each phase adds up to B offers, so later phases' draws
+and the resident set differ; the two memories agree in expectation, not
+row for row (and to t = 200 at the run's capacity nothing is evicted, so
+every offer of either run is resident). Only a run without an aim is
+today's run bit for bit.
 
 **Why a row is treated all or nothing.** A targeted row's natural rows at α
 and its boosted row at (1 − α) · K · arrival are one unit: either alone
@@ -41,17 +51,23 @@ Two cases are left untreated: a row the walk cannot reach (arrival 0, so
 nothing to stand in for), and a row whose float32 weight would land exactly
 on 1 or on α. The second exists because `targeting.noise` tells the walk's
 rows from boosted rows by weight alone (1 or α is a walk row): a boosted
-row at either weight would be read as a sample and its exactness would
-spoil the noise score. The skipped count is reported, never hidden.
+row at either weight would be read as a sample and spoil the noise score.
+The skip is deterministic, not random — the same row under the same σ is
+skipped every iteration until σ moves it off the value — which is
+harmless at a measure-zero coincidence in float32 but worth knowing when a
+test draws a row deliberately at K = 1. The skipped count is reported,
+never hidden. α = 1 is refused outright: every boosted row would weigh 0,
+B play-outs paid for rows the fit ignores.
 
 **Why EXACT is refused.** `Sampling` has an exact form, the sum over every
 branch below the row, which the tests use as the oracle for the sampled
-forms. The boost stage never runs it: Alec's rule (2026-11-06, restated
-2026-11-09) is that boosting is extra sampling at high-variance nodes,
-never brute-forcing the tree from a node — enumerating a subtree takes
-forever and sets aside what the network is for. `DeepConfig` refuses an
-exact sampling and `inject` refuses it again, so the rule holds whoever
-builds the config. The default, `Sampling()`, is the walk's own sampling
+forms. The boost stage never runs it, by the project's rule (settled
+2026-11-06, restated 2026-11-09): boosting is extra sampling at
+high-variance nodes, never brute-forcing the tree from a node, because the
+exact subtree sum is a hundred times a sampled play-out's cost at a round-1
+row and, as a census of the tree, sets aside what the network is for —
+learning a row from samples. `DeepConfig` refuses an exact sampling and
+`inject` refuses it again, so the rule holds whoever builds the config. The default, `Sampling()`, is the walk's own sampling
 below the row against the whole opponent range: one second board card, one
 replacement per throw, one opponent action line. The opponent-range count
 stays a knob, so one dealt hand per play-out — the walk's sampling
@@ -137,7 +153,7 @@ def inject(
     (`TargetSet.rows_for`); `exact` the boost oracle (`BoostTargets`, or
     anything with its `targets` signature) and `sigma` its σ of the table
     the walks read; `sampling` what one boosted row samples, refused if
-    exact; `alpha` in [0, 1] and `walks` ≥ 1 the run's. Row r's boosted
+    exact; `alpha` in [0, 1) and `walks` ≥ 1 the run's. Row r's boosted
     target draws from `[seed, t, seat, r, "BOOST"]`, so it depends on
     nothing but those. A drawn row with zero arrival, or whose float32
     weight would equal 1 or α, is left untreated and counted in `skipped`.
@@ -149,8 +165,8 @@ def inject(
             "the boost is extra sampling at high-variance nodes, never the exact sum over the tree "
             f"below a row: {sampling!r} draws nothing; EXACT is the tests' oracle, not a run's"
         )
-    if not (_is_number(alpha) and 0.0 <= alpha <= 1.0):
-        raise ValueError(f"alpha must be a number in [0, 1], got {alpha!r}")
+    if not (_is_number(alpha) and 0.0 <= alpha < 1.0):
+        raise ValueError(f"alpha must be a number in [0, 1) — at 1 every boosted row would weigh 0 — got {alpha!r}")
     if not _is_int(walks) or walks < 1:
         raise ValueError(f"walks must be a positive int (K, walks per seat per iteration), got {walks!r}")
     drawn = _drawn_rows(drawn)

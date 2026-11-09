@@ -157,7 +157,7 @@ def test_config_defaults_are_the_specs():
     # before the refit, chosen 2026-10-27 from the pot arms in the run log.
     assert config.pot_power == 0.5
     # No aim, so no boost; what a boosted row would sample is the walk's own sampling.
-    assert config.target is None and config.boost == Sampling()
+    assert config.target is None and config.boost_sampling == Sampling()
 
 @pytest.mark.parametrize(
     ("field", "value"),
@@ -184,9 +184,9 @@ def test_config_defaults_are_the_specs():
         ("pot_power", float("nan")),
         ("target", "line"),
         ("target", {"granularity": "line", "alpha": 0.0}),
-        ("boost", EXACT),
-        ("boost", Sampling(opponent_actions=None, board_cards=14, opponent_draws=12, hero_draws=12)),
-        ("boost", "walk"),
+        ("boost_sampling", EXACT),
+        ("boost_sampling", Sampling(opponent_actions=None, board_cards=14, opponent_draws=12, hero_draws=12)),
+        ("boost_sampling", "walk"),
     ],
 )
 def test_config_refuses_bad_values_by_name(field, value):
@@ -198,17 +198,17 @@ LINE = TargetSpec(granularity="line", alpha=0.0)
 def test_the_boost_fields_are_sample_fields_added_later():
     # A run saved before the fields existed had no aim; its sampling is the
     # default so a resume under today's defaults is not refused.
-    assert ADDED_LATER["target"] is None and ADDED_LATER["boost"] == Sampling()
-    assert {"target", "boost"} <= set(SAMPLE_FIELDS)
+    assert ADDED_LATER["target"] is None and ADDED_LATER["boost_sampling"] == Sampling()
+    assert {"target", "boost_sampling"} <= set(SAMPLE_FIELDS)
     with pytest.raises(ValueError, match="target"):
         require_same_run(DeepConfig(), DeepConfig(target=LINE))
-    with pytest.raises(ValueError, match="boost"):
-        require_same_run(DeepConfig(), DeepConfig(boost=Sampling(playouts=2)))
+    with pytest.raises(ValueError, match="boost_sampling"):
+        require_same_run(DeepConfig(), DeepConfig(boost_sampling=Sampling(playouts=2)))
 
 def test_a_config_with_a_target_and_a_sampling_round_trips_through_json():
     config = DeepConfig(
         target=TargetSpec(granularity="line_class", alpha=0.0, budget=7, leak="current"),
-        boost=Sampling(opponent_range=3, playouts=2),
+        boost_sampling=Sampling(opponent_range=3, playouts=2),
     )
     assert config_from_saved(json.loads(json.dumps(asdict(config)))) == config
     assert config_from_saved(json.loads(json.dumps(asdict(DeepConfig())))) == DeepConfig()
@@ -219,7 +219,7 @@ def test_a_saved_aim_missing_or_carrying_an_unknown_field_is_refused_by_name():
     with pytest.raises(ValueError, match="leak"):
         config_from_saved(carried)
     carried = json.loads(json.dumps(asdict(DeepConfig(target=LINE))))
-    carried["boost"]["coinage"] = 3
+    carried["boost_sampling"]["coinage"] = 3
     with pytest.raises(ValueError, match="coinage"):
         config_from_saved(carried)
 
@@ -854,6 +854,13 @@ def test_run_deep_refuses_a_target_without_a_boost_and_a_boost_without_a_target(
         drive(tmp_path, 1, DRIVEN, boost=a_boost()[0])
     assert not (tmp_path / NETS).exists()
 
+def test_step_refuses_a_boost_when_the_run_has_no_aim(collector):
+    # `run_deep` refuses the pair before any walk; `step` is public too, so it says the same by name.
+    spy = Spy(collector)
+    with pytest.raises(ValueError, match="target"):
+        step(new_run(SMALL), spy, spy, boost=a_boost()[0])
+    assert spy.events == []
+
 def test_an_old_state_without_a_target_file_loads_with_none(tmp_path):
     drive(tmp_path, 1)
     state = json.loads((tmp_path / RESUME / STATE).read_text())
@@ -983,10 +990,10 @@ def test_cli_parses_the_boost_flags_into_the_aim_and_the_sampling():
     )
     config = cli.config_from_args(args)
     assert config.target == TargetSpec(granularity="line", alpha=0.0, budget=7, leak="current")
-    assert config.boost == Sampling(opponent_range=3, playouts=2)
+    assert config.boost_sampling == Sampling(opponent_range=3, playouts=2)
     plain = cli.config_from_args(cli.parse(["--out", "y"]))
-    assert plain.target is None and plain.boost == Sampling()
-    assert cli.config_from_args(cli.parse(["--out", "y", "--boost-opponent-range", "all"])).boost.opponent_range is None
+    assert plain.target is None and plain.boost_sampling == Sampling()
+    assert cli.config_from_args(cli.parse(["--out", "y", "--boost-opponent-range", "all"])).boost_sampling.opponent_range is None
     assert cli.config_from_args(cli.parse(["--out", "y", "--boost", "none"])).target is None
     full = cli.config_from_args(
         cli.parse(["--out", "y", "--boost", "random", "--boost-refresh", "9", "--boost-pool", "5", "--boost-noise-cap", "3.5",
@@ -994,7 +1001,7 @@ def test_cli_parses_the_boost_flags_into_the_aim_and_the_sampling():
                    "--boost-opponent-actions", "all"])
     )
     assert full.target == TargetSpec(granularity="random", alpha=0.0, refresh=9, pool=5, noise_cap=3.5, round_two_only=True)
-    assert full.boost == Sampling(board_cards=2, opponent_draws=3, hero_draws=4, opponent_actions=None)
+    assert full.boost_sampling == Sampling(board_cards=2, opponent_draws=3, hero_draws=4, opponent_actions=None)
     # The default α is the settled 0; the settled B and R are TargetSpec's own defaults.
     assert cli.config_from_args(cli.parse(["--out", "y", "--boost", "line"])).target == TargetSpec(granularity="line", alpha=0.0)
 
@@ -1105,10 +1112,10 @@ def test_a_state_written_before_the_boost_existed_resumes_without_one(tmp_path):
     state_path = tmp_path / RESUME / STATE
     state = json.loads(state_path.read_text())
     del state["config"]["target"]
-    del state["config"]["boost"]
+    del state["config"]["boost_sampling"]
     state_path.write_text(json.dumps(state))
     assert saved_config(tmp_path / RESUME).target is None
-    assert saved_config(tmp_path / RESUME).boost == Sampling()
+    assert saved_config(tmp_path / RESUME).boost_sampling == Sampling()
     assert drive(tmp_path, 2).t == 2
 
 def test_a_saved_config_with_a_field_this_code_does_not_know_is_refused_by_name():

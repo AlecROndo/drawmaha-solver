@@ -1,9 +1,9 @@
 """Targeting: which table rows the boost stage boosts, and how they are drawn.
 
 The boost stage (`deepcfr.boost`) adds, at a chosen infoset, one boosted row —
-a sampled play-out against the opponent's whole range, far quieter than a
-walk's sample — at the weight the walk's own samples would have carried there
-in expectation, and turns those samples down to α. It can afford that at B
+a sampled play-out against the opponent's whole range, the hidden hand summed
+out — at the weight the walk's own samples would have carried there in
+expectation, and turns those samples down to α. It can afford that at B
 infosets per seat per iteration. This module decides which B:
 it turns "where does the strategy leak, and how noisy are the walk's samples
 there" into a frozen list, refreshed every R iterations, and draws from it.
@@ -182,8 +182,8 @@ class TargetSpec:
                 raise ValueError(f"{name} must be a positive int, got {value!r}")
         if not _is_int(self.stream) or self.stream < 0:
             raise ValueError(f"stream must be a non-negative int, got {self.stream!r}")
-        if not (_is_number(self.alpha) and 0.0 <= self.alpha <= 1.0):
-            raise ValueError(f"alpha must be a number in [0, 1], got {self.alpha!r}")
+        if not (_is_number(self.alpha) and 0.0 <= self.alpha < 1.0):
+            raise ValueError(f"alpha must be a number in [0, 1) — at 1 the boost would add weightless rows — got {self.alpha!r}")
         if not (_is_number(self.noise_cap) and 0.0 < self.noise_cap < math.inf):
             raise ValueError(f"noise_cap must be positive and finite, got {self.noise_cap!r}")
         if not isinstance(self.round_two_only, (bool, np.bool_)):

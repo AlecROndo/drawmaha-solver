@@ -156,11 +156,21 @@ def test_repeated_unsorted_or_non_integer_drawn_rows_are_refused(drawn, match):
             walks=100,
         )
 
-@pytest.mark.parametrize("field, value, match", [("alpha", 1.5, "alpha"), ("alpha", -0.1, "alpha"), ("walks", 0, "walks"), ("walks", 2.5, "walks")])
+@pytest.mark.parametrize(
+    "field, value, match",
+    [("alpha", 1.5, "alpha"), ("alpha", -0.1, "alpha"), ("alpha", 1.0, "alpha"), ("walks", 0, "walks"), ("walks", 2.5, "walks")],
+)
 def test_a_bad_alpha_or_walk_count_is_refused_by_name(field, value, match):
     kwargs = {"alpha": 0.0, "walks": 100} | {field: value}
     with pytest.raises(ValueError, match=match):
         injected(a_fake(), **kwargs)
+
+def test_alpha_one_is_refused_before_any_target_is_computed():
+    # At α = 1 every boosted row would weigh 0: B play-outs paid for rows the fit ignores.
+    fake = a_fake()
+    with pytest.raises(ValueError, match="alpha"):
+        injected(fake, alpha=1.0)
+    assert fake.calls == []
 
 def test_fewer_drawn_rows_than_the_budget_are_simply_fewer():
     out = injected(a_fake(), drawn=(12,))

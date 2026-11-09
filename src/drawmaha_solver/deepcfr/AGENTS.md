@@ -39,12 +39,16 @@ carried. What remains of that plan is the race (its PR 5).
   play-out from its row (`boost_target.Sampling`; by default the walk's own
   sampling against the whole opponent range), offered at
   (1 − α) · K · arrival — the sampled weight it stands in for — AFTER the
-  walk's rows, which are turned down to α and still offered, so the
-  reservoir sees the same offers as a run without the boost and a run with
-  `target=None` is today's run bit for bit. `DeepConfig` refuses an exact
-  `Sampling` and `inject` refuses it again; `EXACT` is the tests' oracle.
-  Alec's rule: boosting is extra sampling at high-variance nodes, never
-  brute-forcing the tree from a node. A drawn row whose float32 weight would
+  walk's rows, which are turned down to α and still offered, so within a
+  phase the walk's rows keep their stream positions; a run with
+  `target=None` is today's run bit for bit, a boosted run's memory equals a
+  plain one's in expectation, not row for row. Unbiased always; quieter
+  only where one play-out's variance is below a walk sample's over K · p,
+  which the race measures. `DeepConfig` refuses an exact `Sampling` and
+  `inject` refuses it again; `EXACT` is the tests' oracle. The rule:
+  boosting is extra sampling at high-variance nodes, never brute-forcing
+  the tree from a node, which costs a hundredfold and sets aside what the
+  net is for. A drawn row whose float32 weight would
   equal 1 or α, or whose arrival is 0, is left untreated (natural rows at
   weight 1, no boosted row) and counted as skipped: `targeting.noise` tells
   walk rows from boosted rows by weight alone, and half a treatment would
@@ -77,16 +81,17 @@ carried. What remains of that plan is the race (its PR 5).
   the GPU; a moved run is no longer reproducible from its seed and config.
   The seed, the walks, the capacity, the net's size, the other refit fields
   (the pot power among them), the thread count, the aim (`target`) and the
-  boost's sampling (`boost`) are refused by name, because each changes the
-  sample or the fit.
+  boost's sampling (`boost_sampling`) are refused by name, because each
+  changes the sample or the fit.
 - **A field added to `DeepConfig` after runs were saved goes in
   `ADDED_LATER`** with the value those runs had, so a `state.json` that lacks
   it reads as the run it was and never as today's default. `pot_power` is
   the case that made the rule: its default is ½, every run saved before it
   existed fitted raw chips, and `DeepConfig(**saved)` alone would have
-  resumed them under ½ with nothing in the log. `target` (None) and `boost`
-  (the default sampling) followed the same rule; both are dataclasses that
-  travel as nested dicts in `state.json`, rebuilt by `config_from_saved`.
+  resumed them under ½ with nothing in the log. `target` (None) and
+  `boost_sampling` (the default sampling) followed the same rule; both are
+  dataclasses that travel as nested dicts in `state.json`, rebuilt by
+  `config_from_saved`.
 - **The refit's targets are each regret sample over its spot's pot^k**
   (`pot_scaled`, k = `pot_power`, ½ by default). The divisor is the spot's,
   never the sampled outcome's, so regret matching plays the same σ from the

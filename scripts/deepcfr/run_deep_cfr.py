@@ -47,7 +47,7 @@ def _sibling(name: str):
 GraderRefresher = _sibling("targeting_refresh").GraderRefresher
 
 # The flags that describe the aim (`TargetSpec`); each is refused without `--boost <arm>`.
-# The `--boost-*` sampling flags are not among them: they describe `DeepConfig.boost`, which every run carries.
+# The `--boost-*` sampling flags are not among them: they describe `DeepConfig.boost_sampling`, which every run carries.
 AIM_FLAGS = (
     "--boost-budget", "--boost-refresh", "--boost-alpha", "--boost-leak", "--boost-pool", "--boost-noise-cap", "--boost-round-two-only",
 )
@@ -210,7 +210,7 @@ def config_from_args(args: argparse.Namespace) -> DeepConfig:
         pot_power=args.pot_power,
         save_every_s=args.save_every_s,
         target=target_spec(args),
-        boost=boost_sampling(args),
+        boost_sampling=boost_sampling(args),
     )
 
 def main() -> None:

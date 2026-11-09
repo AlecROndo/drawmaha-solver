@@ -198,8 +198,9 @@ class DeepConfig:
     `FitConfig` when it is asked to. A `state.json` written before a field
     existed loads with the value that run had, not today's default
     (`ADDED_LATER`): "cpu" for the device, 0 for the pot power, no aim for
-    the targeted-sampling boost. `target` and `boost` are dataclasses and
-    travel as nested dicts in the JSON; `config_from_saved` rebuilds them.
+    the targeted-sampling boost. `target` and `boost_sampling` are
+    dataclasses and travel as nested dicts in the JSON; `config_from_saved`
+    rebuilds them.
     """
 
     seed: int = 0
@@ -248,7 +249,9 @@ class DeepConfig:
     # refused here and again in `boost.inject`. Read only when `target` is
     # set, and a sample field all the same, so a resume that changes it is
     # refused even on a run without an aim — conservative, and said here.
-    boost: Sampling = Sampling()
+    # Named for what it is, since `boost.Boost` and `step(boost=)` are the
+    # stage itself.
+    boost_sampling: Sampling = Sampling()
     grid: tuple[int, ...] = GRID
     # The resume state carries 3.6 GB of memories at the run's C, so 30
     # minutes rather than rung 3's 10.
@@ -284,12 +287,12 @@ class DeepConfig:
             raise ValueError(f"pot_power must be in [0, 1], got {self.pot_power!r}")
         if self.target is not None and not isinstance(self.target, TargetSpec):
             raise ValueError(f"target must be a TargetSpec or None, got {type(self.target).__name__}")
-        if not isinstance(self.boost, Sampling):
-            raise ValueError(f"boost must be a Sampling, got {type(self.boost).__name__}")
-        if self.boost.is_exact:
+        if not isinstance(self.boost_sampling, Sampling):
+            raise ValueError(f"boost_sampling must be a Sampling, got {type(self.boost_sampling).__name__}")
+        if self.boost_sampling.is_exact:
             raise ValueError(
-                "boost must sample: the boost stage is extra sampling at high-variance nodes, never the "
-                f"exact sum over the tree below a row, and {self.boost!r} draws nothing (EXACT is the tests' oracle)"
+                "boost_sampling must sample: the boost stage is extra sampling at high-variance nodes, never the "
+                f"exact sum over the tree below a row, and {self.boost_sampling!r} draws nothing (EXACT is the tests' oracle)"
             )
 
 # Fields added after runs had been saved, each with the value those runs had.
@@ -298,12 +301,12 @@ class DeepConfig:
 # raw chips, and resuming it under today's default would change its weighting
 # half-way with nothing in the log. `config_from_saved` applies these; a
 # resume then refuses the mismatch by name, as it refuses any sample field.
-ADDED_LATER: Mapping[str, object] = {"device": "cpu", "pot_power": 0.0, "target": None, "boost": Sampling()}
+ADDED_LATER: Mapping[str, object] = {"device": "cpu", "pot_power": 0.0, "target": None, "boost_sampling": Sampling()}
 
 # The fields that are dataclasses themselves, flattened to dicts by `asdict`
 # on the way into `state.json` and rebuilt by `config_from_saved` on the way
 # back; a dict missing a field or carrying an unknown one is refused by name.
-_NESTED: Mapping[str, type] = {"target": TargetSpec, "boost": Sampling}
+_NESTED: Mapping[str, type] = {"target": TargetSpec, "boost_sampling": Sampling}
 
 # The fields a resume may not change: each one changes the sample or the
 # fit, so a run continued under a different value would be a different run.
@@ -324,7 +327,7 @@ SAMPLE_FIELDS = (
     "rule",
     "pot_power",
     "target",
-    "boost",
+    "boost_sampling",
 )
 
 def require_same_run(saved: DeepConfig, asked: DeepConfig) -> None:
@@ -491,6 +494,8 @@ def step(
     """
     t = run.t + 1
     config = run.config
+    if boost is not None and config.target is None:
+        raise ValueError("a boost was given but run.config.target is None: the run has no aim for it to serve")
     table = collector.table
     materialise, collect, merge, fit, loss, rows = [], [], [], [], [], []
     refresh, boosting, boosted, skipped = [], [], [], []
@@ -521,7 +526,7 @@ def step(
                     seat=p,
                     t=t,
                     seed=config.seed,
-                    sampling=config.boost,
+                    sampling=config.boost_sampling,
                     alpha=config.target.alpha,
                     walks=config.walks,
                 )

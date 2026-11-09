@@ -59,6 +59,7 @@ def test_the_spec_carries_the_settled_defaults_and_no_alpha_default():
         ({"refresh": 0}, "refresh"),
         ({"alpha": -0.1}, "alpha"),
         ({"alpha": 1.5}, "alpha"),
+        ({"alpha": 1.0}, "alpha"),
         ({"alpha": float("nan")}, "alpha"),
         ({"alpha": True}, "alpha"),
         ({"noise_cap": 0.0}, "noise_cap"),
