@@ -270,9 +270,10 @@ def test_the_page_fades_in_once_on_arrival() -> None:
     from the theme. It is opacity only, so the chip stays the one thing that
     *moves* on load; it is one-shot, on the ease-out token, `ARRIVAL_MS` long;
     it fills `backwards`, never forwards, because `to` is the page's own state
-    and an animation left filling keeps a layer and a stacking context the
-    page never asked for; and under reduced motion the same selectors keep a
-    fade-only keyframe rather than going dark, because a fade is the gentler
+    and an animation still filling keeps `main` a stacking context, under
+    which nothing inside it could rise above the top bar; and under reduced
+    motion the same selectors keep a fade-only keyframe rather than going
+    dark, because the standard quiets by name and a fade is the gentler
     variant.
     """
     frames = KEYFRAMES["theme"]
@@ -324,31 +325,32 @@ def test_no_sheet_quiets_the_arrival(name: str) -> None:
 def test_every_surface_renders_one_main_and_one_footer() -> None:
     """The premise of one theme rule: every surface has exactly one `main` and one `footer`.
 
-    Read from the source, not a browser: each app's `App.tsx` writes its one
-    `<main>` unconditionally and unkeyed, so it mounts once and a tab change
-    inside it does not replay the fade; each app's `site.tsx` writes the one
-    `<footer>`; each static page carries one of each from the generator's
-    shell. A second `main`, or a `main` nested in a `footer`, would compound
-    two fades; a keyed `main` would replay it on every view change.
+    A tripwire over the source text, not a render: comments stripped, each
+    surface's shell (an app's `App.tsx` with its `ui/site.tsx`; a static
+    page) opens exactly one `<main` and one `<footer`, the `<main` carries no
+    `key=`, and the line that opens it is not a conditional. That is what the
+    text can show. A second `main`, or a `main` inside a `footer`, would
+    compound two fades; a keyed or conditional `main` would replay the fade
+    on a view change. A `<main>` rendered by a child component would escape
+    this test, and so would a conditional broken across lines; the arrival
+    test's docstring states the premise so a reader knows to keep it.
     """
-    tag = {t: re.compile(rf"<{t}\b") for t in ARRIVAL}
+    comments = re.compile(r"<!--.*?-->|/\*.*?\*/", re.DOTALL)
     shells = {page: (WEB / "cover" / page).read_text() for page in PAGES}
     for app in APPS:
         src = WEB / app / "src"
         shells[app] = (src / "App.tsx").read_text() + (src / "ui" / "site.tsx").read_text()
     for name, text in shells.items():
-        for t, pattern in tag.items():
-            found = pattern.findall(text)
+        text = comments.sub("", text)
+        for t in ARRIVAL:
+            found = re.findall(rf"<{t}\b", text)
             assert len(found) == 1, f"{name}: {len(found)} <{t}> tags; the arrival expects exactly one"
         assert not re.search(r"<main\b[^>]*\bkey=", text), (
             f"{name}: <main> is keyed, so React would remount it and replay the arrival"
         )
-    for app in APPS:
-        lines = (WEB / app / "src" / "App.tsx").read_text().splitlines()
-        at = next(i for i, line in enumerate(lines) if "<main" in line)
-        above = "\n".join(lines[max(0, at - 5) : at])
-        assert "return (" in above and "<>" in above, (
-            f"{app}: <main> is not the first thing App returns; it must mount once, unconditionally"
+        opening = next(line for line in text.splitlines() if "<main" in line)
+        assert not re.search(r"&&|\?[^.]|\bif\b", opening), (
+            f"{name}: <main> opens on a conditional line (`{opening.strip()}`); it mounts once, always"
         )
 
 

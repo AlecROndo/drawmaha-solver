@@ -116,10 +116,10 @@ Chrome never does.
    screen → `--ease-in-out`. Colour under the pointer → `ease`. Constant →
    `linear`.
 4. **How long?** Press 160 ms. Hover colour 150 ms. Popover and sheet
-   150–250 ms. The page's arrival 500 ms, once. Nothing else in the chrome over 300 ms per declaration — and the
-   test reads every time in the declaration, delays included, because a
-   300 ms delay is a wait the user feels just as a 300 ms slide is. Exits
-   faster than entrances.
+   150–250 ms. The page's arrival 500 ms, once. Nothing else in the chrome
+   over 300 ms per declaration — and the test reads every time in the
+   declaration, delays included, because a 300 ms delay is a wait the user
+   feels just as a 300 ms slide is. Exits faster than entrances.
 
 ## The rules, each with the site's own before and after
 

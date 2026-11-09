@@ -314,10 +314,11 @@ main {
    this one rule is the whole site's arrival; in an app it plays when React
    mounts `main`, which is the first moment there is anything to see. The
    fill is `backwards`, not `both`: `to` is the page's own state, so there is
-   nothing to hold after the fade ends, and an animation left filling
-   forwards keeps the element a layer of its own in some engines, with a
-   stacking context the page never asked for. It runs past the chrome's
-   300 ms on purpose and is allowlisted as `main, footer` in
+   nothing to hold after the fade ends, and an animation still filling
+   forwards keeps `main` a stacking context, which would flatten the z-order
+   of everything inside it against the chrome outside it: a popover or sheet
+   raised inside `main` could no longer rise above the top bar. It runs past
+   the chrome's 300 ms on purpose and is allowlisted as `main, footer` in
    tests/test_ui_standard.py; a tab or view changing inside a page does not
    replay it, because `main` stays mounted. */
 main,
@@ -1253,8 +1254,10 @@ footer a:hover {
     transform: none;
   }
 
-  /* the arrival is already the gentler variant, a fade with nothing moving;
-     it stays, restated so the standard's test can see it was kept on purpose */
+  /* the standard quiets by name: every selector that animates has a
+     reduced-motion rule of its own (test_every_pulse_and_travel_is_quieted_
+     under_reduced_motion). The arrival's quiet form is the same fade, because
+     a fade with nothing moving is already the gentler variant. */
   main,
   footer {
     animation: arrive 500ms var(--ease-out) backwards;
