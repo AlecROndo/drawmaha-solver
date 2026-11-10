@@ -116,10 +116,10 @@ Chrome never does.
    screen → `--ease-in-out`. Colour under the pointer → `ease`. Constant →
    `linear`.
 4. **How long?** Press 160 ms. Hover colour 150 ms. Popover and sheet
-   150–250 ms. Nothing in the chrome over 300 ms per declaration — and the
-   test reads every time in the declaration, delays included, because a
-   300 ms delay is a wait the user feels just as a 300 ms slide is. Exits
-   faster than entrances.
+   150–250 ms. The page's arrival 700 ms, once. Nothing else in the chrome
+   over 300 ms per declaration — and the test reads every time in the
+   declaration, delays included, because a 300 ms delay is a wait the user
+   feels just as a 300 ms slide is. Exits faster than entrances.
 
 ## The rules, each with the site's own before and after
 
@@ -130,7 +130,7 @@ Chrome never does.
 | Entrances use `--ease-out`, never `ease-in` | rung 2's chips (and rung 3's) swept to the pot with `0.55s ease-in` | `.sweep`: `0.4s var(--ease-out)` | a chip pushed across felt leaves fast and settles; ease-in made it hesitate then lurch |
 | Chrome motion stays under 300 ms per declaration | — | the presses at 160 ms, hover colour at 150 ms, the solver's panes sheet (`.sheet`) arriving over 200 ms | a 180 ms dropdown feels more responsive than a 400 ms one, at the same frame rate |
 | Exits are faster than entrances; a cascade staggers 30–80 ms and never blocks | — | nothing on the site exits or staggers today; the first one added follows this | the user has decided; the page just answers |
-| Nothing moves on load | the homepage's sections rose in on scroll (`.reveal`, 700 ms) | the static pages render still; the chip turning is the one thing that moves without being asked | a page that performs on arrival reads as a demo |
+| Nothing moves on load; the page fades in once | the homepage's sections rose in on scroll (`.reveal`, 700 ms) | `main` and `footer` fade in from the paper under the top bar, opacity only, 700 ms on `--ease-out` (`arrive`), once per page and never again inside it; the chip turning is the one thing that moves without being asked | a page that performs on arrival reads as a demo; a page that is simply there, a beat after the chrome, reads as a page turning |
 | Hover transforms only where a pointer can hover | an arrow on the old front page nudged 4 px on `:hover`, which a tap leaves stuck out | no hover on the site moves anything; one that does goes inside `@media (hover: hover) and (pointer: fine)` | touch fires hover on tap and never un-fires it |
 | Reduced motion means fewer and gentler, not none | `* { animation: none !important; transition: none !important }` in the theme | the presses, the sweep and the sheet are quieted by name; colour transitions stay; the chip is drawn once (`mark.ts` and `chip.js` read the same query) | a state change still has to be legible to someone who turned motion off |
 | Reduced motion names the state's own selector, not just the base one | — | the theme quiets `.btn:active:not(:disabled)`, not `.btn:active` | `:not(:disabled)` adds specificity, so quieting the bare `:active` would leave the press in place |
@@ -149,6 +149,14 @@ fails on an entry that exempts nothing):
 
 - `.sweep`: rungs 2 and 3's chips crossing 58 px of felt to the pot,
   one-shot, 400 ms;
+- `main, footer`: the arrival, the page's content and footer fading in once
+  per page, opacity only, 700 ms. The key is the whole selector list, so it
+  exempts that one rule and nothing under `main`
+  (`test_the_page_fades_in_once_on_arrival` holds its shape: one-shot, the
+  ease-out token, a keyframe that moves nothing, a `backwards` fill that lets
+  go when the fade ends, the same fade kept under reduced motion and quieted
+  by no sheet; `test_every_surface_renders_one_main_and_one_footer` holds
+  the premise that one theme rule reaches every page);
 - `.rungs-menu`, `.live i`, `.st::before`: the archived Cover's menu
   width, live dot and in-progress pulse, kept as they were.
 

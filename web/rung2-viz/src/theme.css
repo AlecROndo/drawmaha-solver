@@ -15,7 +15,8 @@
  *      commands; it is never a prose or UI voice.
  *   3. The chip is the mark: the ASCII chip turning in the top bar, a red
  *      chip with black indents, and again where the footer closes
- *      the page. Nothing else moves on load.
+ *      the page. Nothing else moves on load: the page's content fades in
+ *      once under the still top bar, opacity only, and that is all.
  *   4. Figures are titled blocks, not windows: a number, a bold title that
  *      states the finding, a one-line sub-title naming the measure and the
  *      run, the figure, a caption of at most two sentences, on a top hairline.
@@ -301,6 +302,38 @@ button {
 
 main {
   padding-bottom: 40px;
+}
+
+/* ---------- the arrival -------------------------------------------------- */
+
+/* The page's content and its footer fade in once, from the paper, under a top
+   bar that is already there: opacity only, so the chip stays the one thing
+   that moves on load, 700 ms on the ease-out curve, which brings the words up
+   fast and lets the last of the fade settle slowly. Every surface renders one
+   `main` and one `footer` (the generator's shell, the five apps' App.tsx), so
+   this one rule is the whole site's arrival; in an app it plays when React
+   mounts `main`, which is the first moment there is anything to see. The
+   fill is `backwards`, not `both`: `to` is the page's own state, so there is
+   nothing to hold after the fade ends, and an animation still filling
+   forwards keeps `main` a stacking context, which would flatten the z-order
+   of everything inside it against the chrome outside it: a popover or sheet
+   raised inside `main` could no longer rise above the top bar. It runs past
+   the chrome's 300 ms on purpose and is allowlisted as `main, footer` in
+   tests/test_ui_standard.py; a tab or view changing inside a page does not
+   replay it, because `main` stays mounted. */
+main,
+footer {
+  animation: arrive 700ms var(--ease-out) backwards;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 h1,
@@ -1219,5 +1252,14 @@ footer a:hover {
   .radios label:active,
   .rail a:active {
     transform: none;
+  }
+
+  /* the standard quiets by name: every selector that animates has a
+     reduced-motion rule of its own (test_every_pulse_and_travel_is_quieted_
+     under_reduced_motion). The arrival's quiet form is the same fade, because
+     a fade with nothing moving is already the gentler variant. */
+  main,
+  footer {
+    animation: arrive 700ms var(--ease-out) backwards;
   }
 }

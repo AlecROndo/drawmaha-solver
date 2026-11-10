@@ -54,15 +54,33 @@ PRESS_RANGE = (0.95, 0.98)
 # Selectors whose motion is explanatory rather than chrome: a figure drawing
 # itself, a section arriving on scroll, a status pulse. Each is allowed to
 # exceed 300 ms, to own a curve, or to animate a layout property — and each
-# says why. Matched inside the rule's selector at a selector boundary, so
-# `.sweep` covers `.sweep.from-you` but not `.sweeper`. An entry must still
-# match a rule that moves; the first test below refuses a ghost.
+# says why. A key is found inside the rule's selector at a selector boundary
+# on both sides, so `.sweep` covers `.sweep.from-you` but not `.sweeper`. A
+# key that is itself a selector list (`main, footer`) exempts only the rule
+# whose selector is exactly that list, not `main .panel` and not a bare
+# `main`: a tag name found anywhere would exempt everything under it. An
+# entry must still match a rule that moves; the first test below refuses a
+# ghost.
 EXPLANATORY = {
     ".live i": "the archived Cover's live dot, a 2 s constant pulse",
     ".st::before": "the archived Cover's in-progress dot pulse on its ladder",
     ".sweep": "rungs 2 and 3's chips crossing 58 px of felt to the pot, one-shot, 400 ms",
     ".rungs-menu": "the old chrome's Rungs menu animates width on purpose; only the archived Cover still inlines it",
+    "main, footer": "the arrival, the page's content and footer fading in once, opacity only, 700 ms (`test_the_page_fades_in_once_on_arrival`)",
 }
+
+# The arrival: the one entrance every page plays. Opacity only, so the chip
+# stays the one thing that moves on load; one-shot; the ease-out token; and
+# the same fade under reduced motion, because a fade is the gentler variant,
+# not the thing to remove.
+ARRIVAL = ("main", "footer")
+ARRIVAL_MS = 700
+# A conditional operator right before `<main`, across lines: how JSX renders a
+# tag only sometimes (`{open && (` newline `<main`, `{x ? <main`, `: <main`).
+# A `?` or `:` inside the tag's own attributes is after `<main` and does not
+# match; `test_the_conditional_main_pattern_reads_jsx_conditionals` pins both
+# sides.
+CONDITIONAL_MAIN = re.compile(r"(&&|\?|:)\s*\(?\s*<main\b")
 
 # Every pressable thing, per stylesheet. A pressable has `.x:active` with a
 # scale in range and `transform` in its base transition list.
@@ -126,6 +144,19 @@ def _sheets() -> dict[str, str]:
 SHEETS = _sheets()
 
 
+def _exempts(key: str, selector: str) -> bool:
+    """Whether an `EXPLANATORY` key reaches a rule's selector.
+
+    A key that lists selectors (`main, footer`) reaches exactly that list and
+    nothing else; any other key is found inside the selector at a selector
+    boundary on both sides, so `.sweep` reaches `.sweep.from-you`, not
+    `.sweeper`.
+    """
+    if "," in key:
+        return _parts(key) == _parts(selector)
+    return re.search(rf"(?<![\w-]){re.escape(key)}(?![\w-])", selector) is not None
+
+
 class Rule:
     def __init__(self, media: str | None, selector: str, body: str) -> None:
         self.media = media
@@ -144,9 +175,7 @@ class Rule:
 
     @property
     def explanatory(self) -> bool:
-        return any(
-            re.search(rf"{re.escape(key)}(?![\w-])", self.selector) for key in EXPLANATORY
-        )
+        return any(_exempts(key, self.selector) for key in EXPLANATORY)
 
 
 def _rules(css: str, keyframes: dict[str, str] | None = None) -> list[Rule]:
@@ -216,14 +245,141 @@ def _motion_values(rule: Rule) -> list[str]:
 @pytest.mark.parametrize("key", sorted(EXPLANATORY))
 def test_every_allowlisted_selector_names_a_rule_that_moves(key: str) -> None:
     """An entry that exempts nothing is a ghost, and a ghost hides the next real exception."""
-    pattern = rf"{re.escape(key)}(?![\w-])"
     moving = [
         f"{name}: {rule!r}"
         for name, rules in RULES.items()
         for rule in rules
-        if re.search(pattern, rule.selector) and _motion_values(rule)
+        if _exempts(key, rule.selector) and _motion_values(rule)
     ]
     assert moving, f"EXPLANATORY names {key!r}, which matches no rule that moves; delete the entry"
+
+
+# ------------------------------------------------------------- the arrival
+
+
+def _arrival_rules(name: str, reduced: bool) -> list[Rule]:
+    """The rules of a sheet that name every `ARRIVAL` selector and animate."""
+    return [
+        r
+        for r in RULES[name]
+        if _reduced(r) is reduced
+        and set(ARRIVAL) <= _parts(r.selector)
+        and any(v.strip() != "none" for v in r.declarations("animation"))
+    ]
+
+
+def test_the_page_fades_in_once_on_arrival() -> None:
+    """One theme rule fades `main` and `footer` in on arrival, and only fades them.
+
+    Every surface renders one `main` under the still top bar (the generator's
+    shell and the five apps' `App.tsx`), so the rule reaches the whole site
+    from the theme. It is opacity only, so the chip stays the one thing that
+    *moves* on load; it is one-shot, on the ease-out token, `ARRIVAL_MS` long;
+    it fills `backwards`, never forwards, because `to` is the page's own state
+    and an animation still filling keeps `main` a stacking context, under
+    which nothing inside it could rise above the top bar; and under reduced
+    motion the same selectors keep a fade-only keyframe rather than going
+    dark, because the standard quiets by name and a fade is the gentler
+    variant.
+    """
+    frames = KEYFRAMES["theme"]
+    moving = "|".join(MOVING_IN_KEYFRAMES)
+    for reduced in (False, True):
+        rules = _arrival_rules("theme", reduced)
+        where = "under reduced motion" if reduced else "in the chrome"
+        assert rules, f"theme: no rule animates {ARRIVAL} {where}"
+        for rule in rules:
+            for value in rule.declarations("animation"):
+                keyframe, loops = _animation_name_and_loops(value)
+                assert not loops, f"theme: {rule!r} loops; the arrival plays once"
+                assert "var(--ease-out)" in value, f"theme: {rule!r} does not read var(--ease-out)"
+                assert _durations_ms(value) == [ARRIVAL_MS], (
+                    f"theme: {rule!r} runs `{value}`; the arrival is {ARRIVAL_MS} ms with no delay"
+                )
+                assert not re.search(r"\b(forwards|both)\b", value), (
+                    f"theme: {rule!r} fills forwards; `to` is the page's own state, so the arrival "
+                    "ends and lets go (`backwards`)"
+                )
+                body = frames.get(keyframe)
+                assert body is not None, f"theme: @keyframes {keyframe} is not defined in the theme"
+                assert "opacity" in body, f"theme: @keyframes {keyframe} does not fade"
+                assert not re.search(rf"(?:^|[;{{\s])({moving})\s*:", body), (
+                    f"theme: @keyframes {keyframe} moves something; the arrival is opacity only"
+                )
+
+
+@pytest.mark.parametrize("name", sorted(SHEETS))
+def test_no_sheet_quiets_the_arrival(name: str) -> None:
+    """No rule on `main` or `footer`, in any sheet or media block, sets the animation to `none`.
+
+    The arrival test above finds a rule that animates and stops there; a later
+    `animation: none` on the same selector, in the theme's reduced-motion
+    block or in an app's own sheet (which loads after the theme and wins),
+    would cut the fade without failing it. The fade is already the gentler
+    variant, so nothing is allowed to switch it off.
+    """
+    for rule in RULES[name]:
+        if not _parts(rule.selector) & set(ARRIVAL):
+            continue
+        for prop in ("animation", "animation-name"):
+            for value in rule.declarations(prop):
+                assert value.strip() != "none", (
+                    f"{name}: {rule!r} sets `{prop}: none`; the arrival is kept, not quieted"
+                )
+
+
+def test_every_surface_renders_one_main_and_one_footer() -> None:
+    """The premise of one theme rule: every surface has exactly one `main` and one `footer`.
+
+    A tripwire over the source text, not a render: comments stripped, each
+    surface's shell (an app's `App.tsx` with its `ui/site.tsx`; a static
+    page) opens exactly one `<main` and one `<footer`, the `<main` carries no
+    `key=`, and no conditional operator (`&&`, `?`, `:`) stands right before
+    it, across lines, which is how JSX renders a tag conditionally. That is
+    what the text can show. A second `main`, or a `main` inside a `footer`,
+    would compound two fades; a keyed or conditional `main` would replay the
+    fade on a view change. A `<main>` rendered by a child component would
+    escape this test; the arrival test's docstring states the premise so a
+    reader knows to keep it.
+    """
+    comments = re.compile(r"<!--.*?-->|/\*.*?\*/", re.DOTALL)
+    shells = {page: (WEB / "cover" / page).read_text() for page in PAGES}
+    for app in APPS:
+        src = WEB / app / "src"
+        shells[app] = (src / "App.tsx").read_text() + (src / "ui" / "site.tsx").read_text()
+    for name, text in shells.items():
+        text = comments.sub("", text)
+        for t in ARRIVAL:
+            found = re.findall(rf"<{t}\b", text)
+            assert len(found) == 1, f"{name}: {len(found)} <{t}> tags; the arrival expects exactly one"
+        assert not re.search(r"<main\b[^>]*\bkey=", text), (
+            f"{name}: <main> is keyed, so React would remount it and replay the arrival"
+        )
+        hit = CONDITIONAL_MAIN.search(text)
+        assert hit is None, (
+            f"{name}: <main> is rendered conditionally (`{' '.join(hit.group(0).split())}`); "
+            "it mounts once, always"
+        )
+
+
+@pytest.mark.parametrize(
+    ("text", "conditional"),
+    [
+        ('{open && <main className="wrap">', True),
+        ("{open && (\n        <main className=\"wrap\">", True),
+        ("{ready ? (<main>", True),
+        ("{x ? <main> : null}", True),
+        (": <main>}", True),
+        ('<main className="wrap">', False),
+        ('<main data-q="a?b" href="/x?y=1">', False),
+        ("<main className={`wrap rung3 on-${tab}`}>", False),
+        ('<main className={tab === "play" ? "a" : "b"}>', False),
+        ("return (\n    <>\n      <TopBar />\n\n      <main className=\"wrap\">", False),
+    ],
+)
+def test_the_conditional_main_pattern_reads_jsx_conditionals(text: str, conditional: bool) -> None:
+    """The probes behind `CONDITIONAL_MAIN`, kept so a later edit cannot loosen it unnoticed."""
+    assert bool(CONDITIONAL_MAIN.search(text)) is conditional
 
 
 # -------------------------------------------------------------- the tokens
