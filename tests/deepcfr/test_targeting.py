@@ -39,10 +39,12 @@ def seat_points(seat: int) -> list[int]:
 # The spec
 # ---------------------------------------------------------------------------
 
-def test_the_spec_carries_the_plans_proposals_and_no_alpha_default():
+def test_the_spec_carries_the_settled_defaults_and_no_alpha_default():
     spec = TargetSpec(granularity="line", alpha=0.0)
-    assert (spec.budget, spec.refresh, spec.noise_cap, spec.pool) == (2_000, 25, 20.0, 20)
+    # B = 500 and R = 25, settled 2026-11-09 (the plan proposed B = 2,000; under sampling 500 measured 35 s an iteration, 2,000 would be ~140 s).
+    assert (spec.budget, spec.refresh, spec.noise_cap, spec.pool) == (500, 25, 20.0, 20)
     assert spec.round_two_only is False  # the plan's rule: every row eligible
+    assert spec.leak == "average"  # the frozen exact average, what the run is graded on
     with pytest.raises(TypeError):
         TargetSpec(granularity="line")  # α is PR 4's to settle: every caller states it
 
@@ -57,6 +59,7 @@ def test_the_spec_carries_the_plans_proposals_and_no_alpha_default():
         ({"refresh": 0}, "refresh"),
         ({"alpha": -0.1}, "alpha"),
         ({"alpha": 1.5}, "alpha"),
+        ({"alpha": 1.0}, "alpha"),
         ({"alpha": float("nan")}, "alpha"),
         ({"alpha": True}, "alpha"),
         ({"noise_cap": 0.0}, "noise_cap"),
@@ -64,11 +67,17 @@ def test_the_spec_carries_the_plans_proposals_and_no_alpha_default():
         ({"pool": 0}, "pool"),
         ({"stream": -1}, "stream"),
         ({"round_two_only": 1}, "round_two_only"),
+        ({"leak": "policy"}, "leak"),
+        ({"leak": None}, "leak"),
     ],
 )
 def test_the_spec_refuses_a_bad_field_by_name(fields, match):
     with pytest.raises(ValueError, match=match):
         TargetSpec(**({"granularity": "line", "alpha": 0.0} | fields))
+
+def test_the_spec_names_which_profiles_leak_it_aims_at():
+    assert TargetSpec(granularity="line", alpha=0.0, leak="current").leak == "current"
+    assert targeting.LEAK_SOURCES == ("average", "current")
 
 # ---------------------------------------------------------------------------
 # The groups
@@ -548,7 +557,9 @@ def test_a_set_is_read_only():
 
 def test_a_saved_set_loads_as_the_same_set(tmp_path):
     rng = np.random.default_rng(3)
-    targets = a_set(rng.random(300), budget=7, built_at=51, stream=99, alpha=0.25, round_two_only=True, noise_cap=7.5)
+    targets = a_set(
+        rng.random(300), budget=7, built_at=51, stream=99, alpha=0.25, round_two_only=True, noise_cap=7.5, leak="current"
+    )
     path = tmp_path / "t00051.npz"
     targets.save(path)
     loaded = TargetSet.load(path)
@@ -646,7 +657,7 @@ def test_a_random_set_needs_no_meter():
     )
     for seat in (0, 1):
         assert np.array_equal(targets.rows[seat], np.flatnonzero(groups("random", seat) >= 0))
-    assert targets.rows_for(1, 0, 0).size == 2_000
+    assert targets.rows_for(1, 0, 0).size == spec.budget == 500
 
 def test_target_set_refuses_an_arrival_of_the_wrong_shape_or_sign():
     leak, frequency = leaky({A: 1.0, S1: 1.0})

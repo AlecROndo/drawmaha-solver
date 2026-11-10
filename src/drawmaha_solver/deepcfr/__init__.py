@@ -8,7 +8,7 @@ walk itself does not change: `materialise` writes each net's outputs into
 the table's regret slots, so rung 3's `traverse` plays the net's strategy
 through the same `RegretMatcher.strategy()` it always read.
 
-Ten modules, one concern each:
+Eleven modules, one concern each:
 
 - `net`: the MLP, chunked prediction into NumPy, and the save file.
 - `materialise`: two seats' nets into `cumulative_regret`, Deep CFR's
@@ -29,14 +29,19 @@ Ten modules, one concern each:
   policy memory, frozen by running it over every key.
 - `distill`: the rung-4 net fitted straight to a known strategy over every
   infoset, to measure what the net can hold apart from how Deep CFR trains it.
-- `targeting`: which rows the targeted-sampling boost computes exactly —
-  groups at four granularities, a leak × noise score, a frozen target set
-  drawn without replacement — fed a leak it never measures itself.
+- `targeting`: which rows the targeted-sampling boost aims at — groups at
+  four granularities, a leak × noise score, a frozen target set drawn
+  without replacement — fed a leak it never measures itself.
+- `boost`: the stage `train.step` runs between a seat's walks and the merge —
+  one sampled boosted row per targeted row, offered after the walk's rows at
+  the weight they would have carried, the walk's rows there turned down to
+  α; never the exact sum.
 
 `net`, `materialise`, `fit` and `policy` need torch, which the default
 install leaves out: install the `deep` extra (`uv sync --extra deep`).
-`reservoir`, `collect`, `train`, `average` and `targeting` are NumPy only (`train`,
-`policy` and `distill` import torch inside their functions, when a real run asks for it).
+`reservoir`, `collect`, `train`, `average`, `targeting` and `boost` are NumPy only
+(`train`, `policy` and `distill` import torch inside their functions, when a real
+run asks for it).
 Nothing outside this package imports torch, so the default test suite runs
 without it.
 """

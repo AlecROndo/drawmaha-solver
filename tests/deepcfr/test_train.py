@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import signal
+import sys
 from dataclasses import asdict, replace
 from pathlib import Path
 
@@ -26,7 +27,10 @@ import pytest
 from drawmaha_solver.deepcfr.collect import Collector
 from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Memory, Reservoir, reservoir_stream
 import drawmaha_solver.deepcfr.train as train
+from drawmaha_solver.deepcfr.boost import Boost
+from drawmaha_solver.deepcfr.targeting import TargetSet, TargetSpec, row_offsets
 from drawmaha_solver.deepcfr.train import (
+    ADDED_LATER,
     GRID,
     MARKS,
     NETS,
@@ -39,6 +43,7 @@ from drawmaha_solver.deepcfr.train import (
     Fitted,
     OracleLearner,
     OracleModel,
+    config_from_saved,
     current_iterate,
     load_run,
     mark_name,
@@ -61,6 +66,7 @@ from drawmaha_solver.minidrawmaha.solver.lockstep import (
     train_lockstep,
     walk,
 )
+from drawmaha_solver.minidrawmaha.solver.boost_target import EXACT, BoostTargets, Sampling
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.solver.regret_rules import Average, RegretRule
 from drawmaha_solver.minidrawmaha.answer.strategy import StrategyInfo
@@ -150,6 +156,8 @@ def test_config_defaults_are_the_specs():
     # The one departure from the 2026-10-07 spec: targets divided by √pot
     # before the refit, chosen 2026-10-27 from the pot arms in the run log.
     assert config.pot_power == 0.5
+    # No aim, so no boost; what a boosted row would sample is the walk's own sampling.
+    assert config.target is None and config.boost_sampling == Sampling()
 
 @pytest.mark.parametrize(
     ("field", "value"),
@@ -174,11 +182,46 @@ def test_config_defaults_are_the_specs():
         ("pot_power", -0.1),
         ("pot_power", 1.5),
         ("pot_power", float("nan")),
+        ("target", "line"),
+        ("target", {"granularity": "line", "alpha": 0.0}),
+        ("boost_sampling", EXACT),
+        ("boost_sampling", Sampling(opponent_actions=None, board_cards=14, opponent_draws=12, hero_draws=12)),
+        ("boost_sampling", "walk"),
     ],
 )
 def test_config_refuses_bad_values_by_name(field, value):
     with pytest.raises(ValueError, match=field):
         DeepConfig(**{field: value})
+
+LINE = TargetSpec(granularity="line", alpha=0.0)
+
+def test_the_boost_fields_are_sample_fields_added_later():
+    # A run saved before the fields existed had no aim; its sampling is the
+    # default so a resume under today's defaults is not refused.
+    assert ADDED_LATER["target"] is None and ADDED_LATER["boost_sampling"] == Sampling()
+    assert {"target", "boost_sampling"} <= set(SAMPLE_FIELDS)
+    with pytest.raises(ValueError, match="target"):
+        require_same_run(DeepConfig(), DeepConfig(target=LINE))
+    with pytest.raises(ValueError, match="boost_sampling"):
+        require_same_run(DeepConfig(), DeepConfig(boost_sampling=Sampling(playouts=2)))
+
+def test_a_config_with_a_target_and_a_sampling_round_trips_through_json():
+    config = DeepConfig(
+        target=TargetSpec(granularity="line_class", alpha=0.0, budget=7, leak="current"),
+        boost_sampling=Sampling(opponent_range=3, playouts=2),
+    )
+    assert config_from_saved(json.loads(json.dumps(asdict(config)))) == config
+    assert config_from_saved(json.loads(json.dumps(asdict(DeepConfig())))) == DeepConfig()
+
+def test_a_saved_aim_missing_or_carrying_an_unknown_field_is_refused_by_name():
+    carried = json.loads(json.dumps(asdict(DeepConfig(target=LINE))))
+    del carried["target"]["leak"]
+    with pytest.raises(ValueError, match="leak"):
+        config_from_saved(carried)
+    carried = json.loads(json.dumps(asdict(DeepConfig(target=LINE))))
+    carried["boost_sampling"]["coinage"] = 3
+    with pytest.raises(ValueError, match="coinage"):
+        config_from_saved(carried)
 
 def test_require_same_run_names_every_changed_sample_field():
     asked = DeepConfig(seed=1, walks=5, width=32, workers=2, grid=(1,), save_every_s=0.0)
@@ -226,6 +269,9 @@ def test_one_iteration_runs_both_phases_in_the_specs_order(collector):
         assert len(stage) == 2 and all(s >= 0 for s in stage)
     assert stats.loss == (None, None)
     assert stats.rows == (run.advantage[0].offered, run.advantage[1].offered)
+    # No aim: the boost's stages took no time and added nothing.
+    assert stats.refresh == 0.0 and stats.boost == (0.0, 0.0)
+    assert stats.boosted == (0, 0) and stats.skipped == (0, 0) and stats.turned_down == (0, 0)
 
 def test_the_second_iteration_writes_both_nets_and_the_fresh_one_before_seat_one(collector):
     spy = Spy(collector)
@@ -437,9 +483,20 @@ def test_the_oracle_keeps_each_weight_on_its_own_row_across_widths():
 # The resume state
 # ---------------------------------------------------------------------------
 
+def same_targets(first: TargetSet | None, second: TargetSet | None) -> bool:
+    if (first is None) != (second is None):
+        return False
+    if first is None:
+        return True
+    return (
+        first.built_at == second.built_at
+        and first.spec == second.spec
+        and all(np.array_equal(first.rows[s], second.rows[s]) and np.array_equal(first.weight[s], second.weight[s]) for s in SEATS)
+    )
+
 def same_run(first: DeepRun, second: DeepRun) -> bool:
-    """t, config, the three memories and the oracle models, all bytewise."""
-    if first.t != second.t or first.config != second.config:
+    """t, config, the three memories, the oracle models and the target set, all bytewise."""
+    if first.t != second.t or first.config != second.config or not same_targets(first.targets, second.targets):
         return False
     if not all(same_memory(a, b) for a, b in zip((*first.advantage, first.policy), (*second.advantage, second.policy), strict=True)):
         return False
@@ -632,6 +689,225 @@ def test_the_resume_file_is_rewritten_on_the_clock_and_at_the_end_only_once(tmp_
     assert [RESUME in line["wrote"] for line in lines(tmp_path)[3:]] == [True, True]
 
 # ---------------------------------------------------------------------------
+# The boost inside the loop
+# ---------------------------------------------------------------------------
+
+def round_two_rows(seat: int, count: int = 3) -> np.ndarray:
+    """The first `count` rows of `seat`'s first round-2 point: real rows of the right seat, cheap to boost."""
+    points = public_decision_points()
+    offsets = row_offsets()
+    p = next(i for i, point in enumerate(points) if point.player == seat and point.board_cards == 2)
+    return np.arange(offsets[p], offsets[p] + count)
+
+class FixedRefresher:
+    """An `infoset` set of fixed rows built at every call; records each call's t and what the memories had been offered."""
+
+    def __init__(self, spec: TargetSpec, rows: tuple[np.ndarray, np.ndarray] | None = None) -> None:
+        self.spec = spec
+        self.rows = rows if rows is not None else (round_two_rows(0), round_two_rows(1))
+        self.calls: list[tuple[int, tuple[int, int]]] = []
+
+    def __call__(self, *, t, table, memories):
+        self.calls.append((t, tuple(memory.offered for memory in memories)))
+        weight = tuple(np.ones(rows.size) for rows in self.rows)
+        return TargetSet(spec=self.spec, built_at=t, rows=self.rows, weight=weight, groups=self.rows)
+
+class FakeExact:
+    """σ is the table's first regret slot as it stands when read; every drawn row arrives at 0.3 with a zero regret."""
+
+    def __init__(self) -> None:
+        self.sigmas: list[float] = []
+
+    def sigma(self, table):
+        self.sigmas.append(float(table.cumulative_regret[0]))
+        return "σ"
+
+    def targets(self, sigma, *, seat, rows, sampling, seed, t):
+        return np.zeros((len(rows), TARGET_WIDTH)), np.full(len(rows), 0.3)
+
+BOOST_SPEC = TargetSpec(granularity="infoset", alpha=0.0, budget=3, refresh=2)
+BOOSTED = replace(DRIVEN, target=BOOST_SPEC)
+
+def a_boost(spec: TargetSpec = BOOST_SPEC) -> tuple[Boost, FixedRefresher]:
+    refresher = FixedRefresher(spec)
+    return Boost(refresher, exact=FakeExact()), refresher
+
+def straight_boosted(config: DeepConfig, iterations: int) -> DeepRun:
+    run = new_run(config)
+    with Collector(seed=config.seed, workers=config.workers) as collector:
+        for _ in range(iterations):
+            step(run, collector, OracleLearner(), boost=a_boost(config.target)[0])
+    return run
+
+def test_the_refresh_runs_at_the_first_iteration_and_every_r_after(tmp_path):
+    boost, refresher = a_boost()
+    run = drive(tmp_path, 5, BOOSTED, boost=boost)
+    assert [t for t, _ in refresher.calls] == [1, 3, 5]
+    assert run.targets.built_at == 5
+
+def test_boosted_rows_land_after_the_natural_rows_and_the_policy_memory_is_untouched(collector):
+    exact = BoostTargets.build()
+    collector.table.cumulative_regret[:] = 0.0  # uniform σ, so every round-2 row the deck allows is reachable
+    sigma = exact.sigma(collector.table)
+    drawn = tuple(
+        rows[exact.arrivals(sigma, seat=seat, rows=rows) > 0][:3] for seat, rows in ((0, round_two_rows(0, 8)), (1, round_two_rows(1, 8)))
+    )
+    assert all(rows.size == 3 for rows in drawn)
+    spec = replace(BOOST_SPEC, refresh=25)
+    plain, boosted = Spy(collector), Spy(collector)
+    run_plain = new_run(SMALL)
+    step(run_plain, plain, plain)
+    run_boosted = new_run(replace(SMALL, target=spec))
+    stats = step(run_boosted, boosted, boosted, boost=Boost(FixedRefresher(spec, drawn), exact=exact))
+    for seat in SEATS:
+        rows, t, targets, weight = run_boosted.advantage[seat].contents()
+        natural_rows, natural_t, natural_targets, natural_weight = run_plain.advantage[seat].contents()
+        a = natural_rows.size
+        np.testing.assert_array_equal(rows[:a], natural_rows)
+        np.testing.assert_array_equal(t, np.ones(a + 3, dtype=np.int32))
+        np.testing.assert_array_equal(targets[:a], natural_targets)
+        np.testing.assert_array_equal(natural_weight, np.ones(a, dtype=np.float32))
+        np.testing.assert_array_equal(weight[:a], np.where(np.isin(natural_rows, drawn[seat]), 0, 1).astype(np.float32))
+        np.testing.assert_array_equal(rows[a:], drawn[seat])
+        expected = (SMALL.walks * exact.arrivals(sigma, seat=seat, rows=drawn[seat])).astype(np.float32)
+        np.testing.assert_array_equal(weight[a:], expected)
+        assert (weight[a:] > 0).all() and not np.isin(weight[a:], [np.float32(1.0)]).any()
+    assert same_memory(run_plain.policy, run_boosted.policy)
+    assert stats.boosted == (3, 3) and stats.skipped == (0, 0)
+    assert stats.turned_down == tuple(
+        int(np.isin(run_plain.advantage[seat].contents()[0], drawn[seat]).sum()) for seat in SEATS
+    )
+    assert all(s > 0 for s in stats.boost) and stats.refresh > 0
+
+class Stamping(Spy):
+    """A Spy whose `write` stamps the table's first slot with how many writes there have been."""
+
+    def __init__(self, inner: Collector) -> None:
+        super().__init__(inner)
+        self.writes = 0
+
+    def write(self, table, models) -> None:
+        self.writes += 1
+        table.cumulative_regret[0] = self.writes
+        super().write(table, models)
+
+def test_the_boost_reads_sigma_after_this_phases_write(collector):
+    spy = Stamping(collector)
+    boost, _ = a_boost(replace(BOOST_SPEC, refresh=25))
+    run = new_run(replace(SMALL, target=replace(BOOST_SPEC, refresh=25)))
+    try:
+        step(run, spy, spy, boost=boost)
+        step(run, spy, spy, boost=boost)
+    finally:
+        collector.table.cumulative_regret[0] = 0.0
+    # Four phases, four writes, and the σ of each phase read after its own write — never the previous phase's.
+    assert boost.exact.sigmas == [1.0, 2.0, 3.0, 4.0]
+
+def test_stats_and_the_progress_line_carry_the_boost(tmp_path):
+    boost, _ = a_boost()
+    drive(tmp_path, 2, BOOSTED, boost=boost)
+    log = lines(tmp_path)
+    # The fake refresher and oracle are instant, so the rounded seconds read 0.0; the keys and
+    # the counts are what this pins (the real costs are read unrounded in the σ test above and
+    # measured in the whole-game smoke).
+    assert log[0]["seconds"]["refresh"] >= 0.0 and log[1]["seconds"]["refresh"] == 0.0
+    for line in log:
+        assert len(line["seconds"]["boost"]) == 2 and all(s >= 0 for s in line["seconds"]["boost"])
+        assert line["rows"]["boosted"] == [3, 3] and line["rows"]["skipped"] == [0, 0]
+        assert len(line["rows"]["turned_down"]) == 2 and all(n >= 0 for n in line["rows"]["turned_down"])
+    drive(tmp_path / "plain", 1)
+    line = lines(tmp_path / "plain")[0]
+    assert line["seconds"]["refresh"] == 0.0 and line["seconds"]["boost"] == [0.0, 0.0]
+    assert line["rows"]["boosted"] == [0, 0] and line["rows"]["skipped"] == [0, 0] and line["rows"]["turned_down"] == [0, 0]
+
+def test_the_target_set_rides_the_resume_state_and_is_not_regraded(tmp_path):
+    spec = replace(BOOST_SPEC, refresh=4)
+    config = replace(DRIVEN, target=spec)
+    boost, refresher = a_boost(spec)
+    drive(tmp_path, 3, config, boost=boost)
+    assert [t for t, _ in refresher.calls] == [1]
+    state = json.loads((tmp_path / RESUME / STATE).read_text())
+    assert state["files"]["targets"] == "targets-t00003.npz"
+    assert (tmp_path / RESUME / "targets-t00003.npz").exists()
+    assert loaded(tmp_path, RESUME).targets.built_at == 1
+    boost, refresher = a_boost(spec)
+    run = drive(tmp_path, 6, config, boost=boost)
+    assert [t for t, _ in refresher.calls] == [5]  # the saved set served iteration 4
+    assert (tmp_path / MARKS / mark_name(4) / "targets-t00004.npz").exists()
+    assert same_run(run, straight_boosted(config, 6))
+    assert same_run(loaded(tmp_path, MARKS, mark_name(4)), straight_boosted(config, 4))
+
+def test_a_resume_whose_saved_set_has_expired_refreshes_before_its_first_walks(tmp_path):
+    boost, _ = a_boost()
+    drive(tmp_path, 2, BOOSTED, boost=boost)  # the set built at 1 served iterations 1 and 2
+    offered_at_save = tuple(memory.offered for memory in loaded(tmp_path, RESUME).advantage)
+    boost, refresher = a_boost()
+    drive(tmp_path, 3, BOOSTED, boost=boost)
+    assert refresher.calls == [(3, offered_at_save)]
+
+def test_a_run_stopped_and_restarted_with_the_boost_equals_one_straight_run(tmp_path):
+    assert drive(tmp_path, 6, BOOSTED, boost=a_boost()[0]).t == 6
+    run = drive(tmp_path, 10, BOOSTED, boost=a_boost()[0])
+    assert same_run(run, straight_boosted(BOOSTED, 10))
+    np.testing.assert_array_equal(written_by(run), written_by(straight_boosted(BOOSTED, 10)))
+
+def test_run_deep_refuses_a_target_without_a_boost_and_a_boost_without_a_target(tmp_path):
+    with pytest.raises(ValueError, match="boost"):
+        drive(tmp_path, 1, BOOSTED)
+    with pytest.raises(ValueError, match="target"):
+        drive(tmp_path, 1, DRIVEN, boost=a_boost()[0])
+    assert not (tmp_path / NETS).exists()
+
+def test_step_refuses_a_boost_when_the_run_has_no_aim(collector):
+    # `run_deep` refuses the pair before any walk; `step` is public too, so it says the same by name.
+    spy = Spy(collector)
+    with pytest.raises(ValueError, match="target"):
+        step(new_run(SMALL), spy, spy, boost=a_boost()[0])
+    assert spy.events == []
+
+def test_an_old_state_without_a_target_file_loads_with_none(tmp_path):
+    drive(tmp_path, 1)
+    state = json.loads((tmp_path / RESUME / STATE).read_text())
+    assert state["files"]["targets"] is None
+    assert loaded(tmp_path, RESUME).targets is None
+
+@pytest.mark.skipif(
+    not os.environ.get("MINIDRAWMAHA_FULL_DEEP"),
+    reason="a real refresh (two grader walks, ~2 min) and two boosted iterations on the whole game; set MINIDRAWMAHA_FULL_DEEP=1",
+)
+def test_two_boosted_iterations_on_the_whole_game_record_their_cost(tmp_path):
+    # The line arm at the settled B = 500 with the real grader-backed refresher
+    # (leak="current", so no exact average is needed) and the real boost oracle.
+    # Prints the refresh and boost seconds so the run log and `train.py`'s
+    # timings paragraph can quote them.
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "targeting_refresh", Path(__file__).parents[2] / "scripts" / "deepcfr" / "targeting_refresh.py"
+    )
+    refresh = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(refresh)
+    aim = TargetSpec(granularity="line", alpha=0.0, budget=500, refresh=25, leak="current")
+    config = DeepConfig(seed=1, walks=200, workers=0, capacity=1_000_000, target=aim, grid=())
+    boost = Boost(refresh.GraderRefresher(aim, walks=config.walks, seed=config.seed))
+    run = run_deep(tmp_path, config, target=2, learner=OracleLearner(), log=lambda _: None, boost=boost)
+    assert run.t == 2 and run.targets.built_at == 1
+    log = lines(tmp_path)
+    assert len(log) == 2
+    assert log[0]["seconds"]["refresh"] > 0 and log[1]["seconds"]["refresh"] == 0.0
+    for line in log:
+        assert all(s > 0 for s in line["seconds"]["boost"])
+        # B rows a seat, less the rare row whose weight would read as a walk row's.
+        assert sum(line["rows"]["boosted"]) >= 2 * aim.budget - 10
+        assert sum(line["rows"]["skipped"]) <= 10
+    print(
+        f"\nwhole-game smoke, line arm, B = {aim.budget}, K = {config.walks}: "
+        f"refresh {log[0]['seconds']['refresh']} s; boost per seat "
+        f"{log[0]['seconds']['boost']} s at t = 1, {log[1]['seconds']['boost']} s at t = 2; "
+        f"boosted {log[0]['rows']['boosted']} / {log[1]['rows']['boosted']}, skipped {log[0]['rows']['skipped']} / {log[1]['rows']['skipped']}"
+    )
+
+# ---------------------------------------------------------------------------
 # The current iterate
 # ---------------------------------------------------------------------------
 
@@ -700,6 +976,89 @@ def test_cli_parses_the_flags_into_a_config():
     with pytest.raises(ValueError, match="pot_power"):
         cli.config_from_args(cli.parse(["--out", "y", "--pot-power", "2"]))
 
+def load_cli():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "run_deep_cfr", Path(__file__).parents[2] / "scripts" / "deepcfr" / "run_deep_cfr.py"
+    )
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    return cli
+
+def test_cli_parses_the_boost_flags_into_the_aim_and_the_sampling():
+    cli = load_cli()
+    args = cli.parse(
+        ["--out", "y", "--boost", "line", "--boost-budget", "7", "--boost-alpha", "0", "--boost-leak", "current",
+         "--boost-opponent-range", "3", "--boost-playouts", "2"]
+    )
+    config = cli.config_from_args(args)
+    assert config.target == TargetSpec(granularity="line", alpha=0.0, budget=7, leak="current")
+    assert config.boost_sampling == Sampling(opponent_range=3, playouts=2)
+    plain = cli.config_from_args(cli.parse(["--out", "y"]))
+    assert plain.target is None and plain.boost_sampling == Sampling()
+    assert cli.config_from_args(cli.parse(["--out", "y", "--boost-opponent-range", "all"])).boost_sampling.opponent_range is None
+    assert cli.config_from_args(cli.parse(["--out", "y", "--boost", "none"])).target is None
+    full = cli.config_from_args(
+        cli.parse(["--out", "y", "--boost", "random", "--boost-refresh", "9", "--boost-pool", "5", "--boost-noise-cap", "3.5",
+                   "--boost-round-two-only", "--boost-board-cards", "2", "--boost-opponent-draws", "3", "--boost-hero-draws", "4",
+                   "--boost-opponent-actions", "all"])
+    )
+    assert full.target == TargetSpec(granularity="random", alpha=0.0, refresh=9, pool=5, noise_cap=3.5, round_two_only=True)
+    assert full.boost_sampling == Sampling(board_cards=2, opponent_draws=3, hero_draws=4, opponent_actions=None)
+    # The default α is the settled 0; the settled B and R are TargetSpec's own defaults.
+    assert cli.config_from_args(cli.parse(["--out", "y", "--boost", "line"])).target == TargetSpec(granularity="line", alpha=0.0)
+
+def test_cli_refuses_an_exact_boost_at_the_command_line():
+    cli = load_cli()
+    with pytest.raises(SystemExit):
+        cli.parse(["--out", "y", "--boost", "line", "--boost-board-cards", "all", "--boost-opponent-draws", "all",
+                   "--boost-hero-draws", "all", "--boost-opponent-actions", "all"])
+    with pytest.raises(SystemExit):
+        cli.parse(["--out", "y", "--boost-playouts", "0"])
+    with pytest.raises(SystemExit):
+        cli.parse(["--out", "y", "--boost", "hand"])
+
+@pytest.mark.parametrize(
+    "flags",
+    [["--boost-budget", "100"], ["--boost-refresh", "9"], ["--boost-alpha", "0.5"], ["--boost-leak", "current"],
+     ["--boost-pool", "3"], ["--boost-noise-cap", "5"], ["--boost-round-two-only"]],
+)
+def test_cli_refuses_an_aim_flag_without_an_arm(flags):
+    # `--boost-budget 100` with `--boost` left at none would be today's run with nothing in the log.
+    cli = load_cli()
+    with pytest.raises(SystemExit):
+        cli.parse(["--out", "y", *flags])
+    cli.parse(["--out", "y", "--boost", "line", *flags])  # with an arm the same flags are fine
+    # The sampling flags describe `DeepConfig.boost`, a field every run carries, so they stand alone.
+    cli.parse(["--out", "y", "--boost-playouts", "2"])
+
+def test_main_hands_the_loop_a_boost_only_when_an_arm_is_named(monkeypatch):
+    cli = load_cli()
+    handed = []
+    built = []
+
+    def fake_run_deep(out, config, *, target, observers, boost=None, **kw):
+        handed.append((out, config, target, observers, boost))
+
+    class FakeRefresher:
+        def __init__(self, spec, *, walks, average=None, seed=0, exact=None):
+            built.append((spec, walks, average, seed))
+
+    monkeypatch.setattr(cli, "run_deep", fake_run_deep)
+    monkeypatch.setattr(cli, "GraderRefresher", FakeRefresher)
+    monkeypatch.setattr(sys, "argv", ["run_deep_cfr.py", "--out", "runs/plain", "--target", "3"])
+    cli.main()
+    _, config, target, observers, boost = handed[-1]
+    assert target == 3 and config.target is None and boost is None and built == []
+    assert len(observers) == 1 and observers[0].name == "exact"
+    monkeypatch.setattr(sys, "argv", ["run_deep_cfr.py", "--out", "runs/aimed", "--boost", "line_class", "--seed", "4", "--walks", "20"])
+    cli.main()
+    _, config, _, observers, boost = handed[-1]
+    assert isinstance(boost, Boost) and isinstance(boost.refresher, FakeRefresher)
+    assert built == [(config.target, 20, observers[0], 4)]
+    assert config.target.granularity == "line_class"
+
 def test_cli_passes_the_device_through():
     import importlib.util
 
@@ -751,6 +1110,17 @@ def test_a_state_written_before_pot_scaling_existed_was_a_raw_run_and_resumes_as
     with pytest.raises(ValueError, match="pot_power: 0.0 → 0.5"):
         drive(tmp_path, 2)
     assert drive(tmp_path, 2, replace(DRIVEN, pot_power=0.0)).t == 2
+
+def test_a_state_written_before_the_boost_existed_resumes_without_one(tmp_path):
+    drive(tmp_path, 1)
+    state_path = tmp_path / RESUME / STATE
+    state = json.loads(state_path.read_text())
+    del state["config"]["target"]
+    del state["config"]["boost_sampling"]
+    state_path.write_text(json.dumps(state))
+    assert saved_config(tmp_path / RESUME).target is None
+    assert saved_config(tmp_path / RESUME).boost_sampling == Sampling()
+    assert drive(tmp_path, 2).t == 2
 
 def test_a_saved_config_with_a_field_this_code_does_not_know_is_refused_by_name():
     # The mirror case of `ADDED_LATER`: a record from newer code. It is a

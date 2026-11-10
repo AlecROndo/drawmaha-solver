@@ -14,7 +14,8 @@ docstring opens with the exact command to run it.
   rule on this machine), `modal_rung3.py` (the four-rule race on Modal),
   `grade_checkpoint.py` (the exact meter on a checkpoint),
   `freeze_strategy.py` (one averaging column into the release file).
-- `deepcfr/` — `run_deep_cfr.py`, Deep CFR on this machine, resumable;
+- `deepcfr/` — `run_deep_cfr.py`, Deep CFR on this machine, resumable,
+  `--boost <arm>` for the targeted-sampling boost;
   `modal_rung4.py`, the same run on Modal (`train`), one grader per grid
   mark (`grade`, writes `figures/rung4/grades.json`), the `smoke`, the
   net-size `sweep` and `status`; `rule_sign_flips.py`, how much a
@@ -24,8 +25,9 @@ docstring opens with the exact command to run it.
   copy graded exactly (writes `figures/rung4/distill/results.json`), and
   `distill_figures.py`, the figures drawn from that file;
   `targeting_refresh.py`, the grader-backed refresher of the targeted-sampling
-  boost (`GraderRefresher`) — the one file on the trainer's side that runs
-  the exact meter — and, run directly, one refresh from a release, printed.
+  boost (`GraderRefresher`, built around the run's exact average) — the one
+  file on the trainer's side that runs the exact meter — and, run directly,
+  one refresh from a release, printed.
 
 ## Rules
 

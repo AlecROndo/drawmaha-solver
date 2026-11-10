@@ -3,20 +3,22 @@
     uv run python scripts/deepcfr/targeting_refresh.py --granularity line          # inspect one refresh
     uv run python scripts/deepcfr/targeting_refresh.py --granularity random --out /tmp/t00001.npz
 
-`deepcfr/targeting.py` decides which table rows the boost stage computes
-exactly, from a leak, a frequency and a draw weight per row, and never runs
-the meter that measures the leak: the trainer must not share code with what
-grades it. This script is the one place on the trainer's side where the two
-meet. `GraderRefresher` is a `targeting.Refresher`; the boost stage (the
-plan's next PR) will have the run script build one and hand it to the loop,
-which calls it every R iterations:
+`deepcfr/targeting.py` decides which table rows the boost stage boosts — one
+sampled play-out per row, `deepcfr.boost` — from a leak, a frequency and a
+draw weight per row, and never runs the meter that measures the leak: the
+trainer must not share code with what grades it. This script is the one place on the trainer's side where the two
+meet. `GraderRefresher` is a `targeting.Refresher`: `run_deep_cfr.py` builds
+one and hands it to the loop (`deepcfr.boost.Boost`), which calls it every R
+iterations:
 
-1. **The profile it grades.** `leak="average"` (the default) grades the
-   frozen exact average, `ExactAverage.frozen` — the object the run is
-   graded on, so the budget goes where the graded number leaks.
-   `leak="current"` grades the table's current strategy instead, the
-   iterate whose regrets the walks are sampling now. Which one aims better
-   is open; both cost the same.
+1. **The profile it grades.** `spec.leak == "average"` (the default) grades
+   the frozen exact average, `ExactAverage.frozen` — the object the run is
+   graded on, so the budget goes where the graded number leaks; the
+   `ExactAverage` is handed in when the refresher is built, since the loop
+   does not know which of its observers it is. `"current"` grades the
+   table's current strategy instead, the iterate whose regrets the walks
+   are sampling now, and needs no average. Which one aims better is open;
+   both cost the same.
 2. **The leak and frequency.** `analysis.gains_by_row`: two walks of
    `gains_by_infoset`, one per seat, each infoset's one-step best-response
    gain and play frequency laid on the table's rows. About 100 s on this Mac.
@@ -44,7 +46,6 @@ from __future__ import annotations
 import argparse
 import numbers
 from pathlib import Path
-from typing import Literal
 
 import numpy as np
 
@@ -65,16 +66,16 @@ from drawmaha_solver.minidrawmaha.rules.enumeration import public_decision_point
 from drawmaha_solver.minidrawmaha.solver.boost_target import BoostTargets
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 
-LeakSource = Literal["average", "current"]
-LEAK_SOURCES = ("average", "current")
-
 class GraderRefresher:
     """A `targeting.Refresher` that measures the leak with the exact grader.
 
     `walks` is the run's K, walks per seat per iteration, which the noise
-    score needs to turn the memory's row counts into visits per walk. `seed`
-    only labels the frozen profile. `exact` is the boost oracle the arrivals
-    come from; the default builds the whole game's, cached per process.
+    score needs to turn the memory's row counts into visits per walk.
+    `average` is the run's `ExactAverage`, the observer the loop accumulates;
+    it is required when `spec.leak` is `"average"` and unused otherwise.
+    `seed` only labels the frozen profile. `exact` is the boost oracle the
+    arrivals come from; the default builds the whole game's, cached per
+    process.
     """
 
     def __init__(
@@ -82,33 +83,37 @@ class GraderRefresher:
         spec: TargetSpec,
         *,
         walks: int,
-        leak: LeakSource = "average",
+        average: ExactAverage | None = None,
         seed: int = 0,
         exact: BoostTargets | None = None,
     ) -> None:
-        if leak not in LEAK_SOURCES:
-            raise ValueError(f"leak must be one of {LEAK_SOURCES}, got {leak!r}")
         if not isinstance(spec, TargetSpec):
             raise ValueError(f"spec must be a TargetSpec, got {type(spec).__name__}")
         # Checked here, not first inside the noise score after two minutes of grader walks.
         if isinstance(walks, bool) or not isinstance(walks, numbers.Integral) or walks < 1:
             raise ValueError(f"walks must be a positive int (walks per seat per iteration, K), got {walks!r}")
+        # The random arm grades nothing, and "current" grades the table: only
+        # "average" reads the average, and asking for it at the first refresh,
+        # after the first iteration's walks, would be a refusal paid for.
+        if spec.granularity != "random" and spec.leak == "average" and average is None:
+            raise ValueError(
+                "an aim at the exact average's leak needs the run's ExactAverage: pass average=; "
+                "leak='current' grades the table and needs none"
+            )
         self.spec = spec
         self.walks = walks
-        self.leak = leak
+        self.average = average
         self.seed = seed
         self._exact = exact
         self._game = None
 
-    def profile(self, *, t: int, table: PackedTable, average: ExactAverage) -> FrozenStrategy:
+    def profile(self, *, t: int, table: PackedTable) -> FrozenStrategy:
         """The strategy whose leak is measured: the exact average so far, or the table's current one."""
-        if self.leak == "average":
-            return average.frozen(iteration=t, seed=self.seed)
+        if self.spec.leak == "average":
+            return self.average.frozen(iteration=t, seed=self.seed)
         return current_iterate(table, iteration=t, seed=self.seed)
 
-    def __call__(
-        self, *, t: int, table: PackedTable, average: ExactAverage, memories: tuple[Reservoir, Reservoir]
-    ) -> TargetSet:
+    def __call__(self, *, t: int, table: PackedTable, memories: tuple[Reservoir, Reservoir]) -> TargetSet:
         sigma: list = []  # read from the table on the first arrival asked for; `infoset` asks none
 
         def arrival(seat: int, rows: np.ndarray) -> np.ndarray:
@@ -122,7 +127,7 @@ class GraderRefresher:
         if self.spec.granularity != "random":
             if self._game is None:
                 self._game = minidrawmaha_game()
-            leak, frequency = gains_by_row(self.profile(t=t, table=table, average=average), game=self._game)
+            leak, frequency = gains_by_row(self.profile(t=t, table=table), game=self._game)
         return target_set(
             self.spec, t=t, leak=leak, frequency=frequency, memories=memories, walks=self.walks, arrival=arrival
         )
@@ -157,12 +162,12 @@ def main(argv: list[str] | None = None) -> None:
     strategy = load_strategy(fetch_strategy(url=release.url, sha256=release.sha256))
     table = PackedTable.whole_game()
     table.cumulative_regret[:] = strategy.probabilities
-    # α only tells the walk's rows from exact ones in a memory; these memories are empty.
+    # α only tells the walk's rows from boosted ones in a memory; these memories are empty.
     spec = TargetSpec(
-        granularity=args.granularity, alpha=0.0, budget=args.budget, round_two_only=args.round_two_only
+        granularity=args.granularity, alpha=0.0, budget=args.budget, round_two_only=args.round_two_only, leak="current"
     )
-    refresher = GraderRefresher(spec, walks=1, leak="current", seed=args.seed)
-    targets = refresher(t=1, table=table, average=None, memories=(Reservoir(1), Reservoir(1)))
+    refresher = GraderRefresher(spec, walks=1, seed=args.seed)
+    targets = refresher(t=1, table=table, memories=(Reservoir(1), Reservoir(1)))
     for seat in (0, 1):
         rows, weight = targets.rows[seat], targets.weight[seat]
         stage = _stage_of_rows(rows)

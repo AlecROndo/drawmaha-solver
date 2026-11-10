@@ -13,13 +13,14 @@ the memory keeps a capacity C of them, 50 million in the run.
 **The weight.** Every row the walk offers is one sample and weighs 1, which is
 what `merge` stamps when no weight is given, so a memory of walk rows alone is
 what it was before the column existed. The column is for rows that are NOT one
-sample: the targeted-sampling plan's boost stage adds, at a chosen infoset, one
-row holding the EXACT regret under the current strategy, weighted
-(1 − α) · K · arrival, the number of sampled rows the walk would have put there
-in expectation, so the infoset's expected total weight per iteration is
-unchanged; and it turns the walk's own rows there down to α. A weight of 0 is a
-row the refit must not learn from, kept in the memory so the reservoir sees the
-same offers as a run without the boost. The weight rides the same slot as its
+sample: the targeted-sampling plan's boost stage (`deepcfr.boost`) adds, at a
+chosen infoset, one boosted row — a sampled play-out against the opponent's
+whole range under the current strategy — weighted (1 − α) · K · arrival, the
+number of sampled rows the walk would have put there in expectation, so the
+infoset's expected total weight per iteration is unchanged; and it turns the
+walk's own rows there down to α. A weight of 0 is a
+row the refit must not learn from, still offered so the walk's rows keep their
+stream positions within the phase. The weight rides the same slot as its
 row through eviction, save and load, and a file written before the column
 existed loads with ones, so a saved run resumes as the run it was.
 

@@ -63,14 +63,16 @@ def first_line(seat: int) -> np.ndarray:
     p = int(np.unique(groups("line", seat)[groups("line", seat) >= 0])[0])
     return np.arange(offsets[p], offsets[p + 1])
 
-def test_an_unknown_leak_source_is_refused(refresh):
-    with pytest.raises(ValueError, match="leak"):
-        refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0), walks=10, leak="policy")
+def test_the_average_is_required_only_when_the_spec_aims_at_it(refresh):
+    with pytest.raises(ValueError, match="average"):
+        refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0), walks=10)
+    refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0, leak="current"), walks=10)  # grades the table
+    refresh.GraderRefresher(TargetSpec(granularity="random", alpha=0.0), walks=10)  # grades nothing
 
 @pytest.mark.parametrize("walks", [0, 2.5, True, None])
 def test_a_bad_walk_count_is_refused_before_any_grader_walk(refresh, walks):
     with pytest.raises(ValueError, match="walks"):
-        refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0), walks=walks)
+        refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0), walks=walks, average=FakeAverage())
 
 def test_a_spec_that_is_not_a_spec_is_refused(refresh):
     with pytest.raises(ValueError, match="spec"):
@@ -88,20 +90,22 @@ def test_an_infoset_refresh_never_reads_sigma(refresh, table, monkeypatch):
         return leak, np.ones(n_rows())
 
     monkeypatch.setattr(refresh, "gains_by_row", fake_gains)
-    refresher = refresh.GraderRefresher(TargetSpec(granularity="infoset", alpha=0.0, budget=3), walks=10, exact=NoSigma())
-    targets = refresher(t=1, table=table, average=FakeAverage(), memories=(Reservoir(4), Reservoir(4)))
+    refresher = refresh.GraderRefresher(
+        TargetSpec(granularity="infoset", alpha=0.0, budget=3), walks=10, average=FakeAverage(), exact=NoSigma()
+    )
+    targets = refresher(t=1, table=table, memories=(Reservoir(4), Reservoir(4)))
     assert targets.rows[0].tolist() == first_line(0)[:3].tolist()
 
 def test_the_default_leak_is_the_exact_average(refresh, table):
-    refresher = refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0), walks=10, seed=4)
     average = FakeAverage()
-    assert refresher.leak == "average"
-    assert refresher.profile(t=26, table=table, average=average) == "the frozen average"
+    refresher = refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0), walks=10, average=average, seed=4)
+    assert refresher.spec.leak == "average"
+    assert refresher.profile(t=26, table=table) == "the frozen average"
     assert average.asked == [(26, 4)]
 
 def test_the_current_leak_grades_the_tables_own_strategy(refresh, table):
-    refresher = refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0), walks=10, leak="current")
-    profile = refresher.profile(t=26, table=table, average=FakeAverage())
+    refresher = refresh.GraderRefresher(TargetSpec(granularity="line", alpha=0.0, leak="current"), walks=10)
+    profile = refresher.profile(t=26, table=table)
     assert np.array_equal(profile.probabilities, current_iterate(table).probabilities)
 
 def test_the_refresher_hands_the_grader_rows_and_the_walks_arrival_to_targeting(refresh, table, monkeypatch):
@@ -117,8 +121,8 @@ def test_the_refresher_hands_the_grader_rows_and_the_walks_arrival_to_targeting(
     monkeypatch.setattr(refresh, "gains_by_row", fake_gains)
     exact = FakeExact()
     spec = TargetSpec(granularity="line", alpha=0.0, budget=2, pool=1)
-    refresher = refresh.GraderRefresher(spec, walks=10, exact=exact)
-    targets = refresher(t=26, table=table, average=FakeAverage(), memories=(Reservoir(4), Reservoir(4)))
+    refresher = refresh.GraderRefresher(spec, walks=10, average=FakeAverage(), exact=exact)
+    targets = refresher(t=26, table=table, memories=(Reservoir(4), Reservoir(4)))
     assert graded == ["the frozen average"]
     assert [(sigma, seat) for sigma, seat, _ in exact.asked] == [(("sigma of", id(table)), 0), (("sigma of", id(table)), 1)]
     for seat in (0, 1):
@@ -132,7 +136,7 @@ def test_the_random_arm_never_runs_the_grader(refresh, table, monkeypatch):
 
     monkeypatch.setattr(refresh, "gains_by_row", refuse)
     refresher = refresh.GraderRefresher(TargetSpec(granularity="random", alpha=0.0), walks=10, exact=FakeExact())
-    targets = refresher(t=1, table=table, average=FakeAverage(), memories=(Reservoir(4), Reservoir(4)))
+    targets = refresher(t=1, table=table, memories=(Reservoir(4), Reservoir(4)))
     assert targets.rows[0].size == int((groups("random", 0) >= 0).sum())
 
 @pytest.mark.skipif(
@@ -140,10 +144,10 @@ def test_the_random_arm_never_runs_the_grader(refresh, table, monkeypatch):
     reason="two exact grader walks of the whole game, about two minutes; set MINIDRAWMAHA_FULL_GRADE=1",
 )
 def test_a_real_refresh_pools_reached_rows_and_draws_reproducibly(refresh, table):
-    spec = TargetSpec(granularity="line", alpha=0.0, budget=50, pool=20)
-    refresher = refresh.GraderRefresher(spec, walks=10, leak="current")
-    targets = refresher(t=1, table=table, average=FakeAverage(), memories=(Reservoir(4), Reservoir(4)))
-    _, frequency = refresh.gains_by_row(refresher.profile(t=1, table=table, average=None))
+    spec = TargetSpec(granularity="line", alpha=0.0, budget=50, pool=20, leak="current")
+    refresher = refresh.GraderRefresher(spec, walks=10)
+    targets = refresher(t=1, table=table, memories=(Reservoir(4), Reservoir(4)))
+    _, frequency = refresh.gains_by_row(refresher.profile(t=1, table=table))
     for seat in (0, 1):
         assert (frequency[targets.rows[seat]] > 0).all()
         assert int((frequency[targets.rows[seat]] > 0).sum()) >= spec.pool * spec.budget

@@ -1,9 +1,10 @@
-"""Targeting: which table rows the boost stage computes exactly, and how they are drawn.
+"""Targeting: which table rows the boost stage boosts, and how they are drawn.
 
-The boost stage (the targeted-sampling plan's PR 4) adds, at a chosen infoset,
-one row holding the EXACT regret under the current strategy, at the weight the
-walk's own noisy samples would have carried there in expectation. It can
-afford that at B infosets per seat per iteration. This module decides which B:
+The boost stage (`deepcfr.boost`) adds, at a chosen infoset, one boosted row —
+a sampled play-out against the opponent's whole range, the hidden hand summed
+out — at the weight the walk's own samples would have carried there in
+expectation, and turns those samples down to α. It can afford that at B
+infosets per seat per iteration. This module decides which B:
 it turns "where does the strategy leak, and how noisy are the walk's samples
 there" into a frozen list, refreshed every R iterations, and draws from it.
 
@@ -20,8 +21,8 @@ that differ only in the GROUP they rank:
   groups). Where only one board card is out (round 1 and the draw) there is no
   outer hand, and the class is the inner category alone.
 - `random` — one group per seat: B rows drawn from the whole seat by how often
-  the walk arrives there. Same exact rows, no aim; without it a win could just
-  mean "exact rows help anywhere".
+  the walk arrives there. Same boosted rows, no aim; without it a win could
+  just mean "boosted rows help anywhere".
 
 "Off" is not a fifth granularity: a run without targeting has no `TargetSpec`.
 
@@ -36,7 +37,7 @@ samples at g estimate their own mean (below). Dividing by reached(g) makes it
 a density — the leak a budget of one infoset buys inside g — so a line that
 leaks a lot only because it holds a hundred thousand infosets does not outrank
 a small one that leaks more per row. Multiplying by noise sends the budget
-where an exact row removes the most error: a leak the samples already see
+where a boosted row removes the most error: a leak the samples already see
 clearly will be learned without help.
 
 **The noise of a group** is the relative standard error of what one walk banks
@@ -57,18 +58,19 @@ hands whose regrets point different ways, so |μ| can sit near zero and the
 group reads as noisy, which it is as an estimate of the group's mean.
 
 Everything comes from the seat's advantage memory. Only the walk's OWN rows
-count — weight 1, or α where the boost turned them down — because an exact
-row is a mean, not a sample, and would read as no scatter at all. E[r] and
+count — weight 1, or α where the boost turned them down — because a boosted
+row stands for many samples at once and would read as far less scatter than
+the walk sees. E[r] and
 E[r²] are means over g's resident walk rows, n_g of them. p is the count of
 walk visits to g per walk:
 
     p = (n_g / size) · offered / (K · t_last),
 
 K the walks per iteration and t_last the latest iteration in the memory.
-`size` and `offered` both count every row the memory was given, exact rows
+`size` and `offered` both count every row the memory was given, boosted rows
 included, and Algorithm R keeps a uniform sample of the offers, so
 n_g / size · offered estimates the walk rows ever offered at g whatever share
-the exact rows hold; K · t_last is the walks that offered them. A group with
+the boosted rows hold; K · t_last is the walks that offered them. A group with
 fewer than two walk rows, or a mean of exactly zero, gets the cap, so a rare
 infoset the walk has hardly seen ranks as noisy rather than silent. For
 `infoset`, where a group is one row, that is every row the memory holds
@@ -77,12 +79,12 @@ by leak per row alone.
 
 **The pool and the draws.** `infoset` takes the B best rows outright. `line`
 and `line_class` take groups best first until their reached rows number at
-least `pool × B` (20 × 2,000 = 40,000 by default; the group that crosses the
+least `pool × B` (20 × 500 = 10,000 by default; the group that crosses the
 line is in), so a refresh spreads the budget over the best groups without
 collapsing onto the top few infosets; `random` pools the whole seat. Each
 iteration then draws B rows of the pool WITHOUT replacement, with probability
 ∝ each row's weight — the walk's arrival rate, `BoostTargets.arrivals`. A
-repeated row would get two exact rows and double its expected weight, which
+repeated row would get two boosted rows and double its expected weight, which
 is the one bias the boost exists to avoid. The draw uses exponential keys
 (Efraimidis and Spirakis, 2006): each row gets E / w with E ~ Exp(1), and the B
 smallest win, which is the same law as drawing one row at a time ∝ w and
@@ -113,7 +115,6 @@ import numpy as np
 from drawmaha_solver.deepcfr.reservoir import TARGET_WIDTH, Reservoir
 
 if TYPE_CHECKING:
-    from drawmaha_solver.deepcfr.average import ExactAverage
     from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.rules.enumeration import private_keys, public_decision_points
 from drawmaha_solver.minidrawmaha.rules.hands import inner_score, outer_score
@@ -124,6 +125,12 @@ _STREAM_TAG = int.from_bytes(b"TARG", "big")
 
 Granularity = Literal["random", "infoset", "line", "line_class"]
 GRANULARITIES: tuple[str, ...] = get_args(Granularity)
+# Whose leak an arm follows: the frozen exact average (what the run is graded
+# on, and what the verdict reads) or the table's current iterate (what the
+# walks are sampling now). The refresher that runs the meter reads this; this
+# module only carries it, so a resume can refuse a changed aim by name.
+LeakSource = Literal["average", "current"]
+LEAK_SOURCES: tuple[str, ...] = get_args(LeakSource)
 SEATS = (0, 1)
 
 # ---------------------------------------------------------------------------
@@ -132,29 +139,36 @@ SEATS = (0, 1)
 
 @dataclass(frozen=True, kw_only=True)
 class TargetSpec:
-    """How one arm aims: the granularity, the budget, the refresh, and the draw's stream.
+    """How one arm aims: the granularity, the budget, the refresh, whose leak, and the draw's stream.
 
-    `budget` (B) and `refresh` (R) default to the plan's proposals, 2,000
-    rows per seat per iteration and 25 iterations between refreshes. B counts
-    rows, not cost, and an exact row's cost depends on its stage: about a
-    millisecond in round 2, a hundred times that in round 1 and the draw,
-    where the value below the row expands over the second board card and the
-    replacements. `round_two_only` (off by default, so every row is eligible
-    as the plan has it) leaves the one-board-card rows out of every arm.
-    `alpha` is the weight the boost leaves on the walk's own rows at a
-    targeted infoset; it has no default because PR 4 settles it, and this
-    module reads it only to tell the walk's rows from exact ones in the noise
-    score.
+    `budget` (B) and `refresh` (R) default to the values settled on
+    2026-11-09: 500 rows per seat per iteration and 25 iterations between
+    refreshes. B counts rows, not cost, and a boosted row's cost depends on
+    its stage: a few milliseconds in round 2, ten times that in round 1 and
+    the draw, where the play-out below the row crosses the second board card
+    and the replacements; 500 rows a seat drawn by the plan's rule measured
+    about 35 s an iteration on the whole game (22.7 s for seat 0 and 12.3 s
+    for seat 1, `train.py`'s timings), about one and a half table
+    iterations. (The plan proposed 2,000, about 140 s.)
+    `round_two_only` (off by default, so every row is eligible as the plan
+    has it) leaves the one-board-card rows out of every arm. `leak` names
+    whose leak the refresher measures: `"average"`, the frozen exact average
+    the run is graded on, or `"current"`, the table's iterate; it is carried
+    here so a resume that changes it is refused by name. `alpha` is the
+    weight the boost leaves on the walk's own rows at a targeted infoset
+    (0, settled the same day); this module reads it only to tell the walk's
+    rows from boosted ones in the noise score.
     """
 
     granularity: Granularity
     alpha: float
-    budget: int = 2_000
+    budget: int = 500
     refresh: int = 25
     noise_cap: float = 20.0
     pool: int = 20
     stream: int = 0x7A52
     round_two_only: bool = False
+    leak: LeakSource = "average"
 
     def __post_init__(self) -> None:
         if self.granularity not in GRANULARITIES:
@@ -168,12 +182,14 @@ class TargetSpec:
                 raise ValueError(f"{name} must be a positive int, got {value!r}")
         if not _is_int(self.stream) or self.stream < 0:
             raise ValueError(f"stream must be a non-negative int, got {self.stream!r}")
-        if not (_is_number(self.alpha) and 0.0 <= self.alpha <= 1.0):
-            raise ValueError(f"alpha must be a number in [0, 1], got {self.alpha!r}")
+        if not (_is_number(self.alpha) and 0.0 <= self.alpha < 1.0):
+            raise ValueError(f"alpha must be a number in [0, 1) — at 1 the boost would add weightless rows — got {self.alpha!r}")
         if not (_is_number(self.noise_cap) and 0.0 < self.noise_cap < math.inf):
             raise ValueError(f"noise_cap must be positive and finite, got {self.noise_cap!r}")
         if not isinstance(self.round_two_only, (bool, np.bool_)):
             raise ValueError(f"round_two_only must be a bool, got {self.round_two_only!r}")
+        if self.leak not in LEAK_SOURCES:
+            raise ValueError(f"leak must be one of {LEAK_SOURCES}, got {self.leak!r}")
 
 def _is_number(value: object) -> bool:
     return isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, (bool, np.bool_))
@@ -283,7 +299,7 @@ def noise(
     weight 1 or `alpha`. E[r] and E[r²] are at the column of largest |E[r]|;
     p = (n_g / size) · offered / (walks · t_last) is visits per walk, with
     `walks` the walks per iteration (K) and t_last the memory's latest t;
-    `size` and `offered` both count exact rows, which cancel in the ratio. A
+    `size` and `offered` both count boosted rows, which cancel in the ratio. A
     group with fewer than two of the walk's rows, or a mean of exactly zero,
     reads as `cap`, as does every group of an empty memory.
     """
@@ -598,12 +614,13 @@ class Refresher(Protocol):
     """What the boost stage calls every R iterations for the set it draws from.
 
     Called before iteration t's walks with the table as the walks will read
-    it, the exact average so far and the two seats' advantage memories. The
-    grader-backed one is `scripts/deepcfr/targeting_refresh.py`'s
-    `GraderRefresher`; the trainer is handed one and never builds it, so the
-    package stays clear of the meter.
+    it and the two seats' advantage memories; the set it returns is built at
+    t. Whatever else a refresher needs — the exact average whose leak it
+    measures, the meter itself — it is given when it is built, so the loop
+    hands over only what the loop has. The grader-backed one is
+    `scripts/deepcfr/targeting_refresh.py`'s `GraderRefresher`; the trainer
+    is handed one and never builds it, so the package stays clear of the
+    meter.
     """
 
-    def __call__(
-        self, *, t: int, table: PackedTable, average: ExactAverage, memories: tuple[Reservoir, Reservoir]
-    ) -> TargetSet: ...
+    def __call__(self, *, t: int, table: PackedTable, memories: tuple[Reservoir, Reservoir]) -> TargetSet: ...

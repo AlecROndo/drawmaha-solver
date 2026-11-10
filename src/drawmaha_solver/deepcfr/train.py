@@ -9,8 +9,11 @@ order. This module is that order — one iteration is
     for p in (0, 1):                                   # alternating, as lockstep does
         learner.write(table, nets)                     # both seats' current nets into the slots
         for observe in observers: observe(table, t, 1 - p)
+        if p == 0 and boost.due(targets, t):           # every R iterations, before any walk
+            targets = boost.refresh(t, table, advantage)
         rows = collector.collect(seat=p, t=t, walks=K)
-        advantage[p].merge(rows.advantage_rows, rows.advantage_targets, t=t, rng=stream(ADVANTAGE))
+        rows = boost.phase(targets, rows, ...)         # B boosted rows after the walk's, at (1 − α)·K·arrival
+        advantage[p].merge(rows.rows, rows.targets, t=t, rng=stream(ADVANTAGE), weight=rows.weight)
         policy.merge(rows.policy_rows, rows.policy_targets, t=t, rng=stream(POLICY))
         nets[p] = learner.fit(*advantage[p].contents(), seed=(seed, t, p)).model  # rows, t, targets, weight
 
@@ -18,7 +21,20 @@ order. This module is that order — one iteration is
 saves, a progress line per iteration, and a graceful stop on a signal or a
 deadline. There is no new math here; the exact average and the policy net Π
 are PR 5 (`average`, `policy`), which plug into `observers` without
-touching the loop.
+touching the loop, and the three `boost` lines are the targeted-sampling
+plan's stage, absent (`boost=None`, `config.target=None`) in a run without
+an aim.
+
+**The boost.** With an aim (`DeepConfig.target`), `boost.Boost` refreshes
+its target set before seat 0's walks whenever the set's R-iteration window
+has ended, reading the table as those walks will; and after each seat's
+walks it reads σ from the same table, draws this iteration's B rows for the
+seat, and offers one sampled boosted row per row after the natural ones, at
+(1 − α) · K · arrival, with the natural rows at those infosets turned down
+to α. The natural rows come first so they keep their reservoir stream
+positions; the policy memory never sees a boosted row; the set is resume
+state (`DeepRun.targets`, `targets-t{t:05d}.npz`). `boost.py`'s docstring
+carries the why of each of those.
 
 **Why materialise runs before every phase, not once per iteration.** Seat
 1's walks at iteration t sample seat 0's FRESHLY refit net — that is what
@@ -101,7 +117,12 @@ themselves; PR 3's collector does not, and this module does not edit it.
 **The log.** `progress.jsonl` gets one line per iteration, and one more
 when a stop is noticed before an iteration starts. A run that crashed and
 resumed re-appends the iterations since its last resume save, so a reader
-takes the LAST line per t.
+takes the LAST line per t. `rows.advantage` is each seat's memory's
+cumulative count of offers, boosted rows included; `rows.boosted`,
+`rows.skipped` and `rows.turned_down` are this iteration's counts. So an
+iteration's offers are the difference of consecutive `rows.advantage`
+values, and the walk's own rows that iteration are that difference minus
+`rows.boosted`.
 
 Measured on this Mac (2026-10-20, W = 8, the default 3 × 64 net and
 4,000 × 10,000 refit, iteration 2 of a run): at K = 1,000, 25.9 s per
@@ -109,6 +130,18 @@ iteration — materialise 0.46 + 0.47, collect 0.33 + 0.26, merge 0.001 ×2,
 fit 12.4 + 12.0; at K = 10,000, 35.0 s — materialise 0.46 + 0.46, collect
 3.95 + 2.97, merge 0.007 + 0.006, fit 13.7 + 13.4. The refits are the cost
 at either K; the spec budgeted ~26 s per iteration on 33 Modal cores.
+
+The boost, measured on this Mac (2026-11-09, the whole-game smoke behind
+`MINIDRAWMAHA_FULL_DEEP=1`: the line arm at B = 500, K = 200, the oracle
+learner, so σ is uniform at t = 1 and LCFR's first iterate at t = 2): the
+refresh 99 s (two grader walks and the pool's arrivals), the boost 22.7 s
+for seat 0 and 12.3 s for seat 1 at t = 1, 21.7 + 11.9 s at t = 2, 500 rows
+a seat boosted and none skipped. About 35 s per iteration — one and a half
+of the plan's 23 s table iterations, and half again over the 23 s the plan's
+per-row costs predicted for B = 500 — and 4 s per iteration for the refresh
+at R = 25; the plan's B = 2,000 would be about 140 s. Seat 0 costs more because its draw
+lands more often on round-1 rows, whose play-out crosses the second board
+card and the draws.
 """
 
 from __future__ import annotations
@@ -120,12 +153,14 @@ import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
+from dataclasses import fields as dataclass_fields
 from functools import cache
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 import numpy as np
 
+from drawmaha_solver.deepcfr.boost import Boost
 from drawmaha_solver.deepcfr.collect import Collector
 from drawmaha_solver.deepcfr.reservoir import (
     TARGET_WIDTH,
@@ -134,8 +169,10 @@ from drawmaha_solver.deepcfr.reservoir import (
     _is_int,
     reservoir_stream,
 )
+from drawmaha_solver.deepcfr.targeting import TargetSet, TargetSpec
 from drawmaha_solver.minidrawmaha.rules.features import layout
 from drawmaha_solver.minidrawmaha.rules.game import chip_state
+from drawmaha_solver.minidrawmaha.solver.boost_target import Sampling
 from drawmaha_solver.minidrawmaha.solver.lockstep import SEATS, _columns
 from drawmaha_solver.minidrawmaha.solver.packed_table import PackedTable
 from drawmaha_solver.minidrawmaha.answer.strategy import FrozenStrategy, StrategyInfo, average_rows
@@ -165,7 +202,10 @@ class DeepConfig:
     torch at its top and this module must not; `NetLearner` builds the
     `FitConfig` when it is asked to. A `state.json` written before a field
     existed loads with the value that run had, not today's default
-    (`ADDED_LATER`): "cpu" for the device, 0 for the pot power.
+    (`ADDED_LATER`): "cpu" for the device, 0 for the pot power, no aim for
+    the targeted-sampling boost. `target` and `boost_sampling` are
+    dataclasses and travel as nested dicts in the JSON; `config_from_saved`
+    rebuilds them.
     """
 
     seed: int = 0
@@ -203,6 +243,20 @@ class DeepConfig:
     # 7). That arm ran at half this config's `lr`: √pot with lr 1e-3 has not
     # been run, so the quarter is the 5e-4 pairing's, not this default's.
     pot_power: float = 0.5
+    # The targeted-sampling boost's aim (`deepcfr.targeting.TargetSpec`: the
+    # arm, α, B, R, whose leak), or None for a run without the boost — today's
+    # run, bit for bit. Set, it needs a `Boost` handed to `run_deep`.
+    target: TargetSpec | None = None
+    # What one boosted row samples below its row (`boost_target.Sampling`):
+    # by default the walk's own sampling against the whole opponent range.
+    # Never exact: the boost is extra sampling at high-variance nodes, not a
+    # sum over the tree below a node, so a `Sampling` that draws nothing is
+    # refused here and again in `boost.inject`. Read only when `target` is
+    # set, and a sample field all the same, so a resume that changes it is
+    # refused even on a run without an aim — conservative, and said here.
+    # Named for what it is, since `boost.Boost` and `step(boost=)` are the
+    # stage itself.
+    boost_sampling: Sampling = Sampling()
     grid: tuple[int, ...] = GRID
     # The resume state carries 3.6 GB of memories at the run's C, so 30
     # minutes rather than rung 3's 10.
@@ -236,6 +290,16 @@ class DeepConfig:
         # Written as `not (0 <= x <= 1)` so a NaN, which is in no interval, is refused too.
         if not 0 <= self.pot_power <= 1:
             raise ValueError(f"pot_power must be in [0, 1], got {self.pot_power!r}")
+        if self.target is not None and not isinstance(self.target, TargetSpec):
+            raise ValueError(f"target must be a TargetSpec or None, got {type(self.target).__name__}")
+        if not isinstance(self.boost_sampling, Sampling):
+            raise ValueError(f"boost_sampling must be a Sampling, got {type(self.boost_sampling).__name__}")
+        if self.boost_sampling.is_exact:
+            raise ValueError(
+                "boost_sampling must sample: the boost stage is extra sampling at high-variance nodes, never the "
+                f"exact sum over the tree below a row, and {self.boost_sampling!r} draws nothing "
+                "(EXACT is the tests' oracle)"
+            )
 
 # Fields added after runs had been saved, each with the value those runs had.
 # A saved config that lacks one is from before the field existed, and must
@@ -243,7 +307,12 @@ class DeepConfig:
 # raw chips, and resuming it under today's default would change its weighting
 # half-way with nothing in the log. `config_from_saved` applies these; a
 # resume then refuses the mismatch by name, as it refuses any sample field.
-ADDED_LATER: Mapping[str, object] = {"device": "cpu", "pot_power": 0.0}
+ADDED_LATER: Mapping[str, object] = {"device": "cpu", "pot_power": 0.0, "target": None, "boost_sampling": Sampling()}
+
+# The fields that are dataclasses themselves, flattened to dicts by `asdict`
+# on the way into `state.json` and rebuilt by `config_from_saved` on the way
+# back; a dict missing a field or carrying an unknown one is refused by name.
+_NESTED: Mapping[str, type] = {"target": TargetSpec, "boost_sampling": Sampling}
 
 # The fields a resume may not change: each one changes the sample or the
 # fit, so a run continued under a different value would be a different run.
@@ -263,6 +332,8 @@ SAMPLE_FIELDS = (
     "threads",
     "rule",
     "pot_power",
+    "target",
+    "boost_sampling",
 )
 
 def require_same_run(saved: DeepConfig, asked: DeepConfig) -> None:
@@ -284,7 +355,10 @@ class DeepRun:
     """The mutable state of a run: the last completed iteration, two nets, three memories.
 
     `nets[seat]` is whatever the learner's `fit` returned, or None for a seat
-    not yet trained, which `write` must play as uniform.
+    not yet trained, which `write` must play as uniform. `targets` is the
+    boost's current target set, None until the first refresh and always None
+    for a run without an aim; it is resume state, since a resumed run must
+    draw from the set the run drew from rather than grade again.
     """
 
     config: DeepConfig
@@ -292,6 +366,7 @@ class DeepRun:
     nets: list[object | None]
     advantage: tuple[Reservoir, Reservoir]
     policy: Reservoir
+    targets: TargetSet | None = None
 
 def new_run(config: DeepConfig) -> DeepRun:
     """A fresh run at iteration 0: no nets, three empty memories of the run's capacity."""
@@ -381,7 +456,14 @@ def _stateful(observers: Sequence[Observer]) -> list[StatefulObserver]:
 
 @dataclass(frozen=True, slots=True)
 class StepStats:
-    """What one iteration took: seconds per stage per seat, the refits' losses, the rows offered."""
+    """What one iteration took: seconds per stage per seat, the refits' losses, the rows offered, the boost's counts.
+
+    `rows` counts the walks' own rows per seat; `boosted` the boosted rows
+    added after them, `skipped` the drawn rows left untreated and
+    `turned_down` the walks' rows turned to α at treated infosets;
+    `refresh` is the one refresh's seconds (0.0 when none ran) and `boost`
+    each seat's boost seconds. All zero for a run without an aim.
+    """
 
     t: int
     materialise: tuple[float, float]
@@ -391,41 +473,83 @@ class StepStats:
     seconds: float
     loss: tuple[float | None, float | None]
     rows: tuple[int, int]
+    refresh: float = 0.0
+    boost: tuple[float, float] = (0.0, 0.0)
+    boosted: tuple[int, int] = (0, 0)
+    skipped: tuple[int, int] = (0, 0)
+    turned_down: tuple[int, int] = (0, 0)
 
 def step(
     run: DeepRun,
     collector,
     learner: Learner,
     observers: Sequence[Observer] = (),
+    boost: Boost | None = None,
 ) -> StepStats:
     """One iteration, both seats' phases in the spec's order, timed stage by stage.
 
     `collector` is a `Collector` (or anything with its `table` and
     `collect`); the iteration is `run.t + 1`, and `run.t` advances once both
     phases are done. A raise mid-way leaves `run` half-advanced (seat 0's
-    net and memories updated, `t` not), which `run_deep` never saves. The
-    walks' rows are merged without a weight and so weigh one each; the
-    targeted-sampling plan's boost stage is what will offer rows that weigh
-    otherwise, after the natural rows so these keep their stream positions.
+    net and memories updated, `t` not), which `run_deep` never saves.
+
+    Without `boost` the walks' rows are merged without a weight and so weigh
+    one each: today's run. With it (`run.config.target` set), the boost
+    refreshes its target set before seat 0's walks when the set's window has
+    ended, and after each seat's walks offers that seat's boosted rows after
+    the natural ones (`boost.Boost.phase`), so the natural rows keep their
+    stream positions; the policy memory never sees a boosted row.
     """
     t = run.t + 1
     config = run.config
+    if boost is not None and config.target is None:
+        raise ValueError("a boost was given but run.config.target is None: the run has no aim for it to serve")
     table = collector.table
     materialise, collect, merge, fit, loss, rows = [], [], [], [], [], []
+    refresh, boosting, boosted, skipped, turned_down = [], [], [], [], []
     started = time.perf_counter()
     for p in SEATS:
         with _timed(materialise):
             learner.write(table, tuple(run.nets))
         for observe in observers:
             observe(table, t, 1 - p)
+        # The refresh reads the table as seat 0's walks will: both seats'
+        # current nets written, before any of this iteration's walks.
+        if boost is not None and p == 0 and boost.due(run.targets, t):
+            with _timed(refresh):
+                run.targets = boost.refresh(t=t, table=table, memories=run.advantage, spec=config.target)
         with _timed(collect):
             offered = collector.collect(seat=p, t=t, walks=config.walks)
+        if boost is None:
+            advantage_rows, advantage_targets, weight = offered.advantage_rows, offered.advantage_targets, None
+            boosting.append(0.0)
+            boosted.append(0)
+            skipped.append(0)
+            turned_down.append(0)
+        else:
+            with _timed(boosting):
+                injected = boost.phase(
+                    run.targets,
+                    offered,
+                    table=table,
+                    seat=p,
+                    t=t,
+                    seed=config.seed,
+                    sampling=config.boost_sampling,
+                    alpha=config.target.alpha,
+                    walks=config.walks,
+                )
+            advantage_rows, advantage_targets, weight = injected.rows, injected.targets, injected.weight
+            boosted.append(injected.boosted)
+            skipped.append(injected.skipped)
+            turned_down.append(injected.turned_down)
         with _timed(merge):
             run.advantage[p].merge(
-                offered.advantage_rows,
-                offered.advantage_targets,
+                advantage_rows,
+                advantage_targets,
                 t=t,
                 rng=reservoir_stream(seed=config.seed, t=t, seat=p, memory=Memory.ADVANTAGE),
+                weight=weight,
             )
             run.policy.merge(
                 offered.policy_rows,
@@ -448,6 +572,11 @@ def step(
         seconds=time.perf_counter() - started,
         loss=tuple(loss),
         rows=tuple(rows),
+        refresh=refresh[0] if refresh else 0.0,
+        boost=tuple(boosting),
+        boosted=tuple(boosted),
+        skipped=tuple(skipped),
+        turned_down=tuple(turned_down),
     )
 
 @contextmanager
@@ -469,7 +598,7 @@ STATE = "state.json"
 def save_run(
     run: DeepRun, directory: Path, *, learner: Learner, observers: Sequence[Observer] = ()
 ) -> None:
-    """Write the run's three memories, its nets, its stateful observers and `state.json` into `directory`; the state last.
+    """Write the run's memories, nets, target set, stateful observers and `state.json` into `directory`; the state last.
 
     Every file carries the iteration in its name, so the files of the
     previous save stand untouched until the new `state.json` is in place;
@@ -484,21 +613,26 @@ def save_run(
     nets = [None if net is None else _net_name(seat, t) for seat, net in enumerate(run.nets)]
     stateful = _stateful(observers)
     extras = {observer.name: _observer_name(observer.name, t) for observer in stateful}
+    targets = None if run.targets is None else _targets_name(t)
     for seat in SEATS:
         run.advantage[seat].save(directory / advantage[seat])
     run.policy.save(directory / policy)
     for seat, name in enumerate(nets):
         if name is not None:
             _atomically(learner.save, run.nets[seat], directory / name)
+    if targets is not None:
+        run.targets.save(directory / targets)
     for observer in stateful:
         observer.save(directory / extras[observer.name])
     state = {
         "t": t,
         "config": asdict(run.config),
-        "files": {"advantage": advantage, "policy": policy, "nets": nets, "observers": extras},
+        "files": {"advantage": advantage, "policy": policy, "nets": nets, "targets": targets, "observers": extras},
     }
     _write_state(directory, state)
     keep = {STATE, *advantage, policy, *(name for name in nets if name is not None), *extras.values()}
+    if targets is not None:
+        keep.add(targets)
     for stale in directory.iterdir():
         if stale.is_file() and stale.name not in keep:
             stale.unlink()
@@ -509,7 +643,9 @@ def load_run(
     """The run as `save_run` left it in `directory`, ready for the next `step`.
 
     Each stateful observer given is loaded from the file the state names
-    for it. Refuses, by name, a directory with no `state.json`, a state
+    for it, and the target set from its file when the state names one (a
+    state from before the boost names none, and loads with `targets=None`).
+    Refuses, by name, a directory with no `state.json`, a state
     naming a file that is not there, and a stateful observer the state has
     no file for (a save made without it), rather than continuing from a
     memory or a sum it does not have. A state that names an observer NOT
@@ -521,6 +657,9 @@ def load_run(
     state = _read_state(directory)
     files = state["files"]
     named = [*files["advantage"], files["policy"], *(n for n in files["nets"] if n is not None)]
+    targets = files.get("targets")
+    if targets is not None:
+        named.append(targets)
     saved = files.get("observers", {})
     stateful = _stateful(observers)
     for observer in stateful:
@@ -539,6 +678,7 @@ def load_run(
         nets=[None if name is None else learner.load(directory / name) for name in files["nets"]],
         advantage=tuple(Reservoir.load(directory / name) for name in files["advantage"]),
         policy=Reservoir.load(directory / files["policy"]),
+        targets=None if targets is None else TargetSet.load(directory / targets),
     )
     # Last, so a refused config or memory leaves the caller's observers as
     # they were.
@@ -577,7 +717,25 @@ def config_from_saved(record: Mapping) -> DeepConfig:
         )
     saved = {**ADDED_LATER, **record}
     saved["grid"] = tuple(saved["grid"])
+    for name, kind in _NESTED.items():
+        if isinstance(saved[name], Mapping):
+            saved[name] = _rebuilt(name, kind, saved[name])
     return DeepConfig(**saved)
+
+def _rebuilt(name: str, kind: type, record: Mapping) -> object:
+    """`kind(**record)`, with a missing or unknown field refused by name rather than as a bare TypeError."""
+    known = {field.name for field in dataclass_fields(kind)}
+    unknown = sorted(set(record) - known)
+    missing = sorted(known - set(record))
+    if unknown or missing:
+        raise ValueError(
+            f"the saved config's {name} "
+            + (f"has fields this code does not know: {', '.join(unknown)}" if unknown else "")
+            + ("; " if unknown and missing else "")
+            + (f"lacks {', '.join(missing)}" if missing else "")
+            + "; it was written by other code, and only that code can continue the run"
+        )
+    return kind(**record)
 
 def _config_of(state: dict) -> DeepConfig:
     return config_from_saved(state["config"])
@@ -591,6 +749,9 @@ def _net_name(seat: int, t: int) -> str:
 
 def _observer_name(name: str, t: int) -> str:
     return f"{name}-t{t:05d}.npz"
+
+def _targets_name(t: int) -> str:
+    return f"targets-t{t:05d}.npz"
 
 def _write_state(directory: Path, state: dict) -> None:
     """`state.json`, written as a temp file, fsynced and renamed into place."""
@@ -665,11 +826,16 @@ def run_deep(
     commit: Callable[[], None] = lambda: None,
     log: Callable[[str], None] = print,
     observers: Sequence[Observer] = (),
+    boost: Boost | None = None,
 ) -> DeepRun:
     """Train `out`'s run up to `target` iterations, or until `deadline_s` or a signal.
 
     Returns the run as it stands; `run.t == target` means done. `learner`
-    defaults to `NetLearner(config)`, the real one. The deadline counts from
+    defaults to `NetLearner(config)`, the real one. `boost` is the
+    targeted-sampling stage (`boost.Boost`, built by the script layer with
+    the grader-backed refresher), required when `config.target` is set and
+    refused when it is not, so an aim is never silently unserved and a
+    boost never silently idle. The deadline counts from
     once the run is open, worker startup included, and is read before each
     iteration and after it, as a signal is. Raises whatever the collector or
     the learner raises, without saving: the last commit stands.
@@ -692,6 +858,10 @@ def run_deep(
     # Two stateful observers with one name are refused here, before an
     # iteration is paid for, not at the first save.
     _stateful(observers)
+    if config.target is not None and boost is None:
+        raise ValueError("config.target names an aim but no boost was given: pass boost=Boost(refresher)")
+    if config.target is None and boost is not None:
+        raise ValueError("a boost was given but config.target is None: the run has no aim for it to serve")
 
     # Step 1: open the run
     resumed_on = saved_config(out / RESUME).device if (out / RESUME / STATE).exists() else None
@@ -741,6 +911,7 @@ def run_deep(
                 deadline=deadline,
                 stop=stop,
                 saves=saves,
+                boost=boost,
             )
     return run
 
@@ -801,6 +972,7 @@ def _train(
     deadline: float | None,
     stop: _StopRequest,
     saves: _Saves,
+    boost: Boost | None = None,
 ) -> str:
     """Step until `target`, the deadline or a signal; return why it stopped.
 
@@ -816,7 +988,7 @@ def _train(
         if why:
             saves.stopped(run, why=why)
             return why
-        stats = step(run, collector, learner, observers)
+        stats = step(run, collector, learner, observers, boost=boost)
         why = "done" if run.t >= target else _why_stop(stop, deadline)
         kept = bool(marks) and run.t == marks[0]
         if kept:
@@ -880,11 +1052,16 @@ class _Saves:
                 "collect": [round(s, 3) for s in stats.collect],
                 "merge": [round(s, 3) for s in stats.merge],
                 "fit": [round(s, 3) for s in stats.fit],
+                "refresh": round(stats.refresh, 3),
+                "boost": [round(s, 3) for s in stats.boost],
                 "iteration": round(stats.seconds, 3),
             },
             "rows": {
                 "advantage": [memory.offered for memory in run.advantage],
                 "policy": run.policy.offered,
+                "boosted": list(stats.boosted),
+                "skipped": list(stats.skipped),
+                "turned_down": list(stats.turned_down),
                 "resident": {
                     "advantage": [memory.size for memory in run.advantage],
                     "policy": run.policy.size,
