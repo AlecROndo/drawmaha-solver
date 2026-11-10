@@ -66,7 +66,7 @@ EXPLANATORY = {
     ".st::before": "the archived Cover's in-progress dot pulse on its ladder",
     ".sweep": "rungs 2 and 3's chips crossing 58 px of felt to the pot, one-shot, 400 ms",
     ".rungs-menu": "the old chrome's Rungs menu animates width on purpose; only the archived Cover still inlines it",
-    "main, footer": "the arrival, the page's content and footer fading in once, opacity only, 500 ms (`test_the_page_fades_in_once_on_arrival`)",
+    "main, footer": "the arrival, the page's content and footer fading in once, opacity only, 700 ms (`test_the_page_fades_in_once_on_arrival`)",
 }
 
 # The arrival: the one entrance every page plays. Opacity only, so the chip
@@ -74,7 +74,7 @@ EXPLANATORY = {
 # the same fade under reduced motion, because a fade is the gentler variant,
 # not the thing to remove.
 ARRIVAL = ("main", "footer")
-ARRIVAL_MS = 500
+ARRIVAL_MS = 700
 # A conditional operator right before `<main`, across lines: how JSX renders a
 # tag only sometimes (`{open && (` newline `<main`, `{x ? <main`, `: <main`).
 # A `?` or `:` inside the tag's own attributes is after `<main` and does not

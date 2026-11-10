@@ -308,7 +308,7 @@ main {
 
 /* The page's content and its footer fade in once, from the paper, under a top
    bar that is already there: opacity only, so the chip stays the one thing
-   that moves on load, 500 ms on the ease-out curve, which brings the words up
+   that moves on load, 700 ms on the ease-out curve, which brings the words up
    fast and lets the last of the fade settle slowly. Every surface renders one
    `main` and one `footer` (the generator's shell, the five apps' App.tsx), so
    this one rule is the whole site's arrival; in an app it plays when React
@@ -323,7 +323,7 @@ main {
    replay it, because `main` stays mounted. */
 main,
 footer {
-  animation: arrive 500ms var(--ease-out) backwards;
+  animation: arrive 700ms var(--ease-out) backwards;
 }
 
 @keyframes arrive {
@@ -1260,6 +1260,6 @@ footer a:hover {
      a fade with nothing moving is already the gentler variant. */
   main,
   footer {
-    animation: arrive 500ms var(--ease-out) backwards;
+    animation: arrive 700ms var(--ease-out) backwards;
   }
 }
