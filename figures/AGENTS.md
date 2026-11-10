@@ -99,3 +99,11 @@ by `run_deep_cfr.py --rule dcfr` and `--rule cfr+`, its marks graded by
 `grades.json`. `rung4/rule_sign_flips.json` is the measurement of why they
 lost, written by `scripts/deepcfr/rule_sign_flips.py` from the same runs'
 advantage memories.
+
+`rung3/friction_mini.jsonl` is the friction mini experiment's graded record:
+every JSON line `scripts/minidrawmaha/friction_experiment.py` appended, one per
+grading mark per arm (rule, hands per update W, friction strength μ, current
+and linear-average exploitability), concatenated from the arms' output files.
+Arms: CFR+ W = 10, CFR+ W = 100 and LCFR W = 10 at μ = 0 and 10 to 1M hands
+per seat; at μ = 0.1 to 50k only; CFR+ and LCFR W = 10 at μ = 1 and 100 to
+500k. One seed (0) per arm.
